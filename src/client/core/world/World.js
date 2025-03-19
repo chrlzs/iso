@@ -2,14 +2,16 @@ export class World {
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
-        this.chunkSize = options.chunkSize || 16;
         this.seed = options.seed || Math.random() * 10000;
+        this.chunkSize = options.chunkSize || 16;
         
-        // Store chunks in a Map with coordinates as key
+        // Initialize collections
         this.chunks = new Map();
         this.activeChunks = new Set();
-
-        console.log(`World: Created ${width}x${height} world with seed ${this.seed}`);
+        
+        // Cache for generated tiles
+        this.tileCache = new Map();
+        this.maxCacheSize = 1000; // Adjust based on memory constraints
     }
 
     generateHeight(x, y) {
@@ -23,6 +25,11 @@ export class World {
     }
 
     generateTile(x, y, height, moisture) {
+        const key = `${x},${y}`;
+        if (this.tileCache.has(key)) {
+            return this.tileCache.get(key);
+        }
+
         let type;
         if (height < -0.5) type = 'water';
         else if (height < -0.2) type = 'sand';
@@ -30,11 +37,21 @@ export class World {
         else if (height < 0.5) type = 'dirt';
         else type = 'stone';
 
-        return {
+        const tile = {
             type,
             height: Math.max(0, Math.floor(height * 2)),
             moisture
         };
+
+        // Cache management
+        if (this.tileCache.size >= this.maxCacheSize) {
+            // Remove oldest entries when cache is full
+            const firstKey = this.tileCache.keys().next().value;
+            this.tileCache.delete(firstKey);
+        }
+
+        this.tileCache.set(key, tile);
+        return tile;
     }
 
     updateActiveChunks(centerX, centerY, radius) {
@@ -68,5 +85,11 @@ export class World {
         
         this.chunks.set(`${chunkX},${chunkY}`, chunk);
     }
+
+    clearCache() {
+        this.tileCache.clear();
+    }
 }
+
+
 

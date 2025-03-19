@@ -1,33 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chunk Loading Test</title>
+    <title>Game</title>
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #333;
-            color: white;
-            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
         canvas {
-            background-color: #222;
-            border: 1px solid #444;
-        }
-        #debug {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #222;
-            border: 1px solid #444;
+            display: block;
         }
     </style>
 </head>
 <body>
-    <h2>Chunk Loading Test</h2>
-    <div id="debug">
-        Camera Position: <span id="cameraPos">0, 0</span><br>
-        Active Chunks: <span id="activeChunks">0</span>
-    </div>
-    <script type="module" src="chunkTest.js"></script>
+    <canvas id="gameCanvas"></canvas>
+    <script type="module" src="../core/main.js"></script>
 </body>
 </html>
