@@ -6,14 +6,13 @@ export class Camera {
     constructor() {
         this.x = 0;
         this.y = 0;
-        this.zoom = 1.0;
-        this.minZoom = 0.5;
-        this.maxZoom = 2.0;
-        this.panSpeed = 500; // pixels per second
-        this.zoomSpeed = 0.1;
-        this.isDragging = false;
-        this.lastMouseX = 0;
-        this.lastMouseY = 0;
+        this.scale = 1;
+        this.target = null;
+        this.followSpeed = 0.1; // Adjust this to change how quickly camera follows target
+    }
+
+    follow(target) {
+        this.target = target;
     }
 
     /**
@@ -22,49 +21,19 @@ export class Camera {
      * @param {InputManager} inputManager - Reference to input manager
      */
     update(deltaTime, inputManager) {
-        const dt = deltaTime / 1000; // Convert to seconds
-
-        // Handle keyboard pan
-        if (inputManager.isKeyPressed('ArrowLeft') || inputManager.isKeyPressed('a')) {
-            this.x -= this.panSpeed * dt;
-        }
-        if (inputManager.isKeyPressed('ArrowRight') || inputManager.isKeyPressed('d')) {
-            this.x += this.panSpeed * dt;
-        }
-        if (inputManager.isKeyPressed('ArrowUp') || inputManager.isKeyPressed('w')) {
-            this.y -= this.panSpeed * dt;
-        }
-        if (inputManager.isKeyPressed('ArrowDown') || inputManager.isKeyPressed('s')) {
-            this.y += this.panSpeed * dt;
+        // Follow target if one is set
+        if (this.target) {
+            const targetPos = this.target.getPosition();
+            this.x += (targetPos.x - this.x) * this.followSpeed;
+            this.y += (targetPos.y - this.y) * this.followSpeed;
         }
 
-        // Handle mouse drag
-        if (inputManager.isMouseButtonDown('middle') || 
-            (inputManager.isMouseButtonDown('left') && inputManager.isKeyPressed('Control'))) {
-            if (!this.isDragging) {
-                this.isDragging = true;
-                this.lastMouseX = inputManager.mouseX;
-                this.lastMouseY = inputManager.mouseY;
-            } else {
-                const dx = inputManager.mouseX - this.lastMouseX;
-                const dy = inputManager.mouseY - this.lastMouseY;
-                this.x -= dx;
-                this.y -= dy;
-                this.lastMouseX = inputManager.mouseX;
-                this.lastMouseY = inputManager.mouseY;
-            }
-        } else {
-            this.isDragging = false;
+        // Handle zoom input
+        if (inputManager.isKeyDown('Equal')) { // Plus key
+            this.scale = Math.min(this.scale * 1.01, 2.0);
         }
-
-        // Handle zoom
-        const zoomDelta = inputManager.getWheelDelta();
-        if (zoomDelta !== 0) {
-            this.zoom = Math.max(this.minZoom, 
-                Math.min(this.maxZoom, 
-                    this.zoom + (zoomDelta > 0 ? -this.zoomSpeed : this.zoomSpeed)
-                )
-            );
+        if (inputManager.isKeyDown('Minus')) {
+            this.scale = Math.max(this.scale * 0.99, 0.5);
         }
     }
 
@@ -74,10 +43,11 @@ export class Camera {
      */
     getTransform() {
         return {
-            scale: this.zoom,
-            offsetX: -this.x,
-            offsetY: -this.y
+            scale: this.scale,
+            offsetX: -this.x * this.scale,
+            offsetY: -this.y * this.scale
         };
     }
 }
+
 

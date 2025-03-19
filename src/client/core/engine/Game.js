@@ -4,6 +4,9 @@ import { InputManager } from './InputManager.js';
 import { Camera } from './Camera.js';
 import { World } from '../world/World.js';
 import { TileManager } from '../world/TileManager.js';
+import { Player } from '../entities/Player.js';
+import { NPC } from '../entities/NPC.js';
+import { Enemy } from '../entities/Enemy.js';
 
 /**
  * Main game engine class that coordinates all game systems
@@ -37,9 +40,23 @@ export class Game {
         this.lastFrameTime = 0;
         this.isRunning = false;
         this.assetsLoaded = false;
+        this.entities = new Set();
+
+        // Create player
+        this.player = new Player({
+            x: 0,
+            y: 0
+        });
+        this.addEntity(this.player);
+
+        // Make camera follow player
+        this.camera.follow(this.player);
 
         // Bind methods to preserve context
         this.gameLoop = this.gameLoop.bind(this);
+
+        // Add some test NPCs and enemies
+        this.addTestEntities();
     }
 
     /**
@@ -113,6 +130,21 @@ export class Game {
     update(deltaTime) {
         // Update camera with input
         this.camera.update(deltaTime, this.inputManager);
+
+        // Update player with input
+        this.player.update(deltaTime, this.inputManager);
+
+        // Update other entities
+        const entityArray = Array.from(this.entities);
+        for (const entity of this.entities) {
+            if (entity !== this.player) {
+                if (entity instanceof NPC) {
+                    entity.update(deltaTime, entityArray);
+                } else {
+                    entity.update(deltaTime);
+                }
+            }
+        }
     }
 
     /**
@@ -131,6 +163,13 @@ export class Game {
 
         // Render the world with current camera transform
         this.renderer.renderWorld(this.world, this.tileManager, transform);
+
+        // Render all entities
+        for (const entity of this.entities) {
+            if (entity.isVisible) {
+                entity.render(this.renderer.ctx);
+            }
+        }
     }
 
     /**
@@ -152,4 +191,47 @@ export class Game {
         this.stop();
         // Add any additional cleanup here
     }
+
+    /**
+     * Adds an entity to the game
+     * @param {Entity} entity - The entity to add
+     */
+    addEntity(entity) {
+        this.entities.add(entity);
+    }
+
+    /**
+     * Removes an entity from the game
+     * @param {Entity} entity - The entity to remove
+     */
+    removeEntity(entity) {
+        this.entities.delete(entity);
+    }
+
+    /**
+     * Adds some test entities to the game
+     * @private
+     */
+    addTestEntities() {
+        // Add a friendly NPC
+        const friendlyNPC = new NPC({
+            x: 100,
+            y: 100,
+            name: 'Village Elder'
+        });
+        this.addEntity(friendlyNPC);
+
+        // Add an enemy
+        const enemy = new Enemy({
+            x: -100,
+            y: -100,
+            name: 'Dark Knight',
+            damage: 15,
+            attackRange: 60
+        });
+        this.addEntity(enemy);
+    }
 }
+
+
+
