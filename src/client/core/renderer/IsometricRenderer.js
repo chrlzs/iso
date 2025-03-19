@@ -45,44 +45,60 @@ export class IsometricRenderer {
     }
 
     /**
-     * Renders the world
+     * Renders the visible world chunks
      * @param {World} world - The game world
      * @param {Camera} camera - The game camera
+     * @param {TileManager} tileManager - The tile manager
      */
-    render(world, camera, tileManager, timestamp) {
+    render(world, camera, tileManager) {
         this.ctx.save();
         
         // Apply camera transform
         this.ctx.translate(
-            this.ctx.canvas.width / 2 - camera.x,
-            this.ctx.canvas.height / 4 - camera.y
+            this.canvas.width / 2 - camera.x,
+            this.canvas.height / 4 - camera.y
         );
 
-        // Clear animated tiles set
-        this.animatedTiles.clear();
-
-        // Sort tiles by their render order (back to front)
-        const renderOrder = [];
-        for (let x = 0; x < world.width; x++) {
-            for (let y = 0; y < world.height; y++) {
-                const tile = world.getTile(x, y);
-                renderOrder.push({ x, y, tile });
-            }
-        }
-        renderOrder.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-
-        // Render tiles
-        for (const { x, y, tile } of renderOrder) {
-            this.renderTile(x, y, tile, tileManager);
-        }
-
-        // Update animated tiles
-        if (timestamp - this.lastFrameTime > 100) { // Animation update interval
-            this.updateAnimations(tileManager);
-            this.lastFrameTime = timestamp;
+        // Calculate visible chunks based on camera position
+        const centerChunkX = Math.floor(camera.x / (world.chunkSize * this.tileWidth));
+        const centerChunkY = Math.floor(camera.y / (world.chunkSize * this.tileHeight));
+        
+        // Render active chunks
+        for (const chunkKey of world.activeChunks) {
+            const [chunkX, chunkY] = chunkKey.split(',').map(Number);
+            this.renderChunk(world.getChunk(chunkX, chunkY), tileManager);
         }
 
         this.ctx.restore();
+    }
+
+    /**
+     * Renders a single chunk
+     * @private
+     */
+    renderChunk(chunk, tileManager) {
+        const renderOrder = [];
+        
+        // Collect tiles for sorting
+        for (let x = 0; x < chunk.tiles.length; x++) {
+            for (let y = 0; y < chunk.tiles[x].length; y++) {
+                const worldX = chunk.x * chunk.tiles.length + x;
+                const worldY = chunk.y * chunk.tiles[x].length + y;
+                renderOrder.push({
+                    x: worldX,
+                    y: worldY,
+                    tile: chunk.tiles[x][y]
+                });
+            }
+        }
+
+        // Sort tiles by render order (back to front)
+        renderOrder.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+
+        // Render tiles in order
+        for (const {x, y, tile} of renderOrder) {
+            this.renderTile(x, y, tile, tileManager);
+        }
     }
 
     /**
@@ -189,6 +205,7 @@ export class IsometricRenderer {
         }
     }
 }
+
 
 
 

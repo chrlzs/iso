@@ -21,17 +21,17 @@ export class DecorationRenderer {
      * @param {number} tileHeight - The tile's height value
      */
     render(decoration, texture, tileHeight = 0) {
-        if (!texture) return;
+        if (!texture || !decoration || !decoration.offset || !decoration.scale) return;
 
         const { offset, scale } = decoration;
-        const width = this.tileWidth * scale.x;
-        const height = this.tileHeight * scale.y;
+        const width = this.tileWidth * (scale.x || 1);
+        const height = this.tileHeight * (scale.y || 1);
 
         // Apply offset and scale
         this.ctx.drawImage(
             texture,
-            offset.x - width / 2,
-            offset.y - height / 2 - (tileHeight * 16), // Adjust 16 based on your height scale
+            (offset.x || 0) - width / 2,
+            (offset.y || 0) - height / 2 - (tileHeight * 16),
             width,
             height
         );

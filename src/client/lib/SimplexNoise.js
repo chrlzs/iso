@@ -12,6 +12,11 @@ class SimplexNoise {
         this.p = new Uint8Array(256);
         this.perm = new Uint8Array(512);
         this.permMod12 = new Uint8Array(512);
+        this.grad3 = new Float32Array([
+            1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
+            1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
+            0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1
+        ]);
         
         const random = this.mulberry32(seed);
         
@@ -48,8 +53,8 @@ class SimplexNoise {
         let n0 = 0, n1 = 0, n2 = 0;
 
         const s = (xin + yin) * F2;
-        const i = Math.floor(xin + s);
-        const j = Math.floor(yin + s);
+        let i = Math.floor(xin + s);
+        let j = Math.floor(yin + s);
         const t = (i + j) * G2;
         
         const X0 = i - t;
@@ -77,32 +82,26 @@ class SimplexNoise {
         const t0 = 0.5 - x0 * x0 - y0 * y0;
         if (t0 >= 0) {
             const gi0 = this.permMod12[ii + this.perm[jj]] * 3;
-            t0 *= t0;
-            n0 = t0 * t0 * (this.grad3[gi0] * x0 + this.grad3[gi0 + 1] * y0);
+            const t0_2 = t0 * t0;
+            n0 = t0_2 * t0_2 * (this.grad3[gi0] * x0 + this.grad3[gi0 + 1] * y0);
         }
 
         const t1 = 0.5 - x1 * x1 - y1 * y1;
         if (t1 >= 0) {
             const gi1 = this.permMod12[ii + i1 + this.perm[jj + j1]] * 3;
-            t1 *= t1;
-            n1 = t1 * t1 * (this.grad3[gi1] * x1 + this.grad3[gi1 + 1] * y1);
+            const t1_2 = t1 * t1;
+            n1 = t1_2 * t1_2 * (this.grad3[gi1] * x1 + this.grad3[gi1 + 1] * y1);
         }
 
         const t2 = 0.5 - x2 * x2 - y2 * y2;
         if (t2 >= 0) {
             const gi2 = this.permMod12[ii + 1 + this.perm[jj + 1]] * 3;
-            t2 *= t2;
-            n2 = t2 * t2 * (this.grad3[gi2] * x2 + this.grad3[gi2 + 1] * y2);
+            const t2_2 = t2 * t2;
+            n2 = t2_2 * t2_2 * (this.grad3[gi2] * x2 + this.grad3[gi2 + 1] * y2);
         }
 
         return 70.0 * (n0 + n1 + n2);
     }
-
-    grad3 = new Float32Array([
-        1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
-        1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
-        0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1
-    ]);
 }
 
 export { SimplexNoise };

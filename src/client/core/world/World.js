@@ -18,155 +18,203 @@ export class World {
         this.height = height;
         this.seed = options.seed || Math.random() * 10000;
         this.chunkSize = options.chunkSize || 16;
-        this.tiles = this.generateTerrain();
-        this.entities = new Set();
+        
+        // Initialize chunk storage
+        this.chunks = new Map();
+        this.activeChunks = new Set();
+        
+        // Create noise generator
+        this.noise = new SimplexNoise(this.seed);
     }
 
     /**
-     * Generates terrain using simplex noise
-     * @private
-     * @returns {Array<Array<Object>>} 2D array of tile objects
+     * Gets or generates a chunk at the specified coordinates
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {Object} The chunk data
      */
-    generateTerrain() {
-        const noise = new SimplexNoise(this.seed);
-        const tiles = new Array(this.width);
+    getChunk(chunkX, chunkY) {
+        const key = `${chunkX},${chunkY}`;
         
-        // Generation parameters
-        const SCALE = 0.05;
-        const MOUNTAIN_SCALE = 0.08;
-        const MOISTURE_SCALE = 0.04;
-        const RIVER_SCALE = 0.02;
-        
-        for (let x = 0; x < this.width; x++) {
-            tiles[x] = new Array(this.height);
-            for (let y = 0; y < this.height; y++) {
-                // Base terrain height
-                let height = 0;
-                height += noise.noise2D(x * SCALE, y * SCALE);
-                height += noise.noise2D(x * SCALE * 2, y * SCALE * 2) * 0.5;
-                height += noise.noise2D(x * SCALE * 4, y * SCALE * 4) * 0.25;
-                height = (height + 1) / 2;
-
-                // Mountain influence
-                const mountain = noise.noise2D(x * MOUNTAIN_SCALE, y * MOUNTAIN_SCALE);
-                height = height * (1 - 0.5) + (height * mountain) * 0.5;
-
-                // Moisture for biome determination
-                const moisture = noise.noise2D(x * MOISTURE_SCALE + 1000, y * MOISTURE_SCALE + 1000);
-                
-                // River system
-                const river = Math.abs(noise.noise2D(x * RIVER_SCALE, y * RIVER_SCALE));
-                if (river < 0.05 && height < 0.7) {
-                    height = 0.2; // Create rivers
-                }
-
-                tiles[x][y] = this.determineTileType(height, moisture);
-            }
+        if (!this.chunks.has(key)) {
+            this.chunks.set(key, this.generateChunk(chunkX, chunkY));
         }
-
-        // Smooth transitions
-        this.smoothTerrain(tiles);
         
-        return tiles;
+        return this.chunks.get(key);
     }
 
-    smoothTerrain(tiles) {
-        const smoothed = new Array(this.width);
-        for (let x = 0; x < this.width; x++) {
-            smoothed[x] = new Array(this.height);
-            for (let y = 0; y < this.height; y++) {
-                const neighbors = this.getNeighbors(x, y, tiles);
-                smoothed[x][y] = this.smoothTile(tiles[x][y], neighbors);
-            }
-        }
-        return smoothed;
-    }
-
-    getNeighbors(x, y, tiles) {
-        const neighbors = [];
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-                if (dx === 0 && dy === 0) continue;
-                const nx = x + dx;
-                const ny = y + dy;
-                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
-                    neighbors.push(tiles[nx][ny]);
-                }
-            }
-        }
-        return neighbors;
-    }
-
-    smoothTile(tile, neighbors) {
-        // Simple smoothing: adjust height based on neighbors
-        const avgHeight = neighbors.reduce((sum, n) => sum + n.height, 0) / neighbors.length;
-        const smoothedHeight = (tile.height * 0.6) + (avgHeight * 0.4);
-        return {
-            ...tile,
-            height: smoothedHeight
+    /**
+     * Generates a new chunk
+     * @private
+     */
+    generateChunk(chunkX, chunkY) {
+        const chunk = {
+            x: chunkX,
+            y: chunkY,
+            tiles: new Array(this.chunkSize)
         };
+
+        const worldX = chunkX * this.chunkSize;
+        const worldY = chunkY * this.chunkSize;
+
+        for (let x = 0; x < this.chunkSize; x++) {
+            chunk.tiles[x] = new Array(this.chunkSize);
+            for (let y = 0; y < this.chunkSize; y++) {
+                const absX = worldX + x;
+                const absY = worldY + y;
+                
+                // Generate height and moisture using existing parameters
+                const height = this.generateHeight(absX, absY);
+                const moisture = this.generateMoisture(absX, absY);
+                
+                chunk.tiles[x][y] = this.generateTile(absX, absY, height, moisture);
+            }
+        }
+
+        return chunk;
     }
 
     /**
-     * Determines tile type based on height and moisture
-     * @private
-     * @param {number} height - Normalized height value (0-1)
-     * @param {number} moisture - Moisture value
-     * @returns {Object} Tile object with type and properties
-     */
-    determineTileType(height, moisture) {
-        let tileData;
-        
-        // Determine basic tile type
-        if (height < 0.2) {
-            tileData = {
-                type: 'water',
-                walkable: false,
-                height: -1
-            };
-        } else if (height < 0.3) {
-            tileData = {
-                type: 'sand',
-                walkable: true,
-                height: 0
-            };
-        } else if (height < 0.7) {
-            tileData = {
-                type: moisture > 0.6 ? 'grass' : 'dirt',
-                walkable: true,
-                height: Math.floor(height * 2)
-            };
-        } else {
-            tileData = {
-                type: 'stone',
-                walkable: true,
-                height: Math.floor(height * 3)
-            };
-        }
-
-        // Assign random variant if available
-        const variant = this.tileManager.getRandomVariant(tileData.type);
-        if (variant !== null) {
-            tileData.variant = variant;
-        }
-
-        return tileData;
-    }
-
-    /**
-     * Gets the tile at the specified coordinates
-     * @param {number} x - The x coordinate
-     * @param {number} y - The y coordinate
-     * @returns {Object|null} The tile object or null if coordinates are out of bounds
+     * Gets a tile at world coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {Object|null} The tile or null if out of bounds
      */
     getTile(x, y) {
-        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            return this.tiles[x][y];
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            return null;
         }
-        return null;
+
+        const chunkX = Math.floor(x / this.chunkSize);
+        const chunkY = Math.floor(y / this.chunkSize);
+        const chunk = this.getChunk(chunkX, chunkY);
+
+        const localX = x % this.chunkSize;
+        const localY = y % this.chunkSize;
+
+        return chunk.tiles[localX][localY];
+    }
+
+    /**
+     * Updates active chunks based on camera position
+     * @param {number} centerX - Center X coordinate in world space
+     * @param {number} centerY - Center Y coordinate in world space
+     * @param {number} viewDistance - Number of chunks to load in each direction
+     */
+    updateActiveChunks(centerX, centerY, viewDistance) {
+        const centerChunkX = Math.floor(centerX / this.chunkSize);
+        const centerChunkY = Math.floor(centerY / this.chunkSize);
+        
+        // Clear current active chunks
+        this.activeChunks.clear();
+
+        // Add chunks within view distance
+        for (let dx = -viewDistance; dx <= viewDistance; dx++) {
+            for (let dy = -viewDistance; dy <= viewDistance; dy++) {
+                const chunkX = centerChunkX + dx;
+                const chunkY = centerChunkY + dy;
+                
+                // Only add if within world bounds
+                if (this.isChunkInBounds(chunkX, chunkY)) {
+                    this.activeChunks.add(`${chunkX},${chunkY}`);
+                    this.getChunk(chunkX, chunkY); // Ensure chunk is generated
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if a chunk position is within world bounds
+     * @private
+     */
+    isChunkInBounds(chunkX, chunkY) {
+        const minX = 0;
+        const minY = 0;
+        const maxX = Math.floor(this.width / this.chunkSize);
+        const maxY = Math.floor(this.height / this.chunkSize);
+        
+        return chunkX >= minX && chunkX < maxX && 
+               chunkY >= minY && chunkY < maxY;
+    }
+
+    /**
+     * Generates height value for a coordinate
+     * @private
+     */
+    generateHeight(x, y) {
+        const SCALE = 0.05;
+        const MOUNTAIN_SCALE = 0.08;
+        
+        let height = 0;
+        height += this.noise.noise2D(x * SCALE, y * SCALE);
+        height += this.noise.noise2D(x * SCALE * 2, y * SCALE * 2) * 0.5;
+        height += this.noise.noise2D(x * SCALE * 4, y * SCALE * 4) * 0.25;
+        height = (height + 1) / 2;
+
+        const mountain = this.noise.noise2D(x * MOUNTAIN_SCALE, y * MOUNTAIN_SCALE);
+        height = height * (1 - 0.5) + (height * mountain) * 0.5;
+
+        return height;
+    }
+
+    /**
+     * Generates moisture value for a coordinate
+     * @private
+     */
+    generateMoisture(x, y) {
+        const MOISTURE_SCALE = 0.04;
+        return this.noise.noise2D(x * MOISTURE_SCALE + 1000, y * MOISTURE_SCALE + 1000);
+    }
+
+    /**
+     * Generates a tile based on height and moisture values
+     * @private
+     */
+    generateTile(x, y, height, moisture) {
+        let type;
+        
+        if (height < 0.2) {
+            type = 'dirt';
+        } else if (height < 0.6) {
+            type = 'grass';
+        } else {
+            type = 'stone';
+        }
+
+        // Default decoration configurations
+        const decorationConfigs = {
+            flowers: {
+                offset: { x: 0, y: -8 },
+                scale: { x: 0.5, y: 0.5 }
+            },
+            rocks: {
+                offset: { x: 0, y: -4 },
+                scale: { x: 0.6, y: 0.6 }
+            }
+        };
+
+        // Generate decoration
+        let decoration = null;
+        if (Math.random() < 0.2) {
+            const decorationType = type === 'grass' ? 'flowers' : 'rocks';
+            const config = decorationConfigs[decorationType];
+            
+            decoration = {
+                type: decorationType,
+                variant: Math.floor(Math.random() * 2),
+                offset: { ...config.offset },
+                scale: { ...config.scale }
+            };
+        }
+
+        return {
+            type: type,
+            height: Math.floor(height * 3), // Convert height to integer levels
+            variant: Math.random() < 0.3 ? Math.floor(Math.random() * 2) : null,
+            decoration: decoration
+        };
     }
 }
-
 
 
 
