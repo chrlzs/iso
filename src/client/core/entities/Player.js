@@ -1,3 +1,4 @@
+
 import { Entity } from './Entity.js';
 
 /**
@@ -54,19 +55,19 @@ export class Player extends Entity {
         let dy = 0;
 
         // Get input state
-        if (inputManager.isKeyDown('KeyW') || inputManager.isKeyDown('ArrowUp')) {
+        if (inputManager.isKeyPressed('KeyW') || inputManager.isKeyPressed('ArrowUp')) {
             dy = -1;
             this.direction = 'up';
         }
-        if (inputManager.isKeyDown('KeyS') || inputManager.isKeyDown('ArrowDown')) {
+        if (inputManager.isKeyPressed('KeyS') || inputManager.isKeyPressed('ArrowDown')) {
             dy = 1;
             this.direction = 'down';
         }
-        if (inputManager.isKeyDown('KeyA') || inputManager.isKeyDown('ArrowLeft')) {
+        if (inputManager.isKeyPressed('KeyA') || inputManager.isKeyPressed('ArrowLeft')) {
             dx = -1;
             this.direction = 'left';
         }
-        if (inputManager.isKeyDown('KeyD') || inputManager.isKeyDown('ArrowRight')) {
+        if (inputManager.isKeyPressed('KeyD') || inputManager.isKeyPressed('ArrowRight')) {
             dx = 1;
             this.direction = 'right';
         }

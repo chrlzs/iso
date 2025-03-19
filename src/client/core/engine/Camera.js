@@ -1,3 +1,4 @@
+
 /**
  * Manages the game camera and view transformations
  * @class Camera
@@ -29,10 +30,10 @@ export class Camera {
         }
 
         // Handle zoom input
-        if (inputManager.isKeyDown('Equal')) { // Plus key
+        if (inputManager.isKeyPressed('Equal')) { // Plus key
             this.scale = Math.min(this.scale * 1.01, 2.0);
         }
-        if (inputManager.isKeyDown('Minus')) {
+        if (inputManager.isKeyPressed('Minus')) {
             this.scale = Math.max(this.scale * 0.99, 0.5);
         }
     }
@@ -49,5 +50,6 @@ export class Camera {
         };
     }
 }
+
 
 
