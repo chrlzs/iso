@@ -14,7 +14,9 @@ export class Game {
         // Initialize game systems
         this.world = new World(64, 64, {
             seed: Math.random() * 10000,
-            chunkSize: 16
+            chunkSize: 16,
+            autoGenerateStructures: true,  // Enable auto-generation
+            structureCount: 5  // Generate 5 random structures
         });
         
         this.renderer = new IsometricRenderer(canvas);
@@ -35,11 +37,39 @@ export class Game {
             x: spawnPoint.x,
             y: spawnPoint.y
         });
+
+        // Add a manual structure near spawn point (tavern)
+        this.addStartingStructures();
         
         this.debugFlags = {
             showPath: false,
             showGrid: false
         };
+    }
+
+    addStartingStructures() {
+        // Add a tavern near the spawn point
+        const tavernX = this.player.x + 5;
+        const tavernY = this.player.y + 5;
+        const tavern = this.world.structureManager.createStructure('tavern', tavernX, tavernY);
+        
+        if (tavern) {
+            console.log('Game: Created tavern at', tavernX, tavernY);
+        }
+
+        // Add a few houses in a small village-like pattern
+        const housePositions = [
+            { x: tavernX - 3, y: tavernY - 2 },
+            { x: tavernX + 4, y: tavernY - 1 },
+            { x: tavernX - 2, y: tavernY + 3 }
+        ];
+
+        housePositions.forEach(pos => {
+            const house = this.world.structureManager.createStructure('house', pos.x, pos.y);
+            if (house) {
+                console.log('Game: Created house at', pos.x, pos.y);
+            }
+        });
     }
 
     findValidSpawnPoint() {
@@ -321,6 +351,7 @@ export class Game {
         this.canvas.height = height;
     }
 }
+
 
 
 

@@ -62,6 +62,13 @@ export class TileManager {
             
             await Promise.all(loadPromises);
             console.log('TileManager: All textures loaded successfully. Texture count:', this.textures.size);
+
+            // Add structure textures
+            this.textures.set('structure_house_wall', this.createStructureTexture('#8B4513', '#654321'));
+            this.textures.set('structure_house_door', this.createStructureTexture('#8B4513', '#4A2511'));
+            this.textures.set('structure_tavern_wall', this.createStructureTexture('#A0522D', '#6B4423'));
+            this.textures.set('structure_tavern_door', this.createStructureTexture('#A0522D', '#513121'));
+            this.textures.set('structure_tavern_floor', this.createStructureTexture('#DEB887', '#D2691E'));
         } catch (error) {
             console.error('TileManager: Failed to load textures:', error);
             throw error; // Re-throw to handle in Game class
@@ -139,7 +146,29 @@ export class TileManager {
         console.log('TileManager: Found texture:', !!texture);
         return texture;
     }
+
+    createStructureTexture(primaryColor, secondaryColor) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        // Fill primary color
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Add some detail with secondary color
+        ctx.fillStyle = secondaryColor;
+        ctx.fillRect(4, 4, 56, 56);
+
+        return canvas;
+    }
+
+    getStructureTexture(type, part) {
+        return this.textures.get(`structure_${type}_${part}`);
+    }
 }
+
 
 
 

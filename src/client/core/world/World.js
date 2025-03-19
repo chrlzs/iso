@@ -1,4 +1,6 @@
 
+import { StructureManager } from './StructureManager.js';
+
 export class World {
     constructor(width, height, options = {}) {
         this.width = width;
@@ -25,16 +27,35 @@ export class World {
                 { type: 'rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
             ]
         };
+
+        // Add structure manager
+        this.structureManager = new StructureManager(this);
+        
+        // If autoGenerate is enabled, generate some random structures
+        if (options.autoGenerateStructures) {
+            this.structureManager.generateRandomStructures(options.structureCount || 5);
+        }
+    }
+
+    determineTileType(height, moisture) {
+        if (height < 0.2) return 'water';
+        if (height < 0.3) return 'sand';
+        if (height < 0.7) {
+            if (moisture > 0.6) return 'wetland';
+            if (moisture > 0.3) return 'grass';
+            return 'dirt';
+        }
+        return 'stone';
     }
 
     generateHeight(x, y) {
-        // Simple noise function for height
-        return Math.sin(x * 0.1 + this.seed) * Math.cos(y * 0.1 + this.seed) * 2;
+        // Simple height generation for testing
+        return (Math.sin(x * 0.1) + Math.cos(y * 0.1)) * 0.5 + 0.5;
     }
 
     generateMoisture(x, y) {
-        // Simple noise function for moisture
-        return (Math.sin(x * 0.2 + this.seed * 2) + Math.cos(y * 0.2 + this.seed * 3)) * 0.5 + 0.5;
+        // Simple moisture generation for testing
+        return (Math.cos(x * 0.08) + Math.sin(y * 0.08)) * 0.5 + 0.5;
     }
 
     generateTile(x, y, height, moisture) {
@@ -43,15 +64,8 @@ export class World {
             return this.tileCache.get(key);
         }
 
-        let type;
-        if (height < -0.5) type = 'water';
-        else if (height < -0.2) type = 'sand';
-        else if (height < 0.2) type = moisture > 0.6 ? 'wetland' : 'grass';
-        else if (height < 0.5) type = 'dirt';
-        else type = 'stone';
-
-        const tile = {
-            type,
+        let tile = {
+            type: this.determineTileType(height, moisture),
             height: Math.max(0, Math.floor(height * 2)),
             moisture,
             x,
@@ -60,13 +74,6 @@ export class World {
 
         // Add decoration based on tile type
         this.addDecoration(tile);
-
-        console.log('World: Generated tile:', {
-            x, y,
-            type: tile.type,
-            height: tile.height,
-            decoration: tile.decoration
-        });
 
         // Manage cache size
         if (this.tileCache.size >= this.maxCacheSize) {
@@ -134,6 +141,8 @@ export class World {
         this.tileCache.clear();
     }
 }
+
+
 
 
 

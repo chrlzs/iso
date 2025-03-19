@@ -172,6 +172,20 @@ export class IsometricRenderer {
                 isoY - this.tileHeight      // Adjust for tile height
             );
         }
+
+        // Render structure if present
+        if (tile.structure) {
+            const structureTexture = tileManager.getStructureTexture(tile.structure.type, tile.structure.part);
+            if (structureTexture) {
+                this.ctx.drawImage(
+                    structureTexture,
+                    isoX - this.tileWidth / 2,
+                    isoY - this.tileHeight * 2, // Adjust height for structures
+                    this.tileWidth,
+                    this.tileHeight * 2
+                );
+            }
+        }
     }
 
     renderColorTile(x, y, tile) {
@@ -265,6 +279,7 @@ export class IsometricRenderer {
         this.ctx.fill();
     }
 }
+
 
 
 
