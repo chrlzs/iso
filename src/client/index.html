@@ -1,10 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Decoration Test</title>
+    <title>Isometric Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #333;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
 </head>
 <body>
-    <script type="module" src="test/decorationTest.js"></script>
+    <canvas id="gameCanvas"></canvas>
+    <script type="module">
+        import { Game } from './core/Game.js';
+
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('gameCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const game = new Game(canvas);
+            game.start();
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                game.resize(canvas.width, canvas.height);
+            });
+        });
+    </script>
 </body>
 </html>
+
+
 

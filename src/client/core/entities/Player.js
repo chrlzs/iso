@@ -1,122 +1,116 @@
 
-import { Entity } from './Entity.js';
-
-/**
- * Player entity class
- * @class Player
- * @extends Entity
- */
-export class Player extends Entity {
-    /**
-     * Creates a new Player
-     * @param {Object} config - Player configuration
-     * @param {number} config.x - Initial X position
-     * @param {number} config.y - Initial Y position
-     */
-    constructor(config) {
-        super({
-            ...config,
-            width: 48,
-            height: 48,
-            type: 'player'
-        });
-
-        // Player-specific properties
-        this.speed = 300; // Faster than base entities
+export class Player {
+    constructor({ x, y }) {
+        this.x = x;
+        this.y = y;
+        this.speed = 0.1; // Units per millisecond
+        this.size = 1; // Size in world units
+        this.color = '#FF0000'; // Red color for player
+        
+        // Movement path
+        this.currentPath = null;
+        this.currentPathIndex = 0;
+        
+        // Movement state
         this.isMoving = false;
-        this.direction = 'down'; // down, up, left, right
-        
-        // Basic stats
-        this.health = 100;
-        this.maxHealth = 100;
-        this.stamina = 100;
-        this.maxStamina = 100;
+        this.targetReachThreshold = 0.1; // How close we need to be to consider reaching a point
     }
 
-    /**
-     * Updates player state
-     * @param {number} deltaTime - Time elapsed since last update in milliseconds
-     * @param {InputManager} inputManager - Game input manager
-     */
-    update(deltaTime, inputManager) {
-        // Handle movement input
-        this.handleMovement(inputManager);
+    setPath(path) {
+        if (!path || path.length === 0) return;
         
-        // Call parent update (handles actual movement)
-        super.update(deltaTime);
+        this.currentPath = path;
+        this.currentPathIndex = 0;
+        this.isMoving = true;
+        
+        // Log path for debugging
+        console.log('New path set:', path);
     }
 
-    /**
-     * Handles player movement based on input
-     * @param {InputManager} inputManager - Game input manager
-     */
-    handleMovement(inputManager) {
-        let dx = 0;
-        let dy = 0;
+    update(deltaTime) {
+        if (!this.isMoving || !this.currentPath) return;
 
-        // Get input state
-        if (inputManager.isKeyPressed('KeyW') || inputManager.isKeyPressed('ArrowUp')) {
-            dy = -1;
-            this.direction = 'up';
-        }
-        if (inputManager.isKeyPressed('KeyS') || inputManager.isKeyPressed('ArrowDown')) {
-            dy = 1;
-            this.direction = 'down';
-        }
-        if (inputManager.isKeyPressed('KeyA') || inputManager.isKeyPressed('ArrowLeft')) {
-            dx = -1;
-            this.direction = 'left';
-        }
-        if (inputManager.isKeyPressed('KeyD') || inputManager.isKeyPressed('ArrowRight')) {
-            dx = 1;
-            this.direction = 'right';
+        // Get current target position from path
+        const targetPos = this.currentPath[this.currentPathIndex];
+        if (!targetPos) {
+            this.isMoving = false;
+            return;
         }
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            dx *= Math.SQRT1_2;
-            dy *= Math.SQRT1_2;
-        }
-
-        // Update velocity
-        this.setVelocity(dx * this.speed, dy * this.speed);
+        // Calculate distance to next point
+        const dx = targetPos.x - this.x;
+        const dy = targetPos.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Update movement state
-        this.isMoving = dx !== 0 || dy !== 0;
+        // Check if we've reached the current target point
+        if (distance < this.targetReachThreshold) {
+            this.currentPathIndex++;
+            
+            // Check if we've reached the end of the path
+            if (this.currentPathIndex >= this.currentPath.length) {
+                this.currentPath = null;
+                this.isMoving = false;
+                return;
+            }
+        } else {
+            // Move towards target
+            const moveDistance = this.speed * deltaTime;
+            const ratio = Math.min(moveDistance / distance, 1);
+            
+            this.x += dx * ratio;
+            this.y += dy * ratio;
+        }
     }
 
-    /**
-     * Renders the player
-     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
-     */
     render(ctx) {
-        // Temporary player rendering - we'll replace this with sprites later
+        // Save context state
         ctx.save();
         
-        // Draw player body
-        ctx.fillStyle = '#4A90E2';
+        // Draw player
+        ctx.fillStyle = '#FF0000';  // Bright red
+        ctx.strokeStyle = '#FFFFFF'; // White outline
+        ctx.lineWidth = 2;
+        
+        // Draw a larger player
+        const size = 10; // Increased size
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.width/2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
         ctx.fill();
-
-        // Draw direction indicator
-        ctx.fillStyle = '#2C3E50';
-        const indicatorSize = 8;
-        switch (this.direction) {
-            case 'up':
-                ctx.fillRect(this.x - indicatorSize/2, this.y - this.height/2, indicatorSize, indicatorSize);
-                break;
-            case 'down':
-                ctx.fillRect(this.x - indicatorSize/2, this.y + this.height/2 - indicatorSize, indicatorSize, indicatorSize);
-                break;
-            case 'left':
-                ctx.fillRect(this.x - this.width/2, this.y - indicatorSize/2, indicatorSize, indicatorSize);
-                break;
-            case 'right':
-                ctx.fillRect(this.x + this.width/2 - indicatorSize, this.y - indicatorSize/2, indicatorSize, indicatorSize);
-                break;
+        ctx.stroke();
+        
+        // Draw crosshair at player position
+        const crosshairSize = size * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(this.x - crosshairSize, this.y);
+        ctx.lineTo(this.x + crosshairSize, this.y);
+        ctx.moveTo(this.x, this.y - crosshairSize);
+        ctx.lineTo(this.x, this.y + crosshairSize);
+        ctx.stroke();
+        
+        // Draw path if it exists
+        if (this.currentPath && this.isMoving) {
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // Yellow path
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            
+            // Draw from current position to next target
+            for (let i = this.currentPathIndex; i < this.currentPath.length; i++) {
+                ctx.lineTo(this.currentPath[i].x, this.currentPath[i].y);
+            }
+            
+            ctx.stroke();
         }
-
+        
+        // Restore context state
         ctx.restore();
     }
+
+    // Helper method to get current position
+    getPosition() {
+        return { x: this.x, y: this.y };
+    }
 }
+
+
+

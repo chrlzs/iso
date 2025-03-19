@@ -1,212 +1,145 @@
-import { DecorationRenderer } from './DecorationRenderer.js';
-
 export class IsometricRenderer {
-    constructor(canvas, tileWidth = 64, tileHeight = 32) {
+    constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.tileWidth = tileWidth;
-        this.tileHeight = tileHeight;
-        this.tileHeightOffset = 16; // Add this for height calculations
         
-        this.decorationRenderer = new DecorationRenderer(
-            this.ctx,
-            this.tileWidth,
-            this.tileHeight
-        );
+        // Isometric constants
+        this.tileWidth = 64;
+        this.tileHeight = 32;
+        this.tileHeightOffset = 16; // Height between levels
     }
 
     clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    /**
-     * Converts isometric coordinates to screen coordinates
-     * @param {number} x - Tile x coordinate
-     * @param {number} y - Tile y coordinate
-     * @param {number} height - Tile height level
-     * @returns {{x: number, y: number}} Screen coordinates
-     */
-    isoToScreen(x, y, height = 0) {
+    renderWorld(world, camera, tileManager) {
+        // Calculate visible range
+        const screenTileWidth = Math.ceil(this.canvas.width / (this.tileWidth * camera.zoom)) + 2;
+        const screenTileHeight = Math.ceil(this.canvas.height / (this.tileHeight * camera.zoom)) + 4;
+        
+        const startX = Math.max(0, Math.floor(camera.x / this.tileWidth - screenTileWidth / 2));
+        const startY = Math.max(0, Math.floor(camera.y / this.tileHeight - screenTileHeight / 2));
+        const endX = Math.min(world.width, startX + screenTileWidth);
+        const endY = Math.min(world.height, startY + screenTileHeight);
+
+        // Render tiles in isometric order
+        for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+                const tile = this.getTileAt(world, x, y);
+                if (tile) {
+                    this.renderTile(x, y, tile);
+                }
+            }
+        }
+    }
+
+    getTileAt(world, x, y) {
+        const chunkX = Math.floor(x / world.chunkSize);
+        const chunkY = Math.floor(y / world.chunkSize);
+        const chunk = world.chunks.get(`${chunkX},${chunkY}`);
+        
+        if (!chunk) {
+            const height = world.generateHeight(x, y);
+            const moisture = world.generateMoisture(x, y);
+            return world.generateTile(x, y, height, moisture);
+        }
+
+        const localX = x % world.chunkSize;
+        const localY = y % world.chunkSize;
+        return chunk[localY * world.chunkSize + localX];
+    }
+
+    renderTile(x, y, tile) {
+        // Convert tile coordinates to screen coordinates
         const screenX = (x - y) * this.tileWidth / 2;
-        const screenY = (x + y) * this.tileHeight / 2 - (height * this.tileHeightOffset);
-        return { x: screenX, y: screenY };
-    }
+        const screenY = (x + y) * this.tileHeight / 2 - (tile.height * this.tileHeightOffset);
 
-    /**
-     * Converts screen coordinates to isometric coordinates
-     * @param {number} screenX - Screen x coordinate
-     * @param {number} screenY - Screen y coordinate
-     * @returns {{x: number, y: number}} Isometric coordinates
-     */
-    screenToIso(screenX, screenY) {
-        const x = (screenX / this.tileWidth + screenY / this.tileHeight);
-        const y = (screenY / this.tileHeight - screenX / this.tileWidth);
-        return { x, y };
-    }
+        // Draw tile base
+        this.ctx.fillStyle = this.getTileColor(tile);
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX, screenY);
+        this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
+        this.ctx.lineTo(screenX, screenY + this.tileHeight);
+        this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
 
-    /**
-     * Renders the visible world chunks
-     * @param {World} world - The game world
-     * @param {Camera} camera - The game camera
-     * @param {TileManager} tileManager - The tile manager
-     */
-    render(world, camera, tileManager) {
-        this.ctx.save();
-        
-        // Apply camera transform
-        this.ctx.translate(
-            this.canvas.width / 2 - camera.x,
-            this.canvas.height / 4 - camera.y
-        );
+        // Draw tile sides if elevated
+        if (tile.height > 0) {
+            // Left side
+            this.ctx.fillStyle = this.getShadedColor(tile, 'left');
+            this.ctx.beginPath();
+            this.ctx.moveTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.tileHeightOffset);
+            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.tileHeightOffset);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
 
-        // Calculate visible chunks based on camera position
-        const centerChunkX = Math.floor(camera.x / (world.chunkSize * this.tileWidth));
-        const centerChunkY = Math.floor(camera.y / (world.chunkSize * this.tileHeight));
-        
-        // Render active chunks
-        for (const chunkKey of world.activeChunks) {
-            const [chunkX, chunkY] = chunkKey.split(',').map(Number);
-            this.renderChunk(world.getChunk(chunkX, chunkY), tileManager);
+            // Right side
+            this.ctx.fillStyle = this.getShadedColor(tile, 'right');
+            this.ctx.beginPath();
+            this.ctx.moveTo(screenX, screenY + this.tileHeight);
+            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
+            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.tileHeightOffset);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.tileHeightOffset);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
         }
 
-        this.ctx.restore();
-    }
-
-    /**
-     * Renders a single chunk
-     * @private
-     */
-    renderChunk(chunk, tileManager) {
-        const renderOrder = [];
-        
-        // Collect tiles for sorting
-        for (let x = 0; x < chunk.tiles.length; x++) {
-            for (let y = 0; y < chunk.tiles[x].length; y++) {
-                const worldX = chunk.x * chunk.tiles.length + x;
-                const worldY = chunk.y * chunk.tiles[x].length + y;
-                renderOrder.push({
-                    x: worldX,
-                    y: worldY,
-                    tile: chunk.tiles[x][y]
-                });
-            }
-        }
-
-        // Sort tiles by render order (back to front)
-        renderOrder.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-
-        // Render tiles in order
-        for (const {x, y, tile} of renderOrder) {
-            this.renderTile(x, y, tile, tileManager);
-        }
-    }
-
-    /**
-     * Renders a single tile
-     * @param {number} x - Tile x coordinate
-     * @param {number} y - Tile y coordinate
-     * @param {Object} tile - Tile object
-     */
-    renderTile(x, y, tile, tileManager) {
-        const screenPos = this.isoToScreen(x, y, tile.height || 0);
-        
-        this.ctx.save();
-        this.ctx.translate(screenPos.x, screenPos.y);
-
-        // Render base tile
-        const texture = tileManager.getTexture(tile.type);
-        if (texture) {
-            this.ctx.drawImage(
-                texture,
-                -this.tileWidth / 2,
-                -this.tileHeight / 2,
-                this.tileWidth,
-                this.tileHeight
-            );
-        }
-
-        // Render decoration if present
+        // Draw decoration if present
         if (tile.decoration) {
-            const decorationTexture = tileManager.getTexture('dec_' + tile.decoration.type);
-            if (decorationTexture) {
-                this.decorationRenderer.render(
-                    tile.decoration,
-                    decorationTexture,
-                    tile.height || 0
-                );
-            }
+            this.renderDecoration(screenX, screenY, tile.decoration);
         }
-
-        this.ctx.restore();
     }
 
-    renderTileWalls(height, props) {
-        const wallHeight = height * this.tileHeightOffset;
+    getTileColor(tile) {
+        switch (tile.type) {
+            case 'water': return '#4A90E2';
+            case 'sand': return '#F5A623';
+            case 'grass': return '#7ED321';
+            case 'wetland': return '#417505';
+            case 'dirt': return '#8B572A';
+            case 'stone': return '#9B9B9B';
+            default: return '#FF0000';
+        }
+    }
+
+    getShadedColor(tile, side) {
+        const baseColor = this.getTileColor(tile);
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.fillStyle = baseColor;
+        const rgb = ctx.fillStyle;
         
-        // Left wall
-        this.ctx.beginPath();
-        this.ctx.moveTo(-this.tileWidth / 2, 0);
-        this.ctx.lineTo(-this.tileWidth / 2, wallHeight);
-        this.ctx.lineTo(0, this.tileHeight / 2 + wallHeight);
-        this.ctx.lineTo(0, this.tileHeight / 2);
-        this.ctx.closePath();
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        this.ctx.fill();
-
-        // Right wall
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, this.tileHeight / 2);
-        this.ctx.lineTo(0, this.tileHeight / 2 + wallHeight);
-        this.ctx.lineTo(this.tileWidth / 2, wallHeight);
-        this.ctx.lineTo(this.tileWidth / 2, 0);
-        this.ctx.closePath();
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-        this.ctx.fill();
+        // Darken the color for sides
+        const darkenAmount = side === 'left' ? 30 : 15;
+        return this.shadeColor(rgb, -darkenAmount);
     }
 
-    renderDecoration(tile, tileManager) {
-        const decoration = tile.decoration;
-        const texture = tileManager.getDecorationTexture(decoration.type, decoration.variant);
-        
-        if (!texture) return;
-
-        const { offset, scale } = decoration;
-        const width = this.tileWidth * scale.x;
-        const height = this.tileHeight * scale.y;
-
-        this.ctx.drawImage(
-            texture,
-            -width / 2 + offset.x,
-            -height / 2 + offset.y - (tile.height * this.tileHeightOffset),
-            width,
-            height
-        );
-
-        // Handle animated decorations
-        if (decoration.animated) {
-            this.animatedTiles.add({ x, y, tile });
-        }
+    shadeColor(color, percent) {
+        const num = parseInt(color.replace('#', ''), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return '#' + (0x1000000 +
+            (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+            (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+            (B < 255 ? (B < 1 ? 0 : B) : 255)
+        ).toString(16).slice(1);
     }
 
-    updateAnimations(tileManager) {
-        for (const { tile } of this.animatedTiles) {
-            const props = tileManager.getTileProperties(tile.type);
-            
-            // Update tile animation
-            if (props.animated) {
-                tile.variant = (tile.variant + 1) % props.variants.length;
-            }
-            
-            // Update decoration animation
-            if (tile.decoration?.animated) {
-                tile.decoration.variant = (tile.decoration.variant + 1) % 
-                    tileManager.decorations[tile.decoration.type].variants.length;
-            }
-        }
+    renderDecoration(x, y, decoration) {
+        // Simple colored dot for now
+        this.ctx.fillStyle = '#000';
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - 5, 2, 0, Math.PI * 2);
+        this.ctx.fill();
     }
 }
-
-
-
-
 
