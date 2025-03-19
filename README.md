@@ -1,6 +1,6 @@
 1. Project Overview
 
-   ```
+```
 Isometric RPG Game Engine
 ├── Core Technology Stack
 │   ├── Vanilla JavaScript (ES6+)
