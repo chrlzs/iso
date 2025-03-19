@@ -1,17 +1,30 @@
+
 export class World {
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
-        this.seed = options.seed || Math.random() * 10000;
         this.chunkSize = options.chunkSize || 16;
-        
-        // Initialize collections
         this.chunks = new Map();
-        this.activeChunks = new Set();
+        this.activeChunks = new Set(); // Initialize activeChunks Set
+        this.seed = options.seed || Math.random() * 10000;
         
-        // Cache for generated tiles
+        // Initialize tile cache
         this.tileCache = new Map();
-        this.maxCacheSize = 1000; // Adjust based on memory constraints
+        this.maxCacheSize = 1000; // Adjust this value based on your needs
+        
+        // Add decoration configuration
+        this.decorationConfig = {
+            grass: [
+                { type: 'flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
+                { type: 'grassTufts', chance: 0.2, offset: { x: 0, y: -6 }, scale: { x: 0.7, y: 0.7 } }
+            ],
+            dirt: [
+                { type: 'rocks', chance: 0.15, offset: { x: 0, y: -4 }, scale: { x: 0.6, y: 0.6 } }
+            ],
+            stone: [
+                { type: 'rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
+            ]
+        };
     }
 
     generateHeight(x, y) {
@@ -40,18 +53,49 @@ export class World {
         const tile = {
             type,
             height: Math.max(0, Math.floor(height * 2)),
-            moisture
+            moisture,
+            x,
+            y
         };
 
-        // Cache management
+        // Add decoration based on tile type
+        this.addDecoration(tile);
+
+        console.log('World: Generated tile:', {
+            x, y,
+            type: tile.type,
+            height: tile.height,
+            decoration: tile.decoration
+        });
+
+        // Manage cache size
         if (this.tileCache.size >= this.maxCacheSize) {
-            // Remove oldest entries when cache is full
             const firstKey = this.tileCache.keys().next().value;
             this.tileCache.delete(firstKey);
         }
 
         this.tileCache.set(key, tile);
         return tile;
+    }
+
+    addDecoration(tile) {
+        const decorations = this.decorationConfig[tile.type];
+        if (!decorations) return;
+
+        for (const decConfig of decorations) {
+            if (Math.random() < decConfig.chance) {
+                tile.decoration = {
+                    type: decConfig.type,
+                    offset: { ...decConfig.offset },
+                    scale: { ...decConfig.scale }
+                };
+                console.log('World: Added decoration to tile:', {
+                    tileType: tile.type,
+                    decoration: tile.decoration
+                });
+                break; // Only add one decoration per tile
+            }
+        }
     }
 
     updateActiveChunks(centerX, centerY, radius) {
@@ -90,6 +134,10 @@ export class World {
         this.tileCache.clear();
     }
 }
+
+
+
+
 
 
 

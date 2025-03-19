@@ -7,6 +7,7 @@ import { PathFinder } from './world/PathFinder.js';
 
 export class Game {
     constructor(canvas) {
+        console.log('Game: Initializing...');
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
@@ -28,19 +29,60 @@ export class Game {
             zoom: 1
         };
 
-        // Initialize player
+        // Find valid spawn point and initialize player
+        const spawnPoint = this.findValidSpawnPoint();
         this.player = new Player({
-            x: 32,  // Start in middle of world
-            y: 32
+            x: spawnPoint.x,
+            y: spawnPoint.y
         });
         
         this.debugFlags = {
             showPath: false,
             showGrid: false
         };
+    }
 
-        this.setupInput();
-        this.setupDebugControls();
+    findValidSpawnPoint() {
+        const worldCenter = Math.floor(this.world.width / 2);
+        const searchRadius = 10; // Adjust this value to search a larger area if needed
+        
+        // Search in a spiral pattern from the center
+        for (let r = 0; r < searchRadius; r++) {
+            for (let dx = -r; dx <= r; dx++) {
+                for (let dy = -r; dy <= r; dy++) {
+                    const x = worldCenter + dx;
+                    const y = worldCenter + dy;
+                    
+                    const height = this.world.generateHeight(x, y);
+                    const moisture = this.world.generateMoisture(x, y);
+                    const tile = this.world.generateTile(x, y, height, moisture);
+                    
+                    // Check if the tile is suitable for spawning
+                    if (tile.type !== 'water' && tile.type !== 'wetland') {
+                        console.log('Found valid spawn point at:', x, y, 'with tile type:', tile.type);
+                        return { x, y };
+                    }
+                }
+            }
+        }
+        
+        // Fallback to center if no suitable spot found
+        console.warn('No suitable spawn point found, using world center');
+        return { x: worldCenter, y: worldCenter };
+    }
+
+    async init() {
+        console.log('Game: Starting initialization...');
+        try {
+            await this.tileManager.loadTextures();
+            console.log('Game: Textures loaded successfully');
+            this.setupInput();
+            this.setupDebugControls();
+            return true;
+        } catch (error) {
+            console.error('Game: Failed to initialize:', error);
+            return false;
+        }
     }
 
     setupInput() {
@@ -279,6 +321,8 @@ export class Game {
         this.canvas.height = height;
     }
 }
+
+
 
 
 

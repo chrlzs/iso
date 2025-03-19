@@ -20,24 +20,30 @@
         import { Game } from './core/Game.js';
 
         // Wait for DOM to be fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const canvas = document.getElementById('gameCanvas');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
 
             const game = new Game(canvas);
-            game.start();
+            try {
+                await game.init();
+                game.start();
 
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                game.resize(canvas.width, canvas.height);
-            });
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    game.resize(canvas.width, canvas.height);
+                });
+            } catch (error) {
+                console.error('Failed to start game:', error);
+            }
         });
     </script>
 </body>
 </html>
+
 
 
 
