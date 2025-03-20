@@ -6,7 +6,7 @@ generateTile(x, y, height, moisture) {
     return {
         type: tileType,
         height: Math.max(0, Math.floor(height * 2)),
-        variant: variant,
+        variant: variant, // Assign variant here
         decoration: decoration
     };
 }

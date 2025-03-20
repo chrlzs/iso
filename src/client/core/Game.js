@@ -45,6 +45,8 @@ export class Game {
             showPath: false,
             showGrid: false
         };
+
+        this.debugMode = false; // Add debug flag
     }
 
     addStartingStructures() {
@@ -340,6 +342,10 @@ export class Game {
                     break;
                 case 'g':
                     this.debugFlags.showGrid = !this.debugFlags.showGrid;
+                    break;
+                case 'd': // Toggle debug mode
+                    this.debugMode = !this.debugMode;
+                    console.log(`Debug mode: ${this.debugMode}`);
                     break;
             }
         });

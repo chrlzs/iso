@@ -1,14 +1,14 @@
 export class PathFinder {
-    constructor(world) {
+    constructor(world, options = {}) {
         this.world = world;
         this.openSet = new Set();
         this.closedSet = new Set();
         this.cameFrom = new Map();
         this.gScore = new Map();
         this.fScore = new Map();
-        
-        this.maxIterations = 1000;
-        this.maxPathLength = 100;
+
+        this.maxIterations = options.maxIterations || 1000;
+        this.maxPathLength = options.maxPathLength || 100;
     }
 
     findPath(startX, startY, endX, endY) {

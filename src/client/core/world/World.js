@@ -1,4 +1,3 @@
-
 import { StructureManager } from './StructureManager.js';
 
 export class World {
@@ -72,8 +71,10 @@ export class World {
             y
         };
 
-        // Add decoration based on tile type
-        this.addDecoration(tile);
+        // Add decoration only if it doesn't already exist
+        if (!tile.decoration) {
+            this.addDecoration(tile);
+        }
 
         // Manage cache size
         if (this.tileCache.size >= this.maxCacheSize) {

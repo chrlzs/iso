@@ -62,49 +62,6 @@ export class IsometricRenderer {
         const texture = tileManager.getTextureForTile(tile);
         
         if (texture) {
-            // Draw elevation sides first if elevated
-            if (tile.height > 0) {
-                // Left side
-                this.ctx.save();
-                this.ctx.globalAlpha = 0.7;  // More opaque sides
-                
-                // Darken the sides significantly
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                this.ctx.fillRect(
-                    isoX - this.tileWidth / 2,
-                    isoY + this.tileHeight / 2,
-                    this.tileWidth / 2,
-                    tile.height * this.tileHeight / 2
-                );
-                
-                this.ctx.drawImage(
-                    texture,
-                    isoX - this.tileWidth / 2,
-                    isoY + this.tileHeight / 2,
-                    this.tileWidth / 2,
-                    tile.height * this.tileHeight / 2
-                );
-
-                // Right side with different shading
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                this.ctx.fillRect(
-                    isoX,
-                    isoY + this.tileHeight / 2,
-                    this.tileWidth / 2,
-                    tile.height * this.tileHeight / 2
-                );
-                
-                this.ctx.drawImage(
-                    texture,
-                    isoX,
-                    isoY + this.tileHeight / 2,
-                    this.tileWidth / 2,
-                    tile.height * this.tileHeight / 2
-                );
-                this.ctx.restore();
-            }
-
-            // Draw the main texture
             this.ctx.drawImage(
                 texture,
                 isoX - this.tileWidth / 2,
@@ -112,77 +69,18 @@ export class IsometricRenderer {
                 this.tileWidth,
                 this.tileHeight * 1.5
             );
-
-            // Add elevation indicators
-            if (tile.height > 0) {
-                // Draw more visible contour lines
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-                this.ctx.lineWidth = 2;
-                for (let h = 0; h < tile.height; h++) {
-                    const lineY = isoY - (h * this.tileHeight / 3);
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(isoX - this.tileWidth / 3, lineY);
-                    this.ctx.lineTo(isoX + this.tileWidth / 3, lineY);
-                    this.ctx.stroke();
-                }
-
-                // Add stronger shadow at the base
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                this.ctx.beginPath();
-                this.ctx.moveTo(isoX - this.tileWidth / 2, isoY + this.tileHeight / 2);
-                this.ctx.lineTo(isoX + this.tileWidth / 2, isoY + this.tileHeight / 2);
-                this.ctx.lineTo(isoX, isoY + this.tileHeight);
-                this.ctx.closePath();
-                this.ctx.fill();
-
-                // Add highlight on top edge
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(isoX - this.tileWidth / 2, isoY);
-                this.ctx.lineTo(isoX, isoY - this.tileHeight / 2);
-                this.ctx.lineTo(isoX + this.tileWidth / 2, isoY);
-                this.ctx.stroke();
-            }
-        } else {
-            // Fallback to color-based rendering if texture is not available
-            this.renderColorTile(x, y, tile);
         }
 
         // Render decoration if present
         if (tile.decoration) {
-            console.log('IsometricRenderer: Found decoration on tile:', {
-                x, y,
-                decorationType: tile.decoration.type
-            });
-            
-            const decorationTexture = tileManager.textures.get(`dec_${tile.decoration.type}`);
-            if (!decorationTexture) {
-                console.warn('IsometricRenderer: Missing decoration texture:', 
-                    `dec_${tile.decoration.type}`);
-                return;
-            }
-
-            // Pass the tile's isometric coordinates to the decoration renderer
-            this.decorationRenderer.render(
-                tile.decoration,
-                decorationTexture,
-                tile.height,
-                isoX - this.tileWidth / 2,  // Center the decoration on the tile
-                isoY - this.tileHeight      // Adjust for tile height
-            );
-        }
-
-        // Render structure if present
-        if (tile.structure) {
-            const structureTexture = tileManager.getStructureTexture(tile.structure.type, tile.structure.part);
-            if (structureTexture) {
-                this.ctx.drawImage(
-                    structureTexture,
-                    isoX - this.tileWidth / 2,
-                    isoY - this.tileHeight * 2, // Adjust height for structures
-                    this.tileWidth,
-                    this.tileHeight * 2
+            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
+            if (decorationTexture) {
+                this.decorationRenderer.render(
+                    tile.decoration,
+                    decorationTexture,
+                    tile.height,
+                    isoX - this.tileWidth / 2,  // Center the decoration on the tile
+                    isoY - this.tileHeight      // Adjust for tile height
                 );
             }
         }

@@ -1,4 +1,3 @@
-
 /**
  * Manages the game camera and view transformations
  * @class Camera
@@ -22,11 +21,11 @@ export class Camera {
      * @param {InputManager} inputManager - Reference to input manager
      */
     update(deltaTime, inputManager) {
-        // Follow target if one is set
         if (this.target) {
             const targetPos = this.target.getPosition();
-            this.x += (targetPos.x - this.x) * this.followSpeed;
-            this.y += (targetPos.y - this.y) * this.followSpeed;
+            const easing = 0.1; // Adjust easing factor
+            this.x += (targetPos.x - this.x) * easing;
+            this.y += (targetPos.y - this.y) * easing;
         }
 
         // Handle zoom input
