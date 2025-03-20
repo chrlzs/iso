@@ -33,7 +33,7 @@ export class DecorationRenderer {
         });
 
         if (!decoration || !texture) {
-            console.log('DecorationRenderer: Missing decoration or texture');
+            console.warn('DecorationRenderer: Missing decoration or texture');
             return;
         }
 
@@ -45,11 +45,7 @@ export class DecorationRenderer {
         const width = (decoration.scale?.x || 1) * this.tileWidth;
         const height = (decoration.scale?.y || 1) * this.tileHeight;
 
-        console.log('DecorationRenderer: Drawing at:', {
-            x, y, width, height,
-            decorationType: decoration.type
-        });
-
+        // Render decoration using cached texture
         this.ctx.drawImage(texture, x, y, width, height);
     }
 }

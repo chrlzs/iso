@@ -64,6 +64,8 @@ async function runTest() {
         ]
     ];
 
+    console.log('Test grid with decorations:', testGrid);
+
     // Center the view
     renderer.ctx.translate(canvas.width / 2, canvas.height / 2);
 

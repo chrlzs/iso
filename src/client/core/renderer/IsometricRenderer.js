@@ -55,6 +55,14 @@ export class IsometricRenderer {
     }
 
     renderTile(x, y, tile, tileManager) {
+        // Add debug logging
+        console.log('Rendering tile:', {
+            id: tile.id,
+            type: tile.type,
+            x,
+            y
+        });
+        
         const isoX = (x - y) * (this.tileWidth / 2);
         const isoY = (x + y) * (this.tileHeight / 2) - (tile.height * this.tileHeight / 2);
 
@@ -71,17 +79,23 @@ export class IsometricRenderer {
             );
         }
 
+        // Get decoration only using tile ID and type
+        const decoration = tileManager.getPersistentDecoration(tile.id, tile.type);
+        
         // Render decoration if present
-        if (tile.decoration) {
-            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
+        if (decoration) {
+            console.log(`IsometricRenderer: Rendering decoration for tile ${tile.id}:`, decoration);
+            const decorationTexture = tileManager.getDecorationTexture(decoration.type);
             if (decorationTexture) {
                 this.decorationRenderer.render(
-                    tile.decoration,
+                    decoration,
                     decorationTexture,
                     tile.height,
-                    isoX - this.tileWidth / 2,  // Center the decoration on the tile
-                    isoY - this.tileHeight      // Adjust for tile height
+                    isoX - this.tileWidth / 2,
+                    isoY - this.tileHeight
                 );
+            } else {
+                console.warn(`IsometricRenderer: Missing texture for decoration ${decoration.type}`);
             }
         }
     }
@@ -177,6 +191,9 @@ export class IsometricRenderer {
         this.ctx.fill();
     }
 }
+
+
+
 
 
 

@@ -6,14 +6,15 @@ export class World {
         this.height = height;
         this.chunkSize = options.chunkSize || 16;
         this.chunks = new Map();
-        this.activeChunks = new Set(); // Initialize activeChunks Set
+        this.activeChunks = new Set();
         this.seed = options.seed || Math.random() * 10000;
         
-        // Initialize tile cache
+        // Initialize maps before any generation happens
         this.tileCache = new Map();
-        this.maxCacheSize = 1000; // Adjust this value based on your needs
+        this.decorationStates = new Map();
+        this.maxCacheSize = 1000;
         
-        // Add decoration configuration
+        // Initialize decoration config
         this.decorationConfig = {
             grass: [
                 { type: 'flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
@@ -27,10 +28,10 @@ export class World {
             ]
         };
 
-        // Add structure manager
+        // Add structure manager after maps are initialized
         this.structureManager = new StructureManager(this);
         
-        // If autoGenerate is enabled, generate some random structures
+        // Generate structures last
         if (options.autoGenerateStructures) {
             this.structureManager.generateRandomStructures(options.structureCount || 5);
         }
@@ -63,18 +64,14 @@ export class World {
             return this.tileCache.get(key);
         }
 
-        let tile = {
+        const tile = {
             type: this.determineTileType(height, moisture),
             height: Math.max(0, Math.floor(height * 2)),
             moisture,
             x,
-            y
+            y,
+            id: `tile_${x}_${y}` // Ensure unique tile ID is set
         };
-
-        // Add decoration only if it doesn't already exist
-        if (!tile.decoration) {
-            this.addDecoration(tile);
-        }
 
         // Manage cache size
         if (this.tileCache.size >= this.maxCacheSize) {
@@ -88,22 +85,19 @@ export class World {
 
     addDecoration(tile) {
         const decorations = this.decorationConfig[tile.type];
-        if (!decorations) return;
+        if (!decorations) return null;
 
         for (const decConfig of decorations) {
             if (Math.random() < decConfig.chance) {
-                tile.decoration = {
+                return {
                     type: decConfig.type,
                     offset: { ...decConfig.offset },
-                    scale: { ...decConfig.scale }
+                    scale: { ...decConfig.scale },
+                    id: `dec_${tile.id}`
                 };
-                console.log('World: Added decoration to tile:', {
-                    tileType: tile.type,
-                    decoration: tile.decoration
-                });
-                break; // Only add one decoration per tile
             }
         }
+        return null;
     }
 
     updateActiveChunks(centerX, centerY, radius) {
@@ -140,8 +134,12 @@ export class World {
 
     clearCache() {
         this.tileCache.clear();
+        // Don't clear decorationStates to maintain decoration persistence
     }
 }
+
+
+
 
 
 
