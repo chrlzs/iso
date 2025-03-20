@@ -24,11 +24,11 @@ export class Game {
         this.inputManager = new InputManager();
         this.pathFinder = new PathFinder(this.world);
         
-        // Initialize camera
+        // Initialize camera with max zoom out
         this.camera = {
             x: 0,
             y: 0,
-            zoom: 1
+            zoom: 0.5  // Start at max zoom out
         };
 
         // Find valid spawn point and initialize player
@@ -357,6 +357,7 @@ export class Game {
         this.canvas.height = height;
     }
 }
+
 
 
 
