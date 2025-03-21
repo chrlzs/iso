@@ -73,8 +73,7 @@ export class Player {
             console.log('Invalid path provided');
             return;
         }
-        
-        console.log('Setting new path:', path);
+
         this.currentPath = path;
         this.currentPathIndex = 0;
         this.isMoving = true;
@@ -106,7 +105,6 @@ export class Player {
         
         if (distance < this.targetReachThreshold) {
             this.currentPathIndex++;
-            console.log('Reached waypoint:', this.currentPathIndex);
             
             if (this.currentPathIndex >= this.currentPath.length) {
                 this.currentPath = null;
@@ -129,7 +127,6 @@ export class Player {
             }
             this.currentState = `walk_${this.direction}`;
             
-            console.log('Moving to:', this.x, this.y);
         }
 
         // Update frame row based on current state

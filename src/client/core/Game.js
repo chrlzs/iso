@@ -187,15 +187,12 @@ export class Game {
                 (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
             );
             
-            console.log('Click at world coordinates:', worldX, worldY);
-            
             if (this.pathFinder.isValidCoordinate(worldX, worldY)) {
                 const startX = Math.round(this.player.x);
                 const startY = Math.round(this.player.y);
                 const path = this.pathFinder.findPath(startX, startY, worldX, worldY);
                 
                 if (path) {
-                    console.log('Setting new path:', path);
                     this.player.setPath(path);
                 } else {
                     console.log('No valid path found');
