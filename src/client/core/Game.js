@@ -230,6 +230,13 @@ export class Game {
     }
 
     update(deltaTime) {
+        // Get terrain information at player's position
+        const terrainHeight = this.getTerrainHeightAt(this.player.x, this.player.y);
+        const terrainAngle = this.getTerrainAngleAt(this.player.x, this.player.y);
+        
+        // Update player's terrain info
+        this.player.updateTerrainInfo(terrainHeight, terrainAngle);
+        
         // Update active chunks based on camera position
         this.world.updateActiveChunks(
             Math.floor(this.camera.x / this.world.chunkSize),
@@ -272,21 +279,19 @@ export class Game {
             this.drawDebugGrid();
         }
         
-        // Render player
-        const playerIsoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
-        const playerIsoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-        
-        this.ctx.fillStyle = 'red';
-        this.ctx.beginPath();
-        this.ctx.arc(playerIsoX, playerIsoY, 10, 0, Math.PI * 2);
-        this.ctx.fill();
+        // Render player (removed red dot, using player's render method)
+        this.player.render(this.ctx);
 
         // Draw current path if it exists and debug flag is enabled
         if (this.debugFlags.showPath && this.player.currentPath && this.player.isMoving) {
             this.ctx.strokeStyle = 'yellow';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
-            this.ctx.moveTo(playerIsoX, playerIsoY);
+            
+            const startIsoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
+            const startIsoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
+            
+            this.ctx.moveTo(startIsoX, startIsoY);
             
             for (let i = this.player.currentPathIndex; i < this.player.currentPath.length; i++) {
                 const pathIsoX = (this.player.currentPath[i].x - this.player.currentPath[i].y) * (this.renderer.tileWidth / 2);
@@ -355,6 +360,20 @@ export class Game {
         console.log(`Game: Resizing to ${width}x${height}`);
         this.canvas.width = width;
         this.canvas.height = height;
+    }
+
+    // Example method to calculate terrain height
+    getTerrainHeightAt(x, y) {
+        // Replace this with your actual terrain height calculation
+        // This is just an example that creates a wavy terrain
+        return Math.sin(x * 0.1) * Math.cos(y * 0.1) * 20;
+    }
+
+    // Example method to calculate terrain angle
+    getTerrainAngleAt(x, y) {
+        // Replace this with your actual terrain angle calculation
+        // This is just an example that creates varying angles
+        return Math.sin(x * 0.05 + y * 0.05) * 0.2;
     }
 }
 
