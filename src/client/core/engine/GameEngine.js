@@ -1,5 +1,5 @@
 
-import { CanvasRenderer } from './CanvasRenderer.js';
+import { CanvasRenderer } from '../renderer/CanvasRenderer.js';
 import { InputManager } from './InputManager.js';
 import { Camera } from './Camera.js';
 import { World } from '../world/World.js';
@@ -221,6 +221,7 @@ export class GameEngine {
         this.addEntity(enemy);
     }
 }
+
 
 
 
