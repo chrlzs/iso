@@ -1,24 +1,18 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
+import { WaterRenderer } from './WaterRenderer.js';
 
 export class IsometricRenderer {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        this.tileWidth = 64;  // Base tile width
+        this.tileHeight = 32; // Base tile height
+        this.heightOffset = 16; // Vertical offset for height
         
-        // Tile dimensions
-        this.tileWidth = 64;
-        this.tileHeight = 32;
+        this.waterRenderer = new WaterRenderer();
         
-        // Height effect constants
-        this.heightOffset = 16; // Pixels to move up per height level
-        this.shadowOffset = 4;  // Shadow offset from tile
-        this.shadowBlur = 10;   // Shadow blur amount
-        this.shadowOpacity = 0.3; // Base shadow opacity
-
-        // Height-based tinting
-        this.maxHeight = 3; // Maximum expected height level
-        this.baseTintOpacity = 0.5; // Maximum darkness for lowest level
-        this.tintStep = 0.15; // How much to reduce tint per level
+        // Start animation loop
+        this.animate();
     }
 
     clear() {
@@ -71,93 +65,107 @@ export class IsometricRenderer {
         // Calculate height offset
         const heightOffset = tile.height * this.heightOffset;
 
-        // Get tile texture
-        const texture = tileManager.getTextureForTile(tile);
-        if (!texture) {
-            console.warn(`Missing texture for tile at (${x}, ${y})`);
-            return;
-        }
-
-        // Draw side walls if height > 0
-        if (tile.height > 0) {
-            // Left side wall
-            this.ctx.save();
-            this.ctx.globalAlpha = 0.5;
-            this.ctx.fillStyle = '#000000';
-            this.ctx.beginPath();
-            this.ctx.moveTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
-            this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
-            this.ctx.lineTo(isoX, isoY + this.tileHeight);
-            this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.restore();
-
-            // Right side wall
-            this.ctx.save();
-            this.ctx.globalAlpha = 0.3;
-            this.ctx.fillStyle = '#000000';
-            this.ctx.beginPath();
-            this.ctx.moveTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
-            this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
-            this.ctx.lineTo(isoX, isoY + this.tileHeight);
-            this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        // Draw main tile with texture
-        this.ctx.drawImage(
-            texture,
-            isoX - this.tileWidth/2,
-            isoY - this.tileHeight/2 - heightOffset,
-            this.tileWidth,
-            this.tileHeight
-        );
-
-        // Apply height-based tint
-        this.ctx.save();
-        this.ctx.globalCompositeOperation = 'source-atop';
-        const tintOpacity = Math.max(0, this.baseTintOpacity - (tile.height * this.tintStep));
-        this.ctx.fillStyle = `rgba(0, 0, 0, ${tintOpacity})`;
-        this.ctx.fillRect(
-            isoX - this.tileWidth/2,
-            isoY - this.tileHeight/2 - heightOffset,
-            this.tileWidth,
-            this.tileHeight
-        );
-        this.ctx.restore();
-
-        // Draw tile decoration if present
-        if (tile.decoration) {
-            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
-            if (decorationTexture) {
-                const decorationX = isoX - this.tileWidth/2 + (tile.decoration.offset?.x || 0);
-                const decorationY = isoY - this.tileHeight/2 - heightOffset + (tile.decoration.offset?.y || 0);
-                const width = (tile.decoration.scale?.x || 1) * this.tileWidth;
-                const height = (tile.decoration.scale?.y || 1) * this.tileHeight;
-                
-                this.ctx.drawImage(decorationTexture, decorationX, decorationY, width, height);
-            }
-        }
-
-        // Draw drop shadow last
-        if (tile.height > 0) {
-            this.ctx.save();
-            this.ctx.fillStyle = `rgba(0, 0, 0, ${this.shadowOpacity * Math.min(1, tile.height * 0.3)})`;
-            this.ctx.beginPath();
-            this.ctx.ellipse(
-                isoX,
-                isoY + this.tileHeight/2,
-                this.tileWidth/2,
-                this.tileHeight/2,
-                0,
-                0,
-                Math.PI * 2
+        if (tile.type === 'water') {
+            // Calculate tile dimensions based on your isometric projection
+            const tileWidth = this.tileWidth;
+            const tileHeight = this.tileHeight;
+            
+            this.waterRenderer.renderWaterTile(
+                this.ctx,
+                isoX - this.tileWidth/2,
+                isoY - this.tileHeight/2 - heightOffset,
+                tileWidth,
+                tileHeight
             );
-            this.ctx.fill();
+        } else {
+            // Get tile texture
+            const texture = tileManager.getTextureForTile(tile);
+            if (!texture) {
+                console.warn(`Missing texture for tile at (${x}, ${y})`);
+                return;
+            }
+
+            // Draw side walls if height > 0
+            if (tile.height > 0) {
+                // Left side wall
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.5;
+                this.ctx.fillStyle = '#000000';
+                this.ctx.beginPath();
+                this.ctx.moveTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
+                this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
+                this.ctx.lineTo(isoX, isoY + this.tileHeight);
+                this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.restore();
+
+                // Right side wall
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.3;
+                this.ctx.fillStyle = '#000000';
+                this.ctx.beginPath();
+                this.ctx.moveTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
+                this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
+                this.ctx.lineTo(isoX, isoY + this.tileHeight);
+                this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.restore();
+            }
+
+            // Draw main tile with texture
+            this.ctx.drawImage(
+                texture,
+                isoX - this.tileWidth/2,
+                isoY - this.tileHeight/2 - heightOffset,
+                this.tileWidth,
+                this.tileHeight
+            );
+
+            // Apply height-based tint
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'source-atop';
+            const tintOpacity = Math.max(0, this.baseTintOpacity - (tile.height * this.tintStep));
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${tintOpacity})`;
+            this.ctx.fillRect(
+                isoX - this.tileWidth/2,
+                isoY - this.tileHeight/2 - heightOffset,
+                this.tileWidth,
+                this.tileHeight
+            );
             this.ctx.restore();
+
+            // Draw tile decoration if present
+            if (tile.decoration) {
+                const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
+                if (decorationTexture) {
+                    const decorationX = isoX - this.tileWidth/2 + (tile.decoration.offset?.x || 0);
+                    const decorationY = isoY - this.tileHeight/2 - heightOffset + (tile.decoration.offset?.y || 0);
+                    const width = (tile.decoration.scale?.x || 1) * this.tileWidth;
+                    const height = (tile.decoration.scale?.y || 1) * this.tileHeight;
+                    
+                    this.ctx.drawImage(decorationTexture, decorationX, decorationY, width, height);
+                }
+            }
+
+            // Draw drop shadow last
+            if (tile.height > 0) {
+                this.ctx.save();
+                this.ctx.fillStyle = `rgba(0, 0, 0, ${this.shadowOpacity * Math.min(1, tile.height * 0.3)})`;
+                this.ctx.beginPath();
+                this.ctx.ellipse(
+                    isoX,
+                    isoY + this.tileHeight/2,
+                    this.tileWidth/2,
+                    this.tileHeight/2,
+                    0,
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.fill();
+                this.ctx.restore();
+            }
         }
     }
 
@@ -248,12 +256,15 @@ export class IsometricRenderer {
         this.ctx.arc(x, y - 5, 2, 0, Math.PI * 2);
         this.ctx.fill();
     }
+
+    animate() {
+        // Update water animation
+        this.waterRenderer.update();
+        
+        // Don't trigger full re-render here - the main game loop will handle that
+        // Instead, just request next frame
+        requestAnimationFrame(() => this.animate());
+    }
 }
-
-
-
-
-
-
 
 
