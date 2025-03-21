@@ -11,16 +11,31 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
+        // Centralize debug configuration
+        this.debug = {
+            enabled: false,
+            flags: {
+                showPath: false,
+                showGrid: false,
+                logTextureLoading: false,
+                logDecorations: false,
+                logZoomChanges: false
+            }
+        };
+
         // Initialize game systems
         this.world = new World(64, 64, {
             seed: Math.random() * 10000,
             chunkSize: 16,
-            autoGenerateStructures: true,  // Enable auto-generation
-            structureCount: 5  // Generate 5 random structures
+            autoGenerateStructures: true,
+            structureCount: 5,
+            debug: this.debug
         });
         
-        this.renderer = new IsometricRenderer(canvas);
-        this.tileManager = new TileManager();
+        // Get reference to TileManager from World
+        this.tileManager = this.world.tileManager;
+        
+        this.renderer = new IsometricRenderer(canvas, this.world);
         this.inputManager = new InputManager();
         this.pathFinder = new PathFinder(this.world);
         
@@ -106,7 +121,7 @@ export class Game {
     async init() {
         console.log('Game: Starting initialization...');
         try {
-            await this.tileManager.loadTextures();
+            await this.world.tileManager.loadTextures();
             console.log('Game: Textures loaded successfully');
             this.setupInput();
             this.setupDebugControls();
@@ -341,16 +356,18 @@ export class Game {
 
     setupDebugControls() {
         window.addEventListener('keydown', (e) => {
+            if (!this.debug.enabled) return;
+            
             switch(e.key.toLowerCase()) {
                 case 'p':
-                    this.debugFlags.showPath = !this.debugFlags.showPath;
+                    this.debug.flags.showPath = !this.debug.flags.showPath;
                     break;
                 case 'g':
-                    this.debugFlags.showGrid = !this.debugFlags.showGrid;
+                    this.debug.flags.showGrid = !this.debug.flags.showGrid;
                     break;
                 case 'd': // Toggle debug mode
-                    this.debugMode = !this.debugMode;
-                    console.log(`Debug mode: ${this.debugMode}`);
+                    this.debug.enabled = !this.debug.enabled;
+                    console.log(`Debug mode: ${this.debug.enabled}`);
                     break;
             }
         });
@@ -376,6 +393,12 @@ export class Game {
         return Math.sin(x * 0.05 + y * 0.05) * 0.2;
     }
 }
+
+
+
+
+
+
 
 
 

@@ -2,9 +2,11 @@ import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 
 export class IsometricRenderer {
-    constructor(canvas) {
+    constructor(canvas, world) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        this.world = world;
+        this.tileManager = world.tileManager;
         this.tileWidth = 64;  // Base tile width
         this.tileHeight = 32; // Base tile height
         this.heightOffset = 16; // Vertical offset for height
@@ -66,7 +68,7 @@ export class IsometricRenderer {
         const heightOffset = tile.height * this.heightOffset;
 
         // Get tile texture
-        const texture = tileManager.getTextureForTile(tile);
+        const texture = this.tileManager.getTextureForTile(tile);
         if (!texture) {
             console.warn(`Missing texture for tile at (${x}, ${y})`);
             return;
@@ -192,6 +194,7 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
 
 
 

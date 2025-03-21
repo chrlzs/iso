@@ -1,7 +1,19 @@
 export class TileManager {
-    constructor() {
-        console.log('TileManager: Initializing...');
+    constructor(gameDebug) {
+        // Ensure we have a valid debug object
+        this.debug = gameDebug || {
+            enabled: false,
+            flags: {}
+        };
+        
+        this.logDebug = (message, flag = null) => {
+            if (!this.debug?.enabled) return;
+            if (flag && !this.debug.flags?.[flag]) return;
+            console.log(message);
+        };
+
         this.textures = new Map();
+        this.logDebug('TileManager: Initializing...', 'logTextureLoading');
         
         // Define possible decorations for each tile type
         this.decorations = {
@@ -72,20 +84,20 @@ export class TileManager {
         this.getPersistentDecoration = (tileId, tileType) => {
             // Early return if we already made a decision for this tile
             if (this.persistentDecorations.has(tileId)) {
-                console.log(`TileManager: Using cached decoration for tile ${tileId}`);
+                this.logDebug(`TileManager: Using cached decoration for tile ${tileId}`, 'logDecorations');
                 return this.persistentDecorations.get(tileId);
             }
 
             const possibleDecorations = this.decorations[tileType];
             if (!possibleDecorations) {
-                console.log(`TileManager: No decorations available for tile type ${tileType}`);
+                this.logDebug(`TileManager: No decorations available for tile type ${tileType}`, 'logDecorations');
                 this.persistentDecorations.set(tileId, null);
                 return null;
             }
 
             // Get deterministic random value for this tile
             const random = this.getSeededRandom(tileId);
-            console.log(`TileManager: Random value for tile ${tileId}: ${random}`);
+            this.logDebug(`TileManager: Random value for tile ${tileId}: ${random}`, 'logDecorations');
             
             // Direct chance comparison instead of cumulative
             for (const decoration of possibleDecorations) {
@@ -96,13 +108,13 @@ export class TileManager {
                         scale: { ...decoration.scale },
                         id: `dec_${tileId}`
                     };
-                    console.log(`TileManager: Decoration selected for tile ${tileId}:`, newDecoration);
+                    this.logDebug(`TileManager: Decoration selected for tile ${tileId}:`, newDecoration, 'logDecorations');
                     this.persistentDecorations.set(tileId, newDecoration);
                     return newDecoration;
                 }
             }
 
-            console.log(`TileManager: No decoration selected for tile ${tileId}`);
+            this.logDebug(`TileManager: No decoration selected for tile ${tileId}`, 'logDecorations');
             this.persistentDecorations.set(tileId, null);
             return null;
         };
@@ -110,9 +122,11 @@ export class TileManager {
         // Add debug logging for zoom operations
         this.lastZoomLevel = 1;
         this.debugZoom = (newZoom) => {
+            if (!this.debug.enabled || !this.debug.flags.logZoomChanges) return;
+            
             if (newZoom !== this.lastZoomLevel) {
-                console.log(`TileManager: Zoom changed from ${this.lastZoomLevel} to ${newZoom}`);
-                console.log(`TileManager: Decoration cache size: ${this.persistentDecorations.size}`);
+                this.logDebug(`TileManager: Zoom changed from ${this.lastZoomLevel} to ${newZoom}`, 'logZoomChanges');
+                this.logDebug(`TileManager: Decoration cache size: ${this.persistentDecorations.size}`, 'logZoomChanges');
                 this.lastZoomLevel = newZoom;
             }
         };
@@ -243,7 +257,7 @@ export class TileManager {
     }
 
     async loadTextures() {
-        console.log('TileManager: Starting texture loading...');
+        this.logDebug('TileManager: Starting texture loading...', 'logTextureLoading');
         const textures = [
             'grass', 'grass_var1', 'grass_var2',
             'dirt', 'dirt_var1', 'dirt_var2',
@@ -256,21 +270,21 @@ export class TileManager {
             try {
                 const texture = await this.loadTexture(name, `assets/textures/${name}.png`);
                 this.textures.set(name, texture);
-                console.log(`TileManager: Successfully loaded texture: ${name}`);
+                this.logDebug(`TileManager: Successfully loaded texture: ${name}`, 'logTextureLoading');
             } catch (error) {
                 console.error(`TileManager: Failed to load texture: ${name}`, error);
             }
         }
-        console.log('TileManager: All textures loaded successfully.');
+        this.logDebug('TileManager: All textures loaded successfully.', 'logTextureLoading');
     }
 
     async loadTexture(name, path) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
-                console.log(`TileManager: Successfully loaded texture: ${path}`);
+                this.logDebug(`TileManager: Successfully loaded texture: ${path}`, 'logTextureLoading');
                 this.textures.set(name, img);
-                resolve(img); // Ensure the resolved value is the image
+                resolve(img);
             };
             img.onerror = (error) => {
                 console.error(`TileManager: Failed to load texture: ${path}`, error);
@@ -282,22 +296,20 @@ export class TileManager {
 
     getTextureForTile(tile) {
         if (!tile || !tile.type) {
-            console.warn('TileManager: Invalid tile or missing type');
-            return null; // Ensure tile and type are defined
+            if (this.debug.enabled) console.warn('TileManager: Invalid tile or missing type');
+            return null;
         }
 
-        // Use the pre-determined variant if it exists
         if (tile.variant) {
             const texture = this.textures.get(tile.variant);
-            if (!texture) {
+            if (!texture && this.debug.enabled) {
                 console.warn(`TileManager: Missing texture for variant: ${tile.variant}`);
             }
             return texture;
         }
 
-        // Fallback to base texture
         const baseTexture = this.textures.get(tile.type);
-        if (!baseTexture) {
+        if (!baseTexture && this.debug.enabled) {
             console.warn(`TileManager: Missing base texture for type: ${tile.type}`);
         }
         return baseTexture;
@@ -375,6 +387,8 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
+
+
 
 
 

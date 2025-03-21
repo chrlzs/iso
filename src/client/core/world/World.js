@@ -7,8 +7,14 @@ export class World {
         this.width = width;
         this.height = height;
         
-        // Initialize tile manager first
-        this.tileManager = new TileManager();
+        // Get debug config from options or create default
+        this.debug = options.debug || {
+            enabled: false,
+            flags: {}
+        };
+        
+        // Pass debug config to TileManager
+        this.tileManager = new TileManager(this.debug);
         
         // Initialize maps
         this.chunks = new Map();
@@ -136,6 +142,7 @@ export class World {
         // Don't clear decorationStates to maintain decoration persistence
     }
 }
+
 
 
 
