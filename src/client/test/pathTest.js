@@ -47,7 +47,6 @@ function runPathTest() {
         );
 
         if (path) {
-            console.log('Path found:', path);
             visualizePath(world, path);
         } else {
             console.log('No path found');

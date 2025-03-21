@@ -1,4 +1,3 @@
-
 export class Player {
     constructor({ x, y }) {
         // Position and movement

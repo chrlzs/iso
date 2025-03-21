@@ -50,16 +50,6 @@ export class World {
         return 'stone';
     }
 
-    generateHeight(x, y) {
-        // Simple height generation for testing
-        return (Math.sin(x * 0.1) + Math.cos(y * 0.1)) * 0.5 + 0.5;
-    }
-
-    generateMoisture(x, y) {
-        // Simple moisture generation for testing
-        return (Math.cos(x * 0.08) + Math.sin(y * 0.08)) * 0.5 + 0.5;
-    }
-
     generateTile(x, y, height, moisture) {
         const key = `${x},${y}`;
         if (this.tileCache.has(key)) {

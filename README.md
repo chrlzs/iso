@@ -29,46 +29,25 @@ src/
 ```
 
 3. Architecture
-# Technical Architecture
-
-  
 
 ## Rendering System
-
 - Isometric projection using HTML5 Canvas
-
 - Layer-based rendering (terrain, entities, UI)
-
 - Chunk-based world loading
-
 - Camera system with pan/zoom
 
-  
-
 ## Core Systems
-
 - Input Management: Keyboard/Mouse handling
-
 - World Grid: Chunk-based world management
-
 - Entity System: Player, NPCs, Enemies
-
 - Combat System: Turn-based or real-time
-
 - Inventory System: Item management
-
 - Save/Load System: Game state persistence
 
-  
-
 ## Performance Optimizations
-
 - Chunk-based rendering
-
 - Entity pooling
-
 - Viewport culling
-
 - Asset preloading
 
 4. Features

@@ -366,11 +366,6 @@ export class TileManager {
         return this.textures.get(`structure_${type}_${part}`);
     }
 
-    clearDecorationCache() {
-        console.log('TileManager: Clearing decoration cache...');
-        this.decorationCache.clear();
-    }
-
     batchDecoration(decoration, tileHeight, isoX, isoY) {
         const key = `${decoration.type}_${tileHeight}`;
         if (!this.decorationBatch.has(key)) {
