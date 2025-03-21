@@ -1,32 +1,28 @@
+import { TileManager } from './TileManager.js';
 import { StructureManager } from './StructureManager.js';
+import { SimplexNoise } from '../../lib/SimplexNoise.js';
 
 export class World {
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
-        this.chunkSize = options.chunkSize || 16;
-        this.chunks = new Map();
-        this.activeChunks = new Set();
-        this.seed = options.seed || Math.random() * 10000;
         
-        // Initialize maps before any generation happens
+        // Initialize tile manager first
+        this.tileManager = new TileManager();
+        
+        // Initialize maps
+        this.chunks = new Map();
         this.tileCache = new Map();
-        this.decorationStates = new Map();
+        this.activeChunks = new Set();
         this.maxCacheSize = 1000;
         
-        // Initialize decoration config
-        this.decorationConfig = {
-            grass: [
-                { type: 'flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
-                { type: 'grassTufts', chance: 0.2, offset: { x: 0, y: -6 }, scale: { x: 0.7, y: 0.7 } }
-            ],
-            dirt: [
-                { type: 'rocks', chance: 0.15, offset: { x: 0, y: -4 }, scale: { x: 0.6, y: 0.6 } }
-            ],
-            stone: [
-                { type: 'rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
-            ]
-        };
+        // Initialize noise generators with seed
+        this.seed = options.seed || Math.random() * 10000;
+        const noise = new SimplexNoise(this.seed);
+        
+        // Generate height and moisture using the same noise function but different offsets
+        this.generateHeight = (x, y) => noise.noise2D(x * 0.05, y * 0.05);
+        this.generateMoisture = (x, y) => noise.noise2D(x * 0.05 + 1000, y * 0.05 + 1000);
 
         // Add structure manager after maps are initialized
         this.structureManager = new StructureManager(this);
@@ -70,8 +66,11 @@ export class World {
             moisture,
             x,
             y,
-            id: `tile_${x}_${y}` // Ensure unique tile ID is set
+            id: `tile_${x}_${y}`
         };
+
+        // Get decoration for the tile
+        tile.decoration = this.tileManager.getPersistentDecoration(tile.id, tile.type);
 
         // Manage cache size
         if (this.tileCache.size >= this.maxCacheSize) {
@@ -137,6 +136,13 @@ export class World {
         // Don't clear decorationStates to maintain decoration persistence
     }
 }
+
+
+
+
+
+
+
 
 
 

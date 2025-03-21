@@ -2,42 +2,32 @@ export class TileManager {
     constructor() {
         console.log('TileManager: Initializing...');
         this.textures = new Map();
-        this.decorationTexturesLoaded = false;
-
-        // Initialize decoration textures
-        this.decorationLoadQueue = new Set([
-            'dec_rocks',
-            'dec_flowers',
-            'dec_grassTufts'
-        ]);
-
-        // Preload all decoration textures
-        this.preloadDecorationTextures = async () => {
-            console.log('TileManager: Starting decoration texture preload...');
-            for (const name of this.decorationLoadQueue) {
-                try {
-                    await this.loadDecorationTexture(name);
-                } catch (err) {
-                    console.error(`TileManager: Failed to load decoration texture ${name}:`, err);
-                }
-            }
-            this.decorationTexturesLoaded = true;
-            console.log('TileManager: All decoration textures loaded');
+        
+        // Define possible decorations for each tile type
+        this.decorations = {
+            grass: [
+                { type: 'dec_flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
+                { type: 'dec_grassTufts', chance: 0.2, offset: { x: 0, y: -6 }, scale: { x: 0.7, y: 0.7 } }
+            ],
+            dirt: [
+                { type: 'dec_rocks', chance: 0.15, offset: { x: 0, y: -4 }, scale: { x: 0.6, y: 0.6 } }
+            ],
+            stone: [
+                { type: 'dec_rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
+            ]
         };
 
-        // Start loading textures immediately
-        this.preloadDecorationTextures().catch(err => {
-            console.error('TileManager: Failed to preload decoration textures:', err);
-        });
-
-        // Add a seeded random number generator for consistent decoration placement
-        this.decorationSeed = 12345; // You can make this configurable
+        // Initialize decoration caches
+        this.decorationCache = new Map();
+        this.persistentDecorations = new Map();
+        this.decorationBatch = new Map();
+        
+        // Add seeded random number generator for consistent decoration placement
+        this.decorationSeed = 12345;
         this.getSeededRandom = (tileId) => {
             const hash = tileId.split('_').reduce((acc, val) => {
                 return acc + parseInt(val, 36);
             }, this.decorationSeed);
-            
-            // Simple seeded random number generator
             return ((Math.sin(hash) + 1) / 2);
         };
 
@@ -78,24 +68,6 @@ export class TileManager {
         this.textureVariants.set('wetland', ['wetland', 'wetland_var1']);
         this.textureVariants.set('water', ['water', 'water_var1']);
 
-        // Define possible decorations for each tile type
-        this.decorations = {
-            grass: [
-                { type: 'dec_flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
-                { type: 'dec_grassTufts', chance: 0.2, offset: { x: 0, y: -6 }, scale: { x: 0.7, y: 0.7 } }
-            ],
-            dirt: [
-                { type: 'dec_rocks', chance: 0.15, offset: { x: 0, y: -4 }, scale: { x: 0.6, y: 0.6 } }
-            ],
-            stone: [
-                { type: 'dec_rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
-            ]
-        };
-
-        this.decorationCache = new Map(); // Cache for tile decorations
-        this.persistentDecorations = new Map();
-        this.decorationBatch = new Map(); // Group by height/type
-        
         // Add method to get or create persistent decoration
         this.getPersistentDecoration = (tileId, tileType) => {
             // Early return if we already made a decision for this tile
@@ -403,6 +375,7 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
+
 
 
 
