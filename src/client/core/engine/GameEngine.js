@@ -1,4 +1,3 @@
-
 import { CanvasRenderer } from '../renderer/CanvasRenderer.js';
 import { InputManager } from './InputManager.js';
 import { Camera } from './Camera.js';

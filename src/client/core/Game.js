@@ -4,6 +4,7 @@ import { TileManager } from './world/TileManager.js';
 import { Player } from './entities/Player.js';
 import { InputManager } from './engine/InputManager.js';
 import { PathFinder } from './world/PathFinder.js';
+import { CanvasRenderer } from './renderer/CanvasRenderer.js';
 
 export class Game {
     constructor(canvas) {
