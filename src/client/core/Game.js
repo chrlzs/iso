@@ -53,6 +53,9 @@ export class Game {
             y: spawnPoint.y
         });
 
+        console.log('Player instance:', this.player);
+        console.log('Player methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.player)));
+
         // Add a manual structure near spawn point (tavern)
         this.addStartingStructures();
         
@@ -390,6 +393,11 @@ export class Game {
         return Math.sin(x * 0.05 + y * 0.05) * 0.2;
     }
 }
+
+
+
+
+
 
 
 
