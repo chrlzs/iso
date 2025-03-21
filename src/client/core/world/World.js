@@ -27,6 +27,7 @@ export class World {
         const noise = new SimplexNoise(this.seed);
         
         // Generate height and moisture using the same noise function but different offsets
+        // Increase 0.05 to something like 0.1 for smaller water bodies
         this.generateHeight = (x, y) => noise.noise2D(x * 0.05, y * 0.05);
         this.generateMoisture = (x, y) => noise.noise2D(x * 0.05 + 1000, y * 0.05 + 1000);
 
@@ -40,8 +41,8 @@ export class World {
     }
 
     determineTileType(height, moisture) {
-        if (height < 0.2) return 'water';
-        if (height < 0.3) return 'sand';
+        if (height < 0.1) return 'water';        // Reduced from 0.2 to 0.1
+        if (height < 0.2) return 'sand';         // Adjusted sand threshold
         if (height < 0.7) {
             if (moisture > 0.6) return 'wetland';
             if (moisture > 0.3) return 'grass';
@@ -132,6 +133,8 @@ export class World {
         // Don't clear decorationStates to maintain decoration persistence
     }
 }
+
+
 
 
 
