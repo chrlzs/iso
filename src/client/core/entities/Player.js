@@ -53,12 +53,12 @@ export class Player {
         this.spriteSheet.src = './assets/characters/main_character.png';
 
         // Enhanced shadow properties
-        this.shadowOffset = 8;
+        this.shadowOffset = 4; // Reduced from 8
         this.shadowSize = {
-            width: 40,
-            height: 15
+            width: 32, // Reduced from 40
+            height: 10  // Reduced from 15
         };
-        this.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        this.shadowColor = 'rgba(0, 0, 0, 0.4)'; // Slightly increased opacity
         
         // Terrain-related properties
         this.terrainHeight = 0;
@@ -228,15 +228,15 @@ export class Player {
         const heightDifference = Math.max(0, this.y - this.terrainHeight);
         
         // Update shadow offset based on height difference
-        this.shadowOffset = 8 + heightDifference * 0.5;
+        this.shadowOffset = 4 + heightDifference * 0.3; // Reduced multiplier from 0.5
         
-        // Scale shadow based on height
-        const scale = Math.max(0.3, 1 - heightDifference / 200);
-        this.shadowSize.width = 40 * scale;
-        this.shadowSize.height = 15 * scale;
+        // Scale shadow based on height with tighter constraints
+        const scale = Math.max(0.4, 1 - heightDifference / 250);
+        this.shadowSize.width = 32 * scale;
+        this.shadowSize.height = 10 * scale;
         
         // Adjust shadow opacity based on height
-        const opacity = Math.max(0.1, 0.3 * scale);
+        const opacity = Math.max(0.2, 0.4 * scale);
         this.shadowColor = `rgba(0, 0, 0, ${opacity})`;
     }
 

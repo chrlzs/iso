@@ -5,11 +5,20 @@ export class IsometricRenderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
-        // Isometric constants
+        // Tile dimensions
         this.tileWidth = 64;
         this.tileHeight = 32;
-        this.tileHeightOffset = 16; // Height between levels
-        this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
+        
+        // Height effect constants
+        this.heightOffset = 16; // Pixels to move up per height level
+        this.shadowOffset = 4;  // Shadow offset from tile
+        this.shadowBlur = 10;   // Shadow blur amount
+        this.shadowOpacity = 0.3; // Base shadow opacity
+
+        // Height-based tinting
+        this.maxHeight = 3; // Maximum expected height level
+        this.baseTintOpacity = 0.5; // Maximum darkness for lowest level
+        this.tintStep = 0.15; // How much to reduce tint per level
     }
 
     clear() {
@@ -55,48 +64,100 @@ export class IsometricRenderer {
     }
 
     renderTile(x, y, tile, tileManager) {
-        // Add debug logging
-        console.log('Rendering tile:', {
-            id: tile.id,
-            type: tile.type,
-            x,
-            y
-        });
-        
+        // Calculate base isometric position
         const isoX = (x - y) * (this.tileWidth / 2);
-        const isoY = (x + y) * (this.tileHeight / 2) - (tile.height * this.tileHeight / 2);
-
-        // Get the appropriate texture
-        const texture = tileManager.getTextureForTile(tile);
+        const isoY = (x + y) * (this.tileHeight / 2);
         
-        if (texture) {
-            this.ctx.drawImage(
-                texture,
-                isoX - this.tileWidth / 2,
-                isoY - this.tileHeight,
-                this.tileWidth,
-                this.tileHeight * 1.5
-            );
+        // Calculate height offset
+        const heightOffset = tile.height * this.heightOffset;
+
+        // Get tile texture
+        const texture = tileManager.getTextureForTile(tile);
+        if (!texture) {
+            console.warn(`Missing texture for tile at (${x}, ${y})`);
+            return;
         }
 
-        // Get decoration only using tile ID and type
-        const decoration = tileManager.getPersistentDecoration(tile.id, tile.type);
-        
-        // Render decoration if present
-        if (decoration) {
-            console.log(`IsometricRenderer: Rendering decoration for tile ${tile.id}:`, decoration);
-            const decorationTexture = tileManager.getDecorationTexture(decoration.type);
+        // Draw side walls if height > 0
+        if (tile.height > 0) {
+            // Left side wall
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.5;
+            this.ctx.fillStyle = '#000000';
+            this.ctx.beginPath();
+            this.ctx.moveTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
+            this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
+            this.ctx.lineTo(isoX, isoY + this.tileHeight);
+            this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.restore();
+
+            // Right side wall
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.3;
+            this.ctx.fillStyle = '#000000';
+            this.ctx.beginPath();
+            this.ctx.moveTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2 - heightOffset);
+            this.ctx.lineTo(isoX, isoY + this.tileHeight - heightOffset);
+            this.ctx.lineTo(isoX, isoY + this.tileHeight);
+            this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.restore();
+        }
+
+        // Draw main tile with texture
+        this.ctx.drawImage(
+            texture,
+            isoX - this.tileWidth/2,
+            isoY - this.tileHeight/2 - heightOffset,
+            this.tileWidth,
+            this.tileHeight
+        );
+
+        // Apply height-based tint
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'source-atop';
+        const tintOpacity = Math.max(0, this.baseTintOpacity - (tile.height * this.tintStep));
+        this.ctx.fillStyle = `rgba(0, 0, 0, ${tintOpacity})`;
+        this.ctx.fillRect(
+            isoX - this.tileWidth/2,
+            isoY - this.tileHeight/2 - heightOffset,
+            this.tileWidth,
+            this.tileHeight
+        );
+        this.ctx.restore();
+
+        // Draw tile decoration if present
+        if (tile.decoration) {
+            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
             if (decorationTexture) {
-                this.decorationRenderer.render(
-                    decoration,
-                    decorationTexture,
-                    tile.height,
-                    isoX - this.tileWidth / 2,
-                    isoY - this.tileHeight
-                );
-            } else {
-                console.warn(`IsometricRenderer: Missing texture for decoration ${decoration.type}`);
+                const decorationX = isoX - this.tileWidth/2 + (tile.decoration.offset?.x || 0);
+                const decorationY = isoY - this.tileHeight/2 - heightOffset + (tile.decoration.offset?.y || 0);
+                const width = (tile.decoration.scale?.x || 1) * this.tileWidth;
+                const height = (tile.decoration.scale?.y || 1) * this.tileHeight;
+                
+                this.ctx.drawImage(decorationTexture, decorationX, decorationY, width, height);
             }
+        }
+
+        // Draw drop shadow last
+        if (tile.height > 0) {
+            this.ctx.save();
+            this.ctx.fillStyle = `rgba(0, 0, 0, ${this.shadowOpacity * Math.min(1, tile.height * 0.3)})`;
+            this.ctx.beginPath();
+            this.ctx.ellipse(
+                isoX,
+                isoY + this.tileHeight/2,
+                this.tileWidth/2,
+                this.tileHeight/2,
+                0,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.fill();
+            this.ctx.restore();
         }
     }
 
@@ -111,6 +172,7 @@ export class IsometricRenderer {
         this.ctx.moveTo(screenX, screenY);
         this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
         this.ctx.lineTo(screenX, screenY + this.tileHeight);
+        this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight);
         this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
         this.ctx.closePath();
         this.ctx.fill();
@@ -165,7 +227,7 @@ export class IsometricRenderer {
         ctx.fillStyle = baseColor;
         const rgb = ctx.fillStyle;
         
-        // Darken the color for sides
+        // Darken sides differently
         const darkenAmount = side === 'left' ? 30 : 15;
         return this.shadeColor(rgb, -darkenAmount);
     }
@@ -173,14 +235,10 @@ export class IsometricRenderer {
     shadeColor(color, percent) {
         const num = parseInt(color.replace('#', ''), 16);
         const amt = Math.round(2.55 * percent);
-        const R = (num >> 16) + amt;
-        const G = (num >> 8 & 0x00FF) + amt;
-        const B = (num & 0x0000FF) + amt;
-        return '#' + (0x1000000 +
-            (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-            (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-            (B < 255 ? (B < 1 ? 0 : B) : 255)
-        ).toString(16).slice(1);
+        const R = Math.max(0, Math.min(255, ((num >> 16) & 0xff) + amt));
+        const G = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amt));
+        const B = Math.max(0, Math.min(255, (num & 0xff) + amt));
+        return `rgb(${R},${G},${B})`;
     }
 
     renderDecoration(x, y, decoration) {
