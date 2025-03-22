@@ -268,8 +268,7 @@ export class TileManager {
 
         for (const name of textures) {
             try {
-                const texture = await this.loadTexture(name, `assets/textures/${name}.png`);
-                this.textures.set(name, texture);
+                await this.loadTexture(name, `assets/textures/${name}.png`);
                 this.logDebug(`TileManager: Successfully loaded texture: ${name}`, 'logTextureLoading');
             } catch (error) {
                 console.error(`TileManager: Failed to load texture: ${name}`, error);
@@ -382,44 +381,6 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

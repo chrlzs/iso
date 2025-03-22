@@ -2,8 +2,8 @@ export class Player {
     constructor(config) {
         this.x = config.x;
         this.y = config.y;
-        this.size = 24;  // Make player visible
-        this.color = '#0000FF';  // Blue color for visibility
+        this.size = 24;
+        this.color = '#0000FF';  // Fallback color
         this.currentPath = null;
         this.currentPathIndex = 0;
         this.isMoving = false;
@@ -11,10 +11,7 @@ export class Player {
         this.speed = 2;
         this.targetReachThreshold = 0.1;
 
-        // Initialize terrain and shadow properties
-        this.terrainHeight = 0;
-        this.terrainAngle = 0;
-        this.baseHeight = 0;
+        // Shadow properties
         this.shadowOffset = 4;
         this.shadowSize = {
             width: 32,
@@ -22,30 +19,40 @@ export class Player {
         };
         this.shadowColor = 'rgba(0, 0, 0, 0.4)';
 
+        // Sprite properties
+        this.spriteSheet = new Image();
+        this.spriteSheet.src = 'assets/characters/main_character.png';
+        this.spriteSheet.onload = () => {
+            this.imageLoaded = true;
+            // Calculate frame dimensions based on 12x8 sprite sheet
+            this.frameWidth = this.spriteSheet.width / 12;  // 12 frames per row
+            this.frameHeight = this.spriteSheet.height / 8; // 8 rows
+        };
+
         // Animation properties
-        this.direction = 'down';
-        this.currentState = 'idle_down';
+        this.direction = 'south';
         this.frameX = 0;
         this.frameY = 0;
         this.frameCount = 0;
         this.animationSpeed = 8;
         this.imageLoaded = false;
 
-        // Define animation states
-        this.states = {
-            'idle_down': 0,
-            'idle_up': 1,
-            'idle_left': 2,
-            'idle_right': 3,
-            'walk_down': 4,
-            'walk_up': 5,
-            'walk_left': 6,
-            'walk_right': 7
+        // Define animation rows (0-based index)
+        this.directions = {
+            'south': 0,     // Row 1
+            'southeast': 1, // Row 2
+            'southwest': 2, // Row 3
+            'west': 3,     // Row 4
+            'northwest': 4, // Row 5
+            'north': 5,    // Row 6
+            'northeast': 6, // Row 7
+            'east': 7      // Row 8
         };
     }
 
     render(ctx, renderer) {
-        // Get isometric coordinates
+        if (!renderer) return;
+        
         const isoPos = renderer.convertToIsometric(this.x, this.y);
         
         // Draw shadow
@@ -62,16 +69,29 @@ export class Player {
         );
         ctx.fill();
         
-        // Draw player circle
-        ctx.beginPath();
-        ctx.fillStyle = this.color;
-        ctx.arc(isoPos.x, isoPos.y - this.size/2, this.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Add outline
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        if (this.imageLoaded) {
+            // Draw sprite
+            ctx.drawImage(
+                this.spriteSheet,
+                this.frameX * this.frameWidth,
+                this.frameY * this.frameHeight,
+                this.frameWidth,
+                this.frameHeight,
+                isoPos.x - this.frameWidth / 2,
+                isoPos.y - this.frameHeight,
+                this.frameWidth,
+                this.frameHeight
+            );
+        } else {
+            // Fallback rendering
+            ctx.beginPath();
+            ctx.fillStyle = this.color;
+            ctx.arc(isoPos.x, isoPos.y - this.size/2, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
     }
 
     setPath(path) {
@@ -86,7 +106,7 @@ export class Player {
     }
 
     update(deltaTime) {
-        // Update animation
+        // Update animation frame
         this.frameCount++;
         if (this.frameCount >= this.animationSpeed) {
             this.frameX = (this.frameX + 1) % 12;
@@ -94,7 +114,8 @@ export class Player {
         }
 
         if (!this.isMoving || !this.currentPath || this.currentPathIndex >= this.currentPath.length) {
-            this.currentState = `idle_${this.direction}`;
+            // When idle, use first frame of current direction
+            this.frameX = 0;
             return;
         }
 
@@ -115,7 +136,7 @@ export class Player {
             if (this.currentPathIndex >= this.currentPath.length) {
                 this.currentPath = null;
                 this.isMoving = false;
-                console.log('Reached destination');
+                this.frameX = 0; // Reset to idle frame
                 return;
             }
         } else {
@@ -125,92 +146,29 @@ export class Player {
             this.x += dx * ratio;
             this.y += dy * ratio;
             
-            // Update direction and animation state based on movement
-            if (Math.abs(dx) > Math.abs(dy)) {
-                this.direction = dx > 0 ? 'right' : 'left';
-            } else {
-                this.direction = dy > 0 ? 'down' : 'up';
-            }
-            this.currentState = `walk_${this.direction}`;
+            // Determine direction based on movement angle
+            const angle = Math.atan2(dy, dx);
+            this.direction = this.getDirectionFromAngle(angle);
+            
+            // Update frame row based on direction
+            this.frameY = this.directions[this.direction];
         }
-
-        // Update frame row based on current state
-        this.frameY = this.states[this.currentState];
     }
 
-    render(ctx) {
-        ctx.save();
+    getDirectionFromAngle(angle) {
+        // Convert angle to degrees and normalize to 0-360
+        const degrees = ((angle * 180 / Math.PI) + 360) % 360;
         
-        // Convert world coordinates to isometric coordinates
-        const isoX = (this.x - this.y) * (64 / 2);
-        const isoY = (this.x + this.y) * (32 / 2);
-        
-        // Draw shadow with terrain angle consideration
-        ctx.save();
-        
-        // Move to shadow position
-        ctx.translate(isoX, isoY + this.shadowOffset);
-        
-        // Apply terrain angle rotation
-        ctx.rotate(this.terrainAngle);
-        
-        // Draw the shadow
-        ctx.beginPath();
-        ctx.ellipse(
-            0, 0, // Center point (already translated)
-            this.shadowSize.width / 2,
-            this.shadowSize.height / 2,
-            0, // Additional rotation (not needed since we rotated the context)
-            0,
-            Math.PI * 2
-        );
-        ctx.fillStyle = this.shadowColor;
-        ctx.fill();
-        
-        ctx.restore();
-        
-        // Draw sprite only if image is loaded
-        if (this.imageLoaded) {
-            // Calculate vertical offset based on terrain height
-            const heightOffset = this.terrainHeight - this.baseHeight;
-            
-            ctx.drawImage(
-                this.spriteSheet,
-                this.frameX * this.width,
-                this.frameY * this.height,
-                this.width,
-                this.height,
-                isoX - this.width/2,
-                isoY - this.height/2 + heightOffset,
-                this.width,
-                this.height
-            );
-        } else {
-            // Fallback rendering
-            ctx.beginPath();
-            ctx.arc(isoX, isoY, 10, 0, Math.PI * 2);
-            ctx.fillStyle = 'red';
-            ctx.fill();
-            ctx.closePath();
-        }
-
-        // Draw path if it exists
-        if (this.currentPath && this.isMoving) {
-            ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-            ctx.lineWidth = 0.2;
-            ctx.beginPath();
-            ctx.moveTo(isoX, isoY);
-            
-            for (let i = this.currentPathIndex; i < this.currentPath.length; i++) {
-                const pathIsoX = (this.currentPath[i].x - this.currentPath[i].y) * (64 / 2);
-                const pathIsoY = (this.currentPath[i].x + this.currentPath[i].y) * (32 / 2);
-                ctx.lineTo(pathIsoX, pathIsoY);
-            }
-            
-            ctx.stroke();
-        }
-        
-        ctx.restore();
+        // Define direction sectors (each 45 degrees)
+        if (degrees >= 337.5 || degrees < 22.5) return 'east';
+        if (degrees >= 22.5 && degrees < 67.5) return 'southeast';
+        if (degrees >= 67.5 && degrees < 112.5) return 'south';
+        if (degrees >= 112.5 && degrees < 157.5) return 'southwest';
+        if (degrees >= 157.5 && degrees < 202.5) return 'west';
+        if (degrees >= 202.5 && degrees < 247.5) return 'northwest';
+        if (degrees >= 247.5 && degrees < 292.5) return 'north';
+        if (degrees >= 292.5 && degrees < 337.5) return 'northeast';
+        return 'south'; // Default direction
     }
 
     getPosition() {
@@ -250,6 +208,9 @@ export class Player {
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
 }
+
+
+
 
 
 

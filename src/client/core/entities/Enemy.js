@@ -16,12 +16,16 @@ export class Enemy extends NPC {
      * @param {number} [config.attackRange=50] - Attack range in pixels
      */
     constructor(config) {
-        super({
-            ...config,
-            name: config.name || 'Enemy',
-            hostile: true,
-            type: 'enemy'
-        });
+        super(config);
+        
+        // Override sprite with enemy character
+        this.spriteSheet = new Image();
+        this.spriteSheet.src = 'assets/characters/enemy_character.png';
+        this.spriteSheet.onload = () => {
+            this.imageLoaded = true;
+            this.frameWidth = this.spriteSheet.width / 12;
+            this.frameHeight = this.spriteSheet.height / 8;
+        };
 
         this.damage = config.damage || 10;
         this.attackRange = config.attackRange || 50;
@@ -96,3 +100,4 @@ export class Enemy extends NPC {
         }
     }
 }
+

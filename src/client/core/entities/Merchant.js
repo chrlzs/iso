@@ -118,19 +118,28 @@ export class Merchant extends NPC {
         // Add merchant-specific visual indicators
         ctx.save();
         
-        // Draw merchant hat
+        // Draw merchant hat - adjusted position to be above the sprite
         ctx.fillStyle = '#4B2510';  // Darker brown for hat
         ctx.beginPath();
-        ctx.arc(isoPos.x, isoPos.y - this.size, this.size / 2, 0, Math.PI * 2);
+        ctx.arc(isoPos.x, isoPos.y - this.frameHeight - 10, this.size / 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw hat brim
+        // Draw hat brim - adjusted position to match hat
         ctx.beginPath();
-        ctx.ellipse(isoPos.x, isoPos.y - this.size + 2, this.size * 0.7, this.size / 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(
+            isoPos.x, 
+            isoPos.y - this.frameHeight - 8, 
+            this.size * 0.7, 
+            this.size / 4, 
+            0, 
+            0, 
+            Math.PI * 2
+        );
         ctx.fill();
 
         ctx.restore();
     }
 }
+
 
 
