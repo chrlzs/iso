@@ -132,7 +132,32 @@ export class World {
         this.tileCache.clear();
         // Don't clear decorationStates to maintain decoration persistence
     }
+
+    /**
+     * Gets or generates a tile at the specified coordinates
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @returns {Object|null} The tile object or null if invalid coordinates
+     */
+    getTileAt(x, y) {
+        // Check chunk first
+        const chunkX = Math.floor(x / this.chunkSize);
+        const chunkY = Math.floor(y / this.chunkSize);
+        const chunk = this.chunks.get(`${chunkX},${chunkY}`);
+        
+        if (chunk) {
+            const localX = x % this.chunkSize;
+            const localY = y % this.chunkSize;
+            return chunk[localY * this.chunkSize + localX];
+        }
+
+        // If no chunk exists, generate tile on the fly
+        const height = this.generateHeight(x, y);
+        const moisture = this.generateMoisture(x, y);
+        return this.generateTile(x, y, height, moisture);
+    }
 }
+
 
 
 

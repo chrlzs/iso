@@ -3,8 +3,6 @@ export class Minimap {
         this.position = config.position;
         this.size = config.size;
         this.game = config.game;
-        
-        // Scale factor for converting world coordinates to minimap coordinates
         this.scale = this.size / Math.max(this.game.world.width, this.game.world.height);
     }
 
@@ -18,7 +16,7 @@ export class Minimap {
         ctx.strokeRect(this.position.x, this.position.y, this.size, this.size);
 
         // Calculate visible range in world coordinates
-        const viewRange = 32; // How many tiles to show in each direction
+        const viewRange = 32;
         const centerX = Math.floor(this.game.player.x);
         const centerY = Math.floor(this.game.player.y);
         
@@ -30,15 +28,8 @@ export class Minimap {
                     continue;
                 }
 
-                // Get height and moisture for this position
-                const height = this.game.world.generateHeight(x, y);
-                const moisture = this.game.world.generateMoisture(x, y);
-                
-                // Generate tile using World's generateTile method
-                const tile = this.game.world.generateTile(x, y, height, moisture);
-
+                const tile = this.game.world.getTileAt(x, y);
                 if (tile) {
-                    // Convert world coordinates to minimap coordinates
                     const minimapX = this.position.x + x * this.scale;
                     const minimapY = this.position.y + y * this.scale;
 
@@ -52,7 +43,6 @@ export class Minimap {
         const playerX = this.position.x + this.game.player.x * this.scale;
         const playerY = this.position.y + this.game.player.y * this.scale;
 
-        // Draw player indicator
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
         ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
@@ -70,11 +60,8 @@ export class Minimap {
         };
         return colors[tileType] || '#ffffff';
     }
-
-    update(deltaTime) {
-        // Update logic here if needed
-    }
 }
+
 
 
 

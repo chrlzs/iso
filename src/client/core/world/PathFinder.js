@@ -173,16 +173,13 @@ export class PathFinder {
     }
 
     isWalkable(x, y) {
-        const height = this.world.generateHeight(x, y);
-        const moisture = this.world.generateMoisture(x, y);
-        const tile = this.world.generateTile(x, y, height, moisture);
-        
+        const tile = this.world.getTileAt(x, y);
         if (!tile) return false;
         if (tile.type === 'water') return false;
-        
         return true;
     }
 }
+
 
 
 
