@@ -6,7 +6,7 @@ import { InputManager } from './engine/InputManager.js';
 import { PathFinder } from './world/PathFinder.js';
 import { CanvasRenderer } from './renderer/CanvasRenderer.js';
 
-export class Game {
+export class GameInstance {
     constructor(canvas) {
         console.log('Game: Initializing...');
         this.canvas = canvas;

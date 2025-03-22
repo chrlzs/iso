@@ -17,7 +17,7 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <script type="module">
-        import { Game } from './core/Game.js';
+        import { GameInstance } from './core/GameInstance.js';
 
         // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', async () => {
@@ -25,7 +25,7 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
 
-            const game = new Game(canvas);
+            const game = new GameInstance(canvas);
             try {
                 await game.init();
                 game.start();
