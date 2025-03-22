@@ -5,12 +5,17 @@ import { Player } from './entities/Player.js';
 import { InputManager } from './engine/InputManager.js';
 import { PathFinder } from './world/PathFinder.js';
 import { CanvasRenderer } from './renderer/CanvasRenderer.js';
+import { NPC } from './entities/NPC.js';
+import { Merchant } from './entities/Merchant.js';
 
 export class GameInstance {
     constructor(canvas) {
         console.log('Game: Initializing...');
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        
+        // Initialize entities collection
+        this.entities = new Set();
         
         // Centralize debug configuration
         this.debug = {
@@ -54,18 +59,8 @@ export class GameInstance {
             y: spawnPoint.y
         });
 
-        console.log('Player instance:', this.player);
-        console.log('Player methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.player)));
-
-        // Add a manual structure near spawn point (tavern)
+        // Add starting structures and NPCs
         this.addStartingStructures();
-        
-        this.debugFlags = {
-            showPath: false,
-            showGrid: false
-        };
-
-        this.debugMode = false; // Add debug flag
     }
 
     addStartingStructures() {
@@ -91,28 +86,61 @@ export class GameInstance {
                 console.log('Game: Created house at', pos.x, pos.y);
             }
         });
+
+        // Add NPCs near the spawn point
+        const npcPositions = [
+            { x: this.player.x + 2, y: this.player.y + 2 },
+            { x: tavernX - 1, y: tavernY - 1 }
+        ];
+
+        npcPositions.forEach(pos => {
+            // Validate tile before placing NPC
+            const height = this.world.generateHeight(pos.x, pos.y);
+            const moisture = this.world.generateMoisture(pos.x, pos.y);
+            const tile = this.world.generateTile(pos.x, pos.y, height, moisture);
+            
+            if (tile.type !== 'water' && tile.type !== 'wetland') {
+                // Create merchant near tavern
+                if (pos.x === tavernX - 1) {
+                    const merchant = new Merchant({
+                        x: pos.x,
+                        y: pos.y,
+                        name: 'Village Merchant'
+                    });
+                    this.entities.add(merchant);
+                    console.log('Game: Created merchant at', pos.x, pos.y);
+                } else {
+                    // Create regular NPC near player
+                    const npc = new NPC({
+                        x: pos.x,
+                        y: pos.y,
+                        name: 'Village Elder',
+                        size: 20,  // Make NPCs visible
+                        color: '#FF0000'  // Red color for visibility
+                    });
+                    this.entities.add(npc);
+                    console.log('Game: Created NPC at', pos.x, pos.y);
+                }
+            }
+        });
     }
 
     findValidSpawnPoint() {
         const worldCenter = Math.floor(this.world.width / 2);
-        const searchRadius = 10; // Adjust this value to search a larger area if needed
+        const searchRadius = 5;
         
-        // Search in a spiral pattern from the center
-        for (let r = 0; r < searchRadius; r++) {
-            for (let dx = -r; dx <= r; dx++) {
-                for (let dy = -r; dy <= r; dy++) {
-                    const x = worldCenter + dx;
-                    const y = worldCenter + dy;
-                    
-                    const height = this.world.generateHeight(x, y);
-                    const moisture = this.world.generateMoisture(x, y);
-                    const tile = this.world.generateTile(x, y, height, moisture);
-                    
-                    // Check if the tile is suitable for spawning
-                    if (tile.type !== 'water' && tile.type !== 'wetland') {
-                        console.log('Found valid spawn point at:', x, y, 'with tile type:', tile.type);
-                        return { x, y };
-                    }
+        for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+            for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+                const x = worldCenter + dx;
+                const y = worldCenter + dy;
+                
+                const height = this.world.generateHeight(x, y);
+                const moisture = this.world.generateMoisture(x, y);
+                const tile = this.world.generateTile(x, y, height, moisture);
+                
+                if (tile.type !== 'water' && tile.type !== 'wetland') {
+                    console.log('Found valid spawn point at:', x, y);
+                    return { x, y };
                 }
             }
         }
@@ -264,6 +292,16 @@ export class GameInstance {
         if (this.player) {
             this.player.update(deltaTime);
         }
+
+        // Convert Set to Array for entity updates
+        const entitiesArray = Array.from(this.entities);
+
+        // Update all entities
+        this.entities.forEach(entity => {
+            if (entity.update) {
+                entity.update(deltaTime, entitiesArray);
+            }
+        });
     }
 
     render() {
@@ -291,15 +329,17 @@ export class GameInstance {
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);
         
         // Draw debug grid if enabled
-        if (this.debugFlags.showGrid) {
+        if (this.debug.flags.showGrid) {
             this.drawDebugGrid();
         }
         
-        // Render player (removed red dot, using player's render method)
-        this.player.render(this.ctx);
+        // Render player
+        if (this.player) {
+            this.player.render(this.ctx, this.renderer);
+        }
 
         // Draw current path if it exists and debug flag is enabled
-        if (this.debugFlags.showPath && this.player.currentPath && this.player.isMoving) {
+        if (this.debug.flags.showPath && this.player.currentPath && this.player.isMoving) {
             this.ctx.strokeStyle = 'yellow';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
@@ -317,6 +357,13 @@ export class GameInstance {
             
             this.ctx.stroke();
         }
+
+        // Render all entities
+        this.entities.forEach(entity => {
+            if (entity.render) {
+                entity.render(this.ctx, this.renderer);
+            }
+        });
 
         this.ctx.restore();
     }
@@ -382,57 +429,35 @@ export class GameInstance {
 
     // Example method to calculate terrain height
     getTerrainHeightAt(x, y) {
-        // Replace this with your actual terrain height calculation
-        // This is just an example that creates a wavy terrain
-        return Math.sin(x * 0.1) * Math.cos(y * 0.1) * 20;
+        // Get the height value from the world, or return 0 if not available
+        return this.world ? this.world.generateHeight(Math.floor(x), Math.floor(y)) : 0;
     }
 
     // Example method to calculate terrain angle
     getTerrainAngleAt(x, y) {
-        // Replace this with your actual terrain angle calculation
-        // This is just an example that creates varying angles
-        return Math.sin(x * 0.05 + y * 0.05) * 0.2;
+        // Calculate terrain angle based on neighboring heights
+        if (!this.world) return 0;
+        
+        const x1 = Math.floor(x);
+        const y1 = Math.floor(y);
+        const h1 = this.world.generateHeight(x1, y1);
+        const h2 = this.world.generateHeight(x1 + 1, y1);
+        const h3 = this.world.generateHeight(x1, y1 + 1);
+        
+        // Calculate approximate angle based on height differences
+        const dx = h2 - h1;
+        const dy = h3 - h1;
+        return Math.atan2(dy, dx);
+    }
+
+    // Add this helper method to convert world coordinates to isometric
+    convertToIsometric(x, y) {
+        return {
+            x: (x - y) * (this.renderer.tileWidth / 2),
+            y: (x + y) * (this.renderer.tileHeight / 2)
+        };
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -12,9 +12,20 @@ export class IsometricRenderer {
         this.heightOffset = 16; // Vertical offset for height
         
         this.waterRenderer = new WaterRenderer();
-        
-        // Start animation loop
-        this.animate();
+    }
+
+    // Add the conversion methods
+    convertToIsometric(x, y) {
+        return {
+            x: (x - y) * (this.tileWidth / 2),
+            y: (x + y) * (this.tileHeight / 2)
+        };
+    }
+
+    convertToCartesian(isoX, isoY) {
+        const x = (isoX / (this.tileWidth / 2) + isoY / (this.tileHeight / 2)) / 2;
+        const y = (isoY / (this.tileHeight / 2) - isoX / (this.tileWidth / 2)) / 2;
+        return { x, y };
     }
 
     clear() {
@@ -194,6 +205,7 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
 
 
 

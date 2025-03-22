@@ -1,70 +1,77 @@
 export class Player {
-    constructor({ x, y }) {
-        // Position and movement
-        this.x = x;
-        this.y = y;
-        this.speed = 0.005;
-        this.size = 1;
-        
-        // Path finding
+    constructor(config) {
+        this.x = config.x;
+        this.y = config.y;
+        this.size = 24;  // Make player visible
+        this.color = '#0000FF';  // Blue color for visibility
         this.currentPath = null;
         this.currentPathIndex = 0;
         this.isMoving = false;
+        this.moveSpeed = 0.1;
+        this.speed = 2;
         this.targetReachThreshold = 0.1;
-        
-        // Sprite and animation properties
-        this.width = 64;
-        this.height = 64;
-        this.spriteSheet = new Image();
-        this.imageLoaded = false; // Add flag to track image loading state
-        
-        // Animation states
-        this.states = {
-            idle_down: 0,
-            idle_up: 1,
-            idle_left: 2,
-            idle_right: 3,
-            walk_down: 4,
-            walk_up: 5,
-            walk_left: 6,
-            walk_right: 7
+
+        // Initialize terrain and shadow properties
+        this.terrainHeight = 0;
+        this.terrainAngle = 0;
+        this.baseHeight = 0;
+        this.shadowOffset = 4;
+        this.shadowSize = {
+            width: 32,
+            height: 10
         };
-        
+        this.shadowColor = 'rgba(0, 0, 0, 0.4)';
+
+        // Animation properties
+        this.direction = 'down';
         this.currentState = 'idle_down';
         this.frameX = 0;
         this.frameY = 0;
         this.frameCount = 0;
         this.animationSpeed = 8;
-        this.direction = 'down';
-        
-        // Set up image loading
-        this.spriteSheet.onload = () => {
-            console.log('Player sprite sheet loaded successfully');
-            this.imageLoaded = true;
-        };
-        
-        this.spriteSheet.onerror = (error) => {
-            console.error('Failed to load player sprite sheet:', error);
-            this.imageLoaded = false;
-        };
-        
-        // Make sure this path matches your project structure
-        this.spriteSheet.src = './assets/characters/main_character.png';
+        this.imageLoaded = false;
 
-        // Enhanced shadow properties
-        this.shadowOffset = 4; // Reduced from 8
-        this.shadowSize = {
-            width: 32, // Reduced from 40
-            height: 10  // Reduced from 15
+        // Define animation states
+        this.states = {
+            'idle_down': 0,
+            'idle_up': 1,
+            'idle_left': 2,
+            'idle_right': 3,
+            'walk_down': 4,
+            'walk_up': 5,
+            'walk_left': 6,
+            'walk_right': 7
         };
-        this.shadowColor = 'rgba(0, 0, 0, 0.4)'; // Slightly increased opacity
-        
-        // Terrain-related properties
-        this.terrainHeight = 0;
-        this.terrainAngle = 0;
-        this.baseHeight = y; // Store the base height for reference
+    }
 
-        console.log('Player created at:', x, y);
+    render(ctx, renderer) {
+        // Get isometric coordinates
+        const isoPos = renderer.convertToIsometric(this.x, this.y);
+        
+        // Draw shadow
+        ctx.beginPath();
+        ctx.fillStyle = this.shadowColor;
+        ctx.ellipse(
+            isoPos.x,
+            isoPos.y + this.shadowOffset,
+            this.shadowSize.width / 2,
+            this.shadowSize.height / 2,
+            0,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Draw player circle
+        ctx.beginPath();
+        ctx.fillStyle = this.color;
+        ctx.arc(isoPos.x, isoPos.y - this.size/2, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
     }
 
     setPath(path) {
@@ -125,7 +132,6 @@ export class Player {
                 this.direction = dy > 0 ? 'down' : 'up';
             }
             this.currentState = `walk_${this.direction}`;
-            
         }
 
         // Update frame row based on current state
@@ -213,8 +219,8 @@ export class Player {
 
     // Update terrain information
     updateTerrainInfo(height, angle) {
-        this.terrainHeight = height;
-        this.terrainAngle = angle;
+        this.terrainHeight = height || 0;
+        this.terrainAngle = angle || 0;
         this.updateShadow();
     }
 
@@ -224,7 +230,7 @@ export class Player {
         const heightDifference = Math.max(0, this.y - this.terrainHeight);
         
         // Update shadow offset based on height difference
-        this.shadowOffset = 4 + heightDifference * 0.3; // Reduced multiplier from 0.5
+        this.shadowOffset = 4 + heightDifference * 0.3;
         
         // Scale shadow based on height with tighter constraints
         const scale = Math.max(0.4, 1 - heightDifference / 250);
@@ -244,6 +250,10 @@ export class Player {
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
 }
+
+
+
+
 
 
 

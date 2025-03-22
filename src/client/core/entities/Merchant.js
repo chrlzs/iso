@@ -1,3 +1,4 @@
+
 import { NPC } from './NPC.js';
 
 /**
@@ -18,8 +19,8 @@ export class Merchant extends NPC {
         super({
             ...config,
             name: config.name || 'Merchant',
-            hostile: false,
-            speed: 100  // Merchants move slower
+            color: '#8B4513', // Brown color for merchants
+            size: 24 // Slightly larger than regular NPCs
         });
 
         this.inventory = config.inventory || [];
@@ -77,6 +78,10 @@ export class Merchant extends NPC {
      * @private
      */
     checkForTrade(entities) {
+        if (!entities || !Array.isArray(entities)) {
+            return;
+        }
+
         for (const entity of entities) {
             if (entity.type === 'player') {
                 const dx = entity.x - this.x;
@@ -90,23 +95,42 @@ export class Merchant extends NPC {
                 }
             }
         }
+
+        // If no players are in range and we're trading, go back to idle
+        if (this.state === 'trading') {
+            this.state = 'idle';
+            this.stateTimer = 2000 + Math.random() * 2000;
+        }
     }
 
     /**
      * Override render to add merchant-specific visuals
      */
-    render(ctx) {
-        super.render(ctx);
+    render(ctx, renderer) {
+        // Call parent render method with both ctx and renderer
+        super.render(ctx, renderer);
+        
+        if (!renderer) return;
+        
+        // Get isometric coordinates
+        const isoPos = renderer.convertToIsometric(this.x, this.y);
         
         // Add merchant-specific visual indicators
         ctx.save();
         
         // Draw merchant hat
-        ctx.fillStyle = '#8B4513';
+        ctx.fillStyle = '#4B2510';  // Darker brown for hat
         ctx.beginPath();
-        ctx.arc(this.x, this.y - this.height/2, 8, 0, Math.PI * 2);
+        ctx.arc(isoPos.x, isoPos.y - this.size, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw hat brim
+        ctx.beginPath();
+        ctx.ellipse(isoPos.x, isoPos.y - this.size + 2, this.size * 0.7, this.size / 4, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
     }
 }
+
+
