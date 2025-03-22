@@ -62,6 +62,7 @@ export class TileManager {
                 console.warn(`TileManager: Decoration texture not found: ${name}`);
                 return this.createTempTexture('#FF00FF'); // Return fallback texture
             }
+            console.log(`TileManager: Retrieved decoration texture: ${name}`);
             return texture;
         };
 

@@ -66,7 +66,7 @@ export class World {
             id: `tile_${x}_${y}`
         };
 
-        // Get decoration for the tile
+        // Ensure decoration is assigned
         tile.decoration = this.tileManager.getPersistentDecoration(tile.id, tile.type);
 
         // Manage cache size

@@ -71,40 +71,41 @@ export class IsometricRenderer {
     }
 
     renderTile(x, y, tile, tileManager) {
-        // Calculate base isometric position
         const isoX = (x - y) * (this.tileWidth / 2);
         const isoY = (x + y) * (this.tileHeight / 2);
-        
-        // Calculate height offset
         const heightOffset = tile.height * this.heightOffset;
 
-        // Get tile texture
-        const texture = this.tileManager.getTextureForTile(tile);
-        if (!texture) {
-            console.warn(`Missing texture for tile at (${x}, ${y})`);
-            return;
-        }
-
-        // Draw the base texture for all tiles
-        this.ctx.drawImage(
-            texture,
-            isoX - this.tileWidth/2,
-            isoY - this.tileHeight/2 - heightOffset,
-            this.tileWidth,
-            this.tileHeight
-        );
-
-        // Add water effect on top for water tiles
-        if (tile.type === 'water') {
-            this.ctx.globalAlpha = 0.7; // Make water effect semi-transparent
-            this.waterRenderer.renderWaterTile(
-                this.ctx,
-                isoX - this.tileWidth/2,
-                isoY - this.tileHeight/2 - heightOffset,
+        // Draw base tile texture
+        const texture = tileManager.getTextureForTile(tile);
+        if (texture) {
+            this.ctx.drawImage(
+                texture,
+                isoX - this.tileWidth / 2,
+                isoY - this.tileHeight / 2 - heightOffset,
                 this.tileWidth,
                 this.tileHeight
             );
-            this.ctx.globalAlpha = 1.0; // Reset transparency
+        }
+
+        // Render decoration if present
+        if (tile.decoration) {
+            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
+            if (decorationTexture) {
+                const decorationX = isoX + (tile.decoration.offset?.x || 0);
+                const decorationY = isoY + (tile.decoration.offset?.y || 0) - heightOffset;
+                const decorationWidth = (tile.decoration.scale?.x || 1) * this.tileWidth;
+                const decorationHeight = (tile.decoration.scale?.y || 1) * this.tileHeight;
+
+                this.ctx.drawImage(
+                    decorationTexture,
+                    decorationX - decorationWidth / 2,
+                    decorationY - decorationHeight / 2,
+                    decorationWidth,
+                    decorationHeight
+                );
+            } else {
+                console.warn(`Missing decoration texture for type: ${tile.decoration.type}`);
+            }
         }
     }
 
