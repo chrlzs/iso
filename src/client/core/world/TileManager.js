@@ -1,7 +1,7 @@
 export class TileManager {
-    constructor(gameDebug) {
+    constructor(debug) {
         // Ensure we have a valid debug object
-        this.debug = gameDebug || {
+        this.debug = debug || {
             enabled: false,
             flags: {}
         };
@@ -236,6 +236,18 @@ export class TileManager {
             this.loadingErrors.set(textureName, error);
             return this.createTempTexture('#FF00FF'); // Return pink texture as fallback
         };
+
+        // Add tile type determination method
+        this.determineTileType = (height, moisture) => {
+            if (height < 0.001) return 'water';
+            if (height < 0.2) return 'sand';
+            if (height < 0.7) {
+                if (moisture > 0.6) return 'wetland';
+                if (moisture > 0.3) return 'grass';
+                return 'dirt';
+            }
+            return 'stone';
+        };
     }
 
     updateDecorations(timestamp) {
@@ -382,6 +394,7 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
+
 
 
 

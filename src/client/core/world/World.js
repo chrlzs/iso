@@ -40,25 +40,18 @@ export class World {
         }
     }
 
-    determineTileType(height, moisture) {
-        if (height < 0.001) return 'water';      // Reduced from 0.01 to 0.001 (99.9% reduction from original)
-        if (height < 0.2) return 'sand';         // Keep sand threshold the same
-        if (height < 0.7) {
-            if (moisture > 0.6) return 'wetland';
-            if (moisture > 0.3) return 'grass';
-            return 'dirt';
-        }
-        return 'stone';
-    }
-
     generateTile(x, y, height, moisture) {
         const key = `${x},${y}`;
         if (this.tileCache.has(key)) {
             return this.tileCache.get(key);
         }
 
+        const tileType = this.tileManager.determineTileType(height, moisture);
+        const variant = this.tileManager.getRandomVariant(tileType);
+        
         const tile = {
-            type: this.determineTileType(height, moisture),
+            type: tileType,
+            variant: variant,
             height: Math.max(0, Math.floor(height * 2)),
             moisture,
             x,
@@ -66,7 +59,7 @@ export class World {
             id: `tile_${x}_${y}`
         };
 
-        // Ensure decoration is assigned
+        // Get decoration through TileManager
         tile.decoration = this.tileManager.getPersistentDecoration(tile.id, tile.type);
 
         // Manage cache size
@@ -77,23 +70,6 @@ export class World {
 
         this.tileCache.set(key, tile);
         return tile;
-    }
-
-    addDecoration(tile) {
-        const decorations = this.decorationConfig[tile.type];
-        if (!decorations) return null;
-
-        for (const decConfig of decorations) {
-            if (Math.random() < decConfig.chance) {
-                return {
-                    type: decConfig.type,
-                    offset: { ...decConfig.offset },
-                    scale: { ...decConfig.scale },
-                    id: `dec_${tile.id}`
-                };
-            }
-        }
-        return null;
     }
 
     updateActiveChunks(centerX, centerY, radius) {
@@ -157,6 +133,9 @@ export class World {
         return this.generateTile(x, y, height, moisture);
     }
 }
+
+
+
 
 
 
