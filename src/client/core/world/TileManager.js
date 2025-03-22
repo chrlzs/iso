@@ -51,7 +51,7 @@ export class TileManager {
         this.loadDecorationTexture = async (name) => {
             const texture = await this.loadTexture(name, `assets/textures/${name}.png`);
             this.decorationTextures.set(name, texture);
-            console.log(`TileManager: Loaded decoration texture: ${name}`);
+            //console.log(`TileManager: Loaded decoration texture: ${name}`);
             return texture;
         };
 
@@ -62,7 +62,7 @@ export class TileManager {
                 console.warn(`TileManager: Decoration texture not found: ${name}`);
                 return this.createTempTexture('#FF00FF'); // Return fallback texture
             }
-            console.log(`TileManager: Retrieved decoration texture: ${name}`);
+            //console.log(`TileManager: Retrieved decoration texture: ${name}`);
             return texture;
         };
 
@@ -165,7 +165,7 @@ export class TileManager {
         // Method to clear decoration cache
         this.clearDecorationCache = () => {
             this.decorationCache.clear();
-            console.log('TileManager: Decoration cache cleared');
+            //console.log('TileManager: Decoration cache cleared');
         };
 
         // Method to batch decorations by height
