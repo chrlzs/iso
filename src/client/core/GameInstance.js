@@ -7,6 +7,7 @@ import { PathFinder } from './world/PathFinder.js';
 import { CanvasRenderer } from './renderer/CanvasRenderer.js';
 import { NPC } from './entities/NPC.js';
 import { Merchant } from './entities/Merchant.js';
+import { UIManager } from './ui/UIManager.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -61,6 +62,9 @@ export class GameInstance {
 
         // Add starting structures and NPCs
         this.addStartingStructures();
+
+        // Initialize UI
+        this.uiManager = new UIManager(this);
     }
 
     addStartingStructures() {
@@ -302,6 +306,9 @@ export class GameInstance {
                 entity.update(deltaTime, entitiesArray);
             }
         });
+
+        // Update UI
+        this.uiManager.update(deltaTime);
     }
 
     render() {
@@ -366,6 +373,9 @@ export class GameInstance {
         });
 
         this.ctx.restore();
+
+        // Render UI on top
+        this.uiManager.render(this.ctx);
     }
 
     drawDebugGrid() {
@@ -458,6 +468,7 @@ export class GameInstance {
         };
     }
 }
+
 
 
 
