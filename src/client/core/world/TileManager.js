@@ -1,15 +1,12 @@
+import { DebugLogger } from '../utils/DebugLogger.js';
+
 export class TileManager {
     constructor(debug) {
-        // Ensure we have a valid debug object
-        this.debug = debug || {
-            enabled: false,
-            flags: {}
-        };
+        this.logger = new DebugLogger(debug || { enabled: false, flags: {} });
         
+        // Replace direct console.log with logger
         this.logDebug = (message, flag = null) => {
-            if (!this.debug?.enabled) return;
-            if (flag && !this.debug.flags?.[flag]) return;
-            console.log(message);
+            this.logger.log(message, flag);
         };
 
         this.textures = new Map();
@@ -249,6 +246,46 @@ export class TileManager {
             }
             return 'stone';  // Only highest elevations are stone
         };
+
+        // Structure textures configuration
+        this.structureConfigs = {
+            'house': {
+                'wall': {
+                    color: '#8B4513',
+                    secondaryColor: '#A0522D',
+                    texturePattern: 'brick'
+                },
+                'door': {
+                    color: '#4A3B22',
+                    secondaryColor: '#654321',
+                    texturePattern: 'wood'
+                },
+                'floor': {
+                    color: '#DEB887',
+                    secondaryColor: '#D2B48C',
+                    texturePattern: 'planks'
+                }
+            },
+            'tavern': {
+                'wall': {
+                    color: '#8B4513',
+                    secondaryColor: '#A0522D',
+                    texturePattern: 'stone'
+                },
+                'door': {
+                    color: '#8B4513',
+                    secondaryColor: '#A0522D',
+                    texturePattern: 'doubledoor'
+                },
+                'floor': {
+                    color: '#8B4513',
+                    secondaryColor: '#A0522D',
+                    texturePattern: 'tiles'
+                }
+            }
+        };
+
+        this.initializeStructureTextures();
     }
 
     updateDecorations(timestamp) {
@@ -358,21 +395,143 @@ export class TileManager {
         return texture;
     }
 
-    createStructureTexture(primaryColor, secondaryColor) {
+    createStructureTexture(primaryColor, secondaryColor, pattern) {
         const canvas = document.createElement('canvas');
         canvas.width = 64;
         canvas.height = 64;
         const ctx = canvas.getContext('2d');
 
-        // Fill primary color
+        switch (pattern) {
+            case 'brick':
+                this.drawBrickPattern(ctx, primaryColor, secondaryColor);
+                break;
+            case 'wood':
+                this.drawWoodPattern(ctx, primaryColor, secondaryColor);
+                break;
+            case 'stone':
+                this.drawStonePattern(ctx, primaryColor, secondaryColor);
+                break;
+            case 'planks':
+                this.drawPlanksPattern(ctx, primaryColor, secondaryColor);
+                break;
+            case 'tiles':
+                this.drawTilesPattern(ctx, primaryColor, secondaryColor);
+                break;
+            default:
+                // Fallback to solid color
+                ctx.fillStyle = primaryColor;
+                ctx.fillRect(0, 0, 64, 64);
+        }
+
+        return canvas;
+    }
+
+    drawBrickPattern(ctx, primaryColor, secondaryColor) {
         ctx.fillStyle = primaryColor;
         ctx.fillRect(0, 0, 64, 64);
 
-        // Add some detail with secondary color
         ctx.fillStyle = secondaryColor;
-        ctx.fillRect(4, 4, 56, 56);
+        for (let y = 0; y < 64; y += 16) {
+            for (let x = 0; x < 64; x += 32) {
+                ctx.fillRect(x + (y % 32 ? 16 : 0), y, 28, 14);
+            }
+        }
+    }
 
-        return canvas;
+    drawWoodPattern(ctx, primaryColor, secondaryColor) {
+        // Fill background
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Draw wood grain
+        ctx.fillStyle = secondaryColor;
+        for (let y = 0; y < 64; y += 8) {
+            ctx.beginPath();
+            // Create wavy lines for wood grain
+            ctx.moveTo(0, y);
+            for (let x = 0; x < 64; x += 16) {
+                ctx.quadraticCurveTo(
+                    x + 8, y + Math.sin(x * 0.1) * 4,
+                    x + 16, y
+                );
+            }
+            ctx.stroke();
+        }
+    }
+
+    drawStonePattern(ctx, primaryColor, secondaryColor) {
+        // Fill background
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Draw stone blocks
+        ctx.fillStyle = secondaryColor;
+        for (let y = 0; y < 64; y += 16) {
+            for (let x = 0; x < 64; x += 16) {
+                const offset = y % 32 ? 8 : 0;
+                ctx.beginPath();
+                ctx.rect(x + offset, y, 14, 14);
+                ctx.stroke();
+                
+                // Add some texture inside each stone
+                ctx.fillStyle = `rgba(0,0,0,0.1)`;
+                ctx.fillRect(x + offset + 2, y + 2, 10, 10);
+            }
+        }
+    }
+
+    drawPlanksPattern(ctx, primaryColor, secondaryColor) {
+        // Fill background
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Draw planks
+        ctx.fillStyle = secondaryColor;
+        for (let y = 0; y < 64; y += 8) {
+            // Plank separator lines
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(64, y);
+            ctx.strokeStyle = secondaryColor;
+            ctx.stroke();
+
+            // Wood grain on each plank
+            for (let x = 0; x < 64; x += 32) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 30, y + 4);
+                ctx.strokeStyle = `rgba(0,0,0,0.1)`;
+                ctx.stroke();
+            }
+        }
+    }
+
+    drawTilesPattern(ctx, primaryColor, secondaryColor) {
+        // Fill background
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Draw tiles
+        for (let y = 0; y < 64; y += 8) {
+            for (let x = 0; x < 64; x += 8) {
+                const isAlternate = (x + y) % 16 === 0;
+                ctx.fillStyle = isAlternate ? secondaryColor : primaryColor;
+                ctx.fillRect(x, y, 7, 7);
+            }
+        }
+    }
+
+    initializeStructureTextures() {
+        for (const [structureType, parts] of Object.entries(this.structureConfigs)) {
+            for (const [partType, config] of Object.entries(parts)) {
+                const texture = this.createStructureTexture(
+                    config.color,
+                    config.secondaryColor,
+                    config.texturePattern
+                );
+                this.textures.set(`structure_${structureType}_${partType}`, texture);
+            }
+        }
     }
 
     getStructureTexture(type, part) {
@@ -395,9 +554,6 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
-
-
-
 
 
 

@@ -1,6 +1,7 @@
 import { TileManager } from './TileManager.js';
 import { StructureManager } from './StructureManager.js';
 import { SimplexNoise } from '../../lib/SimplexNoise.js';
+import { StructureRenderer } from '../renderer/StructureRenderer.js';
 
 export class World {
     constructor(width, height, options = {}) {
@@ -39,6 +40,9 @@ export class World {
         if (options.autoGenerateStructures) {
             this.structureManager.generateRandomStructures(options.structureCount || 5);
         }
+
+        // Initialize structure renderer
+        this.structureRenderer = new StructureRenderer(options.ctx);
     }
 
     generateInitialChunks() {
@@ -95,10 +99,6 @@ export class World {
         } else {
             tile = this.generateTile(x, y, this.generateHeight(x, y), this.generateMoisture(x, y));
         }
-
-        if (tile?.structure) {
-            console.log(`Found structure at ${x},${y}:`, tile.structure); // Add debug logging
-        }
         
         return tile;
     }
@@ -131,7 +131,17 @@ export class World {
     clearCache() {
         this.tileCache.clear();
     }
+
+    renderTile(ctx, tile, screenX, screenY) {
+        // ... existing tile rendering code ...
+
+        // If the tile has a structure, render it
+        if (tile.structure) {
+            this.structureRenderer.render(tile.structure, screenX, screenY);
+        }
+    }
 }
+
 
 
 

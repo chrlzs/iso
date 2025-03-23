@@ -7,10 +7,6 @@ export class Minimap {
     }
 
     getTileColor(tile) {
-        // Debug log for structure tiles
-        if (tile.structure) {
-            console.log(`Debug: Found structure on minimap tile:`, tile.structure);
-        }
 
         // If tile has a structure, return structure color
         if (tile.structure) {

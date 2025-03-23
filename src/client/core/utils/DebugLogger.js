@@ -6,16 +6,20 @@ export class DebugLogger {
     log(message, flag = null, ...args) {
         if (!this.debug?.enabled) return;
         if (flag && !this.debug.flags?.[flag]) return;
-        console.log(message, ...args);
+        if (args.length > 0) {
+            console.log(`[DEBUG] ${message}`, ...args);
+        } else {
+            console.log(`[DEBUG] ${message}`);
+        }
     }
 
     warn(message, ...args) {
         if (!this.debug?.enabled) return;
-        console.warn(message, ...args);
+        console.warn(`[DEBUG] ${message}`, ...args);
     }
 
     error(message, ...args) {
         if (!this.debug?.enabled) return;
-        console.error(message, ...args);
+        console.error(`[DEBUG] ${message}`, ...args);
     }
 }

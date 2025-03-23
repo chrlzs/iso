@@ -485,18 +485,21 @@ export class GameInstance {
 
     setupDebugControls() {
         window.addEventListener('keydown', (e) => {
-            if (!this.debug.enabled) return;
+            // Only respond to Ctrl + D combinations
+            if (!e.ctrlKey) return;
             
             switch(e.key.toLowerCase()) {
+                case 'd': // Toggle debug mode
+                    this.debug.enabled = !this.debug.enabled;
+                    console.log(`Debug mode: ${this.debug.enabled ? 'enabled' : 'disabled'}`);
+                    break;
                 case 'p':
+                    if (!this.debug.enabled) return;
                     this.debug.flags.showPath = !this.debug.flags.showPath;
                     break;
                 case 'g':
+                    if (!this.debug.enabled) return;
                     this.debug.flags.showGrid = !this.debug.flags.showGrid;
-                    break;
-                case 'd': // Toggle debug mode
-                    this.debug.enabled = !this.debug.enabled;
-                    console.log(`Debug mode: ${this.debug.enabled}`);
                     break;
             }
         });
@@ -634,6 +637,7 @@ export class GameInstance {
         this.uiManager.hideDialog();
     }
 }
+
 
 
 

@@ -1,5 +1,6 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
+import { StructureRenderer } from './StructureRenderer.js';
 
 export class IsometricRenderer {
     constructor(canvas, world) {
@@ -12,6 +13,7 @@ export class IsometricRenderer {
         this.heightOffset = 16; // Vertical offset for height
         
         this.waterRenderer = new WaterRenderer();
+        this.structureRenderer = new StructureRenderer(this.ctx, this.tileWidth, this.tileHeight);
     }
 
     // Add the conversion methods
@@ -129,13 +131,18 @@ export class IsometricRenderer {
             }
         }
 
-        // If tile has a structure, add a border
+        // If tile has a structure, render it instead of just the border
         if (tile.structure) {
-            const isoPos = this.convertToIsometric(x, y);
-            this.ctx.strokeStyle = '#FFD700'; // Gold border for structures
-            this.ctx.lineWidth = 2;
+            this.structureRenderer.render(
+                tile.structure,
+                isoX,
+                isoY - (this.tileHeight / 2) // Offset Y to align with tile
+            );
             
-            // Draw diamond shape around structure tile
+            // Optionally, you can comment out or remove this section to disable the gold border
+            /*
+            this.ctx.strokeStyle = '#FFD700';
+            this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             this.ctx.moveTo(isoPos.x, isoPos.y - this.tileHeight / 2);
             this.ctx.lineTo(isoPos.x + this.tileWidth / 2, isoPos.y);
@@ -143,6 +150,7 @@ export class IsometricRenderer {
             this.ctx.lineTo(isoPos.x - this.tileWidth / 2, isoPos.y);
             this.ctx.closePath();
             this.ctx.stroke();
+            */
         }
     }
 
@@ -234,6 +242,66 @@ export class IsometricRenderer {
         this.ctx.fill();
     }
 
+    renderStructure(x, y, structure, tileManager) {
+        const isoX = (x - y) * (this.tileWidth / 2);
+        const isoY = (x + y) * (this.tileHeight / 2);
+        const baseHeight = structure.template.height || 2; // Building height in tiles
+        
+        // Render each part of the structure
+        structure.template.blueprint.forEach((row, dy) => {
+            row.forEach((part, dx) => {
+                const partX = isoX + dx * (this.tileWidth / 2);
+                const partY = isoY + dy * (this.tileHeight / 2);
+                
+                // Get the appropriate texture based on the part type
+                const texture = tileManager.getStructureTexture(structure.type, part);
+                
+                if (texture) {
+                    // Draw walls with height
+                    if (part === 'wall') {
+                        // Draw vertical wall section
+                        this.ctx.drawImage(
+                            texture,
+                            partX,
+                            partY - (baseHeight * this.heightOffset),
+                            this.tileWidth,
+                            this.tileHeight * baseHeight
+                        );
+                    } else if (part === 'door') {
+                        // Draw door with special handling
+                        this.drawDoor(partX, partY, structure.type, tileManager);
+                    } else if (part === 'floor') {
+                        // Draw floor tile
+                        this.ctx.drawImage(
+                            texture,
+                            partX,
+                            partY,
+                            this.tileWidth,
+                            this.tileHeight
+                        );
+                    }
+                }
+            });
+        });
+
+        // Render decorations after the main structure
+        structure.template.decorations?.forEach(decoration => {
+            const decorX = isoX + decoration.x * (this.tileWidth / 2);
+            const decorY = isoY + decoration.y * (this.tileHeight / 2);
+            const decorTexture = tileManager.getDecorationTexture(decoration.type);
+            
+            if (decorTexture) {
+                this.ctx.drawImage(
+                    decorTexture,
+                    decorX,
+                    decorY - (baseHeight * this.heightOffset),
+                    this.tileWidth,
+                    this.tileHeight
+                );
+            }
+        });
+    }
+
     animate() {
         // Update water animation
         this.waterRenderer.update();
@@ -243,6 +311,8 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
+
 
 
 
