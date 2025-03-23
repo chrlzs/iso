@@ -1,13 +1,13 @@
 export class Structure {
-    constructor(config) {
-        this.type = config.type;
-        this.width = config.width;
-        this.height = config.height;
-        this.x = config.x;
-        this.y = config.y;
-        this.rotation = config.rotation || 0;
-        this.blueprint = config.blueprint;
-        this.decorations = config.decorations || [];
+    constructor(template, x, y) {
+        this.type = template.type;
+        this.width = template.width;
+        this.height = template.height;
+        this.x = x;
+        this.y = y;
+        this.rotation = template.rotation || 0;
+        this.blueprint = template.blueprint;
+        this.decorations = template.decorations || [];
     }
 
     // Check if structure can be placed at given coordinates
@@ -31,16 +31,5 @@ export class Structure {
             }
         }
         return true;
-    }
-
-    // Get footprint of tiles this structure would occupy
-    getFootprint(x = this.x, y = this.y) {
-        const tiles = [];
-        for (let dy = 0; dy < this.height; dy++) {
-            for (let dx = 0; dx < this.width; dx++) {
-                tiles.push({ x: x + dx, y: y + dy });
-            }
-        }
-        return tiles;
     }
 }

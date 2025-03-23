@@ -1,3 +1,4 @@
+
 import { World } from './world/World.js';
 import { IsometricRenderer } from './renderer/IsometricRenderer.js';
 import { TileManager } from './world/TileManager.js';
@@ -17,6 +18,13 @@ export class GameInstance {
         
         // Initialize entities collection
         this.entities = new Set();
+        
+        // Initialize camera
+        this.camera = {
+            x: 0,
+            y: 0,
+            zoom: 1
+        };
         
         // Centralize debug configuration
         this.debug = {
@@ -42,22 +50,35 @@ export class GameInstance {
         // Get reference to TileManager from World
         this.tileManager = this.world.tileManager;
         
-        this.renderer = new IsometricRenderer(canvas, this.world);
-        this.inputManager = new InputManager();
+        // Initialize pathfinder
         this.pathFinder = new PathFinder(this.world);
         
-        // Initialize camera with max zoom out
-        this.camera = {
-            x: 0,
-            y: 0,
-            zoom: 0.5  // Start at max zoom out
-        };
+        // Initialize renderer and input manager
+        this.renderer = new IsometricRenderer(canvas, this.world);
+        this.inputManager = new InputManager();
 
-        // Find valid spawn point and initialize player
+        // Find valid spawn point
         const spawnPoint = this.findValidSpawnPoint();
+        
+        // Create player with ALL required dependencies
         this.player = new Player({
             x: spawnPoint.x,
-            y: spawnPoint.y
+            y: spawnPoint.y,
+            world: this.world,
+            pathFinder: this.pathFinder
+        });
+
+        // Center camera on player initially
+        this.camera.x = this.player.x;
+        this.camera.y = this.player.y;
+
+        // Debug log to verify pathFinder
+        console.log('PathFinder instance:', this.pathFinder);
+        console.log('Player config:', {
+            x: spawnPoint.x,
+            y: spawnPoint.y,
+            hasWorld: !!this.world,
+            hasPathFinder: !!this.pathFinder
         });
 
         // Add starting structures and NPCs
@@ -74,34 +95,56 @@ export class GameInstance {
     }
 
     addStartingStructures() {
-        // Add a tavern further from spawn point
-        const tavernX = this.player.x + 8;
-        const tavernY = this.player.y + 8;
-        const tavern = this.world.structureManager.createStructure('tavern', tavernX, tavernY);
+        // Add a tavern near spawn point with more placement attempts
+        const tavernPos = this.world.structureManager.findValidPlacement(
+            'tavern',
+            this.player.x + 8,
+            this.player.y + 8,
+            30  // More attempts to find valid spot
+        );
         
-        if (tavern) {
-            console.log('Game: Created tavern at', tavernX, tavernY);
+        let tavernX, tavernY;
+        if (tavernPos) {
+            const tavern = this.world.structureManager.createStructure('tavern', tavernPos.x, tavernPos.y);
+            if (tavern) {
+                console.log('Game: Created tavern at', tavernPos.x, tavernPos.y);
+                tavernX = tavernPos.x;
+                tavernY = tavernPos.y;
+            }
         }
 
-        // Add houses in a more dispersed village pattern
+        // Add houses with more flexible positioning
         const housePositions = [
-            { x: tavernX - 5, y: tavernY - 4 },
-            { x: tavernX + 6, y: tavernY - 3 },
-            { x: tavernX - 4, y: tavernY + 5 }
+            { baseX: -5, baseY: -4 },
+            { baseX: 6, baseY: -3 },
+            { baseX: -4, baseY: 5 }
         ];
 
         housePositions.forEach(pos => {
-            const house = this.world.structureManager.createStructure('house', pos.x, pos.y);
-            if (house) {
-                console.log('Game: Created house at', pos.x, pos.y);
+            const validPos = this.world.structureManager.findValidPlacement(
+                'house',
+                this.player.x + pos.baseX,
+                this.player.y + pos.baseY,
+                20
+            );
+            
+            if (validPos) {
+                const house = this.world.structureManager.createStructure('house', validPos.x, validPos.y);
+                if (house) {
+                    console.log('Game: Created house at', validPos.x, validPos.y);
+                }
             }
         });
 
         // Add NPCs with more spacing
         const npcPositions = [
-            { x: this.player.x + 4, y: this.player.y + 4 },  // Village Elder near spawn
-            { x: tavernX - 2, y: tavernY - 2 }               // Merchant near tavern
+            { x: this.player.x + 4, y: this.player.y + 4 }  // Village Elder near spawn
         ];
+
+        // Only add merchant near tavern if tavern was successfully placed
+        if (tavernX !== undefined && tavernY !== undefined) {
+            npcPositions.push({ x: tavernX - 2, y: tavernY - 2 }); // Merchant near tavern
+        }
 
         npcPositions.forEach(pos => {
             // Validate tile before placing NPC
@@ -306,6 +349,11 @@ export class GameInstance {
     }
 
     update(deltaTime) {
+        if (!this.player || !this.camera) {
+            console.warn('Required components not initialized');
+            return;
+        }
+
         // Get terrain information at player's position
         const terrainHeight = this.getTerrainHeightAt(this.player.x, this.player.y);
         const terrainAngle = this.getTerrainAngleAt(this.player.x, this.player.y);
@@ -321,17 +369,12 @@ export class GameInstance {
         );
 
         // Update player
-        if (this.player) {
-            this.player.update(deltaTime);
-        }
+        this.player.update(deltaTime);
 
-        // Convert Set to Array for entity updates
-        const entitiesArray = Array.from(this.entities);
-
-        // Update all entities
+        // Update entities
         this.entities.forEach(entity => {
             if (entity.update) {
-                entity.update(deltaTime, entitiesArray);
+                entity.update(deltaTime);
             }
         });
 
@@ -591,6 +634,11 @@ export class GameInstance {
         this.uiManager.hideDialog();
     }
 }
+
+
+
+
+
 
 
 

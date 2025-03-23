@@ -239,14 +239,15 @@ export class TileManager {
 
         // Add tile type determination method
         this.determineTileType = (height, moisture) => {
-            if (height < 0.001) return 'water';
+            // Adjusted thresholds for better terrain distribution
+            if (height < 0.1) return 'water';
             if (height < 0.2) return 'sand';
             if (height < 0.7) {
                 if (moisture > 0.6) return 'wetland';
                 if (moisture > 0.3) return 'grass';
                 return 'dirt';
             }
-            return 'stone';
+            return 'stone';  // Only highest elevations are stone
         };
     }
 
@@ -394,6 +395,8 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
+
+
 
 
 

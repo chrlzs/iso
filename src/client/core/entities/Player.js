@@ -1,9 +1,18 @@
 export class Player {
     constructor(config) {
+        if (!config.pathFinder) {
+            throw new Error('PathFinder is required for Player initialization');
+        }
+        if (!config.world) {
+            throw new Error('World is required for Player initialization');
+        }
+
         this.x = config.x;
         this.y = config.y;
+        this.world = config.world;
+        this.pathFinder = config.pathFinder;
         this.size = 24;
-        this.color = '#0000FF';  // Fallback color
+        this.color = '#0000FF';
         this.currentPath = null;
         this.currentPathIndex = 0;
         this.isMoving = false;
@@ -97,39 +106,47 @@ export class Player {
     }
 
     setPath(path) {
-        if (!path || path.length === 0) {
-            console.log('Invalid path provided');
-            return;
-        }
-
+        if (!path) return;
+        
         this.currentPath = path;
         this.currentPathIndex = 0;
         this.isMoving = true;
     }
 
     update(deltaTime) {
-        // Update animation frame
-        this.frameCount++;
-        if (this.frameCount >= this.animationSpeed) {
-            this.frameX = (this.frameX + 1) % 12;
-            this.frameCount = 0;
-        }
-
-        if (!this.isMoving || !this.currentPath || this.currentPathIndex >= this.currentPath.length) {
-            // When idle, use first frame of current direction
-            this.frameX = 0;
-            return;
-        }
-
-        const targetPos = this.currentPath[this.currentPathIndex];
-        if (!targetPos) {
+        // Add defensive check
+        if (!this.pathFinder) {
+            console.error('PathFinder is not initialized in Player');
             this.isMoving = false;
-            this.currentPath = null;
             return;
         }
 
-        const dx = targetPos.x - this.x;
-        const dy = targetPos.y - this.y;
+        if (!this.isMoving || !this.currentPath) {
+            return;
+        }
+
+        const target = this.currentPath[this.currentPathIndex];
+        if (!target) {
+            this.isMoving = false;
+            return;
+        }
+
+        try {
+            // Check if next tile is walkable before moving
+            if (!this.pathFinder.isWalkable(target.x, target.y)) {
+                console.warn('Path contains unwalkable tile, stopping movement');
+                this.currentPath = null;
+                this.isMoving = false;
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking walkable tile:', error);
+            this.isMoving = false;
+            return;
+        }
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < this.targetReachThreshold) {
@@ -140,10 +157,9 @@ export class Player {
                 this.isMoving = false;
                 this.frameX = 0; // Reset to idle frame
                 
-                // Call the callback if it exists
                 if (this.onPathComplete) {
                     this.onPathComplete();
-                    this.onPathComplete = null; // Clear the callback
+                    this.onPathComplete = null;
                 }
                 return;
             }
@@ -154,11 +170,8 @@ export class Player {
             this.x += dx * ratio;
             this.y += dy * ratio;
             
-            // Determine direction based on movement angle
             const angle = Math.atan2(dy, dx);
             this.direction = this.getDirectionFromAngle(angle);
-            
-            // Update frame row based on direction
             this.frameY = this.directions[this.direction];
         }
     }
@@ -216,6 +229,11 @@ export class Player {
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
 }
+
+
+
+
+
 
 
 

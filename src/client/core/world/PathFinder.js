@@ -98,13 +98,18 @@ export class PathFinder {
     }
 
     getMovementCost(fromX, fromY, toX, toY) {
-        // Add terrain-based movement cost
+        // Get actual tiles
         const fromTile = this.world.generateTile(fromX, fromY, 
             this.world.generateHeight(fromX, fromY),
             this.world.generateMoisture(fromX, fromY));
         const toTile = this.world.generateTile(toX, toY,
             this.world.generateHeight(toX, toY),
             this.world.generateMoisture(toX, toY));
+
+        // If either tile is not walkable, return infinite cost
+        if (!this.isWalkable(toX, toY) || !this.isWalkable(fromX, fromY)) {
+            return Infinity;
+        }
 
         // Basic cost is 1
         let cost = 1;
@@ -114,8 +119,14 @@ export class PathFinder {
         cost += heightDiff * 0.5;
 
         // Add terrain type costs
-        if (toTile.type === 'wetland') cost += 2;
-        if (toTile.type === 'sand') cost += 1;
+        const terrainCosts = {
+            'sand': 1.5,
+            'dirt': 1,
+            'grass': 1,
+            'stone': 1.2
+        };
+
+        cost *= (terrainCosts[toTile.type] || 1);
 
         return cost;
     }
@@ -173,12 +184,35 @@ export class PathFinder {
     }
 
     isWalkable(x, y) {
-        const tile = this.world.getTileAt(x, y);
-        if (!tile) return false;
-        if (tile.type === 'water') return false;
+        // First check if coordinates are valid
+        if (!this.isValidCoordinate(x, y)) {
+            return false;
+        }
+
+        // Get the actual tile from the world
+        const height = this.world.generateHeight(x, y);
+        const moisture = this.world.generateMoisture(x, y);
+        const tile = this.world.generateTile(x, y, height, moisture);
+
+        // List of non-walkable tile types
+        const nonWalkableTiles = ['water', 'wetland'];
+        
+        // Check if tile exists and is walkable
+        if (!tile || nonWalkableTiles.includes(tile.type)) {
+            return false;
+        }
+
+        // Check if tile has a structure blocking the path
+        if (tile.structure) {
+            // You might want to add logic here to allow walking through doors
+            // or specific parts of structures
+            return false;
+        }
+
         return true;
     }
 }
+
 
 
 

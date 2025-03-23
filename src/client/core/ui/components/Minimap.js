@@ -6,6 +6,35 @@ export class Minimap {
         this.scale = this.size / Math.max(this.game.world.width, this.game.world.height);
     }
 
+    getTileColor(tile) {
+        // Debug log for structure tiles
+        if (tile.structure) {
+            console.log(`Debug: Found structure on minimap tile:`, tile.structure);
+        }
+
+        // If tile has a structure, return structure color
+        if (tile.structure) {
+            const structureColors = {
+                'house': '#8B4513',  // Saddle Brown
+                'tavern': '#CD853F', // Peru
+                'wall': '#808080',   // Gray
+                'door': '#A0522D'    // Sienna
+            };
+            return structureColors[tile.structure.type] || '#DAA520'; // Default: Goldenrod
+        }
+
+        // Original tile colors
+        const colors = {
+            grass: '#2d5a27',
+            dirt: '#8b4513',
+            stone: '#808080',
+            sand: '#f4a460',
+            water: '#4169e1',
+            wetland: '#2f4f4f'
+        };
+        return colors[tile.type] || '#ffffff';
+    }
+
     render(ctx) {
         // Draw minimap background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -33,8 +62,15 @@ export class Minimap {
                     const minimapX = this.position.x + x * this.scale;
                     const minimapY = this.position.y + y * this.scale;
 
-                    ctx.fillStyle = this.getTileColor(tile.type);
+                    // Draw tile
+                    ctx.fillStyle = this.getTileColor(tile);
                     ctx.fillRect(minimapX, minimapY, this.scale + 0.5, this.scale + 0.5);
+
+                    // Add border for structures
+                    if (tile.structure) {
+                        ctx.strokeStyle = '#FFD700';
+                        ctx.strokeRect(minimapX, minimapY, this.scale + 0.5, this.scale + 0.5);
+                    }
                 }
             }
         }
@@ -48,19 +84,9 @@ export class Minimap {
         ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
         ctx.fill();
     }
-
-    getTileColor(tileType) {
-        const colors = {
-            grass: '#2d5a27',
-            dirt: '#8b4513',
-            stone: '#808080',
-            sand: '#f4a460',
-            water: '#4169e1',
-            wetland: '#2f4f4f'
-        };
-        return colors[tileType] || '#ffffff';
-    }
 }
+
+
 
 
 

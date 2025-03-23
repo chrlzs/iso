@@ -128,6 +128,22 @@ export class IsometricRenderer {
                 console.warn(`Missing decoration texture for type: ${tile.decoration.type}`);
             }
         }
+
+        // If tile has a structure, add a border
+        if (tile.structure) {
+            const isoPos = this.convertToIsometric(x, y);
+            this.ctx.strokeStyle = '#FFD700'; // Gold border for structures
+            this.ctx.lineWidth = 2;
+            
+            // Draw diamond shape around structure tile
+            this.ctx.beginPath();
+            this.ctx.moveTo(isoPos.x, isoPos.y - this.tileHeight / 2);
+            this.ctx.lineTo(isoPos.x + this.tileWidth / 2, isoPos.y);
+            this.ctx.lineTo(isoPos.x, isoPos.y + this.tileHeight / 2);
+            this.ctx.lineTo(isoPos.x - this.tileWidth / 2, isoPos.y);
+            this.ctx.closePath();
+            this.ctx.stroke();
+        }
     }
 
     renderColorTile(x, y, tile) {
@@ -227,6 +243,7 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
 
 
 
