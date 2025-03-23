@@ -28,6 +28,27 @@ export class IsometricRenderer {
         return { x, y };
     }
 
+    screenToWorld(screenX, screenY, zoom, cameraX, cameraY) {
+        // Adjust for zoom
+        const unzoomedX = screenX / zoom;
+        const unzoomedY = screenY / zoom;
+        
+        // Get tile dimensions
+        const tileWidth = this.tileWidth;
+        const tileHeight = this.tileHeight;
+        
+        // Convert screen to isometric coordinates
+        // Note: We divide by tileHeight/2 because that's our isometric tile height
+        const isoX = unzoomedX / (tileWidth / 2);
+        const isoY = unzoomedY / (tileHeight / 2);
+        
+        // Convert isometric to cartesian coordinates
+        return {
+            x: Math.floor((isoX + isoY) / 2),
+            y: Math.floor((isoY - isoX) / 2)
+        };
+    }
+
     clear() {
         this.ctx.fillStyle = '#333';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -206,6 +227,8 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
+
 
 
 

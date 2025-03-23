@@ -48,6 +48,8 @@ export class Player {
             'northeast': 6, // Row 7
             'east': 7      // Row 8
         };
+
+        this.onPathComplete = null; // Add callback for path completion
     }
 
     render(ctx, renderer) {
@@ -137,6 +139,12 @@ export class Player {
                 this.currentPath = null;
                 this.isMoving = false;
                 this.frameX = 0; // Reset to idle frame
+                
+                // Call the callback if it exists
+                if (this.onPathComplete) {
+                    this.onPathComplete();
+                    this.onPathComplete = null; // Clear the callback
+                }
                 return;
             }
         } else {
@@ -208,6 +216,8 @@ export class Player {
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
 }
+
+
 
 
 

@@ -7,6 +7,7 @@ export class UIManager {
     constructor(game) {
         this.game = game;
         this.components = new Map();
+        this.currentDialog = null;
         
         // Initialize UI components
         this.initializeComponents();
@@ -103,7 +104,54 @@ export class UIManager {
         
         ctx.restore();
     }
+
+    showDialog(dialogConfig) {
+        const dialogElement = document.createElement('div');
+        dialogElement.className = 'game-dialog';
+        dialogElement.innerHTML = `
+            <h3>${dialogConfig.npcName}</h3>
+            <p>${dialogConfig.text}</p>
+            <div class="dialog-options">
+                ${dialogConfig.options.map((option, index) => `
+                    <button class="dialog-option" data-option="${index}">
+                        ${option.text}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+
+        // Position dialog
+        dialogElement.style.position = 'absolute';
+        dialogElement.style.bottom = '20%';
+        dialogElement.style.left = '50%';
+        dialogElement.style.transform = 'translateX(-50%)';
+        
+        // Add event listeners
+        dialogElement.querySelectorAll('.dialog-option').forEach((button, index) => {
+            button.addEventListener('click', () => {
+                dialogConfig.options[index].action();
+            });
+        });
+
+        document.body.appendChild(dialogElement);
+        this.currentDialog = dialogElement;
+    }
+
+    showTradeDialog(merchant) {
+        // Implement merchant-specific dialog with inventory
+        // Similar to showDialog but with trade-specific UI
+    }
+
+    hideDialog() {
+        if (this.currentDialog) {
+            this.currentDialog.remove();
+            this.currentDialog = null;
+        }
+    }
 }
+
+
+
 
 
 

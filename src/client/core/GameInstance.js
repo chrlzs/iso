@@ -65,23 +65,29 @@ export class GameInstance {
 
         // Initialize UI
         this.uiManager = new UIManager(this);
+
+        // Add dialog state
+        this.dialogState = {
+            active: false,
+            currentNPC: null
+        };
     }
 
     addStartingStructures() {
-        // Add a tavern near the spawn point
-        const tavernX = this.player.x + 5;
-        const tavernY = this.player.y + 5;
+        // Add a tavern further from spawn point
+        const tavernX = this.player.x + 8;
+        const tavernY = this.player.y + 8;
         const tavern = this.world.structureManager.createStructure('tavern', tavernX, tavernY);
         
         if (tavern) {
             console.log('Game: Created tavern at', tavernX, tavernY);
         }
 
-        // Add a few houses in a small village-like pattern
+        // Add houses in a more dispersed village pattern
         const housePositions = [
-            { x: tavernX - 3, y: tavernY - 2 },
-            { x: tavernX + 4, y: tavernY - 1 },
-            { x: tavernX - 2, y: tavernY + 3 }
+            { x: tavernX - 5, y: tavernY - 4 },
+            { x: tavernX + 6, y: tavernY - 3 },
+            { x: tavernX - 4, y: tavernY + 5 }
         ];
 
         housePositions.forEach(pos => {
@@ -91,10 +97,10 @@ export class GameInstance {
             }
         });
 
-        // Add NPCs near the spawn point
+        // Add NPCs with more spacing
         const npcPositions = [
-            { x: this.player.x + 2, y: this.player.y + 2 },
-            { x: tavernX - 1, y: tavernY - 1 }
+            { x: this.player.x + 4, y: this.player.y + 4 },  // Village Elder near spawn
+            { x: tavernX - 2, y: tavernY - 2 }               // Merchant near tavern
         ];
 
         npcPositions.forEach(pos => {
@@ -105,7 +111,7 @@ export class GameInstance {
             
             if (tile.type !== 'water' && tile.type !== 'wetland') {
                 // Create merchant near tavern
-                if (pos.x === tavernX - 1) {
+                if (pos.x === tavernX - 2) {
                     const merchant = new Merchant({
                         x: pos.x,
                         y: pos.y,
@@ -119,8 +125,8 @@ export class GameInstance {
                         x: pos.x,
                         y: pos.y,
                         name: 'Village Elder',
-                        size: 20,  // Make NPCs visible
-                        color: '#FF0000'  // Red color for visibility
+                        size: 20,
+                        color: '#FF0000'
                     });
                     this.entities.add(npc);
                     console.log('Game: Created NPC at', pos.x, pos.y);
@@ -203,6 +209,28 @@ export class GameInstance {
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
             
+            // Check if clicked on an NPC first
+            const clickedNPC = this.findClickedNPC(screenX, screenY);
+            
+            if (clickedNPC) {
+                // Find adjacent tile to NPC
+                const adjacentTile = this.findAdjacentTile(clickedNPC);
+                if (adjacentTile) {
+                    const startX = Math.round(this.player.x);
+                    const startY = Math.round(this.player.y);
+                    const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
+                    
+                    if (path) {
+                        this.player.setPath(path);
+                        // Start dialog when path is complete
+                        this.player.onPathComplete = () => {
+                            this.startDialog(clickedNPC);
+                        };
+                    }
+                }
+                return;
+            }
+
             // Get the center offset where (0,0) should be
             const centerX = this.canvas.width / 2;
             const centerY = this.canvas.height / 2;
@@ -467,7 +495,107 @@ export class GameInstance {
             y: (x + y) * (this.renderer.tileHeight / 2)
         };
     }
+
+    findClickedNPC(screenX, screenY) {
+        // Get the center offset where (0,0) should be
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        
+        // Get player's isometric position
+        const playerIso = this.convertToIsometric(this.player.x, this.player.y);
+        
+        // Convert screen coordinates to world coordinates
+        const worldPos = this.renderer.screenToWorld(
+            screenX - centerX + playerIso.x * this.camera.zoom,
+            screenY - centerY + playerIso.y * this.camera.zoom,
+            this.camera.zoom,
+            this.camera.x,
+            this.camera.y
+        );
+        
+        for (const entity of this.entities) {
+            if (entity instanceof NPC) {
+                // Calculate distance in world coordinates
+                const dx = worldPos.x - entity.x;
+                const dy = worldPos.y - entity.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Use a larger click radius to make it easier to click NPCs
+                const clickRadius = 3;
+                
+                if (this.debug.enabled) {
+                    console.log(`Click check for ${entity.name}:`, {
+                        entityPos: { x: entity.x, y: entity.y },
+                        worldClick: worldPos,
+                        clickPos: { x: screenX, y: screenY },
+                        distance,
+                        clickRadius
+                    });
+                }
+                
+                if (distance < clickRadius) {
+                    console.log(`Clicked on NPC: ${entity.name}`);
+                    return entity;
+                }
+            }
+        }
+        return null;
+    }
+
+    findAdjacentTile(npc) {
+        // Check tiles in cardinal directions
+        const adjacentPositions = [
+            { x: npc.x + 1, y: npc.y },
+            { x: npc.x - 1, y: npc.y },
+            { x: npc.x, y: npc.y + 1 },
+            { x: npc.x, y: npc.y - 1 }
+        ];
+        
+        // Find first valid position
+        for (const pos of adjacentPositions) {
+            if (this.pathFinder.isValidCoordinate(pos.x, pos.y)) {
+                const height = this.world.generateHeight(pos.x, pos.y);
+                const moisture = this.world.generateMoisture(pos.x, pos.y);
+                const tile = this.world.generateTile(pos.x, pos.y, height, moisture);
+                
+                if (tile.type !== 'water' && tile.type !== 'wetland') {
+                    return pos;
+                }
+            }
+        }
+        return null;
+    }
+
+    startDialog(npc) {
+        this.dialogState.active = true;
+        this.dialogState.currentNPC = npc;
+        
+        // Different dialog based on NPC type
+        if (npc instanceof Merchant) {
+            this.uiManager.showTradeDialog(npc);
+        } else {
+            this.uiManager.showDialog({
+                npcName: npc.name,
+                text: `Hello traveler! I am ${npc.name}.`,
+                options: [
+                    { text: "Hello!", action: () => console.log("Greeted NPC") },
+                    { text: "Goodbye", action: () => this.closeDialog() }
+                ]
+            });
+        }
+    }
+
+    closeDialog() {
+        this.dialogState.active = false;
+        this.dialogState.currentNPC = null;
+        this.uiManager.hideDialog();
+    }
 }
+
+
+
+
+
 
 
 
