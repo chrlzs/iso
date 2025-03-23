@@ -16,7 +16,14 @@ export class IsometricRenderer {
         this.structureRenderer = new StructureRenderer(this.ctx, this.tileWidth, this.tileHeight);
     }
 
-    // Add the conversion methods
+    // Convert world coordinates to screen coordinates
+    worldToScreen(x, y) {
+        return {
+            x: (x - y) * (this.tileWidth / 2),
+            y: (x + y) * (this.tileHeight / 2)
+        };
+    }
+
     convertToIsometric(x, y) {
         return {
             x: (x - y) * (this.tileWidth / 2),
@@ -131,26 +138,16 @@ export class IsometricRenderer {
             }
         }
 
-        // If tile has a structure, render it instead of just the border
+        // If the tile has a structure, render it
         if (tile.structure) {
+            const screenPos = this.worldToScreen(x, y);
             this.structureRenderer.render(
                 tile.structure,
-                isoX,
-                isoY - (this.tileHeight / 2) // Offset Y to align with tile
+                x,
+                y,
+                screenPos.x,
+                screenPos.y - heightOffset
             );
-            
-            // Optionally, you can comment out or remove this section to disable the gold border
-            /*
-            this.ctx.strokeStyle = '#FFD700';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.moveTo(isoPos.x, isoPos.y - this.tileHeight / 2);
-            this.ctx.lineTo(isoPos.x + this.tileWidth / 2, isoPos.y);
-            this.ctx.lineTo(isoPos.x, isoPos.y + this.tileHeight / 2);
-            this.ctx.lineTo(isoPos.x - this.tileWidth / 2, isoPos.y);
-            this.ctx.closePath();
-            this.ctx.stroke();
-            */
         }
     }
 
@@ -311,6 +308,8 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
+
 
 
 

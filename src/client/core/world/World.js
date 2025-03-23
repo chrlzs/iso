@@ -74,7 +74,8 @@ export class World {
             y,
             id: `tile_${x}_${y}`,
             decoration: this.tileManager.getPersistentDecoration(`tile_${x}_${y}`, tileType),
-            structure: null
+            structure: null,
+            structureIndex: null  // Add this to track position within structure
         };
 
         if (this.tileCache.size >= this.maxCacheSize) {
@@ -135,8 +136,8 @@ export class World {
     renderTile(ctx, tile, screenX, screenY) {
         // ... existing tile rendering code ...
 
-        // If the tile has a structure, render it
-        if (tile.structure) {
+        // If the tile has a structure, render it only if it's the primary tile
+        if (tile.structure && tile.structureIndex === 0) {
             this.structureRenderer.render(tile.structure, screenX, screenY);
         }
     }

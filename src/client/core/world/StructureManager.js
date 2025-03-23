@@ -3,8 +3,9 @@ import { Structure } from './Structure.js';
 export class StructureManager {
     constructor(world) {
         this.world = world;
-        this.structures = new Map();
+        this.structures = new Map(); // Now stores structures by unique ID
         this.templates = new Map();
+        this.structureIdCounter = 0;
         
         // Initialize basic structure templates
         this.initializeTemplates();
@@ -70,9 +71,11 @@ export class StructureManager {
             return null;
         }
 
+        const structureId = `structure_${this.structureIdCounter++}`;
         const structure = new Structure(template, x, y);
-        const key = `${x},${y}`;
-        this.structures.set(key, structure);
+        structure.id = structureId;
+        
+        this.structures.set(structureId, structure);
 
         // Mark tiles as occupied by structure
         this.occupyTiles(structure);
@@ -179,25 +182,23 @@ export class StructureManager {
 
     occupyTiles(structure) {
         if (!structure || !this.world) return;
-        if (typeof structure.x !== 'number' || typeof structure.y !== 'number') {
-            console.warn('Invalid structure coordinates:', structure);
-            return;
-        }
-
+        
         try {
+            let tileIndex = 0;
             for (let dy = 0; dy < structure.height; dy++) {
                 for (let dx = 0; dx < structure.width; dx++) {
                     const worldX = structure.x + dx;
                     const worldY = structure.y + dy;
                     const tile = this.world.getTileAt(worldX, worldY);
                     if (tile) {
+                        // Store both the structure reference and the tile's index in the structure
                         tile.structure = structure;
-                        if (this.world.debug?.flags?.logStructures) {
-                            console.log(`Marked tile at ${worldX},${worldY} as occupied by ${structure.type}`);
-                        }
+                        tile.structureIndex = tileIndex++;
                     }
                 }
             }
+            // Store the primary tile index (usually 0) in the structure
+            structure.primaryTileIndex = 0;
         } catch (error) {
             console.warn('Error occupying tiles:', error);
         }
@@ -248,9 +249,37 @@ export class StructureManager {
     }
 
     getStructureAt(x, y) {
-        return this.structures.get(`${x},${y}`);
+        const tile = this.world.getTileAt(x, y);
+        return tile?.structure || null;
+    }
+
+    // Update this method to properly remove all tile references
+    removeStructure(structure) {
+        if (!structure || !this.world) return;
+
+        // Clear all tile references
+        for (let dy = 0; dy < structure.height; dy++) {
+            for (let dx = 0; dx < structure.width; dx++) {
+                const worldX = structure.x + dx;
+                const worldY = structure.y + dy;
+                const tile = this.world.getTileAt(worldX, worldY);
+                if (tile) {
+                    tile.structure = null;
+                    tile.structureIndex = null;
+                }
+            }
+        }
+
+        // Remove the structure from our collection
+        this.structures.delete(structure.id);
+    }
+
+    // Add this method to get all structures
+    getAllStructures() {
+        return Array.from(this.structures.values());
     }
 }
+
 
 
 
