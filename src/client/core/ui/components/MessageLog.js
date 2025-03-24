@@ -6,11 +6,38 @@ export class MessageLog {
         this.game = config.game;
         this.messages = [];
         this.maxMessages = 5;
+        this.lineHeight = 20;
+        this.padding = 10;
+        this.font = '12px Arial';
     }
 
     addMessage(message) {
-        this.messages.unshift(message);
-        if (this.messages.length > this.maxMessages) {
+        // Split long messages into multiple lines
+        const ctx = this.game.ctx;
+        ctx.font = this.font;
+        const words = message.split(' ');
+        let lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = ctx.measureText(currentLine + " " + word).width;
+            if (width < this.width - (this.padding * 2)) {
+                currentLine += " " + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+
+        // Add each line as a separate message
+        lines.forEach(line => {
+            this.messages.unshift(line);
+        });
+
+        // Trim messages to max length
+        while (this.messages.length > this.maxMessages) {
             this.messages.pop();
         }
     }
@@ -22,11 +49,12 @@ export class MessageLog {
 
         // Draw messages
         ctx.fillStyle = '#ffffff';
-        ctx.font = '12px Arial';
+        ctx.font = this.font;
         this.messages.forEach((message, index) => {
-            ctx.fillText(message, 
-                this.position.x + 10, 
-                this.position.y + 20 + (index * 20)
+            ctx.fillText(
+                message,
+                this.position.x + this.padding,
+                this.position.y + this.padding + (index * this.lineHeight)
             );
         });
     }

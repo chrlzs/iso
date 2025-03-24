@@ -1,0 +1,132 @@
+.inventory-ui {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #666;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    color: white;
+    z-index: 1000;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+}
+
+.inventory-slot, .equipment-slot {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #444;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.inventory-slot:hover, .equipment-slot:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.inventory-slot img, .equipment-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.item-quantity {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.equipment-slots {
+    display: grid;
+    grid-template-areas:
+        ". head ."
+        "mainHand body offHand"
+        ". legs ."
+        ". feet .";
+    gap: 4px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+}
+
+.equipment-slot.head { grid-area: head; }
+.equipment-slot.body { grid-area: body; }
+.equipment-slot.legs { grid-area: legs; }
+.equipment-slot.feet { grid-area: feet; }
+.equipment-slot.mainHand { grid-area: mainHand; }
+.equipment-slot.offHand { grid-area: offHand; }
+
+.stats-display {
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+.gold-display {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.gold-display img {
+    width: 20px;
+    height: 20px;
+}
+
+.item-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #666;
+    border-radius: 4px;
+    padding: 8px;
+    color: white;
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1100;
+    max-width: 200px;
+    white-space: pre-wrap;
+}
+
+/* Rarity colors */
+.item-tooltip[data-rarity="common"] { border-color: #ffffff; }
+.item-tooltip[data-rarity="uncommon"] { border-color: #1eff00; }
+.item-tooltip[data-rarity="rare"] { border-color: #0070dd; }
+.item-tooltip[data-rarity="epic"] { border-color: #a335ee; }
+.item-tooltip[data-rarity="legendary"] { border-color: #ff8000; }
+
+/* Dragging states */
+.inventory-slot.drag-over,
+.equipment-slot.drag-over {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px dashed #fff;
+}
+
+.inventory-slot.selected {
+    border: 1px solid #fff;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}

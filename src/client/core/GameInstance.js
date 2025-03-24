@@ -10,6 +10,7 @@ import { NPC } from './entities/NPC.js';
 import { Merchant } from './entities/Merchant.js';
 import { UIManager } from './ui/UIManager.js';
 import { MessageSystem } from './ui/MessageSystem.js';
+import { InventoryUI } from './ui/components/InventoryUI.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -99,6 +100,11 @@ export class GameInstance {
 
         // Show intro message sequence
         this.showIntroSequence();
+
+        // Add inventory UI
+        this.uiManager.components.set('inventoryUI', new InventoryUI({
+            game: this
+        }));
     }
 
     showIntroSequence() {
@@ -160,34 +166,25 @@ export class GameInstance {
             }
         });
 
-        // Add NPCs with more spacing
-        const npcPositions = [
-            { x: this.player.x + 4, y: this.player.y + 4 }  // Village Elder near spawn
-        ];
+        // Add NPCs with better spacing
+        // Place Village Elder near spawn point
+        const elderPos = { x: this.player.x + 4, y: this.player.y + 4 };
 
-        // Only add merchant near tavern if tavern was successfully placed
-        if (tavernX !== undefined && tavernY !== undefined) {
-            npcPositions.push({ x: tavernX - 2, y: tavernY - 2 }); // Merchant near tavern
-        }
+        // Place merchant further from Elder, closer to tavern if it exists
+        const merchantPos = tavernX !== undefined && tavernY !== undefined
+            ? { x: tavernX + 3, y: tavernY + 3 }  // Increased offset from tavern
+            : { x: this.player.x + 12, y: this.player.y + 12 };  // Fallback position further from Elder
 
-        npcPositions.forEach(pos => {
+        // Validate and place NPCs
+        [elderPos, merchantPos].forEach((pos, index) => {
             // Validate tile before placing NPC
             const height = this.world.generateHeight(pos.x, pos.y);
             const moisture = this.world.generateMoisture(pos.x, pos.y);
             const tile = this.world.generateTile(pos.x, pos.y, height, moisture);
             
             if (tile.type !== 'water' && tile.type !== 'wetland') {
-                // Create merchant near tavern
-                if (pos.x === tavernX - 2) {
-                    const merchant = new Merchant({
-                        x: pos.x,
-                        y: pos.y,
-                        name: 'Village Merchant'
-                    });
-                    this.entities.add(merchant);
-                    console.log('Game: Created merchant at', pos.x, pos.y);
-                } else {
-                    // Create regular NPC near player
+                if (index === 0) {
+                    // Create Village Elder
                     const npc = new NPC({
                         x: pos.x,
                         y: pos.y,
@@ -196,7 +193,16 @@ export class GameInstance {
                         color: '#FF0000'
                     });
                     this.entities.add(npc);
-                    console.log('Game: Created NPC at', pos.x, pos.y);
+                    console.log('Game: Created Village Elder at', pos.x, pos.y);
+                } else {
+                    // Create merchant
+                    const merchant = new Merchant({
+                        x: pos.x,
+                        y: pos.y,
+                        name: 'Village Merchant'
+                    });
+                    this.entities.add(merchant);
+                    console.log('Game: Created merchant at', pos.x, pos.y);
                 }
             }
         });
@@ -645,7 +651,12 @@ export class GameInstance {
                 options: [
                     { 
                         text: "Show me what you have",
-                        action: () => this.uiManager.showTradeDialog(npc)
+                        action: () => {
+                            const merchantUI = this.uiManager.components.get('merchantUI');
+                            if (merchantUI) {
+                                merchantUI.show(npc);
+                            }
+                        }
                     },
                     { 
                         text: "Maybe later",
@@ -692,6 +703,10 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
+
+
 
 
 

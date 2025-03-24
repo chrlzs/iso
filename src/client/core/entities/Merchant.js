@@ -1,5 +1,6 @@
 
 import { NPC } from './NPC.js';
+import { Inventory } from '../inventory/Inventory.js';
 
 /**
  * Merchant NPC class
@@ -22,10 +23,61 @@ export class Merchant extends NPC {
             color: '#8B4513', // Brown color for merchants
             size: 24 // Slightly larger than regular NPCs
         });
+        
+        this.inventory = new Inventory({
+            maxSlots: 50,
+            maxWeight: 500,
+            owner: this,
+            gold: config.gold || 1000
+        });
 
-        this.inventory = config.inventory || [];
+        // Add merchant's inventory if provided
+        if (config.inventory) {
+            config.inventory.forEach(item => this.inventory.addItem(item));
+        }
+
+        this.buyMultiplier = config.buyMultiplier || 0.5; // Pay 50% of value when buying from player
+        this.sellMultiplier = config.sellMultiplier || 1.2; // Charge 120% of value when selling to player
         this.tradingRange = 100;
         this.state = 'idle'; // idle, wandering, trading
+    }
+
+    getBuyPrice(item) {
+        return Math.floor(item.value * this.buyMultiplier);
+    }
+
+    getSellPrice(item) {
+        return Math.floor(item.value * this.sellMultiplier);
+    }
+
+    buyFromPlayer(playerSlot, quantity, player) {
+        const item = player.inventory.getSlot(playerSlot);
+        if (!item) return false;
+
+        const price = this.getBuyPrice(item) * quantity;
+        if (this.inventory.gold < price) return false;
+
+        if (player.inventory.transferItem(playerSlot, this.inventory, quantity)) {
+            this.inventory.gold -= price;
+            player.inventory.gold += price;
+            return true;
+        }
+        return false;
+    }
+
+    sellToPlayer(merchantSlot, quantity, player) {
+        const item = this.inventory.getSlot(merchantSlot);
+        if (!item) return false;
+
+        const price = this.getSellPrice(item) * quantity;
+        if (player.inventory.gold < price) return false;
+
+        if (this.inventory.transferItem(merchantSlot, player.inventory, quantity)) {
+            this.inventory.gold += price;
+            player.inventory.gold -= price;
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -140,6 +192,7 @@ export class Merchant extends NPC {
         ctx.restore();
     }
 }
+
 
 
 

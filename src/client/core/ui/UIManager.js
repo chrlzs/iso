@@ -2,6 +2,7 @@ import { StatusBar } from './components/StatusBar.js';
 import { Minimap } from './components/Minimap.js';
 import { MessageLog } from './components/MessageLog.js';
 import { MainMenu } from './components/MainMenu.js';
+import { MerchantUI } from './components/MerchantUI.js';
 
 export class UIManager {
     constructor(game) {
@@ -40,6 +41,10 @@ export class UIManager {
 
         this.components.set('mainMenu', new MainMenu({
             position: { x: window.innerWidth - 50, y: 10 },
+            game: this.game
+        }));
+
+        this.components.set('merchantUI', new MerchantUI({
             game: this.game
         }));
     }
@@ -149,6 +154,7 @@ export class UIManager {
         }
     }
 }
+
 
 
 

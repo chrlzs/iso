@@ -1,3 +1,5 @@
+import { Inventory } from '../inventory/Inventory.js';
+
 export class Player {
     constructor(config) {
         if (!config.pathFinder) {
@@ -59,6 +61,24 @@ export class Player {
         };
 
         this.onPathComplete = null; // Add callback for path completion
+
+        // Add inventory system
+        this.inventory = new Inventory({
+            maxSlots: 30,
+            maxWeight: 150,
+            owner: this,
+            gold: 100 // Starting gold
+        });
+
+        // Equipment slots
+        this.equipment = {
+            head: null,
+            body: null,
+            legs: null,
+            feet: null,
+            mainHand: null,
+            offHand: null
+        };
     }
 
     render(ctx, renderer) {
@@ -228,7 +248,58 @@ export class Player {
         const terrainAngle = Math.sin(Date.now() / 1500) * 0.2; // Oscillating angle
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
+
+    equipItem(slot, itemSlot) {
+        const item = this.inventory.getSlot(itemSlot);
+        if (!item) return false;
+
+        // Check if item can be equipped in this slot
+        if (item.slot !== slot) return false;
+
+        // Unequip current item if any
+        if (this.equipment[slot]) {
+            this.inventory.addItem(this.equipment[slot]);
+        }
+
+        // Equip new item
+        this.equipment[slot] = item;
+        this.inventory.removeItem(itemSlot);
+        
+        // Update player stats based on equipment
+        this.updateStats();
+        
+        return true;
+    }
+
+    unequipItem(slot) {
+        const item = this.equipment[slot];
+        if (!item) return false;
+
+        if (this.inventory.addItem(item)) {
+            this.equipment[slot] = null;
+            this.updateStats();
+            return true;
+        }
+        return false;
+    }
+
+    updateStats() {
+        // Recalculate stats based on equipment
+        let totalDefense = 0;
+        let totalDamage = 0;
+
+        Object.values(this.equipment).forEach(item => {
+            if (item) {
+                if (item.defense) totalDefense += item.defense;
+                if (item.damage) totalDamage += item.damage;
+            }
+        });
+
+        this.defense = this.baseDefense + totalDefense;
+        this.damage = this.baseDamage + totalDamage;
+    }
 }
+
 
 
 
