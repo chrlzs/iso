@@ -9,6 +9,7 @@ import { CanvasRenderer } from './renderer/CanvasRenderer.js';
 import { NPC } from './entities/NPC.js';
 import { Merchant } from './entities/Merchant.js';
 import { UIManager } from './ui/UIManager.js';
+import { MessageSystem } from './ui/MessageSystem.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -92,6 +93,29 @@ export class GameInstance {
             active: false,
             currentNPC: null
         };
+
+        // Initialize message system
+        this.messageSystem = new MessageSystem(this);
+
+        // Show intro message sequence
+        this.showIntroSequence();
+    }
+
+    showIntroSequence() {
+        this.messageSystem.queueMessage({
+            text: "Welcome to our world! You find yourself in a mysterious land filled with opportunities and adventures.",
+            options: [
+                { text: "Tell me more" }
+            ]
+        });
+
+        this.messageSystem.queueMessage({
+            text: "You can interact with various characters, trade with merchants, and explore the landscape.",
+            options: [
+                { text: "How do I move?" },
+                { text: "Let me explore!" }
+            ]
+        });
     }
 
     addStartingStructures() {
@@ -613,30 +637,64 @@ export class GameInstance {
     }
 
     startDialog(npc) {
-        this.dialogState.active = true;
-        this.dialogState.currentNPC = npc;
-        
-        // Different dialog based on NPC type
         if (npc instanceof Merchant) {
-            this.uiManager.showTradeDialog(npc);
+            this.messageSystem.queueMessage({
+                speaker: npc.name,
+                text: "Welcome to my shop! Would you like to see my wares?",
+                logMessage: true, // This will be logged to MessageLog
+                options: [
+                    { 
+                        text: "Show me what you have",
+                        action: () => this.uiManager.showTradeDialog(npc)
+                    },
+                    { 
+                        text: "Maybe later",
+                        action: () => this.messageSystem.hide()
+                    }
+                ]
+            });
         } else {
-            this.uiManager.showDialog({
-                npcName: npc.name,
+            this.messageSystem.queueMessage({
+                speaker: npc.name,
                 text: `Hello traveler! I am ${npc.name}.`,
                 options: [
-                    { text: "Hello!", action: () => console.log("Greeted NPC") },
-                    { text: "Goodbye", action: () => this.closeDialog() }
+                    { 
+                        text: "Hello!",
+                        action: () => {
+                            this.messageSystem.queueMessage({
+                                speaker: npc.name,
+                                text: "How can I help you today?",
+                                options: [
+                                    { text: "Just saying hi" },
+                                    { text: "Goodbye" }
+                                ]
+                            });
+                        }
+                    },
+                    { text: "Goodbye" }
                 ]
             });
         }
     }
 
     closeDialog() {
-        this.dialogState.active = false;
-        this.dialogState.currentNPC = null;
-        this.uiManager.hideDialog();
+        this.messageSystem.hide();
+    }
+
+    // Example of using MessageLog directly for game events
+    handleCombatResult(damage, target) {
+        this.uiManager.components.get('messageLog')
+            .addMessage(`You hit ${target} for ${damage} damage!`);
+    }
+
+    handleItemPickup(item) {
+        this.uiManager.components.get('messageLog')
+            .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
+
 
 
 
