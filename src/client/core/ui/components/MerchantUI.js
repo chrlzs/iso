@@ -110,38 +110,8 @@ export class MerchantUI {
             height: 600px !important;
         `;
         
-        // Add debug outline
-        this.container.style.outline = '10px solid red';
-        
         this.refresh();
-        
-        // Hide the message system
         this.game.messageSystem.hide();
-        
-        // Log positions after a short delay to ensure rendering
-        setTimeout(() => {
-            const bounds = this.container.getBoundingClientRect();
-            console.log('Updated container bounds:', bounds);
-            console.log('Viewport size:', {
-                width: window.innerWidth,
-                height: window.innerHeight
-            });
-            
-            // Add viewport center indicator
-            const centerIndicator = document.createElement('div');
-            centerIndicator.style.cssText = `
-                position: fixed;
-                top: 50vh;
-                left: 50vw;
-                width: 20px;
-                height: 20px;
-                background: red;
-                border-radius: 50%;
-                transform: translate(-50%, -50%);
-                z-index: 100002;
-            `;
-            document.body.appendChild(centerIndicator);
-        }, 100);
     }
 
     hide() {
@@ -221,6 +191,7 @@ export class MerchantUI {
         return html;
     }
 }
+
 
 
 

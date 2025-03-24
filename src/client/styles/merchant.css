@@ -23,19 +23,6 @@
     z-index: 1;
 }
 
-/* Debug styles */
-.merchant-ui::before {
-    content: 'MERCHANT UI';
-    position: absolute;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: red;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-}
-
 .merchant-inventory,
 .player-inventory {
     padding: 20px;
@@ -128,6 +115,7 @@ h3 {
 .merchant-gold-display div {
     color: gold;
 }
+
 
 
 
