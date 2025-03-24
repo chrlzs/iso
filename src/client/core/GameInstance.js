@@ -19,11 +19,11 @@ export class GameInstance {
         // Initialize entities collection
         this.entities = new Set();
         
-        // Initialize camera
+        // Initialize camera with minimum zoom
         this.camera = {
             x: 0,
             y: 0,
-            zoom: 1
+            zoom: 0.5  // Changed from 1 to 0.5 for maximum zoom out
         };
         
         // Centralize debug configuration
@@ -637,6 +637,7 @@ export class GameInstance {
         this.uiManager.hideDialog();
     }
 }
+
 
 
 
