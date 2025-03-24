@@ -1,6 +1,7 @@
 
 import { NPC } from './NPC.js';
 import { Inventory } from '../inventory/Inventory.js';
+import { Item } from '../inventory/Item.js';
 
 /**
  * Merchant NPC class
@@ -38,7 +39,7 @@ export class Merchant extends NPC {
 
         this.buyMultiplier = config.buyMultiplier || 0.5; // Pay 50% of value when buying from player
         this.sellMultiplier = config.sellMultiplier || 1.2; // Charge 120% of value when selling to player
-        this.tradingRange = 100;
+        this.tradingRange = 100; // Increased range for easier testing
         this.state = 'idle'; // idle, wandering, trading
     }
 
@@ -143,16 +144,15 @@ export class Merchant extends NPC {
                 if (distance < this.tradingRange) {
                     this.state = 'trading';
                     this.setVelocity(0, 0);
-                    return;
+                    return true; // Return true if player is in range
                 }
             }
         }
 
-        // If no players are in range and we're trading, go back to idle
         if (this.state === 'trading') {
             this.state = 'idle';
-            this.stateTimer = 2000 + Math.random() * 2000;
         }
+        return false;
     }
 
     /**
@@ -192,6 +192,8 @@ export class Merchant extends NPC {
         ctx.restore();
     }
 }
+
+
 
 
 

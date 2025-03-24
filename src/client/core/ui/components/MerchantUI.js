@@ -1,5 +1,6 @@
 export class MerchantUI {
     constructor(config) {
+        console.log('MerchantUI constructor called');
         this.game = config.game;
         this.merchant = null;
         this.isVisible = false;
@@ -9,9 +10,19 @@ export class MerchantUI {
     }
 
     createElements() {
+        console.log('Creating merchant UI elements');
         this.container = document.createElement('div');
         this.container.className = 'merchant-ui';
-        this.container.style.display = 'none';
+        
+        // Force initial positioning
+        this.container.style.cssText = `
+            position: fixed;
+            top: 50vh;
+            left: 50vw;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 100000;
+        `;
 
         // Merchant inventory
         this.merchantInventory = document.createElement('div');
@@ -29,6 +40,7 @@ export class MerchantUI {
         this.container.appendChild(this.playerInventory);
         this.container.appendChild(this.goldDisplay);
 
+        // Append to document.body
         document.body.appendChild(this.container);
     }
 
@@ -78,10 +90,58 @@ export class MerchantUI {
     }
 
     show(merchant) {
+        console.log('MerchantUI.show called with merchant:', merchant);
         this.merchant = merchant;
         this.isVisible = true;
-        this.container.style.display = 'flex';
+        
+        // Force positioning and visibility
+        this.container.style.cssText = `
+            position: fixed !important;
+            top: 50vh !important;
+            left: 50vw !important;
+            transform: translate(-50%, -50%) !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 100000 !important;
+            background: #1a1a1a !important;
+            border: 4px solid gold !important;
+            width: 800px !important;
+            height: 600px !important;
+        `;
+        
+        // Add debug outline
+        this.container.style.outline = '10px solid red';
+        
         this.refresh();
+        
+        // Hide the message system
+        this.game.messageSystem.hide();
+        
+        // Log positions after a short delay to ensure rendering
+        setTimeout(() => {
+            const bounds = this.container.getBoundingClientRect();
+            console.log('Updated container bounds:', bounds);
+            console.log('Viewport size:', {
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+            
+            // Add viewport center indicator
+            const centerIndicator = document.createElement('div');
+            centerIndicator.style.cssText = `
+                position: fixed;
+                top: 50vh;
+                left: 50vw;
+                width: 20px;
+                height: 20px;
+                background: red;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 100002;
+            `;
+            document.body.appendChild(centerIndicator);
+        }, 100);
     }
 
     hide() {
@@ -91,28 +151,33 @@ export class MerchantUI {
     }
 
     refresh() {
-        if (!this.merchant) return;
+        console.log('MerchantUI.refresh called');
+        if (!this.merchant) {
+            console.warn('No merchant set for UI refresh');
+            return;
+        }
 
-        // Update merchant inventory
+        // Add debug border
+        this.container.style.border = '4px solid red';
+        
+        // Basic content with high contrast
         this.merchantInventory.innerHTML = `
-            <h3>Merchant's Goods</h3>
-            <div class="merchant-slots">
+            <h3 style="color: yellow; font-size: 24px;">Merchant's Goods</h3>
+            <div class="merchant-slots" style="background: #333; padding: 20px;">
                 ${this.renderMerchantSlots()}
             </div>
         `;
 
-        // Update player inventory
         this.playerInventory.innerHTML = `
-            <h3>Your Items</h3>
-            <div class="player-slots">
+            <h3 style="color: yellow; font-size: 24px;">Your Items</h3>
+            <div class="player-slots" style="background: #333; padding: 20px;">
                 ${this.renderPlayerSlots()}
             </div>
         `;
 
-        // Update gold display
         this.goldDisplay.innerHTML = `
-            <div>Merchant's Gold: ${this.merchant.inventory.gold}</div>
-            <div>Your Gold: ${this.game.player.inventory.gold}</div>
+            <div style="color: yellow; font-size: 20px">Merchant's Gold: ${this.merchant.inventory.gold}</div>
+            <div style="color: yellow; font-size: 20px">Your Gold: ${this.game.player.inventory.gold}</div>
         `;
     }
 
@@ -156,3 +221,7 @@ export class MerchantUI {
         return html;
     }
 }
+
+
+
+

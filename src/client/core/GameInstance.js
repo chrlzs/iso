@@ -11,6 +11,8 @@ import { Merchant } from './entities/Merchant.js';
 import { UIManager } from './ui/UIManager.js';
 import { MessageSystem } from './ui/MessageSystem.js';
 import { InventoryUI } from './ui/components/InventoryUI.js';
+import { MerchantUI } from './ui/components/MerchantUI.js';
+import { Item } from './inventory/Item.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -103,6 +105,11 @@ export class GameInstance {
 
         // Add inventory UI
         this.uiManager.components.set('inventoryUI', new InventoryUI({
+            game: this
+        }));
+
+        // Add merchant UI
+        this.uiManager.components.set('merchantUI', new MerchantUI({
             game: this
         }));
     }
@@ -199,7 +206,37 @@ export class GameInstance {
                     const merchant = new Merchant({
                         x: pos.x,
                         y: pos.y,
-                        name: 'Village Merchant'
+                        name: 'Village Merchant',
+                        inventory: [
+                            new Item({
+                                id: 'health_potion',
+                                name: 'Health Potion',
+                                description: 'Restores 50 HP',
+                                type: 'consumable',
+                                value: 50,
+                                weight: 0.5,
+                                isStackable: true,
+                                // Using data URL for a red rectangle as temporary icon
+                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/v//f5JhEANGQkLC/4H2x0A7YBSMglEwCkYBNjBqgVEwCkbBKBgFgwUAALJWOjYI+uuSAAAAAElFTkSuQmCC',
+                                effect: (target) => {
+                                    target.health += 50;
+                                    return true;
+                                }
+                            }),
+                            new Item({
+                                id: 'iron_sword',
+                                name: 'Iron Sword',
+                                description: 'A basic sword',
+                                type: 'weapon',
+                                value: 100,
+                                weight: 3,
+                                damage: 10,
+                                slot: 'mainHand',
+                                // Using data URL for a grey rectangle as temporary icon
+                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/////z/QbmAkJCT8P9D+GOgQGAWjYBSMglGADUYtMApGwSgYBaNgsAAAAt1FJzHm9f8AAAAASUVORK5CYII='
+                            })
+                        ],
+                        gold: 1000
                     });
                     this.entities.add(merchant);
                     console.log('Game: Created merchant at', pos.x, pos.y);
@@ -647,14 +684,23 @@ export class GameInstance {
             this.messageSystem.queueMessage({
                 speaker: npc.name,
                 text: "Welcome to my shop! Would you like to see my wares?",
-                logMessage: true, // This will be logged to MessageLog
+                logMessage: true,
                 options: [
                     { 
                         text: "Show me what you have",
                         action: () => {
+                            console.log('Opening merchant UI...');
                             const merchantUI = this.uiManager.components.get('merchantUI');
+                            console.log('MerchantUI component:', merchantUI);
+                            
+                            // Debug: Log all elements with higher or equal z-index
+                            const elements = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+                            console.log('Elements at center of screen:', elements);
+                            
                             if (merchantUI) {
                                 merchantUI.show(npc);
+                            } else {
+                                console.error('MerchantUI not found in UIManager components');
                             }
                         }
                     },
@@ -703,6 +749,12 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
+
+
+
+
 
 
 

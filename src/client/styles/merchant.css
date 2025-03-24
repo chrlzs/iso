@@ -1,19 +1,133 @@
 .merchant-ui {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid #666;
+    position: fixed !important;
+    top: 50vh !important;
+    left: 50vw !important;
+    transform: translate(-50%, -50%) !important;
+    background: #1a1a1a;
+    border: 4px solid gold;
     border-radius: 8px;
     padding: 20px;
-    display: flex;
+    display: none;
+    flex-direction: column;
     gap: 20px;
     color: white;
-    z-index: 1000;
+    z-index: 100000;
+    width: 800px;
+    height: 600px;
+    box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+}
+
+/* Make sure the canvas doesn't overlap */
+#gameCanvas {
+    position: relative;
+    z-index: 1;
+}
+
+/* Debug styles */
+.merchant-ui::before {
+    content: 'MERCHANT UI';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: red;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
 }
 
 .merchant-inventory,
 .player-inventory {
+    padding: 20px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+h3 {
+    color: gold;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.merchant-slots,
+.player-slots {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
     padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
+    background: #333;
+    border-radius: 4px;
+}
+
+.merchant-slot,
+.player-slot {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #666;
+    background: #444;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.merchant-slot:hover,
+.player-slot:hover {
+    border-color: gold;
+    transform: scale(1.05);
+}
+
+.merchant-slot img,
+.player-slot img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    margin: 10%;
+}
+
+.merchant-slot.empty,
+.player-slot.empty {
+    background: #222;
+    border: 2px dashed #444;
+}
+
+.item-price {
+    position: absolute;
+    bottom: -25px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: gold;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px;
+    border-radius: 3px;
+}
+
+.item-quantity {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: white;
+}
+
+.merchant-gold-display {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    margin-top: 20px;
+    font-size: 16px;
+}
+
+.merchant-gold-display div {
+    color: gold;
+}
+
+
+
