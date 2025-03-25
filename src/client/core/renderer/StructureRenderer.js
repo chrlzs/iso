@@ -140,6 +140,7 @@ export class StructureRenderer {
     }
 
     drawDecoration(type, x, y) {
+        this.ctx.save();
         switch (type) {
             case 'sign':
                 this.drawSign(x, y);
@@ -150,52 +151,102 @@ export class StructureRenderer {
             case 'path':
                 this.drawPath(x, y);
                 break;
+            case 'chimney':
+                this.drawChimney(x, y);
+                break;
+            case 'antenna':
+                this.drawAntenna(x, y);
+                break;
+            case 'satellite_dish':
+                this.drawSatelliteDish(x, y);
+                break;
         }
+        this.ctx.restore();
     }
 
     drawSign(x, y) {
-        // Draw sign post
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(x + 28, y + 8, 8, 24);
-
         // Draw sign board
-        this.ctx.fillStyle = '#DEB887';
-        this.ctx.fillRect(x + 8, y + 4, 48, 20);
-
-        // Add border to sign
-        this.ctx.strokeStyle = '#8B4513';
-        this.ctx.strokeRect(x + 8, y + 4, 48, 20);
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(x - 15, y - 20, 30, 15);
+        
+        // Add simple text lines
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(x - 10, y - 17, 20, 2);
+        this.ctx.fillRect(x - 10, y - 12, 15, 2);
     }
 
     drawACUnit(x, y) {
         // Main unit body
         this.ctx.fillStyle = '#A9A9A9';
-        this.ctx.fillRect(x + 8, y + 8, 24, 16);
-
-        // Grill lines
-        this.ctx.strokeStyle = '#696969';
+        this.ctx.fillRect(x - 10, y - 8, 20, 16);
+        
+        // Ventilation lines
+        this.ctx.fillStyle = '#696969';
         for (let i = 0; i < 3; i++) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x + 10, y + 12 + i * 5);
-            this.ctx.lineTo(x + 30, y + 12 + i * 5);
-            this.ctx.stroke();
+            this.ctx.fillRect(x - 8, y - 6 + (i * 5), 16, 2);
         }
     }
 
     drawPath(x, y) {
-        // Main path
-        this.ctx.fillStyle = '#B8860B';
-        this.ctx.fillRect(x + 4, y + 4, this.tileWidth - 8, this.tileHeight - 8);
-
-        // Add some texture/stones
-        this.ctx.fillStyle = '#8B4513';
-        for (let i = 0; i < 5; i++) {
-            const rx = x + 8 + Math.random() * (this.tileWidth - 16);
-            const ry = y + 8 + Math.random() * (this.tileHeight - 16);
+        // Stone path
+        this.ctx.fillStyle = '#808080';
+        for (let i = 0; i < 4; i++) {
             this.ctx.beginPath();
-            this.ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+            this.ctx.ellipse(
+                x + (i * 8) - 12,
+                y,
+                4,
+                3,
+                0,
+                0,
+                Math.PI * 2
+            );
             this.ctx.fill();
         }
+    }
+
+    drawChimney(x, y) {
+        // Main chimney body
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(x - 6, y - 20, 12, 20);
+        
+        // Top rim
+        this.ctx.fillStyle = '#696969';
+        this.ctx.fillRect(x - 8, y - 22, 16, 4);
+    }
+
+    drawAntenna(x, y) {
+        // Antenna pole
+        this.ctx.strokeStyle = '#696969';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(x, y - 30);
+        this.ctx.stroke();
+
+        // Antenna elements
+        for (let i = 0; i < 3; i++) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y - 10 - (i * 8));
+            this.ctx.lineTo(x + 10, y - 13 - (i * 8));
+            this.ctx.stroke();
+        }
+    }
+
+    drawSatelliteDish(x, y) {
+        // Dish
+        this.ctx.fillStyle = '#A9A9A9';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x, y - 15, 12, 8, Math.PI / 4, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Mount
+        this.ctx.fillStyle = '#696969';
+        this.ctx.fillRect(x - 2, y - 12, 4, 12);
+        
+        // Receiver
+        this.ctx.fillStyle = '#4A4A4A';
+        this.ctx.fillRect(x + 8, y - 18, 4, 4);
     }
 
     getMaterialColor(material) {
@@ -270,6 +321,7 @@ export class StructureRenderer {
         }
     }
 }
+
 
 
 

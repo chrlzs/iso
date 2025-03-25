@@ -1,154 +1,48 @@
+
 import { Inventory } from '../inventory/Inventory.js';
 import { Item } from '../inventory/Item.js';
+import { Entity } from './Entity.js';
 
-export class Player {
+export class Player extends Entity {
     constructor(config) {
+        super(config);
+        
         if (!config.pathFinder) {
             throw new Error('PathFinder is required for Player initialization');
         }
-        if (!config.world) {
-            throw new Error('World is required for Player initialization');
-        }
-
-        this.x = config.x;
-        this.y = config.y;
-        this.world = config.world;
+        
+        // Store pathFinder reference
         this.pathFinder = config.pathFinder;
-        this.size = 24;
-        this.color = '#0000FF';
+        
+        // Basic properties
+        this.size = 32;
+        this.color = '#4A90E2'; // Player base color
+        this.direction = 'south';
+        this.isMoving = false;
+        this.speed = 0.1; // Movement speed
         this.currentPath = null;
         this.currentPathIndex = 0;
-        this.isMoving = false;
-        this.moveSpeed = 0.1;
-        this.speed = 2;
         this.targetReachThreshold = 0.1;
 
         // Shadow properties
+        this.shadowSize = { width: 32, height: 10 };
         this.shadowOffset = 4;
-        this.shadowSize = {
-            width: 32,
-            height: 10
-        };
         this.shadowColor = 'rgba(0, 0, 0, 0.4)';
 
-        // Sprite properties
-        this.spriteSheet = new Image();
-        this.spriteSheet.src = 'assets/characters/main_character.png';
-        this.spriteSheet.onload = () => {
-            this.imageLoaded = true;
-            // Calculate frame dimensions based on 12x8 sprite sheet
-            this.frameWidth = this.spriteSheet.width / 12;  // 12 frames per row
-            this.frameHeight = this.spriteSheet.height / 8; // 8 rows
-        };
-
         // Animation properties
-        this.direction = 'south';
-        this.frameX = 0;
-        this.frameY = 0;
-        this.frameCount = 0;
-        this.animationSpeed = 8;
-        this.imageLoaded = false;
-
-        // Define animation rows (0-based index)
+        this.animationTime = 0;
+        this.bobOffset = 0;
+        
+        // Direction mapping for rendering
         this.directions = {
-            'south': 0,     // Row 1
-            'southeast': 1, // Row 2
-            'southwest': 2, // Row 3
-            'west': 3,     // Row 4
-            'northwest': 4, // Row 5
-            'north': 5,    // Row 6
-            'northeast': 6, // Row 7
-            'east': 7      // Row 8
-        };
-
-        this.onPathComplete = null; // Add callback for path completion
-
-        // Add inventory system
-        this.inventory = new Inventory({
-            maxSlots: 20,
-            maxWeight: 100,
-            owner: this,
-            eth: Number(config.eth || 500) // Give player starting ETH
-        });
-
-        // Add starter items
-        const starterItems = [
-            new Item({
-                id: 'combat_knife',
-                name: 'Combat Knife',
-                description: 'Standard issue tactical knife',
-                type: 'weapon',
-                value: 10,
-                weight: 0.5,
-                damage: 5,
-                slot: 'mainHand',
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMgmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAMu8F/Q7yucQAAAAASUVORK5CYII='
-            }),
-            new Item({
-                id: 'kevlar_vest',
-                name: 'Kevlar Vest',
-                description: 'Basic ballistic protection',
-                type: 'armor',
-                value: 15,
-                weight: 3,
-                defense: 2,
-                slot: 'body',
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMomBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAMu8F/Q7yucQAAAAASUVORK5CYII='
-            }),
-            new Item({
-                id: 'medkit',
-                name: 'Medkit',
-                description: 'Military-grade first aid kit. Restores 25 HP',
-                type: 'consumable',
-                value: 20,
-                weight: 0.5,
-                isStackable: true,
-                quantity: 3,
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAA7O8F/frO7YAAAAAASUVORK5CYII=',
-                effect: (target) => {
-                    target.health += 25;
-                    return true;
-                }
-            }),
-            new Item({
-                id: 'bread',
-                name: 'Bread',
-                description: 'A simple meal that restores 10 HP',
-                type: 'consumable',
-                value: 5,
-                weight: 0.3,
-                isStackable: true,
-                quantity: 5,
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAANu8F/fr2BQQAAAAASUVORK5CYII=',
-                effect: (target) => {
-                    target.health += 10;
-                    return true;
-                }
-            }),
-            new Item({
-                id: 'flashlight',
-                name: 'Flashlight',
-                description: 'Tactical LED flashlight for dark environments',
-                type: 'tool',
-                value: 8,
-                weight: 0.5,
-                isStackable: true,
-                quantity: 2,
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/fr4BQQAAAAASUVORK5CYII='
-            })
-        ];
-
-        // Add each starter item to inventory
-        starterItems.forEach(item => this.inventory.addItem(item));
-
-        // Equipment slots
-        this.equipment = {
-            head: null,
-            body: null,
-            legs: null,
-            feet: null,
-            mainHand: null,
-            offHand: null
+            'north': 0,
+            'northeast': 1,
+            'east': 2,
+            'southeast': 3,
+            'south': 4,
+            'southwest': 5,
+            'west': 6,
+            'northwest': 7
         };
     }
 
@@ -170,42 +64,108 @@ export class Player {
             Math.PI * 2
         );
         ctx.fill();
-        
-        if (this.imageLoaded) {
-            // Draw sprite
-            ctx.drawImage(
-                this.spriteSheet,
-                this.frameX * this.frameWidth,
-                this.frameY * this.frameHeight,
-                this.frameWidth,
-                this.frameHeight,
-                isoPos.x - this.frameWidth / 2,
-                isoPos.y - this.frameHeight,
-                this.frameWidth,
-                this.frameHeight
-            );
+
+        // Calculate bob animation for walking
+        if (this.isMoving) {
+            this.animationTime += 0.1;
+            this.bobOffset = Math.sin(this.animationTime) * 2;
         } else {
-            // Fallback rendering
+            this.bobOffset = 0;
+            this.animationTime = 0;
+        }
+
+        // Save context for character drawing
+        ctx.save();
+        ctx.translate(isoPos.x, isoPos.y - this.size/2 + this.bobOffset);
+
+        // Draw body
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size/3, this.size/2, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw head
+        ctx.fillStyle = '#FFE0BD'; // Skin tone
+        ctx.beginPath();
+        ctx.arc(0, -this.size/2, this.size/4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw direction indicator (eyes and face direction)
+        const directionAngle = this.getDirectionAngle();
+        ctx.fillStyle = '#000000';
+        
+        // Left eye
+        ctx.beginPath();
+        ctx.arc(
+            -5 * Math.cos(directionAngle),
+            -this.size/2 - 2,
+            2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Right eye
+        ctx.beginPath();
+        ctx.arc(
+            5 * Math.cos(directionAngle),
+            -this.size/2 - 2,
+            2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+
+        // Draw arms when moving
+        if (this.isMoving) {
+            const armAngle = Math.sin(this.animationTime * 2);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 4;
+            
+            // Left arm
             ctx.beginPath();
-            ctx.fillStyle = this.color;
-            ctx.arc(isoPos.x, isoPos.y - this.size/2, this.size / 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
+            ctx.moveTo(-this.size/3, -this.size/4);
+            ctx.lineTo(
+                -this.size/3 - Math.cos(armAngle) * 10,
+                -this.size/4 + Math.sin(armAngle) * 10
+            );
+            ctx.stroke();
+            
+            // Right arm
+            ctx.beginPath();
+            ctx.moveTo(this.size/3, -this.size/4);
+            ctx.lineTo(
+                this.size/3 + Math.cos(armAngle) * 10,
+                -this.size/4 + Math.sin(armAngle) * 10
+            );
             ctx.stroke();
         }
+
+        ctx.restore();
+    }
+
+    getDirectionAngle() {
+        const angles = {
+            'north': Math.PI,
+            'northeast': Math.PI * 5/4,
+            'east': Math.PI * 3/2,
+            'southeast': Math.PI * 7/4,
+            'south': 0,
+            'southwest': Math.PI/4,
+            'west': Math.PI/2,
+            'northwest': Math.PI * 3/4
+        };
+        return angles[this.direction] || 0;
     }
 
     setPath(path) {
-        if (!path) return;
-        
         this.currentPath = path;
         this.currentPathIndex = 0;
         this.isMoving = true;
     }
 
     update(deltaTime) {
-        // Add defensive check
+        // Verify pathFinder exists
         if (!this.pathFinder) {
             console.error('PathFinder is not initialized in Player');
             this.isMoving = false;
@@ -246,7 +206,6 @@ export class Player {
             if (this.currentPathIndex >= this.currentPath.length) {
                 this.currentPath = null;
                 this.isMoving = false;
-                this.frameX = 0; // Reset to idle frame
                 
                 if (this.onPathComplete) {
                     this.onPathComplete();
@@ -263,15 +222,14 @@ export class Player {
             
             const angle = Math.atan2(dy, dx);
             this.direction = this.getDirectionFromAngle(angle);
-            this.frameY = this.directions[this.direction];
         }
     }
 
     getDirectionFromAngle(angle) {
         // Convert angle to degrees and normalize to 0-360
-        const degrees = ((angle * 180 / Math.PI) + 360) % 360;
+        let degrees = (angle * 180 / Math.PI + 360) % 360;
         
-        // Define direction sectors (each 45 degrees)
+        // Define direction sectors
         if (degrees >= 337.5 || degrees < 22.5) return 'east';
         if (degrees >= 22.5 && degrees < 67.5) return 'southeast';
         if (degrees >= 67.5 && degrees < 112.5) return 'south';
@@ -279,8 +237,7 @@ export class Player {
         if (degrees >= 157.5 && degrees < 202.5) return 'west';
         if (degrees >= 202.5 && degrees < 247.5) return 'northwest';
         if (degrees >= 247.5 && degrees < 292.5) return 'north';
-        if (degrees >= 292.5 && degrees < 337.5) return 'northeast';
-        return 'south'; // Default direction
+        return 'northeast';
     }
 
     getPosition() {
@@ -370,6 +327,11 @@ export class Player {
         this.damage = this.baseDamage + totalDamage;
     }
 }
+
+
+
+
+
 
 
 

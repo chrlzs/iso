@@ -9,9 +9,24 @@ export class TileManager {
             this.logger.log(message, flag);
         };
 
+        // Initialize texture maps
         this.textures = new Map();
-        this.logDebug('TileManager: Initializing...', 'logTextureLoading');
+        this.textureVariants = new Map();
+        this.decorationTextures = new Map();
+        this.decorationCache = new Map();
+        this.persistentDecorations = new Map();
+        this.decorationBatch = new Map();
         
+        // Initialize texture loading state
+        this.texturesLoaded = false;
+        this.loadingErrors = new Map();
+
+        // Create temporary canvas for texture generation
+        this.tempCanvas = document.createElement('canvas');
+        this.tempCanvas.width = 64;
+        this.tempCanvas.height = 64;
+        this.tempCtx = this.tempCanvas.getContext('2d');
+
         // Define possible decorations for each tile type
         this.decorations = {
             grass: [
@@ -25,168 +40,9 @@ export class TileManager {
                 { type: 'dec_rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
             ]
         };
-
-        // Initialize decoration caches
-        this.decorationCache = new Map();
-        this.persistentDecorations = new Map();
-        this.decorationBatch = new Map();
         
         // Add seeded random number generator for consistent decoration placement
         this.decorationSeed = 12345;
-        this.getSeededRandom = (tileId) => {
-            const hash = tileId.split('_').reduce((acc, val) => {
-                return acc + parseInt(val, 36);
-            }, this.decorationSeed);
-            return ((Math.sin(hash) + 1) / 2);
-        };
-
-        // Initialize base texture maps
-        this.textureVariants = new Map();
-        this.decorationTextures = new Map();
-        
-        // Add method to load and store decoration textures
-        this.loadDecorationTexture = async (name) => {
-            const texture = await this.loadTexture(name, `assets/textures/${name}.png`);
-            this.decorationTextures.set(name, texture);
-            //console.log(`TileManager: Loaded decoration texture: ${name}`);
-            return texture;
-        };
-
-        // Add method to get decoration texture with error handling
-        this.getDecorationTexture = (name) => {
-            const texture = this.decorationTextures.get(name);
-            if (!texture) {
-                console.warn(`TileManager: Decoration texture not found: ${name}`);
-                return this.createTempTexture('#FF00FF'); // Return fallback texture
-            }
-            //console.log(`TileManager: Retrieved decoration texture: ${name}`);
-            return texture;
-        };
-
-        // Initialize decoration texture tracking
-        this.decorationTextureStatus = {
-            loaded: new Set(),
-            failed: new Set(),
-            pending: new Set()
-        };
-
-        // Define texture variants for each tile type
-        this.textureVariants.set('grass', ['grass', 'grass_var1', 'grass_var2']);
-        this.textureVariants.set('dirt', ['dirt', 'dirt_var1', 'dirt_var2']);
-        this.textureVariants.set('stone', ['stone', 'stone_mossy', 'stone_cracked']);
-        this.textureVariants.set('sand', ['sand', 'sand_var1']);
-        this.textureVariants.set('wetland', ['wetland', 'wetland_var1']);
-        this.textureVariants.set('water', ['water', 'water_var1']);
-        this.textureVariants.set('asphalt', ['asphalt', 'asphalt_cracked']);
-        this.textureVariants.set('concrete', ['concrete', 'concrete_stained']);
-        this.textureVariants.set('sidewalk', ['sidewalk', 'sidewalk_tiled']);
-        this.textureVariants.set('brick', ['brick', 'brick_modern']);
-        this.textureVariants.set('metal', ['metal', 'metal_rusted']);
-
-        // Add method to get or create persistent decoration
-        this.getPersistentDecoration = (tileId, tileType) => {
-            // Early return if we already made a decision for this tile
-            if (this.persistentDecorations.has(tileId)) {
-                this.logDebug(`TileManager: Using cached decoration for tile ${tileId}`, 'logDecorations');
-                return this.persistentDecorations.get(tileId);
-            }
-
-            const possibleDecorations = this.decorations[tileType];
-            if (!possibleDecorations) {
-                this.logDebug(`TileManager: No decorations available for tile type ${tileType}`, 'logDecorations');
-                this.persistentDecorations.set(tileId, null);
-                return null;
-            }
-
-            // Get deterministic random value for this tile
-            const random = this.getSeededRandom(tileId);
-            this.logDebug(`TileManager: Random value for tile ${tileId}: ${random}`, 'logDecorations');
-            
-            // Direct chance comparison instead of cumulative
-            for (const decoration of possibleDecorations) {
-                if (random < decoration.chance) {
-                    const newDecoration = {
-                        type: decoration.type,
-                        offset: { ...decoration.offset },
-                        scale: { ...decoration.scale },
-                        id: `dec_${tileId}`
-                    };
-                    this.logDebug(`TileManager: Decoration selected for tile ${tileId}:`, newDecoration, 'logDecorations');
-                    this.persistentDecorations.set(tileId, newDecoration);
-                    return newDecoration;
-                }
-            }
-
-            this.logDebug(`TileManager: No decoration selected for tile ${tileId}`, 'logDecorations');
-            this.persistentDecorations.set(tileId, null);
-            return null;
-        };
-
-        // Add debug logging for zoom operations
-        this.lastZoomLevel = 1;
-        this.debugZoom = (newZoom) => {
-            if (!this.debug.enabled || !this.debug.flags.logZoomChanges) return;
-            
-            if (newZoom !== this.lastZoomLevel) {
-                this.logDebug(`TileManager: Zoom changed from ${this.lastZoomLevel} to ${newZoom}`, 'logZoomChanges');
-                this.logDebug(`TileManager: Decoration cache size: ${this.persistentDecorations.size}`, 'logZoomChanges');
-                this.lastZoomLevel = newZoom;
-            }
-        };
-
-        // Add a decoration texture cache
-        this.decorationTextureCache = new Map();
-
-        this.lastDecorationUpdate = 0;
-        this.decorationUpdateInterval = 16; // ~60fps
-
-        // Initialize decoration system
-        this.decorationSystem = {
-            enabled: true,
-            lastUpdate: 0,
-            updateInterval: 100  // ms between decoration updates
-        };
-
-        // Method to get decoration for a specific tile
-        this.getDecorationForTile = (tileId, tileType) => {
-            // Check cache first
-            const cachedDecoration = this.decorationCache.get(tileId);
-            if (cachedDecoration !== undefined) {
-                return cachedDecoration;
-            }
-
-            // Get persistent decoration
-            const decoration = this.getPersistentDecoration(tileId, tileType);
-            
-            // Cache the result (even if null)
-            this.decorationCache.set(tileId, decoration);
-            
-            return decoration;
-        };
-
-        // Method to clear decoration cache
-        this.clearDecorationCache = () => {
-            this.decorationCache.clear();
-            //console.log('TileManager: Decoration cache cleared');
-        };
-
-        // Method to batch decorations by height
-        this.batchDecorations = (decorations) => {
-            this.decorationBatch.clear();
-            decorations.forEach(dec => {
-                const key = `${dec.type}_${dec.offset.y}`;
-                if (!this.decorationBatch.has(key)) {
-                    this.decorationBatch.set(key, []);
-                }
-                this.decorationBatch.get(key).push(dec);
-            });
-            return this.decorationBatch;
-        };
-
-        // Initialize texture loading state
-        this.texturesLoaded = false;
-        this.loadingErrors = new Map();
-        this.textureLoadPromises = new Map();
 
         // Initialize decoration loading state
         this.decorationTexturesLoaded = false;
@@ -196,162 +52,96 @@ export class TileManager {
             'dec_grassTufts'
         ]);
 
-        // Add method to preload all decoration textures
-        this.preloadDecorationTextures = async () => {
-            const loadPromises = Array.from(this.decorationLoadQueue).map(name => 
-                this.loadDecorationTexture(name).catch(err => {
-                    console.error(`Failed to load decoration texture: ${name}`, err);
-                    this.loadingErrors.set(name, err);
-                })
-            );
+        // Add debug logging for zoom operations
+        this.lastZoomLevel = 1;
+        this.debugZoom = (newZoom) => {
+            if (!this.debug?.enabled || !this.debug?.flags?.logZoomChanges) return;
             
-            await Promise.all(loadPromises);
-            this.decorationTexturesLoaded = true;
-            console.log('TileManager: All decoration textures loaded');
-        };
-
-        // Start loading decoration textures immediately
-        this.preloadDecorationTextures();
-
-        // Initialize texture quality settings
-        this.textureQuality = {
-            mipMapping: true,
-            filtering: 'bilinear',
-            maxSize: 2048
-        };
-
-        // Setup texture loading queue
-        this.loadingQueue = [];
-        this.maxConcurrentLoads = 4;
-        this.activeLoads = 0;
-
-        // Initialize texture stats for monitoring
-        this.textureStats = {
-            totalLoaded: 0,
-            totalSize: 0,
-            lastLoadTime: 0
-        };
-
-        // Setup error handling
-        this.handleTextureError = (textureName, error) => {
-            console.warn(`Failed to load texture: ${textureName}`, error);
-            this.loadingErrors.set(textureName, error);
-            return this.createTempTexture('#FF00FF'); // Return pink texture as fallback
-        };
-
-        // Expanded tile configurations
-        this.tileConfigs = {
-            concrete: {
-                color: '#A8A8A8',
-                secondaryColor: '#989898',
-                texturePattern: 'concrete',
-                variants: ['cracked', 'smooth', 'stained']
-            },
-            asphalt: {
-                color: '#454545',
-                secondaryColor: '#353535',
-                texturePattern: 'asphalt',
-                variants: ['new', 'worn', 'marked']
-            },
-            brick: {
-                color: '#8B4513',
-                secondaryColor: '#A0522D',
-                texturePattern: 'brick',
-                variants: ['red', 'gray', 'worn']
-            },
-            metal: {
-                color: '#71797E',
-                secondaryColor: '#848884',
-                texturePattern: 'metal',
-                variants: ['smooth', 'rusted', 'grated']
-            },
-            sidewalk: {
-                color: '#C0C0C0',
-                secondaryColor: '#B8B8B8',
-                texturePattern: 'sidewalk',
-                variants: ['plain', 'tiled', 'decorated']
-            },
-            // Keep existing natural tiles but reduce their frequency
-            grass: { /* existing config */ },
-            dirt: { /* existing config */ },
-            stone: { /* existing config */ },
-            sand: { /* existing config */ },
-            water: { /* existing config */ },
-            wetland: { /* existing config */ }
-        };
-
-        // Modified tile type determination method
-        this.determineTileType = (height, moisture, urbanFactor = 0) => {
-            // urbanFactor is a new parameter (0-1) indicating proximity to urban centers
-            
-            // If in highly urban area, prefer urban tiles
-            if (urbanFactor > 0.7) {
-                if (height < 0.05) return 'asphalt';  // Reduced from 0.2
-                if (height < 0.4) return 'concrete';
-                if (height < 0.6) return 'sidewalk';
-                if (height < 0.8) return 'brick';
-                return 'metal';
-            }
-            
-            // Mixed urban-natural area
-            if (urbanFactor > 0.3) {
-                if (height < 0.05) return 'water';  // Reduced from 0.1
-                if (height < 0.3) return 'concrete';
-                if (height < 0.5) return moisture > 0.5 ? 'grass' : 'sidewalk';
-                if (height < 0.7) return moisture > 0.6 ? 'brick' : 'asphalt';
-                return 'metal';
-            }
-            
-            // Original natural determination for less urban areas
-            if (height < 0.05) return 'water';  // Reduced from 0.1
-            if (height < 0.2) return 'sand';
-            if (height < 0.7) {
-                if (moisture > 0.7) return 'wetland';  // Increased from 0.6
-                if (moisture > 0.3) return 'grass';
-                return 'dirt';
-            }
-            return 'stone';
-        };
-
-        // Structure textures configuration
-        this.structureConfigs = {
-            'apartment': {
-                'wall': {
-                    color: '#808080',
-                    secondaryColor: '#909090',
-                    texturePattern: 'concrete'
-                },
-                'door': {
-                    color: '#4A4A4A',
-                    secondaryColor: '#5A5A5A',
-                    texturePattern: 'metal'
-                },
-                'floor': {
-                    color: '#C0C0C0',
-                    secondaryColor: '#D0D0D0',
-                    texturePattern: 'tiles'
-                }
-            },
-            'nightclub': {
-                'wall': {
-                    color: '#202020',
-                    secondaryColor: '#303030',
-                    texturePattern: 'metal'
-                },
-                'door': {
-                    color: '#404040',
-                    secondaryColor: '#505050',
-                    texturePattern: 'security'
-                },
-                'floor': {
-                    color: '#101010',
-                    secondaryColor: '#202020',
-                    texturePattern: 'neon'
-                }
+            if (newZoom !== this.lastZoomLevel) {
+                this.logDebug(`TileManager: Zoom changed from ${this.lastZoomLevel} to ${newZoom}`, 'logZoomChanges');
+                this.logDebug(`TileManager: Decoration cache size: ${this.persistentDecorations.size}`, 'logZoomChanges');
+                this.lastZoomLevel = newZoom;
             }
         };
 
-        this.initializeStructureTextures();
+        // Initialize decoration system
+        this.decorationSystem = {
+            enabled: true,
+            lastUpdate: 0,
+            updateInterval: 100  // ms between decoration updates
+        };
+
+        // Generate all textures immediately
+        this.loadTextures();
+        this.generateAllDecorationTextures();
+    }
+
+    generateAllDecorationTextures() {
+        this.decorationLoadQueue.forEach(name => {
+            this.generateDecorationTexture(name, this.getDecorationBaseColor(name));
+        });
+        this.decorationTexturesLoaded = true;
+        this.logDebug('TileManager: All decoration textures generated');
+    }
+
+    getDecorationBaseColor(name) {
+        const colors = {
+            'dec_rocks': '#696969',
+            'dec_flowers': '#ff6b6b',
+            'dec_grassTufts': '#90EE90'
+        };
+        return colors[name] || '#FF00FF';
+    }
+
+    getDecorationTexture(name) {
+        const texture = this.decorationTextures.get(name);
+        if (!texture) {
+            console.warn(`TileManager: Decoration texture not found: ${name}`);
+            return this.createTempTexture('#FF00FF'); // Return fallback texture
+        }
+        return texture;
+    }
+
+    getPersistentDecoration(tileId, tileType) {
+        if (this.persistentDecorations.has(tileId)) {
+            this.logDebug(`TileManager: Using cached decoration for tile ${tileId}`, 'logDecorations');
+            return this.persistentDecorations.get(tileId);
+        }
+
+        const possibleDecorations = this.decorations[tileType];
+        if (!possibleDecorations) {
+            this.logDebug(`TileManager: No decorations available for tile type ${tileType}`, 'logDecorations');
+            this.persistentDecorations.set(tileId, null);
+            return null;
+        }
+
+        // Get deterministic random value for this tile
+        const random = this.getSeededRandom(tileId);
+        this.logDebug(`TileManager: Random value for tile ${tileId}: ${random}`, 'logDecorations');
+        
+        // Direct chance comparison instead of cumulative
+        for (const decoration of possibleDecorations) {
+            if (random < decoration.chance) {
+                const newDecoration = {
+                    type: decoration.type,
+                    offset: { ...decoration.offset },
+                    scale: { ...decoration.scale },
+                    id: `dec_${tileId}`
+                };
+                this.logDebug(`TileManager: Decoration selected for tile ${tileId}:`, newDecoration, 'logDecorations');
+                this.persistentDecorations.set(tileId, newDecoration);
+                return newDecoration;
+            }
+        }
+
+        this.logDebug(`TileManager: No decoration selected for tile ${tileId}`, 'logDecorations');
+        this.persistentDecorations.set(tileId, null);
+        return null;
+    }
+
+    getSeededRandom(seed) {
+        const x = Math.sin(seed + this.decorationSeed) * 10000;
+        return x - Math.floor(x);
     }
 
     updateDecorations(timestamp) {
@@ -363,29 +153,24 @@ export class TileManager {
     }
 
     createFallbackTexture(tileType) {
-        // Create a canvas for the fallback texture
         const canvas = document.createElement('canvas');
         canvas.width = 64;
         canvas.height = 64;
         const ctx = canvas.getContext('2d');
 
-        // Define fallback colors for different tile types
-        const fallbackColors = {
-            grass: { primary: '#2d5a27', secondary: '#234a1f' },
-            dirt: { primary: '#8b4513', secondary: '#6b3410' },
-            stone: { primary: '#808080', secondary: '#696969' },
-            sand: { primary: '#f4a460', secondary: '#daa520' },
-            water: { primary: '#4169e1', secondary: '#1e90ff' },
-            wetland: { primary: '#2f4f4f', secondary: '#3d6060' },
-            asphalt: { primary: '#363636', secondary: '#292929' },
-            concrete: { primary: '#808080', secondary: '#707070' },
-            sidewalk: { primary: '#C0C0C0', secondary: '#A9A9A9' },
-            brick: { primary: '#8B4513', secondary: '#A0522D' },
-            metal: { primary: '#708090', secondary: '#778899' },
-            default: { primary: '#FF00FF', secondary: '#FF69B4' } // Pink for unknown types
+        // Define colors for all supported tile types
+        const tileColors = {
+            grass: { primary: '#7ED321', secondary: '#6DB31E' },
+            dirt: { primary: '#8B572A', secondary: '#724621' },
+            stone: { primary: '#9B9B9B', secondary: '#858585' },
+            sand: { primary: '#F5A623', secondary: '#E09612' },
+            water: { primary: '#4A90E2', secondary: '#357ABD' },
+            wetland: { primary: '#417505', secondary: '#365E04' },
+            asphalt: { primary: '#4A4A4A', secondary: '#3A3A3A' },
+            concrete: { primary: '#9B9B9B', secondary: '#888888' }
         };
 
-        const colors = fallbackColors[tileType] || fallbackColors.default;
+        const colors = tileColors[tileType] || tileColors.grass; // Default to grass if unknown type
 
         // Draw a simple pattern
         ctx.fillStyle = colors.primary;
@@ -401,54 +186,181 @@ export class TileManager {
             }
         }
 
-        // Add a border
-        ctx.strokeStyle = colors.secondary;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(1, 1, 62, 62);
-
-        // Add type label for debugging
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.font = '10px Arial';
-        ctx.fillText(tileType, 4, 12);
-
         return canvas;
     }
 
     async loadTextures() {
-        this.logDebug('TileManager: Starting texture loading...', 'logTextureLoading');
-        const textures = [
-            'grass', 'grass_var1', 'grass_var2',
-            'dirt', 'dirt_var1', 'dirt_var2',
-            'stone', 'stone_mossy', 'stone_cracked',
-            'sand', 'sand_var1', 'wetland', 'wetland_var1',
-            'water', 'water_var1', 'dec_flowers', 'dec_rocks', 'dec_grassTufts'
-        ];
+        this.logDebug('TileManager: Generating textures...', 'logTextureLoading');
+        
+        // Only generate textures for supported tile types
+        const baseColors = {
+            'grass': '#7ED321',
+            'grass_var1': '#8ED331',
+            'grass_var2': '#6EC311',
+            'dirt': '#8B572A',
+            'dirt_var1': '#9B673A',
+            'dirt_var2': '#7B471A',
+            'stone': '#9B9B9B',
+            'stone_var1': '#8B8B8B',
+            'sand': '#F5A623',
+            'sand_var1': '#E59613',
+            'wetland': '#417505',
+            'wetland_var1': '#316504',
+            'water': '#4A90E2',
+            'water_var1': '#3A80D2',
+            'asphalt': '#4A4A4A',
+            'concrete': '#9B9B9B'
+        };
 
-        for (const name of textures) {
-            try {
-                await this.loadTexture(name, `assets/textures/${name}.png`);
-                this.logDebug(`TileManager: Successfully loaded texture: ${name}`, 'logTextureLoading');
-            } catch (error) {
-                console.error(`TileManager: Failed to load texture: ${name}`, error);
-            }
-        }
-        this.logDebug('TileManager: All textures loaded successfully.', 'logTextureLoading');
+        // Generate textures for each type
+        Object.entries(baseColors).forEach(([name, color]) => {
+            this.generateTexture(name, color);
+        });
+
+        // Generate decoration textures
+        this.generateAllDecorationTextures();
     }
 
-    async loadTexture(name, path) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                this.logDebug(`TileManager: Successfully loaded texture: ${path}`, 'logTextureLoading');
-                this.textures.set(name, img);
-                resolve(img);
-            };
-            img.onerror = (error) => {
-                console.error(`TileManager: Failed to load texture: ${path}`, error);
-                reject(new Error(`Failed to load texture: ${path}`));
-            };
-            img.src = path;
-        });
+    generateTexture(name, baseColor) {
+        const ctx = this.tempCtx;
+        const width = this.tempCanvas.width;
+        const height = this.tempCanvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Fill with base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, width, height);
+
+        // Add some noise/variation
+        for (let i = 0; i < 100; i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const size = Math.random() * 4 + 1;
+            
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 20 - 10);
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Create image from canvas
+        const img = new Image();
+        img.src = this.tempCanvas.toDataURL();
+        this.textures.set(name, img);
+    }
+
+    generateDecorationTexture(name, baseColor) {
+        const ctx = this.tempCtx;
+        const width = this.tempCanvas.width;
+        const height = this.tempCanvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Generate specific patterns based on decoration type
+        if (name === 'dec_flowers') {
+            this.generateFlowerTexture(ctx, width, height, baseColor);
+        } else if (name === 'dec_rocks') {
+            this.generateRockTexture(ctx, width, height, baseColor);
+        } else if (name === 'dec_grassTufts') {
+            this.generateGrassTuftTexture(ctx, width, height, baseColor);
+        }
+
+        // Create image from canvas
+        const img = new Image();
+        img.src = this.tempCanvas.toDataURL();
+        this.decorationTextures.set(name, img);
+    }
+
+    generateFlowerTexture(ctx, width, height, baseColor) {
+        for (let i = 0; i < 5; i++) {
+            const x = 20 + Math.random() * (width - 40);
+            const y = 20 + Math.random() * (height - 40);
+            
+            // Draw stem
+            ctx.strokeStyle = '#90EE90';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y + 10);
+            ctx.lineTo(x, y - 10);
+            ctx.stroke();
+
+            // Draw petals
+            ctx.fillStyle = baseColor;
+            for (let j = 0; j < 5; j++) {
+                const angle = (j / 5) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.ellipse(
+                    x + Math.cos(angle) * 5,
+                    y + Math.sin(angle) * 5,
+                    4,
+                    4,
+                    angle,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    }
+
+    generateRockTexture(ctx, width, height, baseColor) {
+        for (let i = 0; i < 3; i++) {
+            const x = 20 + Math.random() * (width - 40);
+            const y = 20 + Math.random() * (height - 40);
+            const size = 10 + Math.random() * 10;
+
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 20 - 10);
+            ctx.beginPath();
+            ctx.moveTo(x, y - size);
+            ctx.lineTo(x + size, y);
+            ctx.lineTo(x, y + size);
+            ctx.lineTo(x - size, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    generateGrassTuftTexture(ctx, width, height, baseColor) {
+        for (let i = 0; i < 8; i++) {
+            const x = 10 + Math.random() * (width - 20);
+            const y = height - 10;
+            
+            ctx.strokeStyle = baseColor;
+            ctx.lineWidth = 2;
+            
+            for (let j = 0; j < 3; j++) {
+                const angle = -Math.PI/2 + (Math.random() * 0.5 - 0.25);
+                const length = 15 + Math.random() * 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(x + j * 4 - 4, y);
+                ctx.lineTo(
+                    x + j * 4 - 4 + Math.cos(angle) * length,
+                    y + Math.sin(angle) * length
+                );
+                ctx.stroke();
+            }
+        }
+    }
+
+    adjustColor(hex, amount) {
+        const rgb = this.hexToRgb(hex);
+        rgb.r = Math.max(0, Math.min(255, rgb.r + amount));
+        rgb.g = Math.max(0, Math.min(255, rgb.g + amount));
+        rgb.b = Math.max(0, Math.min(255, rgb.b + amount));
+        return `rgb(${Math.round(rgb.r)},${Math.round(rgb.g)},${Math.round(rgb.b)})`;
+    }
+
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
     }
 
     getTextureForTile(tile) {
@@ -768,6 +680,11 @@ export class TileManager {
         return variants[type]?.[direction] || `${type}_default`;
     }
 }
+
+
+
+
+
 
 
 

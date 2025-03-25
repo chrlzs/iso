@@ -53,7 +53,7 @@ export class GameInstance {
         // Get reference to TileManager from World
         this.tileManager = this.world.tileManager;
         
-        // Initialize pathfinder
+        // Initialize pathfinder with world reference
         this.pathFinder = new PathFinder(this.world);
         
         // Initialize renderer and input manager
@@ -794,6 +794,9 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
+
 
 
 
