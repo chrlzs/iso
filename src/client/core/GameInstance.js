@@ -203,44 +203,58 @@ export class GameInstance {
                     console.log('Game: Created Village Elder at', pos.x, pos.y);
                 } else {
                     // Create merchant
-                    const merchant = new Merchant({
-                        x: pos.x,
-                        y: pos.y,
-                        name: 'Arms Dealer',
-                        inventory: [
-                            new Item({
-                                id: 'medkit',
-                                name: 'Medkit',
-                                description: 'Restores 50 HP',
-                                type: 'consumable',
-                                value: 50,
-                                weight: 0.5,
-                                isStackable: true,
-                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/v//f5JhEANGQkLC/4H2x0A7YBSMglEwCkbBKBgFo2AUjIJRMApGwWABAACyVjo2CPrrkwAAAABJRU5ErkJggg==',
-                                effect: (target) => {
-                                    target.health += 50;
-                                    return true;
-                                }
-                            }),
-                            new Item({
-                                id: 'tactical_pistol',
-                                name: 'Tactical Pistol',
-                                description: 'Standard sidearm',
-                                type: 'weapon',
-                                value: 100,
-                                weight: 1.5,
-                                damage: 10,
-                                slot: 'mainHand',
-                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/////z/QbmAkJCT8P9D+GOgQGAWjYBSMglGADUYtMApGwSgYBaNgsAAAAt1FJzHm9f8AAAAASUVORK5CYII='
-                            })
-                        ],
-                        eth: 1000
-                    });
+                    const merchant = this.createMerchant(pos);
                     this.entities.add(merchant);
                     console.log('Game: Created merchant at', pos.x, pos.y);
                 }
             }
         });
+    }
+
+    createMerchant(pos) {
+        console.log('Starting merchant creation at position:', pos);
+        
+        try {
+            const merchant = new Merchant({
+                x: pos.x,
+                y: pos.y,
+                name: 'Tech Merchant',
+                eth: 1000
+            });
+
+            // Verify merchant creation
+            if (!merchant || !merchant.inventory) {
+                throw new Error('Merchant or inventory creation failed');
+            }
+
+            // Add initial items
+            const tacticalPistol = new Item({
+                id: 'tactical_pistol',
+                name: 'Tactical Pistol',
+                description: 'Standard sidearm',
+                type: 'weapon',
+                value: 100,
+                weight: 1.5,
+                damage: 10,
+                slot: 'mainHand',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/////z/QbmAkJCT8P9D+GOgQGAWjYBSMglGADUYtMApGwSgYBaNgsAAAAt1FJzHm9f8AAAAASUVORK5CYII='
+            });
+            
+            merchant.inventory.addItem(tacticalPistol);
+            
+            console.log('Merchant creation complete:', {
+                eth: merchant.inventory.eth,
+                ethType: typeof merchant.inventory.eth,
+                position: `${pos.x},${pos.y}`,
+                hasInventory: !!merchant.inventory,
+                inventorySlots: merchant.inventory?.slots?.length
+            });
+            
+            return merchant;
+        } catch (error) {
+            console.error('Error in createMerchant:', error);
+            throw error;
+        }
     }
 
     findValidSpawnPoint() {
@@ -747,6 +761,12 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
+
+
+
+
 
 
 

@@ -17,38 +17,74 @@ export class Merchant extends NPC {
      * @param {string} [config.name='Merchant'] - Merchant name
      * @param {Array} [config.inventory=[]] - Initial inventory
      */
-    constructor(config) {
+    constructor(config = {}) {
         super({
             ...config,
             name: config.name || 'Merchant',
-            color: '#8B4513', // Brown color for merchants
-            size: 24 // Slightly larger than regular NPCs
-        });
-        
-        this.inventory = new Inventory({
-            maxSlots: 50,
-            maxWeight: 500,
-            owner: this,
-            gold: config.gold || 1000
+            color: '#8B4513',
+            size: 24
         });
 
-        // Add merchant's inventory if provided
-        if (config.inventory) {
-            config.inventory.forEach(item => this.inventory.addItem(item));
+        console.log('Creating merchant inventory with config:', config);
+        
+        // Create inventory with explicit error checking
+        try {
+            this.inventory = new Inventory({
+                maxSlots: 50,
+                maxWeight: 500,
+                owner: this,
+                eth: config.eth || 1000
+            });
+
+            if (!this.inventory) {
+                throw new Error('Inventory creation failed');
+            }
+
+            console.log('Merchant inventory created successfully:', {
+                hasInventory: !!this.inventory,
+                slotsLength: this.inventory?.slots?.length,
+                eth: this.inventory?.eth
+            });
+        } catch (error) {
+            console.error('Failed to create merchant inventory:', error);
+            throw error;
         }
 
-        this.buyMultiplier = config.buyMultiplier || 0.5; // Pay 50% of value when buying from player
-        this.sellMultiplier = config.sellMultiplier || 1.2; // Charge 120% of value when selling to player
-        this.tradingRange = 100; // Increased range for easier testing
-        this.state = 'idle'; // idle, wandering, trading
+        // Initialize trading parameters
+        this.buyMultiplier = Number(config.buyMultiplier || 0.5);
+        this.sellMultiplier = Number(config.sellMultiplier || 1.2);
+        this.tradingRange = 100;
+        this.state = 'idle';
     }
 
     getBuyPrice(item) {
-        return Math.floor(item.value * this.buyMultiplier);
+        // Ensure we're working with numbers
+        const value = Number(item.value);
+        const multiplier = Number(this.buyMultiplier);
+        const price = Math.floor(value * multiplier);
+        
+        console.log('Buy price calculation:', {
+            itemValue: value,
+            multiplier: multiplier,
+            calculatedPrice: price
+        });
+        
+        return price;
     }
 
     getSellPrice(item) {
-        return Math.floor(item.value * this.sellMultiplier);
+        // Ensure we're working with numbers
+        const value = Number(item.value);
+        const multiplier = Number(this.sellMultiplier);
+        const price = Math.floor(value * multiplier);
+        
+        console.log('Sell price calculation:', {
+            itemValue: value,
+            multiplier: multiplier,
+            calculatedPrice: price
+        });
+        
+        return price;
     }
 
     buyFromPlayer(playerSlot, quantity, player) {
@@ -56,11 +92,31 @@ export class Merchant extends NPC {
         if (!item) return false;
 
         const price = this.getBuyPrice(item) * quantity;
-        if (this.inventory.gold < price) return false;
+        const currentEth = Number(this.inventory.eth || 0);
+
+        console.log('Buy transaction details:', {
+            price: price,
+            quantity: quantity,
+            totalPrice: price * quantity,
+            merchantCurrentEth: currentEth
+        });
+
+        if (currentEth < price) {
+            console.log('Insufficient merchant ETH:', {
+                required: price,
+                available: currentEth
+            });
+            return false;
+        }
 
         if (player.inventory.transferItem(playerSlot, this.inventory, quantity)) {
-            this.inventory.gold -= price;
-            player.inventory.gold += price;
+            this.inventory.eth = currentEth - price;
+            player.inventory.eth = Number(player.inventory.eth || 0) + price;
+            
+            console.log('Transaction complete:', {
+                newMerchantEth: this.inventory.eth,
+                newPlayerEth: player.inventory.eth
+            });
             return true;
         }
         return false;
@@ -71,11 +127,29 @@ export class Merchant extends NPC {
         if (!item) return false;
 
         const price = this.getSellPrice(item) * quantity;
-        if (player.inventory.gold < price) return false;
+        const playerEth = Number(player.inventory.eth || 0);
+        
+        console.log('Sell to player:', {
+            price: price,
+            playerEth: playerEth
+        });
+
+        if (playerEth < price) {
+            console.log('Insufficient player ETH:', {
+                required: price,
+                available: playerEth
+            });
+            return false;
+        }
 
         if (this.inventory.transferItem(merchantSlot, player.inventory, quantity)) {
-            this.inventory.gold += price;
-            player.inventory.gold -= price;
+            this.inventory.eth = Number(this.inventory.eth || 0) + price;
+            player.inventory.eth = playerEth - price;
+            
+            console.log('Transaction complete:', {
+                newMerchantEth: this.inventory.eth,
+                newPlayerEth: player.inventory.eth
+            });
             return true;
         }
         return false;
@@ -192,6 +266,15 @@ export class Merchant extends NPC {
         ctx.restore();
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

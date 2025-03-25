@@ -72,9 +72,24 @@ export class MerchantUI {
         if (!item) return;
 
         const price = this.merchant.getSellPrice(item);
-        if (this.game.player.inventory.gold >= price) {
-            this.merchant.sellToPlayer(slotIndex, 1, this.game.player);
-            this.refresh();
+        const playerEth = Number(this.game.player.inventory.eth || 0);
+        
+        console.log('Attempting to buy:', {
+            price: price,
+            playerEth: playerEth,
+            item: item.name
+        });
+        
+        if (playerEth >= price) {
+            if (this.merchant.sellToPlayer(slotIndex, 1, this.game.player)) {
+                console.log('Purchase successful');
+                this.refresh();
+            }
+        } else {
+            console.log('Insufficient ETH:', {
+                required: price,
+                available: playerEth
+            });
         }
     }
 
@@ -83,14 +98,36 @@ export class MerchantUI {
         if (!item) return;
 
         const price = this.merchant.getBuyPrice(item);
-        if (this.merchant.inventory.gold >= price) {
-            this.merchant.buyFromPlayer(slotIndex, 1, this.game.player);
-            this.refresh();
+        const merchantEth = Number(this.merchant.inventory.eth || 0);
+        
+        console.log('Sale attempt details:', {
+            itemName: item.name,
+            itemValue: item.value,
+            calculatedPrice: price,
+            merchantCurrentEth: merchantEth,
+            priceType: typeof price
+        });
+        
+        if (merchantEth >= price) {
+            if (this.merchant.buyFromPlayer(slotIndex, 1, this.game.player)) {
+                console.log('Sale successful');
+                this.refresh();
+            }
+        } else {
+            console.log('Merchant has insufficient ETH:', {
+                required: price,
+                available: merchantEth
+            });
         }
     }
 
     show(merchant) {
         console.log('MerchantUI.show called with merchant:', merchant);
+        if (!merchant || !merchant.inventory) {
+            console.error('Invalid merchant or merchant inventory');
+            return;
+        }
+        
         this.merchant = merchant;
         this.isVisible = true;
         
@@ -105,7 +142,7 @@ export class MerchantUI {
             opacity: 1 !important;
             z-index: 100000 !important;
             background: #1a1a1a !important;
-            border: 4px solid gold !important;
+            border: 4px solid #00f2ff !important;
             width: 800px !important;
             height: 600px !important;
         `;
@@ -122,15 +159,15 @@ export class MerchantUI {
 
     refresh() {
         console.log('MerchantUI.refresh called');
+        console.log('Current merchant ETH:', this.merchant?.inventory?.eth);
+        console.log('Current player ETH:', this.game.player?.inventory?.eth);
+        
         if (!this.merchant) {
             console.warn('No merchant set for UI refresh');
             return;
         }
 
-        // Add debug border
-        this.container.style.border = '4px solid red';
-        
-        // Basic content with high contrast
+        // Update the displays
         this.merchantInventory.innerHTML = `
             <h3 style="color: yellow; font-size: 24px;">Merchant's Goods</h3>
             <div class="merchant-slots" style="background: #333; padding: 20px;">
@@ -145,9 +182,21 @@ export class MerchantUI {
             </div>
         `;
 
+        this.updateGoldDisplay();
+    }
+
+    updateGoldDisplay() {
+        // Add debug logging
+        console.log('Merchant inventory:', this.merchant.inventory);
+        console.log('Player inventory:', this.game.player.inventory);
+
+        // Check for undefined and provide fallback
+        const merchantEth = this.merchant?.inventory?.eth ?? 0;
+        const playerEth = this.game.player?.inventory?.eth ?? 0;
+
         this.goldDisplay.innerHTML = `
-            <div style="color: yellow; font-size: 20px">Merchant's Gold: ${this.merchant.inventory.gold}</div>
-            <div style="color: yellow; font-size: 20px">Your Gold: ${this.game.player.inventory.gold}</div>
+            <div style="color: #00f2ff; font-size: 20px">Merchant's ETH: ${merchantEth}</div>
+            <div style="color: #00f2ff; font-size: 20px">Your ETH: ${playerEth}</div>
         `;
     }
 
@@ -160,7 +209,7 @@ export class MerchantUI {
                 html += `
                     <div class="merchant-slot" data-slot="${i}">
                         <img src="${item.icon}" alt="${item.name}">
-                        <div class="item-price">${price} gold</div>
+                        <div class="item-price">${price} ETH</div>
                         ${item.isStackable ? `<span class="item-quantity">${item.quantity}</span>` : ''}
                     </div>
                 `;
@@ -180,7 +229,7 @@ export class MerchantUI {
                 html += `
                     <div class="player-slot" data-slot="${i}">
                         <img src="${item.icon}" alt="${item.name}">
-                        <div class="item-price">${price} gold</div>
+                        <div class="item-price">${price} ETH</div>
                         ${item.isStackable ? `<span class="item-quantity">${item.quantity}</span>` : ''}
                     </div>
                 `;
@@ -191,6 +240,12 @@ export class MerchantUI {
         return html;
     }
 }
+
+
+
+
+
+
 
 
 

@@ -227,10 +227,14 @@ export class InventoryUI {
         `;
 
         // Update gold display with inline gold icon
+        this.updateGoldDisplay();
+    }
+
+    updateGoldDisplay() {
         this.goldDisplay.innerHTML = `
-            <div class="gold">
-                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/Q7yucQAAAAASUVORK5CYII=" alt="Gold">
-                ${inventory.gold}
+            <div class="eth">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/Q7yucQAAAAASUVORK5CYII=" alt="ETH">
+                ${this.game.player.inventory.eth}
             </div>
         `;
     }
@@ -276,5 +280,7 @@ export class InventoryUI {
         }
     }
 }
+
+
 
 

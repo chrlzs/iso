@@ -65,10 +65,10 @@ export class Player {
 
         // Add inventory system
         this.inventory = new Inventory({
-            maxSlots: 30,
-            maxWeight: 150,
+            maxSlots: 20,
+            maxWeight: 100,
             owner: this,
-            gold: 100 // Starting gold
+            eth: Number(config.eth || 500) // Give player starting ETH
         });
 
         // Add starter items
@@ -96,9 +96,9 @@ export class Player {
                 icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMomBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAMu8F/Q7yucQAAAAASUVORK5CYII='
             }),
             new Item({
-                id: 'health_potion',
-                name: 'Health Potion',
-                description: 'Restores 25 HP',
+                id: 'medkit',
+                name: 'Medkit',
+                description: 'Military-grade first aid kit. Restores 25 HP',
                 type: 'consumable',
                 value: 20,
                 weight: 0.5,
@@ -126,12 +126,12 @@ export class Player {
                 }
             }),
             new Item({
-                id: 'torch',
-                name: 'Torch',
-                description: 'Provides light in dark areas',
+                id: 'flashlight',
+                name: 'Flashlight',
+                description: 'Tactical LED flashlight for dark environments',
                 type: 'tool',
                 value: 8,
-                weight: 1,
+                weight: 0.5,
                 isStackable: true,
                 quantity: 2,
                 icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/fr4BQQAAAAASUVORK5CYII='
@@ -370,6 +370,9 @@ export class Player {
         this.damage = this.baseDamage + totalDamage;
     }
 }
+
+
+
 
 
 
