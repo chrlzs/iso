@@ -83,26 +83,24 @@ export class StructureRenderer {
     drawStructure(x, y, structure) {
         const isoX = (x - y) * (this.tileWidth / 2);
         const isoY = (x + y) * (this.tileHeight / 2);
-
-        // Draw base
-        this.ctx.fillStyle = this.getMaterialColor(structure.material);
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        this.ctx.lineWidth = 1;
-
-        // Draw walls with height
         const height = structure.floors * this.tileHeight;
         
-        // Front wall
+        // Shadow
+        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
         this.ctx.beginPath();
-        this.ctx.moveTo(isoX, isoY);
-        this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2);
-        this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2 - height);
-        this.ctx.lineTo(isoX, isoY - height);
-        this.ctx.closePath();
+        this.ctx.moveTo(isoX, isoY + this.tileHeight/2);
+        this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight);
+        this.ctx.lineTo(isoX, isoY + this.tileHeight * 1.5);
+        this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight);
         this.ctx.fill();
-        this.ctx.stroke();
 
-        // Side wall
+        // Get base colors based on material
+        const baseColor = this.getMaterialColor(structure.material);
+        const darkerColor = this.adjustColor(baseColor, -30);
+        const lighterColor = this.adjustColor(baseColor, 20);
+        
+        // Side wall (left)
+        this.ctx.fillStyle = darkerColor;
         this.ctx.beginPath();
         this.ctx.moveTo(isoX, isoY);
         this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2);
@@ -112,21 +110,43 @@ export class StructureRenderer {
         this.ctx.fill();
         this.ctx.stroke();
 
-        // Roof
-        this.ctx.fillStyle = this.getRoofColor(structure.roofType);
+        // Add window pattern to left wall
+        if (structure.states.lightOn) {
+            this.drawWindowPattern(
+                isoX - this.tileWidth/2, 
+                isoY + this.tileHeight/2, 
+                height, 
+                'left',
+                structure.floors,
+                structure.states.lightOn
+            );
+        }
+
+        // Front wall
+        this.ctx.fillStyle = baseColor;
         this.ctx.beginPath();
-        this.ctx.moveTo(isoX, isoY - height);
+        this.ctx.moveTo(isoX, isoY);
+        this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2);
         this.ctx.lineTo(isoX + this.tileWidth/2, isoY + this.tileHeight/2 - height);
-        this.ctx.lineTo(isoX, isoY + this.tileHeight - height);
-        this.ctx.lineTo(isoX - this.tileWidth/2, isoY + this.tileHeight/2 - height);
+        this.ctx.lineTo(isoX, isoY - height);
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
 
-        // Draw windows if present
+        // Add window pattern to front wall
         if (structure.states.lightOn) {
-            this.drawWindows(isoX, isoY, height, structure.floors);
+            this.drawWindowPattern(
+                isoX, 
+                isoY, 
+                height, 
+                'front',
+                structure.floors,
+                structure.states.lightOn
+            );
         }
+
+        // Roof
+        this.drawRoof(structure, isoX, isoY - height);
     }
 
     drawDoor(x, y, isOpen) {
@@ -134,170 +154,102 @@ export class StructureRenderer {
         this.ctx.fillRect(x, y, this.tileWidth, this.tileHeight);
     }
 
-    drawWindow(x, y, isLit) {
-        this.ctx.fillStyle = isLit ? '#ffff99' : '#87ceeb';
-        this.ctx.fillRect(x + 8, y + 8, this.tileWidth - 16, this.tileHeight - 16);
-    }
+    drawWindowPattern(x, y, height, side, floors, isLightOn) {
+        const windowColor = isLightOn ? 
+            'rgba(255, 255, 150, 0.7)' : 
+            'rgba(100, 149, 237, 0.5)';
+        const windowBorder = isLightOn ?
+            'rgba(255, 255, 200, 0.8)' :
+            'rgba(70, 130, 180, 0.6)';
 
-    drawDecoration(type, x, y) {
         this.ctx.save();
-        switch (type) {
-            case 'sign':
-                this.drawSign(x, y);
-                break;
-            case 'ac_unit':
-                this.drawACUnit(x, y);
-                break;
-            case 'path':
-                this.drawPath(x, y);
-                break;
-            case 'chimney':
-                this.drawChimney(x, y);
-                break;
-            case 'antenna':
-                this.drawAntenna(x, y);
-                break;
-            case 'satellite_dish':
-                this.drawSatelliteDish(x, y);
-                break;
+        
+        // Calculate window positions based on floor height
+        for (let floor = 1; floor <= floors; floor++) {
+            const floorHeight = height * (floor / floors);
+            const windowY = y - floorHeight + (height / floors) * 0.3;
+            
+            if (side === 'front') {
+                // Two windows on front
+                this.drawWindow(x + this.tileWidth * 0.15, windowY, windowColor, windowBorder);
+                this.drawWindow(x + this.tileWidth * 0.35, windowY, windowColor, windowBorder);
+            } else {
+                // One window on side
+                this.drawWindow(x + this.tileWidth * 0.25, windowY, windowColor, windowBorder);
+            }
         }
+        
         this.ctx.restore();
     }
 
-    drawSign(x, y) {
-        // Draw sign board
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(x - 15, y - 20, 30, 15);
+    drawWindow(x, y, color, borderColor) {
+        const windowWidth = this.tileWidth * 0.15;
+        const windowHeight = this.tileHeight * 0.3;
         
-        // Add simple text lines
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.fillRect(x - 10, y - 17, 20, 2);
-        this.ctx.fillRect(x - 10, y - 12, 15, 2);
+        // Window frame
+        this.ctx.fillStyle = borderColor;
+        this.ctx.fillRect(x - 1, y - 1, windowWidth + 2, windowHeight + 2);
+        
+        // Window pane
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, windowWidth, windowHeight);
+        
+        // Window cross
+        this.ctx.strokeStyle = borderColor;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + windowWidth/2, y);
+        this.ctx.lineTo(x + windowWidth/2, y + windowHeight);
+        this.ctx.moveTo(x, y + windowHeight/2);
+        this.ctx.lineTo(x + windowWidth, y + windowHeight/2);
+        this.ctx.stroke();
     }
 
-    drawACUnit(x, y) {
-        // Main unit body
-        this.ctx.fillStyle = '#A9A9A9';
-        this.ctx.fillRect(x - 10, y - 8, 20, 16);
+    drawRoof(structure, x, y) {
+        const roofColor = this.getRoofColor(structure.roofType);
+        const darkerRoof = this.adjustColor(roofColor, -20);
         
-        // Ventilation lines
-        this.ctx.fillStyle = '#696969';
-        for (let i = 0; i < 3; i++) {
-            this.ctx.fillRect(x - 8, y - 6 + (i * 5), 16, 2);
+        switch (structure.roofType) {
+            case 'flat':
+                this.drawFlatRoof(x, y, roofColor, darkerRoof);
+                break;
+            case 'pitched':
+                this.drawPitchedRoof(x, y, roofColor, darkerRoof);
+                break;
+            default:
+                this.drawFlatRoof(x, y, roofColor, darkerRoof);
         }
     }
 
-    drawPath(x, y) {
-        // Stone path
-        this.ctx.fillStyle = '#808080';
-        for (let i = 0; i < 4; i++) {
-            this.ctx.beginPath();
-            this.ctx.ellipse(
-                x + (i * 8) - 12,
-                y,
-                4,
-                3,
-                0,
-                0,
-                Math.PI * 2
-            );
-            this.ctx.fill();
-        }
-    }
+    drawFlatRoof(x, y, color, borderColor) {
+        // Ensure we have valid colors
+        color = color || this.getRoofColor('flat');
+        borderColor = borderColor || this.adjustColor(color, -20);
 
-    drawChimney(x, y) {
-        // Main chimney body
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(x - 6, y - 20, 12, 20);
-        
-        // Top rim
-        this.ctx.fillStyle = '#696969';
-        this.ctx.fillRect(x - 8, y - 22, 16, 4);
-    }
-
-    drawAntenna(x, y) {
-        // Antenna pole
-        this.ctx.strokeStyle = '#696969';
-        this.ctx.lineWidth = 2;
+        // Main roof surface
+        this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.moveTo(x, y);
-        this.ctx.lineTo(x, y - 30);
+        this.ctx.lineTo(x + this.tileWidth/2, y + this.tileHeight/2);
+        this.ctx.lineTo(x, y + this.tileHeight);
+        this.ctx.lineTo(x - this.tileWidth/2, y + this.tileHeight/2);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Roof edge detail
+        this.ctx.strokeStyle = borderColor;
+        this.ctx.lineWidth = 2;
         this.ctx.stroke();
-
-        // Antenna elements
-        for (let i = 0; i < 3; i++) {
+        
+        // Optional: Add roof texture pattern
+        this.ctx.strokeStyle = this.adjustColor(color, -10);
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < this.tileWidth/2; i += 8) {
             this.ctx.beginPath();
-            this.ctx.moveTo(x, y - 10 - (i * 8));
-            this.ctx.lineTo(x + 10, y - 13 - (i * 8));
+            this.ctx.moveTo(x - i, y + i * 0.5);
+            this.ctx.lineTo(x + this.tileWidth/2 - i, y + this.tileHeight/2 + i * 0.5);
             this.ctx.stroke();
         }
-    }
-
-    drawSatelliteDish(x, y) {
-        // Dish
-        this.ctx.fillStyle = '#A9A9A9';
-        this.ctx.beginPath();
-        this.ctx.ellipse(x, y - 15, 12, 8, Math.PI / 4, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Mount
-        this.ctx.fillStyle = '#696969';
-        this.ctx.fillRect(x - 2, y - 12, 4, 12);
-        
-        // Receiver
-        this.ctx.fillStyle = '#4A4A4A';
-        this.ctx.fillRect(x + 8, y - 18, 4, 4);
-    }
-
-    getMaterialColor(material) {
-        const colors = {
-            'brick': '#8B4513',
-            'concrete': '#808080',
-            'wood': '#DEB887',
-            'stone': '#696969',
-            'metal': '#A9A9A9'
-        };
-        return colors[material] || '#808080';
-    }
-
-    getRoofColor(roofType) {
-        const colors = {
-            'flat': '#4A4A4A',
-            'pitched': '#8B4513',
-            'dome': '#A9A9A9'
-        };
-        return colors[roofType] || '#4A4A4A';
-    }
-
-    drawWindows(x, y, height, floors) {
-        const windowColor = 'rgba(255, 255, 150, 0.5)';
-        const windowSize = this.tileWidth / 6;
-
-        for (let floor = 1; floor <= floors; floor++) {
-            const floorHeight = height * (floor / floors);
-            
-            // Front windows
-            this.ctx.fillStyle = windowColor;
-            this.ctx.fillRect(
-                x + windowSize, 
-                y - floorHeight + windowSize, 
-                windowSize, 
-                windowSize
-            );
-
-            // Side windows
-            this.ctx.fillRect(
-                x - windowSize * 2, 
-                y - floorHeight + windowSize, 
-                windowSize, 
-                windowSize
-            );
-        }
-    }
-
-    drawFlatRoof(width, height) {
-        this.ctx.fillStyle = '#4a4a4a';
-        this.ctx.fillRect(0, 0, width, height);
     }
 
     drawPitchedRoof(width, height) {
@@ -320,7 +272,130 @@ export class StructureRenderer {
             this.ctx.fill();
         }
     }
+
+    adjustColor(hex, amount) {
+        // Handle undefined or invalid color
+        if (!hex || typeof hex !== 'string') {
+            hex = '#808080'; // Default to gray if color is invalid
+        }
+
+        // Ensure hex color starts with #
+        if (!hex.startsWith('#')) {
+            hex = '#' + hex;
+        }
+
+        // Ensure hex color is 6 digits
+        if (hex.length === 4) {
+            hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        }
+
+        let r = parseInt(hex.slice(1,3), 16);
+        let g = parseInt(hex.slice(3,5), 16);
+        let b = parseInt(hex.slice(5,7), 16);
+
+        r = Math.max(0, Math.min(255, r + amount));
+        g = Math.max(0, Math.min(255, g + amount));
+        b = Math.max(0, Math.min(255, b + amount));
+
+        return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    }
+
+    getMaterialColor(material) {
+        const colors = {
+            'brick': '#A94442',
+            'concrete': '#989898',
+            'wood': '#8B4513',
+            'stone': '#808080',
+            'metal': '#A9A9A9',
+            'glass': '#ADD8E6'
+        };
+        return colors[material] || '#989898';
+    }
+
+    getRoofColor(roofType) {
+        const colors = {
+            'flat': '#4A4A4A',
+            'pitched': '#8B4513',
+            'dome': '#A9A9A9',
+            'industrial': '#696969'
+        };
+        return colors[roofType] || '#4A4A4A'; // Default to dark gray if roof type not found
+    }
+
+    drawDecoration(decorationType, x, y) {
+        const decorSize = this.tileWidth / 2;
+        
+        this.ctx.save();
+        switch (decorationType) {
+            case 'ac_unit':
+                this.drawACUnit(x, y, decorSize);
+                break;
+            case 'sign':
+                this.drawSign(x, y, decorSize);
+                break;
+            case 'window':
+                this.drawStructureWindow(x, y, decorSize);
+                break;
+            default:
+                // Fallback decoration
+                this.drawGenericDecoration(x, y, decorSize);
+        }
+        this.ctx.restore();
+    }
+
+    drawACUnit(x, y, size) {
+        // AC unit drawing
+        this.ctx.fillStyle = '#A9A9A9';
+        this.ctx.fillRect(x, y, size, size/2);
+        
+        // Grill lines
+        this.ctx.strokeStyle = '#808080';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < size; i += 4) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + i, y);
+            this.ctx.lineTo(x + i, y + size/2);
+            this.ctx.stroke();
+        }
+    }
+
+    drawSign(x, y, size) {
+        // Sign background
+        this.ctx.fillStyle = '#4A4A4A';
+        this.ctx.fillRect(x, y, size * 1.5, size/3);
+        
+        // Sign text effect (simplified)
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(x + 4, y + 4, size * 1.2, size/6);
+    }
+
+    drawStructureWindow(x, y, size) {
+        // Window frame
+        this.ctx.fillStyle = '#696969';
+        this.ctx.fillRect(x, y, size, size * 1.5);
+        
+        // Window glass
+        this.ctx.fillStyle = 'rgba(135, 206, 235, 0.5)';
+        this.ctx.fillRect(x + 2, y + 2, size - 4, size * 1.5 - 4);
+        
+        // Window reflection
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + 4, y + 4);
+        this.ctx.lineTo(x + size - 4, y + 4);
+        this.ctx.stroke();
+    }
+
+    drawGenericDecoration(x, y, size) {
+        // Simple square as fallback
+        this.ctx.fillStyle = '#808080';
+        this.ctx.fillRect(x, y, size, size);
+    }
 }
+
+
+
+
 
 
 

@@ -131,7 +131,7 @@ export class GameInstance {
     }
 
     addStartingStructures() {
-        // Add a nightclub near spawn point with more placement attempts
+        // Add a nightclub near spawn point
         const nightclubPos = this.world.structureManager.findValidPlacement(
             'nightclub',
             this.player.x + 8,
@@ -139,82 +139,21 @@ export class GameInstance {
             30  // More attempts to find valid spot
         );
         
-        let nightclubX, nightclubY;
         if (nightclubPos) {
             const nightclub = this.world.structureManager.createStructure('nightclub', nightclubPos.x, nightclubPos.y);
             if (nightclub) {
                 console.log('Game: Created nightclub at', nightclubPos.x, nightclubPos.y);
-                nightclubX = nightclubPos.x;
-                nightclubY = nightclubPos.y;
             }
         }
 
-        // Add apartments with more flexible positioning
-        const apartmentPositions = [
-            { baseX: -5, baseY: -4 },
-            { baseX: 6, baseY: -3 },
-            { baseX: -4, baseY: 5 }
-        ];
-
-        apartmentPositions.forEach(pos => {
-            const validPos = this.world.structureManager.findValidPlacement(
-                'apartment',  // Changed from 'house' to 'apartment'
-                this.player.x + pos.baseX,
-                this.player.y + pos.baseY,
-                20
-            );
-            
-            if (validPos) {
-                const apartment = this.world.structureManager.createStructure('apartment', validPos.x, validPos.y);
-                if (apartment) {
-                    console.log('Game: Created apartment at', validPos.x, validPos.y);
-                }
-            }
-        });
-
-        // Add NPCs with better spacing
-        // Place Village Elder near spawn point
-        const elderPos = { x: this.player.x + 4, y: this.player.y + 4 };
-
-        // Place merchant further from Elder, closer to nightclub if it exists
-        const merchantPos = nightclubX !== undefined && nightclubY !== undefined
-            ? { x: nightclubX + 3, y: nightclubY + 3 }  // Increased offset from nightclub
-            : { x: this.player.x + 12, y: this.player.y + 12 };  // Fallback position further from Elder
-
-        // Validate and place NPCs
-        [elderPos, merchantPos].forEach((pos, index) => {
-            // Validate tile before placing NPC
-            const height = this.world.generateHeight(pos.x, pos.y);
-            const moisture = this.world.generateMoisture(pos.x, pos.y);
-            const tile = this.world.generateTile(pos.x, pos.y, height, moisture);
-            
-            if (tile.type !== 'water' && tile.type !== 'wetland') {
-                if (index === 0) {
-                    // Create Village Elder
-                    const npc = new NPC({
-                        x: pos.x,
-                        y: pos.y,
-                        name: 'Village Elder',
-                        size: 20,
-                        color: '#FF0000'
-                    });
-                    this.entities.add(npc);
-                    console.log('Game: Created Village Elder at', pos.x, pos.y);
-                } else {
-                    // Create merchant
-                    const merchant = this.createMerchant(pos);
-                    this.entities.add(merchant);
-                    console.log('Game: Created merchant at', pos.x, pos.y);
-                }
-            }
-        });
-
+        // Add an office building
         const officePos = this.world.structureManager.findValidPlacement(
             'office',
-            this.player.x + 10,
-            this.player.y + 10,
+            this.player.x - 8,
+            this.player.y - 8,
             30
         );
+        
         if (officePos) {
             const office = this.world.structureManager.createStructure('office', officePos.x, officePos.y);
             if (office) {
@@ -794,6 +733,7 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
 
 
 
