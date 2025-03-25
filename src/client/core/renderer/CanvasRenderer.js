@@ -116,37 +116,113 @@ export class CanvasRenderer {
         const isoX = (x - y) * (this.tileWidth / 2);
         const isoY = (x + y) * (this.tileHeight / 2);
 
-        const texture = tileManager.getTextureForTile(tile);
-        if (texture) {
-            this.ctx.drawImage(
-                texture,
-                isoX - this.tileWidth / 2,
-                isoY - this.tileHeight / 2,
-                this.tileWidth,
-                this.tileHeight
-            );
-        } else {
-            console.warn(`Missing texture for tile at (${x}, ${y})`);
-        }
+        // Draw base tile shape
+        this.ctx.beginPath();
+        this.ctx.moveTo(isoX, isoY - this.tileHeight / 2);
+        this.ctx.lineTo(isoX + this.tileWidth / 2, isoY);
+        this.ctx.lineTo(isoX, isoY + this.tileHeight / 2);
+        this.ctx.lineTo(isoX - this.tileWidth / 2, isoY);
+        this.ctx.closePath();
 
-        // Render decoration if present
+        // Fill with tile color
+        this.ctx.fillStyle = this.getTileColor(tile);
+        this.ctx.fill();
+
+        // Add tile border
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        this.ctx.stroke();
+
+        // Draw decoration if present
         if (tile.decoration) {
-            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
-            if (decorationTexture) {
-                const decorationX = isoX + (tile.decoration.offset?.x || 0);
-                const decorationY = isoY + (tile.decoration.offset?.y || 0) - (tile.height * this.tileHeight / 2);
-                const decorationWidth = (tile.decoration.scale?.x || 1) * this.tileWidth;
-                const decorationHeight = (tile.decoration.scale?.y || 1) * this.tileHeight;
+            this.drawDecoration(isoX, isoY, tile.decoration);
+        }
+    }
 
-                this.ctx.drawImage(
-                    decorationTexture,
-                    decorationX - decorationWidth / 2,
-                    decorationY - decorationHeight / 2,
-                    decorationWidth,
-                    decorationHeight
-                );
-            }
+    getTileColor(tile) {
+        const colors = {
+            'water': '#4A90E2',
+            'sand': '#F5A623',
+            'grass': '#7ED321',
+            'wetland': '#417505',
+            'dirt': '#8B572A',
+            'stone': '#9B9B9B',
+            'asphalt': '#4A4A4A',
+            'concrete': '#9B9B9B'
+        };
+        return colors[tile.type] || '#FF0000';
+    }
+
+    drawDecoration(x, y, decoration) {
+        const decorSize = this.tileWidth / 4;
+        
+        this.ctx.save();
+        switch (decoration.type) {
+            case 'flowers':
+                this.drawFlowers(x, y, decorSize);
+                break;
+            case 'rocks':
+                this.drawRocks(x, y, decorSize);
+                break;
+            case 'grassTufts':
+                this.drawGrassTufts(x, y, decorSize);
+                break;
+        }
+        this.ctx.restore();
+    }
+
+    drawFlowers(x, y, size) {
+        const colors = ['#FF69B4', '#FFD700', '#FF6B6B', '#87CEEB'];
+        for (let i = 0; i < 4; i++) {
+            const offsetX = (Math.random() - 0.5) * size;
+            const offsetY = (Math.random() - 0.5) * size;
+            
+            this.ctx.fillStyle = colors[i % colors.length];
+            this.ctx.beginPath();
+            this.ctx.arc(x + offsetX, y + offsetY, size/4, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+    }
+
+    drawRocks(x, y, size) {
+        const rockColors = ['#808080', '#696969', '#A9A9A9'];
+        for (let i = 0; i < 3; i++) {
+            const offsetX = (Math.random() - 0.5) * size;
+            const offsetY = (Math.random() - 0.5) * size;
+            
+            this.ctx.fillStyle = rockColors[i % rockColors.length];
+            this.ctx.beginPath();
+            this.ctx.ellipse(
+                x + offsetX, 
+                y + offsetY, 
+                size/3, 
+                size/4, 
+                Math.random() * Math.PI, 
+                0, 
+                Math.PI * 2
+            );
+            this.ctx.fill();
+        }
+    }
+
+    drawGrassTufts(x, y, size) {
+        const grassColors = ['#7ED321', '#417505'];
+        for (let i = 0; i < 5; i++) {
+            const offsetX = (Math.random() - 0.5) * size;
+            const offsetY = (Math.random() - 0.5) * size;
+            
+            this.ctx.strokeStyle = grassColors[i % 2];
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + offsetX, y + offsetY);
+            this.ctx.quadraticCurveTo(
+                x + offsetX + (Math.random() - 0.5) * size/2,
+                y + offsetY - size/2,
+                x + offsetX + (Math.random() - 0.5) * size,
+                y + offsetY - size
+            );
+            this.ctx.stroke();
         }
     }
 }
+
 
