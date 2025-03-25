@@ -1,4 +1,3 @@
-
 import { World } from './world/World.js';
 import { IsometricRenderer } from './renderer/IsometricRenderer.js';
 import { TileManager } from './world/TileManager.js';
@@ -209,6 +208,19 @@ export class GameInstance {
                 }
             }
         });
+
+        const officePos = this.world.structureManager.findValidPlacement(
+            'office',
+            this.player.x + 10,
+            this.player.y + 10,
+            30
+        );
+        if (officePos) {
+            const office = this.world.structureManager.createStructure('office', officePos.x, officePos.y);
+            if (office) {
+                console.log('Game: Created office at', officePos.x, officePos.y);
+            }
+        }
     }
 
     createMerchant(pos) {

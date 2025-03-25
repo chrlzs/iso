@@ -105,6 +105,30 @@ export class StructureManager {
                 door: 'security'
             }
         });
+
+        // Office building template (4x5)
+        this.templates.set('office', {
+            type: 'office',
+            name: 'Office Building',
+            width: 4,
+            height: 5,
+            blueprint: [
+                ['wall', 'wall', 'wall', 'wall'],
+                ['wall', 'floor', 'floor', 'wall'],
+                ['wall', 'floor', 'floor', 'wall'],
+                ['wall', 'floor', 'floor', 'wall'],
+                ['wall', 'door', 'door', 'wall']
+            ],
+            decorations: [
+                { type: 'sign', x: 1, y: 0 },
+                { type: 'window', x: 2, y: 1 }
+            ],
+            textures: {
+                wall: 'concrete',
+                floor: 'tiles',
+                door: 'metal'
+            }
+        });
     }
 
     createStructure(type, x, y) {

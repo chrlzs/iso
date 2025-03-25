@@ -77,6 +77,11 @@ export class TileManager {
         this.textureVariants.set('sand', ['sand', 'sand_var1']);
         this.textureVariants.set('wetland', ['wetland', 'wetland_var1']);
         this.textureVariants.set('water', ['water', 'water_var1']);
+        this.textureVariants.set('asphalt', ['asphalt', 'asphalt_cracked']);
+        this.textureVariants.set('concrete', ['concrete', 'concrete_stained']);
+        this.textureVariants.set('sidewalk', ['sidewalk', 'sidewalk_tiled']);
+        this.textureVariants.set('brick', ['brick', 'brick_modern']);
+        this.textureVariants.set('metal', ['metal', 'metal_rusted']);
 
         // Add method to get or create persistent decoration
         this.getPersistentDecoration = (tileId, tileType) => {
@@ -357,14 +362,55 @@ export class TileManager {
         // Perform decoration updates
     }
 
-    // Temporary method for demo
-    createTempTexture(color) {
+    createFallbackTexture(tileType) {
+        // Create a canvas for the fallback texture
         const canvas = document.createElement('canvas');
         canvas.width = 64;
-        canvas.height = 32;
+        canvas.height = 64;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 64, 32);
+
+        // Define fallback colors for different tile types
+        const fallbackColors = {
+            grass: { primary: '#2d5a27', secondary: '#234a1f' },
+            dirt: { primary: '#8b4513', secondary: '#6b3410' },
+            stone: { primary: '#808080', secondary: '#696969' },
+            sand: { primary: '#f4a460', secondary: '#daa520' },
+            water: { primary: '#4169e1', secondary: '#1e90ff' },
+            wetland: { primary: '#2f4f4f', secondary: '#3d6060' },
+            asphalt: { primary: '#363636', secondary: '#292929' },
+            concrete: { primary: '#808080', secondary: '#707070' },
+            sidewalk: { primary: '#C0C0C0', secondary: '#A9A9A9' },
+            brick: { primary: '#8B4513', secondary: '#A0522D' },
+            metal: { primary: '#708090', secondary: '#778899' },
+            default: { primary: '#FF00FF', secondary: '#FF69B4' } // Pink for unknown types
+        };
+
+        const colors = fallbackColors[tileType] || fallbackColors.default;
+
+        // Draw a simple pattern
+        ctx.fillStyle = colors.primary;
+        ctx.fillRect(0, 0, 64, 64);
+
+        // Add some visual interest with a pattern
+        ctx.fillStyle = colors.secondary;
+        for (let y = 0; y < 64; y += 8) {
+            for (let x = 0; x < 64; x += 8) {
+                if ((x + y) % 16 === 0) {
+                    ctx.fillRect(x, y, 7, 7);
+                }
+            }
+        }
+
+        // Add a border
+        ctx.strokeStyle = colors.secondary;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, 62, 62);
+
+        // Add type label for debugging
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.font = '10px Arial';
+        ctx.fillText(tileType, 4, 12);
+
         return canvas;
     }
 
@@ -407,23 +453,39 @@ export class TileManager {
 
     getTextureForTile(tile) {
         if (!tile || !tile.type) {
-            if (this.debug?.enabled) console.warn('TileManager: Invalid tile or missing type');
-            return null;
+            this.logDebug('TileManager: Invalid tile or missing type', 'logTextureErrors');
+            return this.createFallbackTexture('default');
         }
 
+        let texture;
+
+        // Try to get variant texture if specified
         if (tile.variant) {
-            const texture = this.textures.get(tile.variant);
-            if (!texture && this.debug?.enabled) {
-                console.warn(`TileManager: Missing texture for variant: ${tile.variant}`);
+            texture = this.textures.get(tile.variant);
+            if (texture) {
+                return texture;
             }
+            this.logDebug(`TileManager: Variant texture not found: ${tile.variant}`, 'logTextureErrors');
+        }
+
+        // Try to get base texture
+        texture = this.textures.get(tile.type);
+        if (texture) {
             return texture;
         }
 
-        const baseTexture = this.textures.get(tile.type);
-        if (!baseTexture && this.debug?.enabled) {
-            console.warn(`TileManager: Missing base texture for type: ${tile.type}`);
+        // Log missing texture
+        this.logDebug(`TileManager: Missing texture for type: ${tile.type}`, 'logTextureErrors');
+
+        // Create and cache fallback texture
+        const fallbackKey = `fallback_${tile.type}`;
+        if (!this.textures.has(fallbackKey)) {
+            const fallbackTexture = this.createFallbackTexture(tile.type);
+            this.textures.set(fallbackKey, fallbackTexture);
+            this.logDebug(`TileManager: Created fallback texture for: ${tile.type}`, 'logTextureErrors');
         }
-        return baseTexture;
+
+        return this.textures.get(fallbackKey);
     }
 
     getRandomVariant(tileType) {
@@ -443,17 +505,23 @@ export class TileManager {
     }
 
     getDecorationTexture(decorationType) {
-        // Check cache first
-        const cacheKey = `dec_${decorationType}`;
-        if (this.decorationTextureCache.has(cacheKey)) {
-            return this.decorationTextureCache.get(cacheKey);
+        const texture = this.decorationTextures.get(decorationType);
+        if (texture) {
+            return texture;
         }
 
-        const texture = this.textures.get(cacheKey);
-        if (texture) {
-            this.decorationTextureCache.set(cacheKey, texture);
+        // Log missing decoration texture
+        this.logDebug(`TileManager: Missing decoration texture: ${decorationType}`, 'logTextureErrors');
+
+        // Create and cache fallback decoration texture
+        const fallbackKey = `fallback_decoration_${decorationType}`;
+        if (!this.decorationTextures.has(fallbackKey)) {
+            const fallbackTexture = this.createFallbackTexture('decoration');
+            this.decorationTextures.set(fallbackKey, fallbackTexture);
+            this.logDebug(`TileManager: Created fallback decoration texture for: ${decorationType}`, 'logTextureErrors');
         }
-        return texture;
+
+        return this.decorationTextures.get(fallbackKey);
     }
 
     createStructureTexture(primaryColor, secondaryColor, pattern) {
@@ -643,5 +711,6 @@ export class TileManager {
         return Math.min(1, urbanFactor);
     }
 }
+
 
 
