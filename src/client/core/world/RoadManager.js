@@ -37,7 +37,7 @@ export class RoadManager {
 
         // Configure pathfinding costs for road building
         const roadCosts = {
-            'asphalt': 0.1,  // Prefer existing roads
+            'asphalt': 0.1,  // Strongly prefer existing roads
             'concrete': 0.2,
             'sidewalk': 0.3,
             'dirt': 1.0,
@@ -69,15 +69,23 @@ export class RoadManager {
                 ? this.calculateDirection(point, path[index + 1])
                 : null;
 
-            // Place road tiles
-            for (let dx = -roadWidth; dx <= roadWidth; dx++) {
-                for (let dy = -roadWidth; dy <= roadWidth; dy++) {
+            // Check for intersection with existing roads
+            const isIntersection = this.checkForIntersection(point.x, point.y);
+
+            // Place road tiles with wider radius at intersections
+            const width = isIntersection ? roadWidth + 1 : roadWidth;
+            
+            for (let dx = -width; dx <= width; dx++) {
+                for (let dy = -width; dy <= width; dy++) {
                     const x = point.x + dx;
                     const y = point.y + dy;
                     
-                    if (Math.abs(dx) === roadWidth || Math.abs(dy) === roadWidth) {
+                    if (Math.abs(dx) === width || Math.abs(dy) === width) {
                         // Place sidewalks on the edges
                         this.placeTile(x, y, 'sidewalk', direction);
+                    } else if (isIntersection && Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+                        // Place intersection tiles
+                        this.placeTile(x, y, 'asphalt', 'intersection');
                     } else {
                         // Place road in the middle
                         this.placeTile(x, y, 'asphalt', direction);
@@ -85,6 +93,21 @@ export class RoadManager {
                 }
             }
         });
+    }
+
+    checkForIntersection(x, y) {
+        let roadCount = 0;
+        // Check surrounding tiles for existing roads
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                const tile = this.world.getTileAt(x + dx, y + dy);
+                if (tile && tile.type === 'asphalt') {
+                    roadCount++;
+                }
+            }
+        }
+        return roadCount > 2; // Consider it an intersection if more than 2 road tiles nearby
     }
 
     placeTile(x, y, type, direction) {
@@ -116,7 +139,8 @@ export class RoadManager {
                 'NE': 'asphalt_curve_ne',
                 'NW': 'asphalt_curve_nw',
                 'SE': 'asphalt_curve_se',
-                'SW': 'asphalt_curve_sw'
+                'SW': 'asphalt_curve_sw',
+                'intersection': 'asphalt_intersection'
             },
             sidewalk: {
                 'N-S': 'sidewalk_vertical',

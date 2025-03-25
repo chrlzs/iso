@@ -23,7 +23,8 @@ export class World {
             const value1 = noise.noise2D(x * 0.02, y * 0.02);
             const value2 = noise.noise2D(x * 0.04, y * 0.04) * 0.5;
             const value = (value1 + value2) / 1.5;
-            return Math.pow((value + 1) * 0.5, 1.2);
+            // Adjust the power to reduce low areas (water)
+            return Math.pow((value + 1) * 0.5, 0.8);  // Changed from 1.2 to 0.8
         };
         
         this.generateMoisture = (x, y) => {
@@ -40,9 +41,9 @@ export class World {
 
         // Now generate structures and roads if requested
         if (options.autoGenerateStructures) {
-            this.structureManager.generateRandomStructures(options.structureCount || 5);
+            const structures = this.structureManager.generateRandomStructures(options.structureCount || 5);
             // Generate roads between structures
-            this.roadManager.generateRoadNetwork();
+            this.roadManager.generateRoadNetwork(structures);
         }
 
         // Initialize structure renderer

@@ -337,7 +337,14 @@ export class GameInstance {
             e.preventDefault();
         });
 
-        // Add click-to-move functionality
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (this.inputManager.isShiftPressed) {
+                const { deltaX, deltaY } = this.inputManager.getMouseDelta();
+                this.camera.x -= deltaX / this.camera.zoom;
+                this.camera.y -= deltaY / this.camera.zoom;
+            }
+        });
+
         this.canvas.addEventListener('click', (e) => {
             const rect = this.canvas.getBoundingClientRect();
             const screenX = e.clientX - rect.left;

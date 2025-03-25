@@ -286,7 +286,7 @@ export class TileManager {
             
             // If in highly urban area, prefer urban tiles
             if (urbanFactor > 0.7) {
-                if (height < 0.2) return 'asphalt';
+                if (height < 0.05) return 'asphalt';  // Reduced from 0.2
                 if (height < 0.4) return 'concrete';
                 if (height < 0.6) return 'sidewalk';
                 if (height < 0.8) return 'brick';
@@ -295,7 +295,7 @@ export class TileManager {
             
             // Mixed urban-natural area
             if (urbanFactor > 0.3) {
-                if (height < 0.1) return 'water';
+                if (height < 0.05) return 'water';  // Reduced from 0.1
                 if (height < 0.3) return 'concrete';
                 if (height < 0.5) return moisture > 0.5 ? 'grass' : 'sidewalk';
                 if (height < 0.7) return moisture > 0.6 ? 'brick' : 'asphalt';
@@ -303,10 +303,10 @@ export class TileManager {
             }
             
             // Original natural determination for less urban areas
-            if (height < 0.1) return 'water';
+            if (height < 0.05) return 'water';  // Reduced from 0.1
             if (height < 0.2) return 'sand';
             if (height < 0.7) {
-                if (moisture > 0.6) return 'wetland';
+                if (moisture > 0.7) return 'wetland';  // Increased from 0.6
                 if (moisture > 0.3) return 'grass';
                 return 'dirt';
             }
@@ -709,6 +709,63 @@ export class TileManager {
         }
         
         return Math.min(1, urbanFactor);
+    }
+
+    determineTileType(height, moisture, urbanFactor = 0) {
+        // If in highly urban area, prefer urban tiles
+        if (urbanFactor > 0.7) {
+            if (height < 0.05) return 'asphalt';  // Reduced from 0.2
+            if (height < 0.4) return 'concrete';
+            if (height < 0.6) return 'sidewalk';
+            if (height < 0.8) return 'brick';
+            return 'metal';
+        }
+        
+        // Mixed urban-natural area
+        if (urbanFactor > 0.3) {
+            if (height < 0.05) return 'water';  // Reduced from 0.1
+            if (height < 0.3) return 'concrete';
+            if (height < 0.5) return moisture > 0.5 ? 'grass' : 'sidewalk';
+            if (height < 0.7) return moisture > 0.6 ? 'brick' : 'asphalt';
+            return 'metal';
+        }
+        
+        // Original natural determination for less urban areas
+        if (height < 0.05) return 'water';  // Reduced from 0.1
+        if (height < 0.2) return 'sand';
+        if (height < 0.7) {
+            if (moisture > 0.7) return 'wetland';  // Increased from 0.6
+            if (moisture > 0.3) return 'grass';
+            return 'dirt';
+        }
+        return 'stone';
+    }
+
+    getRoadVariant(type, direction) {
+        if (!direction) return `${type}_straight`;
+        
+        const variants = {
+            asphalt: {
+                'N-S': 'asphalt_vertical',
+                'E-W': 'asphalt_horizontal',
+                'NE': 'asphalt_curve_ne',
+                'NW': 'asphalt_curve_nw',
+                'SE': 'asphalt_curve_se',
+                'SW': 'asphalt_curve_sw',
+                'intersection': 'asphalt_intersection'
+            },
+            sidewalk: {
+                'N-S': 'sidewalk_vertical',
+                'E-W': 'sidewalk_horizontal',
+                'NE': 'sidewalk_corner_ne',
+                'NW': 'sidewalk_corner_nw',
+                'SE': 'sidewalk_corner_se',
+                'SW': 'sidewalk_corner_sw',
+                'intersection': 'sidewalk_intersection'
+            }
+        };
+
+        return variants[type]?.[direction] || `${type}_default`;
     }
 }
 

@@ -9,10 +9,25 @@ export class InputManager {
         this.mouseX = 0;
         this.mouseY = 0;
         this.wheelDelta = 0;
+        this.isShiftPressed = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        this.mouseDeltaX = 0;
+        this.mouseDeltaY = 0;
 
         // Bind event handlers
-        window.addEventListener('keydown', (e) => this.keys.add(e.key));
-        window.addEventListener('keyup', (e) => this.keys.delete(e.key));
+        window.addEventListener('keydown', (e) => {
+            this.keys.add(e.key);
+            if (e.key === 'Shift') {
+                this.isShiftPressed = true;
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys.delete(e.key);
+            if (e.key === 'Shift') {
+                this.isShiftPressed = false;
+            }
+        });
         
         window.addEventListener('mousedown', (e) => this.mouseButtons.add(this.getMouseButtonName(e.button)));
         window.addEventListener('mouseup', (e) => this.mouseButtons.delete(this.getMouseButtonName(e.button)));
@@ -20,6 +35,10 @@ export class InputManager {
         window.addEventListener('mousemove', (e) => {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
+            this.mouseDeltaX = e.movementX;
+            this.mouseDeltaY = e.movementY;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
         });
 
         window.addEventListener('wheel', (e) => {
@@ -72,6 +91,17 @@ export class InputManager {
     getWheelDelta() {
         const delta = this.wheelDelta;
         this.wheelDelta = 0;
+        return delta;
+    }
+
+    /**
+     * Gets the current mouse movement delta and resets it.
+     * @returns {{ deltaX: number, deltaY: number }}
+     */
+    getMouseDelta() {
+        const delta = { deltaX: this.mouseDeltaX, deltaY: this.mouseDeltaY };
+        this.mouseDeltaX = 0;
+        this.mouseDeltaY = 0;
         return delta;
     }
 }
