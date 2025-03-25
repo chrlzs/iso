@@ -132,43 +132,43 @@ export class GameInstance {
     }
 
     addStartingStructures() {
-        // Add a tavern near spawn point with more placement attempts
-        const tavernPos = this.world.structureManager.findValidPlacement(
-            'tavern',
+        // Add a nightclub near spawn point with more placement attempts
+        const nightclubPos = this.world.structureManager.findValidPlacement(
+            'nightclub',
             this.player.x + 8,
             this.player.y + 8,
             30  // More attempts to find valid spot
         );
         
-        let tavernX, tavernY;
-        if (tavernPos) {
-            const tavern = this.world.structureManager.createStructure('tavern', tavernPos.x, tavernPos.y);
-            if (tavern) {
-                console.log('Game: Created tavern at', tavernPos.x, tavernPos.y);
-                tavernX = tavernPos.x;
-                tavernY = tavernPos.y;
+        let nightclubX, nightclubY;
+        if (nightclubPos) {
+            const nightclub = this.world.structureManager.createStructure('nightclub', nightclubPos.x, nightclubPos.y);
+            if (nightclub) {
+                console.log('Game: Created nightclub at', nightclubPos.x, nightclubPos.y);
+                nightclubX = nightclubPos.x;
+                nightclubY = nightclubPos.y;
             }
         }
 
-        // Add houses with more flexible positioning
-        const housePositions = [
+        // Add apartments with more flexible positioning
+        const apartmentPositions = [
             { baseX: -5, baseY: -4 },
             { baseX: 6, baseY: -3 },
             { baseX: -4, baseY: 5 }
         ];
 
-        housePositions.forEach(pos => {
+        apartmentPositions.forEach(pos => {
             const validPos = this.world.structureManager.findValidPlacement(
-                'house',
+                'apartment',  // Changed from 'house' to 'apartment'
                 this.player.x + pos.baseX,
                 this.player.y + pos.baseY,
                 20
             );
             
             if (validPos) {
-                const house = this.world.structureManager.createStructure('house', validPos.x, validPos.y);
-                if (house) {
-                    console.log('Game: Created house at', validPos.x, validPos.y);
+                const apartment = this.world.structureManager.createStructure('apartment', validPos.x, validPos.y);
+                if (apartment) {
+                    console.log('Game: Created apartment at', validPos.x, validPos.y);
                 }
             }
         });
@@ -177,9 +177,9 @@ export class GameInstance {
         // Place Village Elder near spawn point
         const elderPos = { x: this.player.x + 4, y: this.player.y + 4 };
 
-        // Place merchant further from Elder, closer to tavern if it exists
-        const merchantPos = tavernX !== undefined && tavernY !== undefined
-            ? { x: tavernX + 3, y: tavernY + 3 }  // Increased offset from tavern
+        // Place merchant further from Elder, closer to nightclub if it exists
+        const merchantPos = nightclubX !== undefined && nightclubY !== undefined
+            ? { x: nightclubX + 3, y: nightclubY + 3 }  // Increased offset from nightclub
             : { x: this.player.x + 12, y: this.player.y + 12 };  // Fallback position further from Elder
 
         // Validate and place NPCs
@@ -206,37 +206,35 @@ export class GameInstance {
                     const merchant = new Merchant({
                         x: pos.x,
                         y: pos.y,
-                        name: 'Village Merchant',
+                        name: 'Arms Dealer',
                         inventory: [
                             new Item({
-                                id: 'health_potion',
-                                name: 'Health Potion',
+                                id: 'medkit',
+                                name: 'Medkit',
                                 description: 'Restores 50 HP',
                                 type: 'consumable',
                                 value: 50,
                                 weight: 0.5,
                                 isStackable: true,
-                                // Using data URL for a red rectangle as temporary icon
-                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/v//f5JhEANGQkLC/4H2x0A7YBSMglEwCkYBNjBqgVEwCkbBKBgFgwUAALJWOjYI+uuSAAAAAElFTkSuQmCC',
+                                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/v//f5JhEANGQkLC/4H2x0A7YBSMglEwCkbBKBgFo2AUjIJRMApGwWABAACyVjo2CPrrkwAAAABJRU5ErkJggg==',
                                 effect: (target) => {
                                     target.health += 50;
                                     return true;
                                 }
                             }),
                             new Item({
-                                id: 'iron_sword',
-                                name: 'Iron Sword',
-                                description: 'A basic sword',
+                                id: 'tactical_pistol',
+                                name: 'Tactical Pistol',
+                                description: 'Standard sidearm',
                                 type: 'weapon',
                                 value: 100,
-                                weight: 3,
+                                weight: 1.5,
                                 damage: 10,
                                 slot: 'mainHand',
-                                // Using data URL for a grey rectangle as temporary icon
                                 icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/////z/QbmAkJCT8P9D+GOgQGAWjYBSMglGADUYtMApGwSgYBaNgsAAAAt1FJzHm9f8AAAAASUVORK5CYII='
                             })
                         ],
-                        gold: 1000
+                        eth: 1000
                     });
                     this.entities.add(merchant);
                     console.log('Game: Created merchant at', pos.x, pos.y);
@@ -749,6 +747,8 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
 
 
 

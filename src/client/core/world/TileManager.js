@@ -249,38 +249,38 @@ export class TileManager {
 
         // Structure textures configuration
         this.structureConfigs = {
-            'house': {
+            'apartment': {
                 'wall': {
-                    color: '#8B4513',
-                    secondaryColor: '#A0522D',
-                    texturePattern: 'brick'
+                    color: '#808080',
+                    secondaryColor: '#909090',
+                    texturePattern: 'concrete'
                 },
                 'door': {
-                    color: '#4A3B22',
-                    secondaryColor: '#654321',
-                    texturePattern: 'wood'
+                    color: '#4A4A4A',
+                    secondaryColor: '#5A5A5A',
+                    texturePattern: 'metal'
                 },
                 'floor': {
-                    color: '#DEB887',
-                    secondaryColor: '#D2B48C',
-                    texturePattern: 'planks'
+                    color: '#C0C0C0',
+                    secondaryColor: '#D0D0D0',
+                    texturePattern: 'tiles'
                 }
             },
-            'tavern': {
+            'nightclub': {
                 'wall': {
-                    color: '#8B4513',
-                    secondaryColor: '#A0522D',
-                    texturePattern: 'stone'
+                    color: '#202020',
+                    secondaryColor: '#303030',
+                    texturePattern: 'metal'
                 },
                 'door': {
-                    color: '#8B4513',
-                    secondaryColor: '#A0522D',
-                    texturePattern: 'doubledoor'
+                    color: '#404040',
+                    secondaryColor: '#505050',
+                    texturePattern: 'security'
                 },
                 'floor': {
-                    color: '#8B4513',
-                    secondaryColor: '#A0522D',
-                    texturePattern: 'tiles'
+                    color: '#101010',
+                    secondaryColor: '#202020',
+                    texturePattern: 'neon'
                 }
             }
         };
@@ -554,6 +554,7 @@ export class TileManager {
         this.decorationBatch.clear();
     }
 }
+
 
 
 

@@ -16,12 +16,12 @@ function createTempTexture(color) {
 TileManager.prototype.loadTextures = function() {
     // Create basic colored rectangles for testing
     this.textures = {
-        'grass': createTempTexture('#7ec850'),
-        'dirt': createTempTexture('#8b4513'),
-        'stone': createTempTexture('#808080'),
-        'dec_flowers': createTempTexture('#ff0000'),
-        'dec_rocks': createTempTexture('#696969'),
-        'dec_grassTufts': createTempTexture('#90ee90')
+        'concrete': createTempTexture('#808080'),
+        'asphalt': createTempTexture('#404040'),
+        'metal': createTempTexture('#A0A0A0'),
+        'dec_cameras': createTempTexture('#404040'),
+        'dec_terminals': createTempTexture('#00FF00'),
+        'dec_drones': createTempTexture('#202020')
     };
     return Promise.resolve();
 };
@@ -80,4 +80,5 @@ async function runTest() {
 
 // Run test
 runTest().catch(console.error);
+
 

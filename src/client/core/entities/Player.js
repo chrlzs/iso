@@ -74,20 +74,20 @@ export class Player {
         // Add starter items
         const starterItems = [
             new Item({
-                id: 'wooden_sword',
-                name: 'Wooden Sword',
-                description: 'A basic training sword',
+                id: 'combat_knife',
+                name: 'Combat Knife',
+                description: 'Standard issue tactical knife',
                 type: 'weapon',
                 value: 10,
-                weight: 2,
+                weight: 0.5,
                 damage: 5,
                 slot: 'mainHand',
-                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMgmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmDUAYPAAQAx7wX9DvK5RAAAAABJRU5ErkJggg=='
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMgmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAMu8F/Q7yucQAAAAASUVORK5CYII='
             }),
             new Item({
-                id: 'leather_armor',
-                name: 'Leather Tunic',
-                description: 'Basic protective gear',
+                id: 'kevlar_vest',
+                name: 'Kevlar Vest',
+                description: 'Basic ballistic protection',
                 type: 'armor',
                 value: 15,
                 weight: 3,
@@ -370,6 +370,7 @@ export class Player {
         this.damage = this.baseDamage + totalDamage;
     }
 }
+
 
 
 

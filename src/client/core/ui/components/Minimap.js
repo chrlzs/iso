@@ -7,14 +7,14 @@ export class Minimap {
     }
 
     getTileColor(tile) {
-
         // If tile has a structure, return structure color
         if (tile.structure) {
             const structureColors = {
-                'house': '#8B4513',  // Saddle Brown
-                'tavern': '#CD853F', // Peru
-                'wall': '#808080',   // Gray
-                'door': '#A0522D'    // Sienna
+                'apartment': '#808080',  // Modern gray
+                'nightclub': '#FF1493',  // Deep pink for neon effect
+                'office': '#4682B4',     // Steel blue
+                'wall': '#696969',       // Dim gray
+                'door': '#4A4A4A'        // Dark gray
             };
             return structureColors[tile.structure.type] || '#DAA520'; // Default: Goldenrod
         }
@@ -81,6 +81,7 @@ export class Minimap {
         ctx.fill();
     }
 }
+
 
 
 

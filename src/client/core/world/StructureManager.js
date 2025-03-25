@@ -12,9 +12,9 @@ export class StructureManager {
     }
 
     initializeTemplates() {
-        // Basic house template (3x4)
-        this.templates.set('house', {
-            type: 'house',
+        // Modern apartment template (3x4)
+        this.templates.set('apartment', {
+            type: 'apartment',
             width: 3,
             height: 4,
             blueprint: [
@@ -24,28 +24,56 @@ export class StructureManager {
                 ['wall', 'door', 'wall']
             ],
             decorations: [
-                { type: 'chimney', x: 0, y: 0 },
+                { type: 'ac_unit', x: 0, y: 0 },
                 { type: 'window', x: 2, y: 1 },
                 { type: 'window', x: 0, y: 1 }
             ]
         });
 
-        // Tavern template (4x4)
-        this.templates.set('tavern', {
-            type: 'tavern',
+        // Nightclub template (5x5)
+        this.templates.set('nightclub', {
+            type: 'nightclub',
+            width: 5,
+            height: 5,
+            blueprint: [
+                ['wall', 'wall', 'wall', 'wall', 'wall'],
+                ['wall', 'floor', 'floor', 'floor', 'wall'],
+                ['wall', 'floor', 'floor', 'floor', 'wall'],
+                ['wall', 'floor', 'floor', 'floor', 'wall'],
+                ['wall', 'door', 'door', 'door', 'wall']
+            ],
+            decorations: [
+                { type: 'neon_sign', x: 2, y: 4 },
+                { type: 'speaker', x: 0, y: 1 },
+                { type: 'speaker', x: 4, y: 1 },
+                { type: 'light', x: 1, y: 0 },
+                { type: 'light', x: 3, y: 0 },
+                { type: 'window', x: 1, y: 2 },
+                { type: 'window', x: 3, y: 2 }
+            ]
+        });
+
+        // Corporate office template (4x6)
+        this.templates.set('office', {
+            type: 'office',
             width: 4,
-            height: 4,
+            height: 6,
             blueprint: [
                 ['wall', 'wall', 'wall', 'wall'],
+                ['wall', 'floor', 'floor', 'wall'],
+                ['wall', 'floor', 'floor', 'wall'],
                 ['wall', 'floor', 'floor', 'wall'],
                 ['wall', 'floor', 'floor', 'wall'],
                 ['wall', 'door', 'door', 'wall']
             ],
             decorations: [
-                { type: 'sign', x: 1, y: 3 },
-                { type: 'window', x: 0, y: 1 },
-                { type: 'window', x: 3, y: 1 },
-                { type: 'chimney', x: 2, y: 0 }
+                { type: 'terminal', x: 1, y: 1 },
+                { type: 'terminal', x: 2, y: 1 },
+                { type: 'window', x: 0, y: 2 },
+                { type: 'window', x: 3, y: 2 },
+                { type: 'window', x: 0, y: 4 },
+                { type: 'window', x: 3, y: 4 },
+                { type: 'camera', x: 1, y: 5 }
             ]
         });
     }
@@ -279,6 +307,8 @@ export class StructureManager {
         return Array.from(this.structures.values());
     }
 }
+
+
 
 
 
