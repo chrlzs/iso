@@ -8,7 +8,7 @@ export class UIManager {
     constructor(game) {
         this.game = game;
         this.components = new Map();
-        this.currentDialog = null;
+        this.activeWindows = new Set();
         
         // Initialize UI components
         this.initializeComponents();
@@ -86,6 +86,31 @@ export class UIManager {
                 messageLog.position.y = window.innerHeight - 110;
             }
         });
+
+        // Global click handler for closing windows
+        document.addEventListener('mousedown', (e) => {
+            this.activeWindows.forEach(windowId => {
+                const component = this.components.get(windowId);
+                if (component && component.container && 
+                    !component.container.contains(e.target)) {
+                    component.hide();
+                    this.activeWindows.delete(windowId);
+                }
+            });
+        });
+
+        // Global ESC handler
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.activeWindows.size > 0) {
+                // Close the last opened window
+                const lastWindow = Array.from(this.activeWindows).pop();
+                const component = this.components.get(lastWindow);
+                if (component && component.hide) {
+                    component.hide();
+                    this.activeWindows.delete(lastWindow);
+                }
+            }
+        });
     }
 
     update(deltaTime) {
@@ -153,7 +178,31 @@ export class UIManager {
             this.currentDialog = null;
         }
     }
+
+    showWindow(windowId) {
+        const component = this.components.get(windowId);
+        if (component && component.show) {
+            component.show();
+            this.activeWindows.add(windowId);
+        }
+    }
+
+    hideWindow(windowId) {
+        const component = this.components.get(windowId);
+        if (component && component.hide) {
+            component.hide();
+            this.activeWindows.delete(windowId);
+        }
+    }
+
+    hideAllWindows() {
+        this.activeWindows.forEach(windowId => {
+            this.hideWindow(windowId);
+        });
+    }
 }
+
+
 
 
 

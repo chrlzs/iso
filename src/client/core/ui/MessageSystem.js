@@ -40,6 +40,9 @@ export class MessageSystem {
         
         this.container.style.display = 'block';
         
+        // Add to active windows
+        this.game.uiManager.activeWindows.add('messageSystem');
+        
         // Add event listeners to options
         const options = this.container.querySelectorAll('.message-option');
         options.forEach((option, index) => {
@@ -80,6 +83,7 @@ export class MessageSystem {
         this.isActive = false;
         this.currentMessage = null;
         this.container.style.display = 'none';
+        this.game.uiManager.activeWindows.delete('messageSystem');
     }
 
     clear() {
@@ -98,3 +102,4 @@ export class MessageSystem {
         this.next();
     }
 }
+

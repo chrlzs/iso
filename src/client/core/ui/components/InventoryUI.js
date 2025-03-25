@@ -45,6 +45,13 @@ export class InventoryUI {
     }
 
     setupEventListeners() {
+        // Add click event listener to close inventory when clicking outside
+        document.addEventListener('mousedown', (e) => {
+            if (this.isVisible && !this.container.contains(e.target)) {
+                this.hide();
+            }
+        });
+
         // Handle slot clicks
         this.container.addEventListener('mousedown', (e) => {
             const slot = e.target.closest('.inventory-slot');
@@ -100,13 +107,10 @@ export class InventoryUI {
             this.hideTooltip();
         });
 
-        // Close inventory on 'I' key
+        // Handle 'I' key to toggle inventory
         document.addEventListener('keydown', (e) => {
             if (e.key === 'i' || e.key === 'I') {
                 this.toggle();
-            }
-            if (e.key === 'Escape' && this.isVisible) {
-                this.hide();
             }
         });
     }
@@ -221,20 +225,21 @@ export class InventoryUI {
 
         // Update stats
         this.statsDisplay.innerHTML = `
-            <div>Defense: ${this.game.player.defense}</div>
-            <div>Damage: ${this.game.player.damage}</div>
-            <div>Weight: ${inventory.weight}/${inventory.maxWeight}</div>
+            <div>Defense: ${this.game.player.defense || 0}</div>
+            <div>Damage: ${this.game.player.damage || 0}</div>
+            <div>Weight: ${inventory.weight}/${inventory.maxWeight} kg</div>
         `;
 
-        // Update gold display with inline gold icon
+        // Update gold display
         this.updateGoldDisplay();
     }
 
     updateGoldDisplay() {
+        const ethAmount = this.game.player.inventory.eth || 0;
         this.goldDisplay.innerHTML = `
             <div class="eth">
                 <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/Q7yucQAAAAASUVORK5CYII=" alt="ETH">
-                ${this.game.player.inventory.eth}
+                ${ethAmount}
             </div>
         `;
     }
@@ -265,11 +270,13 @@ export class InventoryUI {
         this.isVisible = true;
         this.container.style.display = 'flex';
         this.refresh();
+        this.game.uiManager.activeWindows.add('inventoryUI');
     }
 
     hide() {
         this.isVisible = false;
         this.container.style.display = 'none';
+        this.game.uiManager.activeWindows.delete('inventoryUI');
     }
 
     toggle() {
@@ -280,6 +287,11 @@ export class InventoryUI {
         }
     }
 }
+
+
+
+
+
 
 
 

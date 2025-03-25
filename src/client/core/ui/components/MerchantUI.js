@@ -1,12 +1,10 @@
 export class MerchantUI {
     constructor(config) {
-        console.log('MerchantUI constructor called');
         this.game = config.game;
         this.merchant = null;
         this.isVisible = false;
         
         this.createElements();
-        this.setupEventListeners();
     }
 
     createElements() {
@@ -122,7 +120,6 @@ export class MerchantUI {
     }
 
     show(merchant) {
-        console.log('MerchantUI.show called with merchant:', merchant);
         if (!merchant || !merchant.inventory) {
             console.error('Invalid merchant or merchant inventory');
             return;
@@ -131,7 +128,6 @@ export class MerchantUI {
         this.merchant = merchant;
         this.isVisible = true;
         
-        // Force positioning and visibility
         this.container.style.cssText = `
             position: fixed !important;
             top: 50vh !important;
@@ -149,12 +145,13 @@ export class MerchantUI {
         
         this.refresh();
         this.game.messageSystem.hide();
+        this.game.uiManager.activeWindows.add('merchantUI');
     }
 
     hide() {
         this.isVisible = false;
         this.container.style.display = 'none';
-        this.merchant = null;
+        this.game.uiManager.activeWindows.delete('merchantUI');
     }
 
     refresh() {
@@ -240,6 +237,7 @@ export class MerchantUI {
         return html;
     }
 }
+
 
 
 
