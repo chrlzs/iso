@@ -7,6 +7,18 @@ export class Player extends Entity {
     constructor(config) {
         super(config);
         
+        // Initialize inventory with default values
+        this.inventory = new Inventory({
+            maxSlots: 20,
+            maxWeight: 100,
+            owner: this,
+            eth: 1000 // Starting ETH
+        });
+
+        if (!this.inventory) {
+            throw new Error('Failed to initialize player inventory');
+        }
+        
         if (!config.pathFinder) {
             throw new Error('PathFinder is required for Player initialization');
         }
@@ -327,6 +339,7 @@ export class Player extends Entity {
         this.damage = this.baseDamage + totalDamage;
     }
 }
+
 
 
 

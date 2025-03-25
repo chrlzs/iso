@@ -121,7 +121,16 @@ export class MerchantUI {
 
     show(merchant) {
         if (!merchant || !merchant.inventory) {
-            console.error('Invalid merchant or merchant inventory');
+            console.error('Invalid merchant or merchant inventory:', {
+                hasMerchant: !!merchant,
+                hasInventory: !!merchant?.inventory
+            });
+            return;
+        }
+
+        // Verify player inventory exists
+        if (!this.game?.player?.inventory) {
+            console.error('Player inventory not initialized');
             return;
         }
         
@@ -218,9 +227,21 @@ export class MerchantUI {
     }
 
     renderPlayerSlots() {
+        // Check if player and inventory exist
+        if (!this.game?.player?.inventory) {
+            console.error('Player inventory not initialized:', {
+                hasGame: !!this.game,
+                hasPlayer: !!this.game?.player,
+                hasInventory: !!this.game?.player?.inventory
+            });
+            return '';
+        }
+
         let html = '';
-        for (let i = 0; i < this.game.player.inventory.maxSlots; i++) {
-            const item = this.game.player.inventory.getSlot(i);
+        const inventory = this.game.player.inventory;
+        
+        for (let i = 0; i < inventory.maxSlots; i++) {
+            const item = inventory.getSlot(i);
             if (item) {
                 const price = this.merchant.getBuyPrice(item);
                 html += `
@@ -237,6 +258,7 @@ export class MerchantUI {
         return html;
     }
 }
+
 
 
 

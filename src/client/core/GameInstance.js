@@ -59,12 +59,12 @@ export class GameInstance {
         this.inputManager = new InputManager();
 
         // Find valid spawn point
-        const spawnPoint = this.findValidSpawnPoint();
+        const playerSpawnPoint = this.findValidSpawnPoint();
         
         // Create player with ALL required dependencies
         this.player = new Player({
-            x: spawnPoint.x,
-            y: spawnPoint.y,
+            x: playerSpawnPoint.x,
+            y: playerSpawnPoint.y,
             world: this.world,
             pathFinder: this.pathFinder
         });
@@ -76,8 +76,8 @@ export class GameInstance {
         // Debug log to verify pathFinder
         console.log('PathFinder instance:', this.pathFinder);
         console.log('Player config:', {
-            x: spawnPoint.x,
-            y: spawnPoint.y,
+            x: playerSpawnPoint.x,
+            y: playerSpawnPoint.y,
             hasWorld: !!this.world,
             hasPathFinder: !!this.pathFinder
         });
@@ -106,6 +106,42 @@ export class GameInstance {
         this.uiManager.components.set('merchantUI', new MerchantUI({
             game: this
         }));
+
+        // Create a merchant at a position near the player spawn
+        const merchantPosition = {
+            x: playerSpawnPoint.x + 5,
+            y: playerSpawnPoint.y + 5
+        };
+
+        console.log('Creating merchant at position:', merchantPosition);
+        
+        try {
+            const merchant = this.createMerchant(merchantPosition);
+            if (merchant) {
+                this.entities.add(merchant);
+                console.log('Merchant added successfully:', {
+                    position: merchantPosition,
+                    entityCount: this.entities.size,
+                    merchantExists: this.entities.has(merchant)
+                });
+            } else {
+                console.error('Failed to create merchant');
+            }
+        } catch (error) {
+            console.error('Error creating merchant:', error);
+        }
+
+        // Add debug logging in render loop
+        const originalRender = this.render.bind(this);
+        this.render = () => {
+            /*
+            console.log('Current entities:', Array.from(this.entities).map(e => ({
+                type: e.constructor.name,
+                position: { x: e.x, y: e.y }
+            })));
+            */
+            originalRender();
+        };
     }
 
     showIntroSequence() {
@@ -203,6 +239,10 @@ export class GameInstance {
             console.log('Game: Textures loaded successfully');
             this.setupInput();
             this.setupDebugControls();
+            
+            // Add merchant after initialization
+            this.addMerchantNearPlayer();
+            
             return true;
         } catch (error) {
             console.error('Game: Failed to initialize:', error);
@@ -406,56 +446,28 @@ export class GameInstance {
         // Render world
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);
         
-        // Draw debug grid if enabled
-        if (this.debug.flags.showGrid) {
-            this.drawDebugGrid();
+        // Render all entities
+        for (const entity of this.entities) {
+            if (entity && entity.render) {
+                entity.render(this.ctx, this.renderer);
+                
+                // Debug: Draw entity position
+                if (this.debug.enabled) {
+                    const isoPos = this.convertToIsometric(entity.x, entity.y);
+                    this.ctx.fillStyle = 'red';
+                    this.ctx.beginPath();
+                    this.ctx.arc(isoPos.x, isoPos.y, 5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
         }
-        
-        // Render player
+
+        // Render player last to ensure they're on top
         if (this.player) {
             this.player.render(this.ctx, this.renderer);
         }
 
-        // Draw current path if it exists and debug flag is enabled
-        if (this.debug.flags.showPath && this.player.currentPath && this.player.isMoving) {
-            this.ctx.strokeStyle = 'yellow';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            
-            const startIsoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
-            const startIsoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-            
-            this.ctx.moveTo(startIsoX, startIsoY);
-            
-            for (let i = this.player.currentPathIndex; i < this.player.currentPath.length; i++) {
-                const pathIsoX = (this.player.currentPath[i].x - this.player.currentPath[i].y) * (this.renderer.tileWidth / 2);
-                const pathIsoY = (this.player.currentPath[i].x + this.player.currentPath[i].y) * (this.renderer.tileHeight / 2);
-                this.ctx.lineTo(pathIsoX, pathIsoY);
-            }
-            
-            this.ctx.stroke();
-        }
-
-        // Render all entities
-        this.entities.forEach(entity => {
-            if (entity.render) {
-                entity.render(this.ctx, this.renderer);
-            }
-        });
-
         this.ctx.restore();
-
-        // Render UI on top
-        this.uiManager.render(this.ctx);
-
-        // Check for multiple renders after frame completion
-        if (this.debug.flags.checkStructureRenders) {
-            this.world.structureManager.structures.forEach(structure => {
-                if (structure._renderCount !== 1) {
-                    console.warn(`Structure ${structure.id} rendered ${structure._renderCount} times`);
-                }
-            });
-        }
     }
 
     drawDebugGrid() {
@@ -690,7 +702,45 @@ export class GameInstance {
         this.uiManager.components.get('messageLog')
             .addMessage(`Picked up ${item.name}`);
     }
+
+    // Add this new method to GameInstance class
+    addMerchantNearPlayer() {
+        // Calculate merchant position relative to player
+        const merchantPosition = {
+            x: this.player.x + 5,
+            y: this.player.y + 5
+        };
+
+        console.log('Creating merchant at position:', merchantPosition);
+        
+        try {
+            const merchant = this.createMerchant(merchantPosition);
+            if (merchant) {
+                this.entities.add(merchant);
+                console.log('Merchant added successfully:', {
+                    position: merchantPosition,
+                    entityCount: this.entities.size,
+                    merchantExists: this.entities.has(merchant)
+                });
+                return merchant;
+            } else {
+                console.error('Failed to create merchant');
+            }
+        } catch (error) {
+            console.error('Error creating merchant:', error);
+        }
+        return null;
+    }
 }
+
+
+
+
+
+
+
+
+
 
 
 
