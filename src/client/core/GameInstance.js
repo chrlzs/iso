@@ -41,12 +41,10 @@ export class GameInstance {
             }
         };
 
-        // Initialize game systems
+        // Initialize game systems without structures
         this.world = new World(64, 64, {
             seed: Math.random() * 10000,
             chunkSize: 16,
-            autoGenerateStructures: true,
-            structureCount: 5,
             debug: this.debug
         });
         
@@ -83,9 +81,6 @@ export class GameInstance {
             hasWorld: !!this.world,
             hasPathFinder: !!this.pathFinder
         });
-
-        // Add starting structures and NPCs
-        this.addStartingStructures();
 
         // Initialize UI
         this.uiManager = new UIManager(this);
@@ -128,38 +123,6 @@ export class GameInstance {
                 { text: "Let me explore!" }
             ]
         });
-    }
-
-    addStartingStructures() {
-        // Add a nightclub near spawn point
-        const nightclubPos = this.world.structureManager.findValidPlacement(
-            'nightclub',
-            this.player.x + 8,
-            this.player.y + 8,
-            30  // More attempts to find valid spot
-        );
-        
-        if (nightclubPos) {
-            const nightclub = this.world.structureManager.createStructure('nightclub', nightclubPos.x, nightclubPos.y);
-            if (nightclub) {
-                console.log('Game: Created nightclub at', nightclubPos.x, nightclubPos.y);
-            }
-        }
-
-        // Add an office building
-        const officePos = this.world.structureManager.findValidPlacement(
-            'office',
-            this.player.x - 8,
-            this.player.y - 8,
-            30
-        );
-        
-        if (officePos) {
-            const office = this.world.structureManager.createStructure('office', officePos.x, officePos.y);
-            if (office) {
-                console.log('Game: Created office at', officePos.x, officePos.y);
-            }
-        }
     }
 
     createMerchant(pos) {
@@ -420,11 +383,6 @@ export class GameInstance {
     }
 
     render() {
-        // Reset structure render counts each frame
-        this.world.structureManager.structures.forEach(structure => {
-            structure._renderCount = 0;
-        });
-
         this.renderer.clear();
         
         // Apply camera transform

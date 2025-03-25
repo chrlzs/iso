@@ -1,6 +1,5 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
-import { StructureRenderer } from './StructureRenderer.js';
 
 export class IsometricRenderer {
     constructor(canvas, tileManager) {
@@ -12,7 +11,6 @@ export class IsometricRenderer {
         this.heightOffset = 16;
         
         // Initialize sub-renderers
-        this.structureRenderer = new StructureRenderer(this.ctx, tileManager);
         this.waterRenderer = new WaterRenderer(this.ctx, tileManager);
         this.decorationRenderer = new DecorationRenderer(this.ctx, tileManager);
     }
@@ -144,17 +142,6 @@ export class IsometricRenderer {
             this.ctx.stroke();
         }
 
-        // Structure rendering is handled only for primary tiles
-        if (tile.structure && tile.structureIndex === 0) {
-            this.structureRenderer.render(
-                tile.structure,
-                x,
-                y,
-                screenX,
-                screenY
-            );
-        }
-
         // Draw decoration if present
         if (tile.decoration) {
             const decorationTexture = this.tileManager.getDecorationTexture(tile.decoration.type);
@@ -208,66 +195,6 @@ export class IsometricRenderer {
         this.ctx.beginPath();
         this.ctx.arc(x, y - 5, 2, 0, Math.PI * 2);
         this.ctx.fill();
-    }
-
-    renderStructure(x, y, structure, tileManager) {
-        const isoX = (x - y) * (this.tileWidth / 2);
-        const isoY = (x + y) * (this.tileHeight / 2);
-        const baseHeight = structure.template.height || 2; // Building height in tiles
-        
-        // Render each part of the structure
-        structure.template.blueprint.forEach((row, dy) => {
-            row.forEach((part, dx) => {
-                const partX = isoX + dx * (this.tileWidth / 2);
-                const partY = isoY + dy * (this.tileHeight / 2);
-                
-                // Get the appropriate texture based on the part type
-                const texture = tileManager.getStructureTexture(structure.type, part);
-                
-                if (texture) {
-                    // Draw walls with height
-                    if (part === 'wall') {
-                        // Draw vertical wall section
-                        this.ctx.drawImage(
-                            texture,
-                            partX,
-                            partY - (baseHeight * this.heightOffset),
-                            this.tileWidth,
-                            this.tileHeight * baseHeight
-                        );
-                    } else if (part === 'door') {
-                        // Draw door with special handling
-                        this.drawDoor(partX, partY, structure.type, tileManager);
-                    } else if (part === 'floor') {
-                        // Draw floor tile
-                        this.ctx.drawImage(
-                            texture,
-                            partX,
-                            partY,
-                            this.tileWidth,
-                            this.tileHeight
-                        );
-                    }
-                }
-            });
-        });
-
-        // Render decorations after the main structure
-        structure.template.decorations?.forEach(decoration => {
-            const decorX = isoX + decoration.x * (this.tileWidth / 2);
-            const decorY = isoY + decoration.y * (this.tileHeight / 2);
-            const decorTexture = tileManager.getDecorationTexture(decoration.type);
-            
-            if (decorTexture) {
-                this.ctx.drawImage(
-                    decorTexture,
-                    decorX,
-                    decorY - (baseHeight * this.heightOffset),
-                    this.tileWidth,
-                    this.tileHeight
-                );
-            }
-        });
     }
 
     animate() {
