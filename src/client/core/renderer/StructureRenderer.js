@@ -11,8 +11,17 @@ export class StructureRenderer {
         const baseHeight = 1.5;
         const scale = 0.9;
 
+        // Apply terrain-based vertical offset
+        const verticalOffset = structure.getVerticalOffset();
+        screenY -= verticalOffset;
+
         // Only draw base components from the primary position
         if (structure.isPrimaryTile(worldX, worldY)) {
+            // Calculate total width and height for the structure
+            const totalWidth = this.tileWidth * structure.width * scale;
+            const totalHeight = this.tileHeight * structure.height * scale;
+
+            // Draw foundation with terrain adaptation
             this.drawFoundation(structure, screenX, screenY, scale);
             this.drawWalls(structure, screenX, screenY, baseHeight, scale);
             this.drawPeakedRoof(structure, screenX, screenY, baseHeight, scale);
@@ -33,25 +42,35 @@ export class StructureRenderer {
                     this.drawDoor(structure, screenX, screenY, baseHeight, scale);
                     break;
             }
+
+            // Render any decorations associated with this component
+            const decorations = structure.template.decorations.filter(
+                d => d.x === (worldX - structure.x) && d.y === (worldY - structure.y)
+            );
+            
+            decorations.forEach(decoration => {
+                this.drawDecoration(decoration, screenX, screenY, baseHeight, scale);
+            });
         }
         
         this.ctx.restore();
     }
 
-    drawFoundation(structure, screenX, screenY, scale = 0.8) {
+    drawFoundation(structure, screenX, screenY, scale) {
+        const width = this.tileWidth * structure.width * scale;
+        const height = this.tileHeight * structure.height * scale;
+
+        // Draw foundation that follows terrain
         this.ctx.fillStyle = '#8B7355';
         this.ctx.strokeStyle = '#6B5335';
-        this.ctx.lineWidth = 1;
-        
-        const width = this.tileWidth * structure.width * scale;
-        
+        this.ctx.lineWidth = 2;
+
         this.ctx.beginPath();
-        this.ctx.moveTo(screenX, screenY);
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale / 2);
-        this.ctx.lineTo(screenX, screenY + this.tileHeight * scale);
-        this.ctx.lineTo(screenX - width / 2, screenY + this.tileHeight * scale / 2);
+        this.ctx.moveTo(screenX - width / 2, screenY);
+        this.ctx.lineTo(screenX + width / 2, screenY);
+        this.ctx.lineTo(screenX + width / 2, screenY + height * 0.2);
+        this.ctx.lineTo(screenX - width / 2, screenY + height * 0.2);
         this.ctx.closePath();
-        
         this.ctx.fill();
         this.ctx.stroke();
     }
@@ -65,22 +84,12 @@ export class StructureRenderer {
         this.ctx.strokeStyle = '#A67B5B';
         this.ctx.lineWidth = 1;
         
+        // Draw walls accounting for structure size
         this.ctx.beginPath();
         this.ctx.moveTo(screenX - width / 2, screenY + this.tileHeight * scale / 2);
-        this.ctx.lineTo(screenX, screenY + this.tileHeight * scale);
-        this.ctx.lineTo(screenX, screenY + this.tileHeight * scale - wallHeight);
+        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale);
+        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale - wallHeight);
         this.ctx.lineTo(screenX - width / 2, screenY + this.tileHeight * scale / 2 - wallHeight);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
-
-        // Side wall (slightly darker)
-        this.ctx.fillStyle = '#C3A379';
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenX, screenY + this.tileHeight * scale);
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale / 2);
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale / 2 - wallHeight);
-        this.ctx.lineTo(screenX, screenY + this.tileHeight * scale - wallHeight);
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
@@ -351,8 +360,101 @@ export class StructureRenderer {
         );
         this.ctx.fill();
     }
-}
 
+    drawDecoration(decoration, screenX, screenY, baseHeight, scale = 0.8) {
+        if (!decoration) return;
+
+        const width = this.tileWidth * scale;
+        const height = this.tileHeight * scale;
+        
+        // Calculate position adjustments based on decoration type
+        let xOffset = 0;
+        let yOffset = 0;
+        let decorScale = 1;
+
+        switch (decoration.type) {
+            case 'sign':
+                yOffset = -baseHeight * this.heightOffset * 0.7;
+                decorScale = 0.4;
+                break;
+            case 'window':
+                yOffset = -baseHeight * this.heightOffset * 0.5;
+                decorScale = 0.3;
+                break;
+            case 'ac_unit':
+                xOffset = width * 0.3;
+                yOffset = -baseHeight * this.heightOffset * 0.6;
+                decorScale = 0.25;
+                break;
+            default:
+                // Default positioning if type is not recognized
+                yOffset = -baseHeight * this.heightOffset * 0.5;
+                decorScale = 0.3;
+        }
+
+        // Apply decoration-specific styles
+        switch (decoration.type) {
+            case 'sign':
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.strokeStyle = '#6B3513';
+                this.ctx.lineWidth = 2;
+                
+                // Draw sign board
+                this.ctx.fillRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+                this.ctx.strokeRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+                break;
+
+            case 'ac_unit':
+                this.ctx.fillStyle = '#A9A9A9';
+                this.ctx.strokeStyle = '#696969';
+                this.ctx.lineWidth = 1;
+                
+                // Draw AC unit
+                this.ctx.fillRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+                this.ctx.strokeRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+                break;
+
+            default:
+                // Default decoration rendering (simple colored rectangle)
+                this.ctx.fillStyle = '#696969';
+                this.ctx.strokeStyle = '#4A4A4A';
+                this.ctx.lineWidth = 1;
+                
+                this.ctx.fillRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+                this.ctx.strokeRect(
+                    screenX + xOffset - (width * decorScale) / 2,
+                    screenY + yOffset,
+                    width * decorScale,
+                    height * decorScale
+                );
+        }
+    }
+}
 
 
 

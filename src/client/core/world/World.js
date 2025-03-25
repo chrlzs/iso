@@ -134,26 +134,124 @@ export class World {
     }
 
     renderTile(ctx, tile, screenX, screenY) {
-        // ... existing tile rendering code ...
+        // Base tile rendering
+        const heightOffset = tile.height * 4; // 4 pixels per height level
+        screenY -= heightOffset;
 
-        // If the tile has a structure, render it only if it's the primary tile
+        // Draw the base tile
+        this.tileManager.renderTile(ctx, tile, screenX, screenY);
+
+        // Only render structure from the primary tile (index 0)
+        // This ensures each structure is rendered exactly once
         if (tile.structure && tile.structureIndex === 0) {
-            this.structureRenderer.render(tile.structure, screenX, screenY);
+            const structure = tile.structure;
+            // Pass the world coordinates for proper positioning
+            this.structureRenderer.render(
+                structure,
+                tile.x,
+                tile.y,
+                screenX,
+                screenY
+            );
         }
     }
+
+    canPlaceStructure(x, y, structureWidth, structureHeight) {
+        // Check boundaries
+        if (x < 0 || y < 0 || 
+            x + structureWidth > this.width || 
+            y + structureHeight > this.height) {
+            return false;
+        }
+
+        // Get height stats for the building footprint
+        let minHeight = Infinity;
+        let maxHeight = -Infinity;
+        let averageHeight = 0;
+        let tileCount = 0;
+
+        // First pass: collect height information
+        for (let dy = 0; dy < structureHeight; dy++) {
+            for (let dx = 0; dx < structureWidth; dx++) {
+                const tile = this.getTileAt(x + dx, y + dy);
+                
+                if (!tile) return false;
+                if (tile.structure) return false;
+                if (tile.type === 'water' || tile.type === 'wetland') return false;
+
+                minHeight = Math.min(minHeight, tile.height);
+                maxHeight = Math.max(maxHeight, tile.height);
+                averageHeight += tile.height;
+                tileCount++;
+            }
+        }
+
+        averageHeight /= tileCount;
+
+        // Check if terrain is too steep (max height difference of 1 level)
+        if (maxHeight - minHeight > 1) {
+            return false;
+        }
+
+        // Check surrounding tiles
+        for (let dy = -1; dy <= structureHeight; dy++) {
+            for (let dx = -1; dx <= structureWidth; dx++) {
+                // Skip the actual structure footprint
+                if (dx >= 0 && dx < structureWidth && dy >= 0 && dy < structureHeight) {
+                    continue;
+                }
+                
+                const worldX = x + dx;
+                const worldY = y + dy;
+                
+                if (worldX < 0 || worldY < 0 || 
+                    worldX >= this.width || worldY >= this.height) {
+                    continue;
+                }
+                
+                const tile = this.getTileAt(worldX, worldY);
+                if (!tile) continue;
+
+                // Check for water adjacency
+                if (tile.type === 'water') return false;
+
+                // Check for steep drops around the structure
+                if (Math.abs(tile.height - averageHeight) > 2) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    findSuitableBuildingLocation(structureWidth, structureHeight, nearX, nearY, maxRadius = 20) {
+        // Try the exact location first
+        if (this.canPlaceStructure(nearX, nearY, structureWidth, structureHeight)) {
+            return { x: nearX, y: nearY };
+        }
+
+        // Search in expanding spiral pattern
+        for (let radius = 1; radius <= maxRadius; radius++) {
+            // Check in a square pattern around the center point
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    // Skip if not on the edge of the square
+                    if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+                    
+                    const testX = nearX + dx;
+                    const testY = nearY + dy;
+                    
+                    if (this.canPlaceStructure(testX, testY, structureWidth, structureHeight)) {
+                        return { x: testX, y: testY };
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

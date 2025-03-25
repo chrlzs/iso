@@ -15,6 +15,7 @@ export class StructureManager {
         // Modern apartment template (3x4)
         this.templates.set('apartment', {
             type: 'apartment',
+            name: 'Modern Apartment',
             width: 3,
             height: 4,
             blueprint: [
@@ -27,54 +28,85 @@ export class StructureManager {
                 { type: 'ac_unit', x: 0, y: 0 },
                 { type: 'window', x: 2, y: 1 },
                 { type: 'window', x: 0, y: 1 }
-            ]
+            ],
+            textures: {
+                wall: 'brick',
+                floor: 'tiles',
+                door: 'wood'
+            }
         });
 
-        // Nightclub template (5x5)
+        // Small house template (2x2)
+        this.templates.set('house', {
+            type: 'house',
+            name: 'Small House',
+            width: 2,
+            height: 2,
+            blueprint: [
+                ['wall', 'wall'],
+                ['door', 'wall']
+            ],
+            decorations: [
+                { type: 'window', x: 1, y: 0 }
+            ],
+            textures: {
+                wall: 'wood',
+                door: 'wood'
+            }
+        });
+
+        // Shop template (4x3)
+        this.templates.set('shop', {
+            type: 'shop',
+            name: 'Shop',
+            width: 4,
+            height: 3,
+            blueprint: [
+                ['wall', 'wall', 'wall', 'wall'],
+                ['window', 'door', 'door', 'window'],
+                ['wall', 'wall', 'wall', 'wall']
+            ],
+            decorations: [
+                { type: 'sign', x: 1, y: 0 },
+                { type: 'sign', x: 2, y: 0 }
+            ],
+            textures: {
+                wall: 'stone',
+                door: 'wood',
+                window: 'glass'
+            }
+        });
+
+        // Nightclub template (5x6)
         this.templates.set('nightclub', {
             type: 'nightclub',
+            name: 'Neon Nightclub',
             width: 5,
-            height: 5,
+            height: 6,
             blueprint: [
                 ['wall', 'wall', 'wall', 'wall', 'wall'],
+                ['wall', 'floor', 'floor', 'floor', 'wall'],
                 ['wall', 'floor', 'floor', 'floor', 'wall'],
                 ['wall', 'floor', 'floor', 'floor', 'wall'],
                 ['wall', 'floor', 'floor', 'floor', 'wall'],
                 ['wall', 'door', 'door', 'door', 'wall']
             ],
             decorations: [
-                { type: 'neon_sign', x: 2, y: 4 },
-                { type: 'speaker', x: 0, y: 1 },
-                { type: 'speaker', x: 4, y: 1 },
-                { type: 'light', x: 1, y: 0 },
-                { type: 'light', x: 3, y: 0 },
-                { type: 'window', x: 1, y: 2 },
-                { type: 'window', x: 3, y: 2 }
-            ]
-        });
-
-        // Corporate office template (4x6)
-        this.templates.set('office', {
-            type: 'office',
-            width: 4,
-            height: 6,
-            blueprint: [
-                ['wall', 'wall', 'wall', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'door', 'door', 'wall']
+                { type: 'sign', x: 1, y: 0 },
+                { type: 'sign', x: 2, y: 0 },
+                { type: 'sign', x: 3, y: 0 },
+                { type: 'window', x: 0, y: 1 },
+                { type: 'window', x: 4, y: 1 },
+                { type: 'window', x: 0, y: 3 },
+                { type: 'window', x: 4, y: 3 },
+                { type: 'ac_unit', x: 0, y: 0 },
+                { type: 'ac_unit', x: 4, y: 0 }
             ],
-            decorations: [
-                { type: 'terminal', x: 1, y: 1 },
-                { type: 'terminal', x: 2, y: 1 },
-                { type: 'window', x: 0, y: 2 },
-                { type: 'window', x: 3, y: 2 },
-                { type: 'window', x: 0, y: 4 },
-                { type: 'window', x: 3, y: 4 },
-                { type: 'camera', x: 1, y: 5 }
-            ]
+            textures: {
+                wall: 'metal',
+                floor: 'neon',
+                door: 'security'
+            }
         });
     }
 
@@ -85,30 +117,27 @@ export class StructureManager {
             return null;
         }
 
-        // Validate minimum structure size
-        if (template.width < 3 || template.height < 4) {
-            console.warn(`Structure ${type} does not meet minimum size requirements (3x4)`);
-            return null;
-        }
+        const location = this.world.findSuitableBuildingLocation(
+            template.width,
+            template.height,
+            x,
+            y
+        );
 
-        // Check if area is suitable for structure
-        if (!this.isAreaSuitable(x, y, template)) {
+        if (!location) {
             if (this.world.debug?.flags?.logStructures) {
-                console.log(`Structure placement failed at ${x},${y} - unsuitable area`);
+                console.log(`Failed to find suitable location for ${type} near ${x},${y}`);
             }
             return null;
         }
 
         const structureId = `structure_${this.structureIdCounter++}`;
-        const structure = new Structure(template, x, y);
+        const structure = new Structure(template, location.x, location.y, this.world);
         structure.id = structureId;
         
         this.structures.set(structureId, structure);
-
-        // Mark tiles as occupied by structure
         this.occupyTiles(structure);
 
-        console.log(`Structure created: ${type} at ${x},${y} (${template.width}x${template.height})`);
         return structure;
     }
 
@@ -212,7 +241,6 @@ export class StructureManager {
         if (!structure || !this.world) return;
         
         try {
-            let tileIndex = 0;
             for (let dy = 0; dy < structure.height; dy++) {
                 for (let dx = 0; dx < structure.width; dx++) {
                     const worldX = structure.x + dx;
@@ -221,12 +249,10 @@ export class StructureManager {
                     if (tile) {
                         // Store both the structure reference and the tile's index in the structure
                         tile.structure = structure;
-                        tile.structureIndex = tileIndex++;
+                        tile.structureIndex = dy * structure.width + dx;
                     }
                 }
             }
-            // Store the primary tile index (usually 0) in the structure
-            structure.primaryTileIndex = 0;
         } catch (error) {
             console.warn('Error occupying tiles:', error);
         }
@@ -307,6 +333,10 @@ export class StructureManager {
         return Array.from(this.structures.values());
     }
 }
+
+
+
+
 
 
 

@@ -58,7 +58,7 @@ export class GameInstance {
         this.pathFinder = new PathFinder(this.world);
         
         // Initialize renderer and input manager
-        this.renderer = new IsometricRenderer(canvas, this.world);
+        this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
         this.inputManager = new InputManager();
 
         // Find valid spawn point
@@ -462,6 +462,11 @@ export class GameInstance {
     }
 
     render() {
+        // Reset structure render counts each frame
+        this.world.structureManager.structures.forEach(structure => {
+            structure._renderCount = 0;
+        });
+
         this.renderer.clear();
         
         // Apply camera transform
@@ -526,6 +531,15 @@ export class GameInstance {
 
         // Render UI on top
         this.uiManager.render(this.ctx);
+
+        // Check for multiple renders after frame completion
+        if (this.debug.flags.checkStructureRenders) {
+            this.world.structureManager.structures.forEach(structure => {
+                if (structure._renderCount !== 1) {
+                    console.warn(`Structure ${structure.id} rendered ${structure._renderCount} times`);
+                }
+            });
+        }
     }
 
     drawDebugGrid() {
@@ -761,6 +775,8 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 }
+
+
 
 
 

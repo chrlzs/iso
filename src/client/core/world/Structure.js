@@ -1,5 +1,5 @@
 export class Structure {
-    constructor(template, x, y) {
+    constructor(template, x, y, world) {
         this.template = template;
         this.x = x;
         this.y = y;
@@ -8,16 +8,25 @@ export class Structure {
         this.height = template.height;
         this.id = null;
 
-        // Components mapping
+        // Calculate base height from terrain
+        this.calculateTerrainHeight(world);
+
+        // Components mapping for multi-tile structures
         this.components = [];
         for (let dy = 0; dy < this.height; dy++) {
             for (let dx = 0; dx < this.width; dx++) {
+                const worldX = x + dx;
+                const worldY = y + dy;
                 const componentType = template.blueprint[dy][dx];
+                const terrainHeight = world.getTileAt(worldX, worldY).height;
+                
                 this.components.push({
-                    x: x + dx,
-                    y: y + dy,
+                    x: worldX,
+                    y: worldY,
                     type: componentType,
-                    isDecorative: this.isDecorativeComponent(componentType)
+                    isDecorative: this.isDecorativeComponent(componentType),
+                    tileIndex: dy * this.width + dx,
+                    terrainHeight: terrainHeight
                 });
             }
         }
@@ -28,6 +37,7 @@ export class Structure {
             y: y + this.height - 1
         };
 
+        // Initialize state
         this.states = {
             doorOpen: false,
             lightOn: Math.random() < 0.3,
@@ -47,13 +57,27 @@ export class Structure {
     }
 
     isPrimaryTile(worldX, worldY) {
+        // Check if this is the primary tile (index 0) of the structure
         return worldX === this.x && worldY === this.y;
     }
 
     getComponentAt(worldX, worldY) {
-        return this.components.find(comp => 
-            comp.x === worldX && comp.y === worldY
-        );
+        // Validate coordinates are within structure bounds
+        if (worldX < this.x || worldX >= this.x + this.width ||
+            worldY < this.y || worldY >= this.y + this.height) {
+            return null;
+        }
+
+        const localX = worldX - this.x;
+        const localY = worldY - this.y;
+        const index = localY * this.width + localX;
+
+        return this.components[index] || null;
+    }
+
+    getTileIndex(x, y) {
+        const component = this.getComponentAt(x, y);
+        return component ? component.tileIndex : -1;
     }
 
     update(deltaTime) {
@@ -80,26 +104,39 @@ export class Structure {
         }
     }
 
-    // Check if structure can be placed at given coordinates
-    canPlace(world, x, y) {
+    calculateTerrainHeight(world) {
+        let totalHeight = 0;
+        let count = 0;
+
+        // Calculate average height of terrain under structure
         for (let dy = 0; dy < this.height; dy++) {
             for (let dx = 0; dx < this.width; dx++) {
-                const worldX = x + dx;
-                const worldY = y + dy;
-                
-                const tile = world.generateTile(
-                    worldX, 
-                    worldY,
-                    world.generateHeight(worldX, worldY),
-                    world.generateMoisture(worldX, worldY)
-                );
-                
-                if (tile.type === 'water' || tile.type === 'wetland') {
-                    return false;
+                const tile = world.getTileAt(this.x + dx, this.y + dy);
+                if (tile) {
+                    totalHeight += tile.height;
+                    count++;
                 }
             }
         }
-        return true;
+
+        this.terrainBaseHeight = count > 0 ? totalHeight / count : 0;
+        this.terrainOffset = Math.floor(this.terrainBaseHeight);
+    }
+
+    getVerticalOffset() {
+        return this.terrainOffset * 8; // Adjust multiplier based on your tile height
+    }
+
+    // Add debug method to help track rendering
+    debugRenderCount() {
+        if (!this._renderCount) this._renderCount = 0;
+        this._renderCount++;
+        if (this._renderCount > 1) {
+            console.warn(`Structure ${this.id} rendered multiple times!`);
+        }
     }
 }
+
+
+
 

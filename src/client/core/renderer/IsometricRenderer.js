@@ -3,17 +3,18 @@ import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
 
 export class IsometricRenderer {
-    constructor(canvas, world) {
+    constructor(canvas, tileManager) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.world = world;
-        this.tileManager = world.tileManager;
-        this.tileWidth = 64;  // Base tile width
-        this.tileHeight = 32; // Base tile height
-        this.heightOffset = 16; // Vertical offset for height
+        this.tileManager = tileManager;
+        this.tileWidth = 64;  // or whatever your tile size is
+        this.tileHeight = 32;
+        this.heightOffset = 16;
         
-        this.waterRenderer = new WaterRenderer();
-        this.structureRenderer = new StructureRenderer(this.ctx, this.tileWidth, this.tileHeight);
+        // Initialize sub-renderers
+        this.structureRenderer = new StructureRenderer(this.ctx, tileManager);
+        this.waterRenderer = new WaterRenderer(this.ctx, tileManager);
+        this.decorationRenderer = new DecorationRenderer(this.ctx, tileManager);
     }
 
     // Convert world coordinates to screen coordinates
@@ -63,7 +64,13 @@ export class IsometricRenderer {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    renderWorld(world, camera, tileManager) {
+    renderWorld(world, camera) {
+        // Make sure tileManager is available
+        if (!this.tileManager) {
+            console.error('TileManager not initialized');
+            return;
+        }
+
         // Calculate visible range
         const screenTileWidth = Math.ceil(this.canvas.width / (this.tileWidth * camera.zoom)) + 2;
         const screenTileHeight = Math.ceil(this.canvas.height / (this.tileHeight * camera.zoom)) + 4;
@@ -76,97 +83,41 @@ export class IsometricRenderer {
         // Render tiles in isometric order
         for (let y = startY; y < endY; y++) {
             for (let x = startX; x < endX; x++) {
-                const tile = this.getTileAt(world, x, y);
+                const tile = world.getTileAt(x, y);
                 if (tile) {
-                    this.renderTile(x, y, tile, tileManager);
+                    this.renderTile(tile, x, y);
                 }
             }
         }
     }
 
-    getTileAt(world, x, y) {
-        const chunkX = Math.floor(x / world.chunkSize);
-        const chunkY = Math.floor(y / world.chunkSize);
-        const chunk = world.chunks.get(`${chunkX},${chunkY}`);
-        
-        if (!chunk) {
-            const height = world.generateHeight(x, y);
-            const moisture = world.generateMoisture(x, y);
-            return world.generateTile(x, y, height, moisture);
-        }
+    renderTile(tile, x, y) {
+        const screenX = (x - y) * this.tileWidth / 2;
+        const screenY = (x + y) * this.tileHeight / 2 - (tile.height * this.heightOffset);
 
-        const localX = x % world.chunkSize;
-        const localY = y % world.chunkSize;
-        return chunk[localY * world.chunkSize + localX];
-    }
-
-    renderTile(x, y, tile, tileManager) {
-        const isoX = (x - y) * (this.tileWidth / 2);
-        const isoY = (x + y) * (this.tileHeight / 2);
-        const heightOffset = tile.height * this.heightOffset;
-
-        // Draw base tile texture
-        const texture = tileManager.getTextureForTile(tile);
+        // Get texture from TileManager
+        const texture = this.tileManager.getTextureForTile(tile);
         if (texture) {
+            // Draw the base tile with texture
             this.ctx.drawImage(
                 texture,
-                isoX - this.tileWidth / 2,
-                isoY - this.tileHeight / 2 - heightOffset,
+                screenX - this.tileWidth / 2,
+                screenY - this.tileHeight / 2,
                 this.tileWidth,
                 this.tileHeight
             );
+        } else {
+            // Fallback to solid color if texture not found
+            this.ctx.fillStyle = this.getTileColor(tile);
+            this.ctx.beginPath();
+            this.ctx.moveTo(screenX, screenY);
+            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight);
+            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
         }
-
-        // Render decoration if present
-        if (tile.decoration) {
-            const decorationTexture = tileManager.getDecorationTexture(tile.decoration.type);
-            if (decorationTexture) {
-                const decorationX = isoX + (tile.decoration.offset?.x || 0);
-                const decorationY = isoY + (tile.decoration.offset?.y || 0) - heightOffset;
-                const decorationWidth = (tile.decoration.scale?.x || 1) * this.tileWidth;
-                const decorationHeight = (tile.decoration.scale?.y || 1) * this.tileHeight;
-
-                this.ctx.drawImage(
-                    decorationTexture,
-                    decorationX - decorationWidth / 2,
-                    decorationY - decorationHeight / 2,
-                    decorationWidth,
-                    decorationHeight
-                );
-            } else {
-                console.warn(`Missing decoration texture for type: ${tile.decoration.type}`);
-            }
-        }
-
-        // If the tile has a structure, render it
-        if (tile.structure) {
-            const screenPos = this.worldToScreen(x, y);
-            this.structureRenderer.render(
-                tile.structure,
-                x,
-                y,
-                screenPos.x,
-                screenPos.y - heightOffset
-            );
-        }
-    }
-
-    renderColorTile(x, y, tile) {
-        // Convert tile coordinates to screen coordinates
-        const screenX = (x - y) * this.tileWidth / 2;
-        const screenY = (x + y) * this.tileHeight / 2 - (tile.height * this.tileHeightOffset);
-
-        // Draw tile base
-        this.ctx.fillStyle = this.getTileColor(tile);
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenX, screenY);
-        this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
-        this.ctx.lineTo(screenX, screenY + this.tileHeight);
-        this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight);
-        this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
 
         // Draw tile sides if elevated
         if (tile.height > 0) {
@@ -175,8 +126,8 @@ export class IsometricRenderer {
             this.ctx.beginPath();
             this.ctx.moveTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
             this.ctx.lineTo(screenX, screenY + this.tileHeight);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.tileHeightOffset);
-            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.tileHeightOffset);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.heightOffset);
+            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.heightOffset);
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
@@ -186,16 +137,36 @@ export class IsometricRenderer {
             this.ctx.beginPath();
             this.ctx.moveTo(screenX, screenY + this.tileHeight);
             this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
-            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.tileHeightOffset);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.tileHeightOffset);
+            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.heightOffset);
+            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.heightOffset);
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
         }
 
+        // Structure rendering is handled only for primary tiles
+        if (tile.structure && tile.structureIndex === 0) {
+            this.structureRenderer.render(
+                tile.structure,
+                x,
+                y,
+                screenX,
+                screenY
+            );
+        }
+
         // Draw decoration if present
         if (tile.decoration) {
-            this.renderDecoration(screenX, screenY, tile.decoration);
+            const decorationTexture = this.tileManager.getDecorationTexture(tile.decoration.type);
+            if (decorationTexture) {
+                this.ctx.drawImage(
+                    decorationTexture,
+                    screenX - this.tileWidth / 2,
+                    screenY - this.tileHeight / 2,
+                    this.tileWidth,
+                    this.tileHeight
+                );
+            }
         }
     }
 
@@ -308,6 +279,13 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
+
+
+
+
+
+
 
 
 
