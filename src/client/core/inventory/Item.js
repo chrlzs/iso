@@ -14,7 +14,29 @@ export class Item {
         this.effect = config.effect;
         this.slot = config.slot;
         this.damage = config.damage || 0;
+        this.defense = config.defense || 0;
         this.quantity = config.quantity || 1;
+        this.rarity = config.rarity || 'common';
+    }
+
+    getTooltip() {
+        let tooltip = `<div class="tooltip-header">${this.name}</div>`;
+        
+        if (this.type === 'weapon') {
+            tooltip += `<div class="tooltip-stat">Damage: ${this.damage}</div>`;
+        }
+        
+        if (this.type === 'armor') {
+            tooltip += `<div class="tooltip-stat">Defense: ${this.defense}</div>`;
+        }
+        
+        tooltip += `<div class="tooltip-description">${this.description}</div>`;
+        tooltip += `<div class="tooltip-footer">`;
+        tooltip += `<span>Weight: ${this.weight}</span>`;
+        tooltip += `<span>Value: ${this.value} gold</span>`;
+        tooltip += `</div>`;
+        
+        return tooltip;
     }
 
     use(target) {
@@ -41,3 +63,4 @@ export class Item {
         });
     }
 }
+

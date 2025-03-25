@@ -1,3 +1,5 @@
+import { Item } from '../../inventory/Item.js';
+
 export class InventoryUI {
     constructor(config) {
         this.game = config.game;
@@ -110,13 +112,16 @@ export class InventoryUI {
     }
 
     getItemInSlot(slot) {
+        if (!slot) return null;
+        
         const slotType = slot.dataset.type;
         const slotIndex = parseInt(slot.dataset.slot);
 
         if (slotType === 'inventory') {
             return this.game.player.inventory.getSlot(slotIndex);
         } else if (slotType === 'equipment') {
-            return this.game.player.equipment[slotIndex];
+            const item = this.game.player.equipment[slotIndex];
+            return item ? (item instanceof Item ? item : new Item(item)) : null;
         }
         return null;
     }
@@ -221,18 +226,21 @@ export class InventoryUI {
             <div>Weight: ${inventory.weight}/${inventory.maxWeight}</div>
         `;
 
-        // Update gold
+        // Update gold display with inline gold icon
         this.goldDisplay.innerHTML = `
             <div class="gold">
-                <img src="assets/icons/gold.png" alt="Gold">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/Q7yucQAAAAASUVORK5CYII=" alt="Gold">
                 ${inventory.gold}
             </div>
         `;
     }
 
     showTooltip(item, event) {
+        if (!item || !item.getTooltip) return; // Guard clause for invalid items
+
         const tooltip = document.createElement('div');
         tooltip.className = 'item-tooltip';
+        tooltip.setAttribute('data-rarity', item.rarity || 'common');
         tooltip.innerHTML = item.getTooltip();
         
         // Position tooltip near mouse
@@ -268,3 +276,5 @@ export class InventoryUI {
         }
     }
 }
+
+

@@ -1,3 +1,5 @@
+import { Item } from './Item.js';
+
 /**
  * Base inventory system that can be used by any entity
  */
@@ -22,12 +24,15 @@ export class Inventory {
             return false;
         }
 
+        // Ensure item is an Item instance
+        const itemToAdd = item instanceof Item ? item : new Item(item);
+
         // Check for stackable items
-        if (item.isStackable) {
+        if (itemToAdd.isStackable) {
             for (const [slot, existingItem] of this.items) {
-                if (existingItem.id === item.id) {
+                if (existingItem.id === itemToAdd.id) {
                     existingItem.quantity += quantity;
-                    this.weight += item.weight * quantity;
+                    this.weight += itemToAdd.weight * quantity;
                     return true;
                 }
             }
@@ -36,8 +41,9 @@ export class Inventory {
         // Find first empty slot
         for (let i = 0; i < this.maxSlots; i++) {
             if (!this.items.has(i)) {
-                this.items.set(i, { ...item, quantity });
-                this.weight += item.weight * quantity;
+                this.items.set(i, itemToAdd);
+                itemToAdd.quantity = quantity;
+                this.weight += itemToAdd.weight * quantity;
                 return true;
             }
         }
@@ -90,7 +96,9 @@ export class Inventory {
      * @returns {Item|null} - The item in the slot or null if empty
      */
     getSlot(slot) {
-        return this.items.get(slot) || null;
+        const item = this.items.get(slot);
+        // Return null if no item, otherwise ensure it's an Item instance
+        return item ? (item instanceof Item ? item : new Item(item)) : null;
     }
 
     /**

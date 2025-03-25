@@ -1,4 +1,5 @@
 import { Inventory } from '../inventory/Inventory.js';
+import { Item } from '../inventory/Item.js';
 
 export class Player {
     constructor(config) {
@@ -69,6 +70,76 @@ export class Player {
             owner: this,
             gold: 100 // Starting gold
         });
+
+        // Add starter items
+        const starterItems = [
+            new Item({
+                id: 'wooden_sword',
+                name: 'Wooden Sword',
+                description: 'A basic training sword',
+                type: 'weapon',
+                value: 10,
+                weight: 2,
+                damage: 5,
+                slot: 'mainHand',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMgmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmDUAYPAAQAx7wX9DvK5RAAAAABJRU5ErkJggg=='
+            }),
+            new Item({
+                id: 'leather_armor',
+                name: 'Leather Tunic',
+                description: 'Basic protective gear',
+                type: 'armor',
+                value: 15,
+                weight: 3,
+                defense: 2,
+                slot: 'body',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMomBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAMu8F/Q7yucQAAAAASUVORK5CYII='
+            }),
+            new Item({
+                id: 'health_potion',
+                name: 'Health Potion',
+                description: 'Restores 25 HP',
+                type: 'consumable',
+                value: 20,
+                weight: 0.5,
+                isStackable: true,
+                quantity: 3,
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAA7O8F/frO7YAAAAAASUVORK5CYII=',
+                effect: (target) => {
+                    target.health += 25;
+                    return true;
+                }
+            }),
+            new Item({
+                id: 'bread',
+                name: 'Bread',
+                description: 'A simple meal that restores 10 HP',
+                type: 'consumable',
+                value: 5,
+                weight: 0.3,
+                isStackable: true,
+                quantity: 5,
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAANu8F/fr2BQQAAAAASUVORK5CYII=',
+                effect: (target) => {
+                    target.health += 10;
+                    return true;
+                }
+            }),
+            new Item({
+                id: 'torch',
+                name: 'Torch',
+                description: 'Provides light in dark areas',
+                type: 'tool',
+                value: 8,
+                weight: 1,
+                isStackable: true,
+                quantity: 2,
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/fr4BQQAAAAASUVORK5CYII='
+            })
+        ];
+
+        // Add each starter item to inventory
+        starterItems.forEach(item => this.inventory.addItem(item));
 
         // Equipment slots
         this.equipment = {
@@ -299,6 +370,7 @@ export class Player {
         this.damage = this.baseDamage + totalDamage;
     }
 }
+
 
 
 

@@ -100,24 +100,54 @@
 
 .item-tooltip {
     position: fixed;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     border: 1px solid #666;
     border-radius: 4px;
-    padding: 8px;
+    padding: 10px;
     color: white;
     font-size: 14px;
     pointer-events: none;
     z-index: 1100;
-    max-width: 200px;
-    white-space: pre-wrap;
+    max-width: 250px;
+    min-width: 200px;
 }
 
-/* Rarity colors */
-.item-tooltip[data-rarity="common"] { border-color: #ffffff; }
-.item-tooltip[data-rarity="uncommon"] { border-color: #1eff00; }
-.item-tooltip[data-rarity="rare"] { border-color: #0070dd; }
-.item-tooltip[data-rarity="epic"] { border-color: #a335ee; }
-.item-tooltip[data-rarity="legendary"] { border-color: #ff8000; }
+.tooltip-header {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #444;
+}
+
+.tooltip-stat {
+    color: #88f;
+    margin: 2px 0;
+}
+
+.tooltip-description {
+    color: #aaa;
+    margin: 8px 0;
+    font-style: italic;
+}
+
+.tooltip-footer {
+    display: flex;
+    justify-content: space-between;
+    color: #888;
+    font-size: 12px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid #444;
+}
+
+/* Rarity colors for tooltip headers */
+.item-tooltip[data-rarity="common"] .tooltip-header { color: #ffffff; }
+.item-tooltip[data-rarity="uncommon"] .tooltip-header { color: #1eff00; }
+.item-tooltip[data-rarity="rare"] .tooltip-header { color: #0070dd; }
+.item-tooltip[data-rarity="epic"] .tooltip-header { color: #a335ee; }
+.item-tooltip[data-rarity="legendary"] .tooltip-header { color: #ff8000; }
 
 /* Dragging states */
 .inventory-slot.drag-over,
