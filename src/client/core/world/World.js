@@ -63,19 +63,27 @@ export class World {
             return this.tileCache.get(key);
         }
 
-        const tileType = this.tileManager.determineTileType(height, moisture);
+        // Calculate urban factor based on nearby structures
+        const urbanFactor = this.tileManager.calculateUrbanFactor(
+            x, 
+            y, 
+            this.structureManager.getStructuresInRadius(x, y, 20)
+        );
+
+        const tileType = this.tileManager.determineTileType(height, moisture, urbanFactor);
         
         const tile = {
             type: tileType,
             variant: this.tileManager.getRandomVariant(tileType),
-            height: Math.floor(height * 4),  // Change to 4 levels (0-3) for more height variety
+            height: Math.floor(height * 4),
             moisture,
+            urbanFactor, // Store for potential future use
             x,
             y,
             id: `tile_${x}_${y}`,
             decoration: this.tileManager.getPersistentDecoration(`tile_${x}_${y}`, tileType),
             structure: null,
-            structureIndex: null  // Add this to track position within structure
+            structureIndex: null
         };
 
         if (this.tileCache.size >= this.maxCacheSize) {
@@ -252,6 +260,7 @@ export class World {
         return null;
     }
 }
+
 
 
 

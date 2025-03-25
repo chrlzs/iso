@@ -234,9 +234,70 @@ export class TileManager {
             return this.createTempTexture('#FF00FF'); // Return pink texture as fallback
         };
 
-        // Add tile type determination method
-        this.determineTileType = (height, moisture) => {
-            // Adjusted thresholds for better terrain distribution
+        // Expanded tile configurations
+        this.tileConfigs = {
+            concrete: {
+                color: '#A8A8A8',
+                secondaryColor: '#989898',
+                texturePattern: 'concrete',
+                variants: ['cracked', 'smooth', 'stained']
+            },
+            asphalt: {
+                color: '#454545',
+                secondaryColor: '#353535',
+                texturePattern: 'asphalt',
+                variants: ['new', 'worn', 'marked']
+            },
+            brick: {
+                color: '#8B4513',
+                secondaryColor: '#A0522D',
+                texturePattern: 'brick',
+                variants: ['red', 'gray', 'worn']
+            },
+            metal: {
+                color: '#71797E',
+                secondaryColor: '#848884',
+                texturePattern: 'metal',
+                variants: ['smooth', 'rusted', 'grated']
+            },
+            sidewalk: {
+                color: '#C0C0C0',
+                secondaryColor: '#B8B8B8',
+                texturePattern: 'sidewalk',
+                variants: ['plain', 'tiled', 'decorated']
+            },
+            // Keep existing natural tiles but reduce their frequency
+            grass: { /* existing config */ },
+            dirt: { /* existing config */ },
+            stone: { /* existing config */ },
+            sand: { /* existing config */ },
+            water: { /* existing config */ },
+            wetland: { /* existing config */ }
+        };
+
+        // Modified tile type determination method
+        this.determineTileType = (height, moisture, urbanFactor = 0) => {
+            // urbanFactor is a new parameter (0-1) indicating proximity to urban centers
+            
+            // If in highly urban area, prefer urban tiles
+            if (urbanFactor > 0.7) {
+                if (height < 0.2) return 'asphalt';
+                if (height < 0.4) return 'concrete';
+                if (height < 0.6) return 'sidewalk';
+                if (height < 0.8) return 'brick';
+                return 'metal';
+            }
+            
+            // Mixed urban-natural area
+            if (urbanFactor > 0.3) {
+                if (height < 0.1) return 'water';
+                if (height < 0.3) return 'concrete';
+                if (height < 0.5) return moisture > 0.5 ? 'grass' : 'sidewalk';
+                if (height < 0.7) return moisture > 0.6 ? 'brick' : 'asphalt';
+                return 'metal';
+            }
+            
+            // Original natural determination for less urban areas
             if (height < 0.1) return 'water';
             if (height < 0.2) return 'sand';
             if (height < 0.7) {
@@ -244,7 +305,7 @@ export class TileManager {
                 if (moisture > 0.3) return 'grass';
                 return 'dirt';
             }
-            return 'stone';  // Only highest elevations are stone
+            return 'stone';
         };
 
         // Structure textures configuration
@@ -346,20 +407,20 @@ export class TileManager {
 
     getTextureForTile(tile) {
         if (!tile || !tile.type) {
-            if (this.debug.enabled) console.warn('TileManager: Invalid tile or missing type');
+            if (this.debug?.enabled) console.warn('TileManager: Invalid tile or missing type');
             return null;
         }
 
         if (tile.variant) {
             const texture = this.textures.get(tile.variant);
-            if (!texture && this.debug.enabled) {
+            if (!texture && this.debug?.enabled) {
                 console.warn(`TileManager: Missing texture for variant: ${tile.variant}`);
             }
             return texture;
         }
 
         const baseTexture = this.textures.get(tile.type);
-        if (!baseTexture && this.debug.enabled) {
+        if (!baseTexture && this.debug?.enabled) {
             console.warn(`TileManager: Missing base texture for type: ${tile.type}`);
         }
         return baseTexture;
@@ -553,8 +614,34 @@ export class TileManager {
         }
         this.decorationBatch.clear();
     }
+
+    // Add new method to calculate urban factor
+    calculateUrbanFactor(x, y, structures) {
+        let urbanFactor = 0;
+        const URBAN_RADIUS = 20; // Radius to check for urban influence
+        
+        // Calculate based on proximity to urban structures
+        for (const structure of structures) {
+            const distance = Math.sqrt(
+                Math.pow(x - structure.x, 2) + 
+                Math.pow(y - structure.y, 2)
+            );
+            
+            if (distance < URBAN_RADIUS) {
+                // Structures like 'apartment' or 'nightclub' increase urban factor
+                const structureUrbanWeight = {
+                    'apartment': 1.0,
+                    'nightclub': 0.8,
+                    'office': 0.9,
+                    'factory': 0.7
+                }[structure.type] || 0.5;
+                
+                urbanFactor += (1 - distance/URBAN_RADIUS) * structureUrbanWeight;
+            }
+        }
+        
+        return Math.min(1, urbanFactor);
+    }
 }
-
-
 
 

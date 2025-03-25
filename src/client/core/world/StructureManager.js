@@ -3,11 +3,8 @@ import { Structure } from './Structure.js';
 export class StructureManager {
     constructor(world) {
         this.world = world;
-        this.structures = new Map(); // Now stores structures by unique ID
+        this.structures = new Map(); // Add this line if not already present
         this.templates = new Map();
-        this.structureIdCounter = 0;
-        
-        // Initialize basic structure templates
         this.initializeTemplates();
     }
 
@@ -332,7 +329,29 @@ export class StructureManager {
     getAllStructures() {
         return Array.from(this.structures.values());
     }
+
+    getStructuresInRadius(x, y, radius) {
+        const structures = [];
+        const radiusSquared = radius * radius;
+
+        // Iterate through all structures
+        for (const structure of this.structures.values()) {
+            // Calculate distance from point to structure center
+            const dx = x - structure.x;
+            const dy = y - structure.y;
+            const distanceSquared = dx * dx + dy * dy;
+
+            // If within radius, add to result
+            if (distanceSquared <= radiusSquared) {
+                structures.push(structure);
+            }
+        }
+
+        return structures;
+    }
 }
+
+
 
 
 
