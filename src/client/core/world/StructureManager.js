@@ -1,134 +1,12 @@
 import { Structure } from './Structure.js';
+import { StructureTemplates } from './templates/StructureTemplates.js';
 
 export class StructureManager {
     constructor(world) {
         this.world = world;
-        this.structures = new Map(); // Add this line if not already present
-        this.templates = new Map();
-        this.initializeTemplates();
-    }
-
-    initializeTemplates() {
-        // Modern apartment template (3x4)
-        this.templates.set('apartment', {
-            type: 'apartment',
-            name: 'Modern Apartment',
-            width: 3,
-            height: 4,
-            blueprint: [
-                ['wall', 'wall', 'wall'],
-                ['wall', 'floor', 'wall'],
-                ['wall', 'floor', 'wall'],
-                ['wall', 'door', 'wall']
-            ],
-            decorations: [
-                { type: 'ac_unit', x: 0, y: 0 },
-                { type: 'window', x: 2, y: 1 },
-                { type: 'window', x: 0, y: 1 }
-            ],
-            textures: {
-                wall: 'brick',
-                floor: 'tiles',
-                door: 'wood'
-            }
-        });
-
-        // Small house template (2x2)
-        this.templates.set('house', {
-            type: 'house',
-            name: 'Small House',
-            width: 2,
-            height: 2,
-            blueprint: [
-                ['wall', 'wall'],
-                ['door', 'wall']
-            ],
-            decorations: [
-                { type: 'window', x: 1, y: 0 }
-            ],
-            textures: {
-                wall: 'wood',
-                door: 'wood'
-            }
-        });
-
-        // Shop template (4x3)
-        this.templates.set('shop', {
-            type: 'shop',
-            name: 'Shop',
-            width: 4,
-            height: 3,
-            blueprint: [
-                ['wall', 'wall', 'wall', 'wall'],
-                ['window', 'door', 'door', 'window'],
-                ['wall', 'wall', 'wall', 'wall']
-            ],
-            decorations: [
-                { type: 'sign', x: 1, y: 0 },
-                { type: 'sign', x: 2, y: 0 }
-            ],
-            textures: {
-                wall: 'stone',
-                door: 'wood',
-                window: 'glass'
-            }
-        });
-
-        // Nightclub template (5x6)
-        this.templates.set('nightclub', {
-            type: 'nightclub',
-            name: 'Neon Nightclub',
-            width: 5,
-            height: 6,
-            blueprint: [
-                ['wall', 'wall', 'wall', 'wall', 'wall'],
-                ['wall', 'floor', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'floor', 'wall'],
-                ['wall', 'door', 'door', 'door', 'wall']
-            ],
-            decorations: [
-                { type: 'sign', x: 1, y: 0 },
-                { type: 'sign', x: 2, y: 0 },
-                { type: 'sign', x: 3, y: 0 },
-                { type: 'window', x: 0, y: 1 },
-                { type: 'window', x: 4, y: 1 },
-                { type: 'window', x: 0, y: 3 },
-                { type: 'window', x: 4, y: 3 },
-                { type: 'ac_unit', x: 0, y: 0 },
-                { type: 'ac_unit', x: 4, y: 0 }
-            ],
-            textures: {
-                wall: 'metal',
-                floor: 'neon',
-                door: 'security'
-            }
-        });
-
-        // Office building template (4x5)
-        this.templates.set('office', {
-            type: 'office',
-            name: 'Office Building',
-            width: 4,
-            height: 5,
-            blueprint: [
-                ['wall', 'wall', 'wall', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'floor', 'floor', 'wall'],
-                ['wall', 'door', 'door', 'wall']
-            ],
-            decorations: [
-                { type: 'sign', x: 1, y: 0 },
-                { type: 'window', x: 2, y: 1 }
-            ],
-            textures: {
-                wall: 'concrete',
-                floor: 'tiles',
-                door: 'metal'
-            }
-        });
+        this.structures = new Map();
+        this.templates = new Map(Object.entries(StructureTemplates));
+        this.structureIdCounter = 0; // Add counter for unique IDs
     }
 
     createStructure(type, x, y) {
@@ -372,6 +250,68 @@ export class StructureManager {
         }
 
         return structures;
+    }
+
+    generateUrbanStructures(center, radius) {
+        const structures = [];
+        const zones = this.generateZones(center, radius);
+
+        // Process each zone
+        zones.forEach(zone => {
+            const density = this.getZoneDensity(zone.type);
+            const availableTemplates = Array.from(this.templates.values())
+                .filter(template => template.zone === zone.type);
+
+            // Generate structures based on density
+            const structureCount = Math.floor(zone.size * density);
+            for (let i = 0; i < structureCount; i++) {
+                const template = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+                const pos = this.findValidPlacementInZone(template, zone);
+                if (pos) {
+                    const structure = this.createStructure(template.type, pos.x, pos.y);
+                    if (structure) {
+                        structures.push(structure);
+                    }
+                }
+            }
+        });
+
+        return structures;
+    }
+
+    getZoneDensity(zoneType) {
+        const densities = {
+            commercial: 0.8,
+            residential: 0.6,
+            industrial: 0.4,
+            park: 0.2
+        };
+        return densities[zoneType] || 0.5;
+    }
+
+    generateZones(center, radius) {
+        // Simple zone generation - divide area into quarters
+        const zones = [
+            { type: 'commercial', x: center.x, y: center.y, size: radius * 0.3 },
+            { type: 'residential', x: center.x + radius, y: center.y, size: radius * 0.4 },
+            { type: 'industrial', x: center.x, y: center.y + radius, size: radius * 0.2 },
+            { type: 'park', x: center.x + radius, y: center.y + radius, size: radius * 0.1 }
+        ];
+
+        return zones;
+    }
+
+    findValidPlacementInZone(template, zone) {
+        const attempts = 20;
+        for (let i = 0; i < attempts; i++) {
+            const x = zone.x + (Math.random() - 0.5) * zone.size;
+            const y = zone.y + (Math.random() - 0.5) * zone.size;
+            
+            if (this.isAreaSuitable(x, y, template)) {
+                return { x: Math.floor(x), y: Math.floor(y) };
+            }
+        }
+        return null;
     }
 }
 

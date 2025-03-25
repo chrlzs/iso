@@ -50,6 +50,16 @@ export class Structure {
             windowLight: 0,
             lightFlicker: Math.random() * Math.PI * 2
         };
+
+        // Add new properties from template
+        this.floors = template.floors || 1;
+        this.roofType = template.roofType || 'flat';
+        this.material = template.material || 'brick';
+        this.zone = template.zone || 'residential';
+        this.name = template.name || 'Building';
+        
+        // Calculate height offset based on floors
+        this.heightOffset = (this.floors - 1) * 32; // 32 pixels per floor
     }
 
     isDecorativeComponent(type) {
@@ -124,7 +134,8 @@ export class Structure {
     }
 
     getVerticalOffset() {
-        return this.terrainOffset * 8; // Adjust multiplier based on your tile height
+        // Include floor height in vertical offset
+        return (this.terrainOffset * 8) + this.heightOffset;
     }
 
     // Add debug method to help track rendering

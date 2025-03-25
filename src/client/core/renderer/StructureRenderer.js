@@ -1,457 +1,194 @@
 export class StructureRenderer {
-    constructor(ctx, tileWidth = 64, tileHeight = 32) {
+    constructor(ctx) {
         this.ctx = ctx;
-        this.tileWidth = tileWidth;
-        this.tileHeight = tileHeight;
-        this.heightOffset = tileHeight / 3;
+        this.tileSize = 64; // Base tile size
+        this.wallHeight = 32; // Height of wall sections
     }
 
     render(structure, worldX, worldY, screenX, screenY) {
-        this.ctx.save();
-        const baseHeight = 1.5;
-        const scale = 0.9;
+        if (!structure || !structure.template) return;
 
-        // Apply terrain-based vertical offset
-        const verticalOffset = structure.getVerticalOffset();
-        screenY -= verticalOffset;
-
-        // Only draw base components from the primary position
-        if (structure.isPrimaryTile(worldX, worldY)) {
-            // Calculate total width and height for the structure
-            const totalWidth = this.tileWidth * structure.width * scale;
-            const totalHeight = this.tileHeight * structure.height * scale;
-
-            // Draw foundation with terrain adaptation
-            this.drawFoundation(structure, screenX, screenY, scale);
-            this.drawWalls(structure, screenX, screenY, baseHeight, scale);
-            this.drawPeakedRoof(structure, screenX, screenY, baseHeight, scale);
-        }
-
-        // Get the specific component at this position
-        const component = structure.getComponentAt(worldX, worldY);
-        if (component) {
-            // Render position-specific components
-            switch (component.type) {
-                case 'window':
-                    this.drawWindows(structure, screenX, screenY, baseHeight, scale);
-                    break;
-                case 'chimney':
-                    this.drawChimney(structure, screenX, screenY, baseHeight, scale);
-                    break;
-                case 'door':
-                    this.drawDoor(structure, screenX, screenY, baseHeight, scale);
-                    break;
-            }
-
-            // Render any decorations associated with this component
-            const decorations = structure.template.decorations.filter(
-                d => d.x === (worldX - structure.x) && d.y === (worldY - structure.y)
-            );
-            
-            decorations.forEach(decoration => {
-                this.drawDecoration(decoration, screenX, screenY, baseHeight, scale);
-            });
-        }
+        const template = structure.template;
+        const { blueprint } = template;
         
+        // Calculate vertical offset for multi-story buildings
+        const heightOffset = structure.getVerticalOffset();
+        screenY -= heightOffset;
+
+        // Render structure components in correct order (back to front, bottom to top)
+        this.renderWalls(structure, blueprint, screenX, screenY);
+        this.renderDecorations(structure, screenX, screenY);
+        this.renderRoof(structure, screenX, screenY - (structure.floors * this.wallHeight));
+    }
+
+    renderWalls(structure, blueprint, screenX, screenY) {
+        const components = structure.components || [];
+        
+        // Render back walls first
+        components
+            .filter(comp => comp.type === 'wall')
+            .forEach(comp => {
+                const dx = (comp.x - structure.x) * this.tileSize;
+                const dy = (comp.y - structure.y) * this.tileSize;
+                this.drawWall(screenX + dx, screenY + dy, structure.material);
+            });
+
+        // Then render doors and windows
+        components
+            .filter(comp => comp.type === 'door' || comp.type === 'window')
+            .forEach(comp => {
+                const dx = (comp.x - structure.x) * this.tileSize;
+                const dy = (comp.y - structure.y) * this.tileSize;
+                if (comp.type === 'door') {
+                    this.drawDoor(screenX + dx, screenY + dy, structure.states.doorOpen);
+                } else {
+                    this.drawWindow(screenX + dx, screenY + dy, structure.states.lightOn);
+                }
+            });
+    }
+
+    renderDecorations(structure, screenX, screenY) {
+        const decorations = structure.template.decorations || [];
+        decorations.forEach(dec => {
+            const dx = dec.x * this.tileSize;
+            const dy = dec.y * this.tileSize;
+            this.drawDecoration(dec.type, screenX + dx, screenY + dy);
+        });
+    }
+
+    renderRoof(structure, screenX, screenY) {
+        if (!structure.roofType || structure.roofType === 'none') return;
+
+        const width = structure.width * this.tileSize;
+        const height = structure.height * this.tileSize;
+
+        this.ctx.save();
+        this.ctx.translate(screenX, screenY);
+
+        switch (structure.roofType) {
+            case 'flat':
+                this.drawFlatRoof(width, height);
+                break;
+            case 'pitched':
+                this.drawPitchedRoof(width, height);
+                break;
+            case 'industrial':
+                this.drawIndustrialRoof(width, height);
+                break;
+        }
+
         this.ctx.restore();
     }
 
-    drawFoundation(structure, screenX, screenY, scale) {
-        const width = this.tileWidth * structure.width * scale;
-        const height = this.tileHeight * structure.height * scale;
-
-        // Draw foundation that follows terrain
-        this.ctx.fillStyle = '#8B7355';
-        this.ctx.strokeStyle = '#6B5335';
-        this.ctx.lineWidth = 2;
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenX - width / 2, screenY);
-        this.ctx.lineTo(screenX + width / 2, screenY);
-        this.ctx.lineTo(screenX + width / 2, screenY + height * 0.2);
-        this.ctx.lineTo(screenX - width / 2, screenY + height * 0.2);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
+    drawWall(x, y, material) {
+        this.ctx.fillStyle = this.getMaterialColor(material);
+        this.ctx.fillRect(x, y, this.tileSize, this.wallHeight);
     }
 
-    drawWalls(structure, screenX, screenY, baseHeight, scale = 0.8) {
-        const width = this.tileWidth * structure.width * scale;
-        const wallHeight = baseHeight * this.heightOffset;
-
-        // Front wall (slightly lighter)
-        this.ctx.fillStyle = '#D2B48C';
-        this.ctx.strokeStyle = '#A67B5B';
-        this.ctx.lineWidth = 1;
-        
-        // Draw walls accounting for structure size
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenX - width / 2, screenY + this.tileHeight * scale / 2);
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale);
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale - wallHeight);
-        this.ctx.lineTo(screenX - width / 2, screenY + this.tileHeight * scale / 2 - wallHeight);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
+    drawDoor(x, y, isOpen) {
+        this.ctx.fillStyle = isOpen ? '#4a4a4a' : '#8b4513';
+        this.ctx.fillRect(x, y, this.tileSize, this.wallHeight);
     }
 
-    drawWindows(structure, screenX, screenY, baseHeight, scale = 0.8) {
-        const width = this.tileWidth * structure.width * scale;
-        const wallHeight = baseHeight * this.heightOffset;
-
-        // Window properties
-        const windowWidth = width * 0.2;
-        const windowHeight = wallHeight * 0.3;
-        const windowColor = structure.states?.lightOn ? '#FFE08C' : '#2F343C';
-
-        // Draw windows on front wall
-        this.ctx.fillStyle = windowColor;
-        this.ctx.strokeStyle = '#463E33';
-        this.ctx.lineWidth = 2;
-
-        // Left window
-        this.ctx.fillRect(
-            screenX - width * 0.35,
-            screenY + this.tileHeight * scale - wallHeight * 0.6,
-            windowWidth,
-            windowHeight
-        );
-        this.ctx.strokeRect(
-            screenX - width * 0.35,
-            screenY + this.tileHeight * scale - wallHeight * 0.6,
-            windowWidth,
-            windowHeight
-        );
-
-        // Right window
-        this.ctx.fillRect(
-            screenX + width * 0.15,
-            screenY + this.tileHeight * scale - wallHeight * 0.6,
-            windowWidth,
-            windowHeight
-        );
-        this.ctx.strokeRect(
-            screenX + width * 0.15,
-            screenY + this.tileHeight * scale - wallHeight * 0.6,
-            windowWidth,
-            windowHeight
-        );
-
-        // Add window crossbars
-        this.drawWindowCrossbars(screenX - width * 0.35, screenY + this.tileHeight * scale - wallHeight * 0.6, windowWidth, windowHeight);
-        this.drawWindowCrossbars(screenX + width * 0.15, screenY + this.tileHeight * scale - wallHeight * 0.6, windowWidth, windowHeight);
+    drawWindow(x, y, isLit) {
+        this.ctx.fillStyle = isLit ? '#ffff99' : '#87ceeb';
+        this.ctx.fillRect(x + 8, y + 8, this.tileSize - 16, this.wallHeight - 16);
     }
 
-    drawWindowCrossbars(x, y, width, height) {
-        this.ctx.strokeStyle = '#463E33';
-        this.ctx.lineWidth = 1;
-
-        // Vertical crossbar
-        this.ctx.beginPath();
-        this.ctx.moveTo(x + width / 2, y);
-        this.ctx.lineTo(x + width / 2, y + height);
-        this.ctx.stroke();
-
-        // Horizontal crossbar
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, y + height / 2);
-        this.ctx.lineTo(x + width, y + height / 2);
-        this.ctx.stroke();
+    drawDecoration(type, x, y) {
+        switch (type) {
+            case 'sign':
+                this.drawSign(x, y);
+                break;
+            case 'ac_unit':
+                this.drawACUnit(x, y);
+                break;
+            case 'path':
+                this.drawPath(x, y);
+                break;
+        }
     }
 
-    drawPeakedRoof(structure, screenX, screenY, baseHeight, scale = 0.8) {
-        const width = this.tileWidth * structure.width * scale;
-        const wallHeight = baseHeight * this.heightOffset;
-        const roofHeight = this.heightOffset * 0.8; // Height of roof peak
-        
-        // Calculate roof points
-        const baseY = screenY + this.tileHeight * scale - wallHeight;
-        const peakY = baseY - roofHeight;
-        
-        // Front roof face (darker)
+    drawSign(x, y) {
+        // Draw sign post
         this.ctx.fillStyle = '#8B4513';
-        this.ctx.strokeStyle = '#6B3513';
-        this.ctx.lineWidth = 1;
-        
-        this.ctx.beginPath();
-        // Left edge
-        this.ctx.moveTo(screenX - width / 2, screenY + this.tileHeight * scale / 2 - wallHeight);
-        // Bottom right
-        this.ctx.lineTo(screenX, screenY + this.tileHeight * scale - wallHeight);
-        // Peak
-        this.ctx.lineTo(screenX, peakY);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
+        this.ctx.fillRect(x + 28, y + 8, 8, 24);
 
-        // Right roof face (even darker for contrast)
-        this.ctx.fillStyle = '#654321';
-        this.ctx.beginPath();
-        // Bottom left
-        this.ctx.moveTo(screenX, screenY + this.tileHeight * scale - wallHeight);
-        // Right edge
-        this.ctx.lineTo(screenX + width / 2, screenY + this.tileHeight * scale / 2 - wallHeight);
-        // Peak
-        this.ctx.lineTo(screenX, peakY);
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.stroke();
+        // Draw sign board
+        this.ctx.fillStyle = '#DEB887';
+        this.ctx.fillRect(x + 8, y + 4, 48, 20);
 
-        // Optional: Add roof ridge line
-        this.ctx.strokeStyle = '#5C3317';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenX - width / 4, screenY + this.tileHeight * scale / 2 - wallHeight - roofHeight / 2);
-        this.ctx.lineTo(screenX + width / 4, screenY + this.tileHeight * scale / 2 - wallHeight - roofHeight / 2);
-        this.ctx.stroke();
-
-        // Optional: Add roof texture lines (shingles effect)
-        this.ctx.strokeStyle = '#5C3317';
-        this.ctx.lineWidth = 0.5;
-        const shingleRows = 5;
-        for (let i = 1; i < shingleRows; i++) {
-            const y = baseY - (roofHeight * i / shingleRows);
-            const xOffset = (width / 4) * (i / shingleRows);
-            
-            // Left side shingles
-            this.ctx.beginPath();
-            this.ctx.moveTo(screenX - width / 2 + xOffset, screenY + this.tileHeight * scale / 2 - wallHeight + (roofHeight * i / shingleRows) / 2);
-            this.ctx.lineTo(screenX - xOffset, baseY - (roofHeight * i / shingleRows));
-            this.ctx.stroke();
-
-            // Right side shingles
-            this.ctx.beginPath();
-            this.ctx.moveTo(screenX + xOffset, baseY - (roofHeight * i / shingleRows));
-            this.ctx.lineTo(screenX + width / 2 - xOffset, screenY + this.tileHeight * scale / 2 - wallHeight + (roofHeight * i / shingleRows) / 2);
-            this.ctx.stroke();
-        }
+        // Add border to sign
+        this.ctx.strokeStyle = '#8B4513';
+        this.ctx.strokeRect(x + 8, y + 4, 48, 20);
     }
 
-    drawChimney(structure, screenX, screenY, baseHeight, scale = 0.8) {
-        if (!structure.template?.chimney) return;
+    drawACUnit(x, y) {
+        // Main unit body
+        this.ctx.fillStyle = '#A9A9A9';
+        this.ctx.fillRect(x + 8, y + 8, 24, 16);
 
-        const width = this.tileWidth * scale;
-        const wallHeight = baseHeight * this.heightOffset;
-        const chimneyWidth = width * 0.3; // Make chimney narrower
-        const chimneyHeight = wallHeight * 0.6;
-
-        // Draw chimney at the specific tile position
-        this.ctx.fillStyle = '#8B7355';
-        this.ctx.strokeStyle = '#6B5335';
-        this.ctx.lineWidth = 2;
-
-        const chimneyX = screenX;
-        const chimneyY = screenY - wallHeight - chimneyHeight;
-
-        this.ctx.fillRect(chimneyX - chimneyWidth/2, chimneyY, chimneyWidth, chimneyHeight);
-        this.ctx.strokeRect(chimneyX - chimneyWidth/2, chimneyY, chimneyWidth, chimneyHeight);
-
-        // Draw chimney top
-        this.ctx.fillStyle = '#6B5335';
-        this.ctx.fillRect(
-            chimneyX - chimneyWidth/2 - 2,
-            chimneyY - 4,
-            chimneyWidth + 4,
-            4
-        );
-
-        // Draw smoke only from chimney position
-        if (structure.states?.smokeActive) {
-            this.drawChimneySmoke(chimneyX, chimneyY - 5);
-        }
-    }
-
-    drawChimneySmoke(x, y) {
-        this.ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
-        const time = Date.now() / 1000;
-        
+        // Grill lines
+        this.ctx.strokeStyle = '#696969';
         for (let i = 0; i < 3; i++) {
-            const offset = i * 10;
-            const size = 8 + Math.sin(time + i) * 2;
-            const xOffset = Math.sin(time * 2 + i) * 5;
-            
             this.ctx.beginPath();
-            this.ctx.arc(x + xOffset, y - offset, size, 0, Math.PI * 2);
+            this.ctx.moveTo(x + 10, y + 12 + i * 5);
+            this.ctx.lineTo(x + 30, y + 12 + i * 5);
+            this.ctx.stroke();
+        }
+    }
+
+    drawPath(x, y) {
+        // Main path
+        this.ctx.fillStyle = '#B8860B';
+        this.ctx.fillRect(x + 4, y + 4, this.tileSize - 8, this.tileSize - 8);
+
+        // Add some texture/stones
+        this.ctx.fillStyle = '#8B4513';
+        for (let i = 0; i < 5; i++) {
+            const rx = x + 8 + Math.random() * (this.tileSize - 16);
+            const ry = y + 8 + Math.random() * (this.tileSize - 16);
+            this.ctx.beginPath();
+            this.ctx.arc(rx, ry, 2, 0, Math.PI * 2);
             this.ctx.fill();
         }
     }
 
-    drawDoor(structure, screenX, screenY, baseHeight, scale = 0.8) {
-        const width = this.tileWidth * structure.width * scale;
-        const wallHeight = baseHeight * this.heightOffset;
-        
-        // Door frame
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.strokeStyle = '#6B3513';
-        this.ctx.lineWidth = 2;
-        
-        const doorWidth = width * 0.25;
-        const doorHeight = wallHeight * 0.4;
-        const doorX = screenX - doorWidth / 2;
-        const doorY = screenY + this.tileHeight * scale - wallHeight * 0.8;
-        
-        // Draw door frame
-        this.ctx.fillStyle = '#8B4513';
-        this.ctx.fillRect(
-            doorX - 2,
-            doorY,
-            doorWidth + 4,
-            doorHeight
-        );
-        
-        // Draw the door itself
-        if (structure.states?.doorOpen) {
-            // Door open - draw at an angle
-            this.ctx.save();
-            this.ctx.translate(doorX, doorY);
-            this.ctx.rotate(-Math.PI / 3); // Open at 60-degree angle
-            
-            this.ctx.fillStyle = '#654321';
-            this.ctx.fillRect(0, 0, doorWidth, doorHeight);
-            
-            // Door details
-            this.ctx.strokeStyle = '#463E33';
-            this.ctx.strokeRect(0, 0, doorWidth, doorHeight);
-            this.ctx.beginPath();
-            this.ctx.moveTo(doorWidth * 0.2, 0);
-            this.ctx.lineTo(doorWidth * 0.2, doorHeight);
-            this.ctx.moveTo(doorWidth * 0.8, 0);
-            this.ctx.lineTo(doorWidth * 0.8, doorHeight);
-            this.ctx.stroke();
-            
-            this.ctx.restore();
-        } else {
-            // Door closed
-            this.ctx.fillStyle = '#654321';
-            this.ctx.fillRect(
-                doorX,
-                doorY,
-                doorWidth,
-                doorHeight
-            );
-            
-            // Door details
-            this.ctx.strokeStyle = '#463E33';
-            this.ctx.strokeRect(
-                doorX,
-                doorY,
-                doorWidth,
-                doorHeight
-            );
-            
-            // Vertical panels
-            this.ctx.beginPath();
-            this.ctx.moveTo(doorX + doorWidth * 0.2, doorY);
-            this.ctx.lineTo(doorX + doorWidth * 0.2, doorY + doorHeight);
-            this.ctx.moveTo(doorX + doorWidth * 0.8, doorY);
-            this.ctx.lineTo(doorX + doorWidth * 0.8, doorY + doorHeight);
-            this.ctx.stroke();
-        }
-        
-        // Door handle
-        this.ctx.fillStyle = '#C4A484';
+    getMaterialColor(material) {
+        const colors = {
+            'brick': '#8b4513',
+            'concrete': '#808080',
+            'glass': '#87ceeb',
+            'metal': '#a9a9a9',
+            'wood': '#deb887',
+            'stone': '#696969'
+        };
+        return colors[material] || '#808080';
+    }
+
+    drawFlatRoof(width, height) {
+        this.ctx.fillStyle = '#4a4a4a';
+        this.ctx.fillRect(0, 0, width, height);
+    }
+
+    drawPitchedRoof(width, height) {
+        this.ctx.fillStyle = '#8b4513';
         this.ctx.beginPath();
-        this.ctx.arc(
-            doorX + doorWidth * 0.85,
-            doorY + doorHeight * 0.5,
-            3,
-            0,
-            Math.PI * 2
-        );
+        this.ctx.moveTo(0, height);
+        this.ctx.lineTo(width / 2, 0);
+        this.ctx.lineTo(width, height);
+        this.ctx.closePath();
         this.ctx.fill();
     }
 
-    drawDecoration(decoration, screenX, screenY, baseHeight, scale = 0.8) {
-        if (!decoration) return;
-
-        const width = this.tileWidth * scale;
-        const height = this.tileHeight * scale;
-        
-        // Calculate position adjustments based on decoration type
-        let xOffset = 0;
-        let yOffset = 0;
-        let decorScale = 1;
-
-        switch (decoration.type) {
-            case 'sign':
-                yOffset = -baseHeight * this.heightOffset * 0.7;
-                decorScale = 0.4;
-                break;
-            case 'window':
-                yOffset = -baseHeight * this.heightOffset * 0.5;
-                decorScale = 0.3;
-                break;
-            case 'ac_unit':
-                xOffset = width * 0.3;
-                yOffset = -baseHeight * this.heightOffset * 0.6;
-                decorScale = 0.25;
-                break;
-            default:
-                // Default positioning if type is not recognized
-                yOffset = -baseHeight * this.heightOffset * 0.5;
-                decorScale = 0.3;
-        }
-
-        // Apply decoration-specific styles
-        switch (decoration.type) {
-            case 'sign':
-                this.ctx.fillStyle = '#8B4513';
-                this.ctx.strokeStyle = '#6B3513';
-                this.ctx.lineWidth = 2;
-                
-                // Draw sign board
-                this.ctx.fillRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
-                this.ctx.strokeRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
-                break;
-
-            case 'ac_unit':
-                this.ctx.fillStyle = '#A9A9A9';
-                this.ctx.strokeStyle = '#696969';
-                this.ctx.lineWidth = 1;
-                
-                // Draw AC unit
-                this.ctx.fillRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
-                this.ctx.strokeRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
-                break;
-
-            default:
-                // Default decoration rendering (simple colored rectangle)
-                this.ctx.fillStyle = '#696969';
-                this.ctx.strokeStyle = '#4A4A4A';
-                this.ctx.lineWidth = 1;
-                
-                this.ctx.fillRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
-                this.ctx.strokeRect(
-                    screenX + xOffset - (width * decorScale) / 2,
-                    screenY + yOffset,
-                    width * decorScale,
-                    height * decorScale
-                );
+    drawIndustrialRoof(width, height) {
+        this.ctx.fillStyle = '#696969';
+        for (let x = 0; x < width; x += 32) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x + 16, height/4);
+            this.ctx.lineTo(x + 32, 0);
+            this.ctx.fill();
         }
     }
 }
