@@ -98,12 +98,13 @@ export class PathFinder {
     }
 
     getMovementCost(fromX, fromY, toX, toY, customCosts = null) {
-        const fromTile = this.world.getTileAt(fromX, fromY);
-        const toTile = this.world.getTileAt(toX, toY);
-
+        // First check if either tile is not walkable
         if (!this.isWalkable(toX, toY) || !this.isWalkable(fromX, fromY)) {
             return Infinity;
         }
+
+        const fromTile = this.world.getTileAt(fromX, fromY);
+        const toTile = this.world.getTileAt(toX, toY);
 
         // Use custom costs if provided (for road building)
         if (customCosts && customCosts[toTile.type]) {
@@ -125,7 +126,9 @@ export class PathFinder {
             'sand': 1.5,
             'dirt': 1,
             'grass': 1,
-            'stone': 1.2
+            'stone': 1.2,
+            'water': Infinity,  // Make water impassable
+            'wetland': Infinity // Make wetland impassable
         };
 
         cost *= terrainCosts[toTile.type] || 1;
@@ -214,6 +217,7 @@ export class PathFinder {
         return true;
     }
 }
+
 
 
 
