@@ -97,36 +97,38 @@ export class PathFinder {
         return null;
     }
 
-    getMovementCost(fromX, fromY, toX, toY) {
-        // Get actual tiles
-        const fromTile = this.world.generateTile(fromX, fromY, 
-            this.world.generateHeight(fromX, fromY),
-            this.world.generateMoisture(fromX, fromY));
-        const toTile = this.world.generateTile(toX, toY,
-            this.world.generateHeight(toX, toY),
-            this.world.generateMoisture(toX, toY));
+    getMovementCost(fromX, fromY, toX, toY, customCosts = null) {
+        const fromTile = this.world.getTileAt(fromX, fromY);
+        const toTile = this.world.getTileAt(toX, toY);
 
-        // If either tile is not walkable, return infinite cost
         if (!this.isWalkable(toX, toY) || !this.isWalkable(fromX, fromY)) {
             return Infinity;
         }
 
-        // Basic cost is 1
+        // Use custom costs if provided (for road building)
+        if (customCosts && customCosts[toTile.type]) {
+            return customCosts[toTile.type];
+        }
+
+        // Default movement costs
         let cost = 1;
 
         // Add height difference penalty
         const heightDiff = Math.abs(fromTile.height - toTile.height);
         cost += heightDiff * 0.5;
 
-        // Add terrain type costs
+        // Standard terrain costs
         const terrainCosts = {
+            'asphalt': 0.8,  // Prefer roads for pathfinding
+            'concrete': 0.9,
+            'sidewalk': 0.9,
             'sand': 1.5,
             'dirt': 1,
             'grass': 1,
             'stone': 1.2
         };
 
-        cost *= (terrainCosts[toTile.type] || 1);
+        cost *= terrainCosts[toTile.type] || 1;
 
         return cost;
     }
@@ -212,6 +214,7 @@ export class PathFinder {
         return true;
     }
 }
+
 
 
 

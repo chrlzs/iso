@@ -2,6 +2,7 @@ import { TileManager } from './TileManager.js';
 import { StructureManager } from './StructureManager.js';
 import { SimplexNoise } from '../../lib/SimplexNoise.js';
 import { StructureRenderer } from '../renderer/StructureRenderer.js';
+import { RoadManager } from './RoadManager.js';
 
 export class World {
     constructor(width, height, options = {}) {
@@ -30,15 +31,18 @@ export class World {
             return (value + 1) * 0.5;
         };
 
-        // Initialize structure manager but don't generate structures yet
+        // Initialize managers in correct order
         this.structureManager = new StructureManager(this);
+        this.roadManager = new RoadManager(this);
         
         // Generate initial chunks around the center
         this.generateInitialChunks();
 
-        // Now generate structures if requested
+        // Now generate structures and roads if requested
         if (options.autoGenerateStructures) {
             this.structureManager.generateRandomStructures(options.structureCount || 5);
+            // Generate roads between structures
+            this.roadManager.generateRoadNetwork();
         }
 
         // Initialize structure renderer
@@ -260,31 +264,6 @@ export class World {
         return null;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
