@@ -36,6 +36,7 @@ export class GameInstance {
             flags: {
                 showPath: false,
                 showGrid: false,
+                showCoordinates: true,  // Set to true by default
                 logTextureLoading: false,
                 logDecorations: true,
                 logZoomChanges: false,
@@ -421,6 +422,9 @@ export class GameInstance {
         // Render world
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);
         
+        // Draw tile coordinates
+        this.drawTileCoordinates();
+        
         // Render all entities
         for (const entity of this.entities) {
             if (entity && entity.render) {
@@ -508,6 +512,11 @@ export class GameInstance {
                     case 'g':
                         if (!this.debug.enabled) return;
                         this.debug.flags.showGrid = !this.debug.flags.showGrid;
+                        break;
+                    case 'c': // Add this case
+                        if (!this.debug.enabled) return;
+                        this.debug.flags.showCoordinates = !this.debug.flags.showCoordinates;
+                        console.log(`Coordinates display: ${this.debug.flags.showCoordinates ? 'enabled' : 'disabled'}`);
                         break;
                 }
             }
@@ -748,7 +757,48 @@ export class GameInstance {
             this.render();
         }
     }
+
+    // Debug method to draw coordinates on tiles
+    drawTileCoordinates() {
+        // Early return if coordinates display is disabled
+        if (!this.debug.flags.showCoordinates) return;
+
+        this.ctx.save();
+        
+        // More visible text styling
+        this.ctx.font = 'bold 12px Arial';
+        this.ctx.fillStyle = 'yellow';
+        this.ctx.strokeStyle = 'black';
+        this.ctx.lineWidth = 2;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+
+        // Use full world dimensions
+        for (let y = 0; y < this.world.height; y++) {
+            for (let x = 0; x < this.world.width; x++) {
+                // Convert world coordinates to screen coordinates
+                const isoX = (x - y) * (this.renderer.tileWidth / 2);
+                const isoY = (x + y) * (this.renderer.tileHeight / 2);
+                
+                const text = `${x},${y}`;
+                
+                // Draw text with outline for better visibility
+                this.ctx.strokeText(text, isoX, isoY);
+                this.ctx.fillText(text, isoX, isoY);
+            }
+        }
+        
+        this.ctx.restore();
+    }
 }
+
+
+
+
+
+
+
+
 
 
 
