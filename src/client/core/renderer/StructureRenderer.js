@@ -217,31 +217,29 @@ export class StructureRenderer {
 
     drawWindows(startX, startY, faceWidth, totalHeight, floors, face) {
         const windowPadding = 8;
-        const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / 48));
-        const windowWidth = (Math.abs(faceWidth) - (windowPadding * (windowsPerFloor + 1))) / windowsPerFloor;
+        // Make window width exactly 50% of a tile width
+        const windowWidth = Math.floor(this.tileWidth * 0.5);
+        const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / this.tileWidth));
         
-        // Adjust window height to ensure all floors fit
-        const availableHeightPerFloor = (totalHeight - this.floorHeight) / (floors - 1); // Subtract ground floor
+        // Adjust available height per floor
+        const availableHeightPerFloor = (totalHeight - this.floorHeight) / (floors - 1);
         const windowHeight = Math.min(
             availableHeightPerFloor - (windowPadding * 2),
-            this.floorHeight - (windowPadding * 3) // Add extra padding for top margin
+            this.floorHeight - (windowPadding * 3)
         );
         
-        // Use tile dimensions (64x32) to calculate correct isometric angle
-        const tileWidth = 64;
-        const tileHeight = 32;
-        const isoSkew = (windowWidth * tileHeight) / tileWidth;
+        // Calculate isometric skew based on tile dimensions
+        const isoSkew = (windowWidth * this.tileHeight) / this.tileWidth;
 
         this.ctx.save();
 
         // Skip ground floor and adjust starting position
         for (let floor = 1; floor < floors; floor++) {
-            // Adjust floor Y position to ensure windows fit within building height
             const floorY = startY - (floor * availableHeightPerFloor) + windowPadding;
             
             for (let w = 0; w < windowsPerFloor; w++) {
                 const windowX = startX + (face === 'left' ? 1 : -1) * 
-                    (windowPadding + (w * (windowWidth + windowPadding)));
+                    (windowPadding + (w * (this.tileWidth)));
                 const windowY = floorY;
 
                 // Draw window frame with depth
@@ -335,31 +333,47 @@ export class StructureRenderer {
 
     drawDoor(startX, startY, faceWidth, structureType) {
         const doorWidth = 16;
-        // Adjust door height based on structure type
         let doorHeight;
-        let yOffset = 0;
 
         switch(structureType) {
             case 'warehouse':
-                doorHeight = this.floorHeight * 1.2; // Taller doors for warehouse
-                yOffset = this.floorHeight * 0.3;    // Move down slightly
-                break;
             case 'factory':
-                doorHeight = this.floorHeight * 1.2; // Make factory doors as tall as warehouse
-                yOffset = this.floorHeight * 0.9;    // Move down more for factory
+                doorHeight = this.floorHeight * 1.2;
                 break;
             default:
-                doorHeight = this.floorHeight * 0.75; // Original height for apartments and offices
-                yOffset = 0;
+                doorHeight = this.floorHeight * 0.75;
         }
 
-        const doorX = startX + (faceWidth - doorWidth) / 2;
-        const doorY = startY + yOffset; // Apply the offset
+        // Calculate door position based on tile grid
+        const tileCenter = {
+            x: Math.round(startX / this.tileWidth) * this.tileWidth,
+            y: Math.round(startY / this.tileHeight) * this.tileHeight
+        };
 
-        // Isometric skew for the door
+        // Calculate window positions for ground floor
+        const windowPadding = 8;
+        const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / 48));
+        const windowWidth = (Math.abs(faceWidth) - (windowPadding * (windowsPerFloor + 1))) / windowsPerFloor;
+
+        // Move forward by 0.5 tiles in isometric space
+        let doorX = tileCenter.x + (this.tileWidth / 4);
+        const doorY = tileCenter.y - (this.tileHeight / 4);
+
+        // Check if door position overlaps with any window position
+        for (let w = 0; w < windowsPerFloor; w++) {
+            const windowX = startX + (windowPadding + (w * (windowWidth + windowPadding)));
+            const windowRight = windowX + windowWidth;
+            
+            // If door overlaps with window, shift door one tile to the right
+            if (doorX >= windowX - doorWidth && doorX <= windowRight + doorWidth) {
+                doorX += this.tileWidth / 2; // Shift right by half a tile width
+                break;
+            }
+        }
+
         const isoSkew = (doorWidth * this.tileHeight) / this.tileWidth;
 
-        // Door frame
+        // Rest of door rendering remains the same
         this.ctx.fillStyle = 'rgba(80, 80, 80, 1)';
         this.ctx.beginPath();
         this.ctx.moveTo(doorX - 2, doorY - 2);
@@ -393,6 +407,18 @@ export class StructureRenderer {
         };
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
