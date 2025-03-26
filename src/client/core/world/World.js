@@ -13,23 +13,74 @@ export class World {
         this.activeChunks = new Set();
         this.maxCacheSize = 1000;
         
-        this.seed = options.seed || Math.random() * 10000;
-        const noise = new SimplexNoise(this.seed);
+        // Handle static map definition if provided
+        this.mapDefinition = options.mapDefinition;
+        this.staticTiles = new Map();
         
+        if (this.mapDefinition) {
+            this.initializeFromMapDefinition();
+        } else {
+            // Original procedural generation
+            this.seed = options.seed || Math.random() * 10000;
+            const noise = new SimplexNoise(this.seed);
+            
+            this.generateHeight = (x, y) => {
+                const value1 = noise.noise2D(x * 0.02, y * 0.02);
+                const value2 = noise.noise2D(x * 0.04, y * 0.04) * 0.5;
+                const value = (value1 + value2) / 1.5;
+                return Math.pow((value + 1) * 0.5, 0.8);
+            };
+            
+            this.generateMoisture = (x, y) => {
+                const value = noise.noise2D(x * 0.02 + 1000, y * 0.02 + 1000);
+                return (value + 1) * 0.5;
+            };
+        }
+
+        // Generate initial chunks
+        this.generateInitialChunks();
+    }
+
+    initializeFromMapDefinition() {
+        // Initialize static tiles from map definition
+        for (const terrain of this.mapDefinition.terrain) {
+            const key = `${terrain.x},${terrain.y}`;
+            this.staticTiles.set(key, {
+                type: terrain.type,
+                height: terrain.height,
+                moisture: terrain.moisture,
+                variant: this.tileManager.getRandomVariant(terrain.type),
+                x: terrain.x,
+                y: terrain.y,
+                id: `tile_${terrain.x}_${terrain.y}`,
+                decoration: this.tileManager.getPersistentDecoration(`tile_${terrain.x}_${terrain.y}`, terrain.type)
+            });
+        }
+
+        // Set up height and moisture generators that respect static tiles
         this.generateHeight = (x, y) => {
+            const key = `${x},${y}`;
+            const staticTile = this.staticTiles.get(key);
+            if (staticTile) return staticTile.height;
+            
+            // Default to procedural generation for non-static tiles
+            const noise = new SimplexNoise(this.mapDefinition.seed);
             const value1 = noise.noise2D(x * 0.02, y * 0.02);
             const value2 = noise.noise2D(x * 0.04, y * 0.04) * 0.5;
             const value = (value1 + value2) / 1.5;
             return Math.pow((value + 1) * 0.5, 0.8);
         };
-        
+
         this.generateMoisture = (x, y) => {
+            const key = `${x},${y}`;
+            const staticTile = this.staticTiles.get(key);
+            if (staticTile) return staticTile.moisture;
+            
+            // Default to procedural generation for non-static tiles
+            const noise = new SimplexNoise(this.mapDefinition.seed);
             const value = noise.noise2D(x * 0.02 + 1000, y * 0.02 + 1000);
             return (value + 1) * 0.5;
         };
-
-        // Generate initial chunks
-        this.generateInitialChunks();
     }
 
     generateInitialChunks() {
@@ -46,6 +97,13 @@ export class World {
 
     generateTile(x, y, height, moisture) {
         const key = `${x},${y}`;
+        
+        // Check static tiles first
+        if (this.staticTiles.has(key)) {
+            return this.staticTiles.get(key);
+        }
+        
+        // Check cache
         if (this.tileCache.has(key)) {
             return this.tileCache.get(key);
         }
@@ -63,6 +121,7 @@ export class World {
             decoration: this.tileManager.getPersistentDecoration(`tile_${x}_${y}`, tileType)
         };
 
+        // Cache management
         if (this.tileCache.size >= this.maxCacheSize) {
             const firstKey = this.tileCache.keys().next().value;
             this.tileCache.delete(firstKey);
@@ -125,6 +184,7 @@ export class World {
         this.tileManager.renderTile(ctx, tile, screenX, screenY);
     }
 }
+
 
 
 

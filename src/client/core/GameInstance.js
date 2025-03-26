@@ -12,6 +12,7 @@ import { MessageSystem } from './ui/MessageSystem.js';
 import { InventoryUI } from './ui/components/InventoryUI.js';
 import { MerchantUI } from './ui/components/MerchantUI.js';
 import { Item } from './inventory/Item.js';
+import { MapDefinition } from './world/MapDefinition.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -41,11 +42,35 @@ export class GameInstance {
             }
         };
 
-        // Initialize game systems without structures
+        // Example of creating a game with a static map
+        const staticMap = new MapDefinition({
+            width: 64,
+            height: 64,
+            seed: 12345,
+            terrain: [
+                { x: 10, y: 10, type: 'water', height: 0.1, moisture: 0.9 },
+                { x: 11, y: 10, type: 'sand', height: 0.2, moisture: 0.3 },
+                // ... more static terrain definitions
+            ],
+            structures: [
+                { x: 15, y: 15, type: 'apartment' },
+                { x: 20, y: 20, type: 'office' },
+                // ... more structure definitions
+            ],
+            zones: [
+                { type: 'commercial', x: 30, y: 30, size: 10 },
+                // ... more zone definitions
+            ],
+            spawnPoints: [
+                { x: 32, y: 32 }
+            ]
+        });
+
+        // Initialize game with static map
         this.world = new World(64, 64, {
-            seed: Math.random() * 10000,
             chunkSize: 16,
-            debug: this.debug
+            debug: this.debug,
+            mapDefinition: staticMap
         });
         
         // Get reference to TileManager from World
@@ -732,6 +757,8 @@ export class GameInstance {
         return null;
     }
 }
+
+
 
 
 
