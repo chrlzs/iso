@@ -12,6 +12,7 @@ import { InventoryUI } from './ui/components/InventoryUI.js';
 import { MerchantUI } from './ui/components/MerchantUI.js';
 import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
+import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 
 export class GameInstance {
     constructor(canvas) {
@@ -591,8 +592,8 @@ export class GameInstance {
     // Add this helper method to convert world coordinates to isometric
     convertToIsometric(x, y) {
         return {
-            x: (x - y) * (this.renderer.tileWidth / 2),
-            y: (x + y) * (this.renderer.tileHeight / 2)
+            x: (x - y) * TILE_WIDTH_HALF,
+            y: (x + y) * TILE_HEIGHT_HALF
         };
     }
 
