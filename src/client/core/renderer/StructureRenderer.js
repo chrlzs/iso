@@ -144,12 +144,12 @@ export class StructureRenderer {
 
         const totalHeight = (structure.template.floors || 1) * this.floorHeight;
         
-        this.drawStructureBox(screenPoints, totalHeight, colors);
+        this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type);
 
         this.ctx.restore();
     }
 
-    drawStructureBox(points, height, colors) {
+    drawStructureBox(points, height, colors, structureType) {
         const floors = Math.floor(height / this.floorHeight);
         
         // Draw front-right face (SE)
@@ -184,6 +184,14 @@ export class StructureRenderer {
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
+
+        // Draw door on front-left face at first floor, with structure-specific adjustments
+        this.drawDoor(
+            points.bottomLeft.x,
+            points.bottomLeft.y + this.floorHeight,
+            points.bottomRight.x - points.bottomLeft.x,
+            structureType  // Pass structure type to drawDoor
+        );
 
         // Add windows to front-left face
         this.drawWindows(
@@ -325,6 +333,59 @@ export class StructureRenderer {
         this.ctx.restore();
     }
 
+    drawDoor(startX, startY, faceWidth, structureType) {
+        const doorWidth = 16;
+        // Adjust door height based on structure type
+        let doorHeight;
+        let yOffset = 0;
+
+        switch(structureType) {
+            case 'warehouse':
+                doorHeight = this.floorHeight * 1.2; // Taller doors for warehouse
+                yOffset = this.floorHeight * 0.3;    // Move down slightly
+                break;
+            case 'factory':
+                doorHeight = this.floorHeight * 1.2; // Make factory doors as tall as warehouse
+                yOffset = this.floorHeight * 0.9;    // Move down more for factory
+                break;
+            default:
+                doorHeight = this.floorHeight * 0.75; // Original height for apartments and offices
+                yOffset = 0;
+        }
+
+        const doorX = startX + (faceWidth - doorWidth) / 2;
+        const doorY = startY + yOffset; // Apply the offset
+
+        // Isometric skew for the door
+        const isoSkew = (doorWidth * this.tileHeight) / this.tileWidth;
+
+        // Door frame
+        this.ctx.fillStyle = 'rgba(80, 80, 80, 1)';
+        this.ctx.beginPath();
+        this.ctx.moveTo(doorX - 2, doorY - 2);
+        this.ctx.lineTo(doorX + doorWidth, doorY + isoSkew - 2);
+        this.ctx.lineTo(doorX + doorWidth, doorY - doorHeight + isoSkew);
+        this.ctx.lineTo(doorX - 2, doorY - doorHeight);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Door panel
+        this.ctx.fillStyle = 'rgba(120, 100, 80, 1)';
+        this.ctx.beginPath();
+        this.ctx.moveTo(doorX, doorY);
+        this.ctx.lineTo(doorX + doorWidth, doorY + isoSkew);
+        this.ctx.lineTo(doorX + doorWidth, doorY - doorHeight + isoSkew);
+        this.ctx.lineTo(doorX, doorY - doorHeight);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Door knob
+        this.ctx.fillStyle = 'rgba(220, 200, 180, 1)';
+        this.ctx.beginPath();
+        this.ctx.arc(doorX + doorWidth * 0.75, doorY - doorHeight / 2 + isoSkew / 2, 3, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+
     worldToScreen(x, y) {
         return {
             x: (x - y) * (this.tileWidth / 2),
@@ -332,6 +393,13 @@ export class StructureRenderer {
         };
     }
 }
+
+
+
+
+
+
+
 
 
 
