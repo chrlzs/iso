@@ -17,6 +17,13 @@ export class StructureRenderer {
         // Convert world coordinates to screen space with offset correction
         const isoX = screenX + (worldX - worldY) * (this.tileWidth / 2);
         const isoY = screenY + (worldX + worldY) * (this.tileHeight / 2);
+
+        // Check if getVerticalOffset exists before calling it
+        if (typeof structure.getVerticalOffset !== 'function') {
+            console.error('Structure object missing getVerticalOffset method:', structure);
+            return; // Exit if the method is missing
+        }
+
         const heightOffset = structure.getVerticalOffset();
 
         // Sort components by depth (back to front)

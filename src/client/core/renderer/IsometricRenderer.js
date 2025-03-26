@@ -1,5 +1,6 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
+import { StructureRenderer } from './StructureRenderer.js'; // Import StructureRenderer
 
 export class IsometricRenderer {
     constructor(canvas, tileManager) {
@@ -13,6 +14,7 @@ export class IsometricRenderer {
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();  // WaterRenderer doesn't need parameters
         this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
+        this.structureRenderer = new StructureRenderer(this.ctx); // Initialize StructureRenderer
     }
 
     // Convert world coordinates to screen coordinates
@@ -76,7 +78,7 @@ export class IsometricRenderer {
         const startX = Math.max(0, Math.floor(camera.x / this.tileWidth - screenTileWidth / 2));
         const startY = Math.max(0, Math.floor(camera.y / this.tileHeight - screenTileHeight / 2));
         const endX = Math.min(world.width, startX + screenTileWidth);
-        const endY = Math.min(world.height, startY + screenTileHeight);
+        const endY = Math.min(world.height, startX + screenTileHeight);
 
         // Render tiles in isometric order
         for (let y = startY; y < endY; y++) {
@@ -87,6 +89,12 @@ export class IsometricRenderer {
                 }
             }
         }
+
+        // Render structures
+        world.structures.forEach(structure => {
+            const screenCoords = this.worldToScreen(structure.x, structure.y);
+            this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
+        });
     }
 
     renderTile(tile, x, y) {

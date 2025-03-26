@@ -164,20 +164,7 @@ export class World {
         }
 
         // Create structure instance
-        const structure = {
-            type: type,
-            x: x,
-            y: y,
-            width: template.width,
-            height: template.height,
-            floors: template.floors,
-            roofType: template.roofType,
-            template: template,
-            states: {
-                doorOpen: false,
-                lightOn: Math.random() > 0.5
-            }
-        };
+        const structure = new Structure(template, x, y, this); // Use the Structure class constructor
 
         // Add to structures map using coordinates as key
         const key = `${x},${y}`;
