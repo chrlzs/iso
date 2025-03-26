@@ -69,9 +69,9 @@ export class IsometricRenderer {
             return;
         }
 
-        // Calculate visible range
-        const screenTileWidth = Math.ceil(this.canvas.width / (this.tileWidth * camera.zoom)) + 2;
-        const screenTileHeight = Math.ceil(this.canvas.height / (this.tileHeight * camera.zoom)) + 4;
+        // Calculate visible range with a larger buffer for big structures
+        const screenTileWidth = Math.ceil(this.canvas.width / (this.tileWidth * camera.zoom)) + 4;  // Increased from 2
+        const screenTileHeight = Math.ceil(this.canvas.height / (this.tileHeight * camera.zoom)) + 6;  // Increased from 4
         
         const startX = Math.max(0, Math.floor(camera.x / this.tileWidth - screenTileWidth / 2));
         const startY = Math.max(0, Math.floor(camera.y / this.tileHeight - screenTileHeight / 2));

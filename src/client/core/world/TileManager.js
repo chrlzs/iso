@@ -4,43 +4,58 @@ export class TileManager {
     constructor(debug) {
         this.logger = new DebugLogger(debug || { enabled: false, flags: {} });
         
-        // Replace direct console.log with logger
-        this.logDebug = (message, flag = null) => {
-            this.logger.log(message, flag);
-        };
-
-        // Initialize texture maps
-        this.textures = new Map();
-        this.textureVariants = new Map();
-        this.decorationTextures = new Map();
-        this.decorationCache = new Map();
-        this.persistentDecorations = new Map();
-        this.decorationBatch = new Map();
-        
-        // Initialize texture loading state
-        this.texturesLoaded = false;
-        this.loadingErrors = new Map();
-
-        // Create temporary canvas for texture generation
+        // Initialize canvas for texture generation
         this.tempCanvas = document.createElement('canvas');
         this.tempCanvas.width = 64;
         this.tempCanvas.height = 64;
         this.tempCtx = this.tempCanvas.getContext('2d');
+        
+        // Initialize textures map
+        this.textures = new Map();
+        this.decorationTextures = new Map();
+        this.persistentDecorations = new Map();
+        this.decorationBatch = new Map();
 
-        // Define possible decorations for each tile type
+        // Define tile variants first
+        this.tileVariants = {
+            'grass': 3,
+            'dirt': 2,
+            'stone': 2,
+            'water': 2,
+            'sand': 2,
+            'forest': 2,
+            'mountain': 2,
+            'wetland': 2,
+            'asphalt': 1,
+            'concrete': 1
+        };
+
+        // Define decorations for each tile type
         this.decorations = {
-            grass: [
+            'grass': [
                 { type: 'dec_flowers', chance: 0.1, offset: { x: 0, y: -8 }, scale: { x: 0.5, y: 0.5 } },
                 { type: 'dec_grassTufts', chance: 0.2, offset: { x: 0, y: -6 }, scale: { x: 0.7, y: 0.7 } }
             ],
-            dirt: [
+            'dirt': [
                 { type: 'dec_rocks', chance: 0.15, offset: { x: 0, y: -4 }, scale: { x: 0.6, y: 0.6 } }
             ],
-            stone: [
+            'stone': [
                 { type: 'dec_rocks', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
+            ],
+            'sand': [
+                { type: 'dec_rocks', chance: 0.05, offset: { x: 0, y: -4 }, scale: { x: 0.4, y: 0.4 } }
+            ],
+            'forest': [
+                { type: 'dec_grassTufts', chance: 0.8, offset: { x: 0, y: -16 }, scale: { x: 1.0, y: 1.0 } }
+            ],
+            'mountain': [
+                { type: 'dec_rocks', chance: 0.6, offset: { x: 0, y: -8 }, scale: { x: 1.0, y: 1.0 } }
+            ],
+            'wetland': [
+                { type: 'dec_grassTufts', chance: 0.4, offset: { x: 0, y: -6 }, scale: { x: 0.8, y: 0.8 } }
             ]
         };
-        
+
         // Add seeded random number generator for consistent decoration placement
         this.decorationSeed = 12345;
 
@@ -52,18 +67,6 @@ export class TileManager {
             'dec_grassTufts'
         ]);
 
-        // Add debug logging for zoom operations
-        this.lastZoomLevel = 1;
-        this.debugZoom = (newZoom) => {
-            if (!this.debug?.enabled || !this.debug?.flags?.logZoomChanges) return;
-            
-            if (newZoom !== this.lastZoomLevel) {
-                this.logDebug(`TileManager: Zoom changed from ${this.lastZoomLevel} to ${newZoom}`, 'logZoomChanges');
-                this.logDebug(`TileManager: Decoration cache size: ${this.persistentDecorations.size}`, 'logZoomChanges');
-                this.lastZoomLevel = newZoom;
-            }
-        };
-
         // Initialize decoration system
         this.decorationSystem = {
             enabled: true,
@@ -71,9 +74,28 @@ export class TileManager {
             updateInterval: 100  // ms between decoration updates
         };
 
-        // Generate all textures immediately
-        this.loadTextures();
-        this.generateAllDecorationTextures();
+        // Initialize tile decorations map
+        this.tileDecorations = {
+            'grass': [
+                { type: 'dec_flowers', chance: 0.2, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } },
+                { type: 'dec_grassTufts', chance: 0.3, offset: { x: 0, y: -4 }, scale: { x: 0.8, y: 0.8 } }
+            ],
+            'forest': [
+                { type: 'dec_rocks', chance: 0.1, offset: { x: 0, y: -6 }, scale: { x: 1.0, y: 1.0 } }
+            ],
+            'mountain': [
+                { type: 'dec_rocks', chance: 0.6, offset: { x: 0, y: -8 }, scale: { x: 1.0, y: 1.0 } }
+            ],
+            'wetland': [
+                { type: 'dec_grassTufts', chance: 0.4, offset: { x: 0, y: -6 }, scale: { x: 0.8, y: 0.8 } }
+            ]
+        };
+    }
+
+    logDebug(message, flag = '') {
+        if (this.logger) {
+            this.logger.log(message, flag);
+        }
     }
 
     generateAllDecorationTextures() {
@@ -401,19 +423,54 @@ export class TileManager {
     }
 
     getRandomVariant(tileType) {
-        const variants = this.textureVariants[tileType];
-        if (!variants) return tileType;
-
-        // Select a random variant once and cache it on the tile
-        const variant = variants[Math.floor(Math.random() * variants.length)];
-        return variant;
+        const variants = this.tileVariants[tileType];
+        if (variants === undefined) {
+            this.logger.log(`No variants defined for tile type: ${tileType}`, 'logTextureErrors');
+            return 0;
+        }
+        return Math.floor(Math.random() * variants);
     }
 
     getRandomDecoration(tileType, tileId) {
-        if (!tileType || !tileId) return null;
+        // Early return for water tiles
+        if (tileType === 'water') {
+            return null;
+        }
+
+        const decorations = this.tileDecorations[tileType];
+        if (!decorations || decorations.length === 0) {
+            return null;
+        }
+
+        // Generate deterministic random value based on tileId
+        const randomValue = this.generateRandomForTile(tileId);
         
-        // Use the persistent decoration system
-        return this.getPersistentDecoration(tileId, tileType);
+        if (this.debug?.flags?.logDecorations) {
+            console.log(`[DEBUG] TileManager: Random value for tile ${tileId}: ${randomValue}`);
+        }
+
+        // Find first decoration whose chance threshold is higher than our random value
+        for (const decoration of decorations) {
+            if (randomValue < decoration.chance) {
+                return { ...decoration };
+            }
+        }
+
+        return null;
+    }
+
+    generateRandomForTile(tileId) {
+        const hash = this.hashTileId(tileId);
+        return (Math.abs(Math.sin(hash)) * 10000) % 1;
+    }
+
+    hashTileId(tileId) {
+        let hash = 0;
+        for (let i = 0; i < tileId.length; i++) {
+            hash = ((hash << 5) - hash) + tileId.charCodeAt(i);
+            hash = hash & hash;
+        }
+        return hash + this.decorationSeed;
     }
 
     getDecorationTexture(decorationType) {
@@ -490,6 +547,11 @@ export class TileManager {
         return variants[type]?.[direction] || `${type}_default`;
     }
 }
+
+
+
+
+
 
 
 

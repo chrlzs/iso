@@ -50,46 +50,46 @@ export class GameInstance {
             seed: 12345,
             terrain: [
                 // Add water tiles in southwest region (around x: 10-15, y: 45-50)
-                { x: 10, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 11, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 12, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 10, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 11, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 12, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 13, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 11, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 12, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
-                { x: 13, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
+                // Increased height values to 0.3 for water tiles
+                { x: 10, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 11, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 12, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 10, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 11, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 12, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 13, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 11, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 12, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 13, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
                 
-                // Add some sand tiles around the water (transition)
-                { x: 13, y: 45, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 14, y: 46, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 14, y: 47, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 13, y: 48, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 12, y: 48, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 10, y: 47, type: 'sand', height: 0.15, moisture: 0.3 },
-                { x: 9, y: 46, type: 'sand', height: 0.15, moisture: 0.3 },
+                // Increased height values for sand tiles to 0.38
+                { x: 13, y: 45, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 14, y: 46, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 14, y: 47, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 13, y: 48, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 12, y: 48, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 10, y: 47, type: 'sand', height: 0.38, moisture: 0.3 },
+                { x: 9, y: 46, type: 'sand', height: 0.38, moisture: 0.3 },
                 
-                // Keep existing terrain definitions
-                { x: 10, y: 10, type: 'water', height: 0.1, moisture: 0.9 },
-                { x: 11, y: 10, type: 'sand', height: 0.2, moisture: 0.3 },
+                // Keep existing terrain definitions with adjusted heights
+                { x: 10, y: 10, type: 'water', height: 0.3, moisture: 0.9 },
+                { x: 11, y: 10, type: 'sand', height: 0.38, moisture: 0.3 },
                 // ... more static terrain definitions
             ],
             structures: [
                 { x: 15, y: 15, type: 'apartment' },
                 { x: 20, y: 20, type: 'office' },
-                // Move warehouse to a more visible location
-                { x: 32, y: 32, type: 'warehouse' },  // Place it in the center for testing
+                { x: 32, y: 32, type: 'warehouse' },
+                { x: 25, y: 35, type: 'factory' },
                 // ... more structure definitions
             ],
             zones: [
                 { type: 'commercial', x: 30, y: 30, size: 10 },
-                // Add an industrial zone for the warehouse
                 { type: 'industrial', x: 40, y: 40, size: 15 },
                 // ... more zone definitions
             ],
             spawnPoints: [
-                { x: 25, y: 25 }  // Move spawn point away from warehouse
+                { x: 25, y: 25 }
             ]
         });
 
@@ -783,6 +783,8 @@ export class GameInstance {
         return null;
     }
 }
+
+
 
 
 

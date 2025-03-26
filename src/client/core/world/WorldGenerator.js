@@ -1,15 +1,40 @@
-generateTile(x, y, height, moisture) {
-    const tileType = this.determineTileType(height, moisture);
-    const variant = this.tileManager.getRandomVariant(tileType);
-    const decoration = this.tileManager.getRandomDecoration(tileType);
+export class WorldGenerator {
+    constructor(tileManager) {
+        this.tileManager = tileManager;
+    }
 
-    return {
-        type: tileType,
-        // Convert height to integer levels (0-3)
-        height: Math.floor(height * 4),
-        variant: variant,
-        decoration: decoration,
-        id: `tile_${x}_${y}`
-    };
+    generateTile(x, y, height, moisture) {
+        let tileType;
+        
+        // Adjusted thresholds for less water
+        if (height < 0.42) {
+            tileType = 'water';
+        } else if (height < 0.45) {
+            tileType = moisture > 0.6 ? 'wetland' : 'sand';
+        } else if (height < 0.8) {
+            if (moisture < 0.2) {
+                tileType = 'dirt';
+            } else if (moisture < 0.6) {
+                tileType = 'grass';
+            } else {
+                tileType = 'forest';
+            }
+        } else {
+            tileType = 'mountain';
+        }
+
+        return {
+            type: tileType,
+            height: height,
+            moisture: moisture,
+            variant: this.tileManager.getRandomVariant(tileType),
+            id: `tile_${x}_${y}`,
+            x: x,
+            y: y
+        };
+    }
 }
+
+
+
 

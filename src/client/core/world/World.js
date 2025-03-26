@@ -1,5 +1,8 @@
+import { MapDefinition } from './MapDefinition.js';
 import { TileManager } from './TileManager.js';
-import { SimplexNoise } from '../../lib/SimplexNoise.js';
+import { Structure } from './Structure.js';
+import { StructureTemplates } from './templates/StructureTemplates.js';
+import { WorldGenerator } from './WorldGenerator.js';
 
 export class World {
     constructor(width, height, options = {}) {
@@ -12,75 +15,67 @@ export class World {
         this.tileCache = new Map();
         this.activeChunks = new Set();
         this.maxCacheSize = 1000;
+        this.structures = new Map();
+        
+        // Initialize noise generators with seed if provided
+        this.seed = options.mapDefinition?.seed || Math.random() * 10000;
+        
+        // Initialize WorldGenerator with TileManager
+        this.worldGenerator = new WorldGenerator(this.tileManager);
+        
+        this.initializeGenerators();
         
         // Handle static map definition if provided
         this.mapDefinition = options.mapDefinition;
         this.staticTiles = new Map();
         
+        // Initialize structure templates from import
+        this.structureTemplates = StructureTemplates;
+        
         if (this.mapDefinition) {
             this.initializeFromMapDefinition();
-        } else {
-            // Original procedural generation
-            this.seed = options.seed || Math.random() * 10000;
-            const noise = new SimplexNoise(this.seed);
-            
-            this.generateHeight = (x, y) => {
-                const value1 = noise.noise2D(x * 0.02, y * 0.02);
-                const value2 = noise.noise2D(x * 0.04, y * 0.04) * 0.5;
-                const value = (value1 + value2) / 1.5;
-                return Math.pow((value + 1) * 0.5, 0.8);
-            };
-            
-            this.generateMoisture = (x, y) => {
-                const value = noise.noise2D(x * 0.02 + 1000, y * 0.02 + 1000);
-                return (value + 1) * 0.5;
-            };
         }
+    }
 
-        // Generate initial chunks
-        this.generateInitialChunks();
+    initializeGenerators() {
+        // Initialize height generation function with better scaling
+        this.generateHeight = (x, y) => {
+            // Adjust the range to produce more land
+            const value = this.noise2D(x / 20, y / 20);
+            // Scale to ensure more values are above water threshold
+            return value * 0.6 + 0.4; // This will give range of 0.4 to 1.0
+        };
+
+        // Initialize moisture generation function
+        this.generateMoisture = (x, y) => {
+            return (this.noise2D((x + 1000) / 30, (y + 1000) / 30) + 1) * 0.5;
+        };
+    }
+
+    // Improved 2D noise function
+    noise2D(x, y) {
+        const X = Math.floor(x) & 255;
+        const Y = Math.floor(y) & 255;
+        const xf = x - Math.floor(x);
+        const yf = y - Math.floor(y);
+        
+        // Better noise calculation
+        const n = ((X + Y * 16) * 1013) ^ this.seed;
+        const value = (((n * n * n * 60493) / 0x7fffffff) % 2147483648) / 2147483648;
+        
+        return value;
     }
 
     initializeFromMapDefinition() {
-        // Initialize static tiles from map definition
-        for (const terrain of this.mapDefinition.terrain) {
-            const key = `${terrain.x},${terrain.y}`;
-            this.staticTiles.set(key, {
-                type: terrain.type,
-                height: terrain.height,
-                moisture: terrain.moisture,
-                variant: this.tileManager.getRandomVariant(terrain.type),
-                x: terrain.x,
-                y: terrain.y,
-                id: `tile_${terrain.x}_${terrain.y}`,
-                decoration: this.tileManager.getPersistentDecoration(`tile_${terrain.x}_${terrain.y}`, terrain.type)
-            });
-        }
+        if (!this.mapDefinition?.structures) return;
 
-        // Set up height and moisture generators that respect static tiles
-        this.generateHeight = (x, y) => {
-            const key = `${x},${y}`;
-            const staticTile = this.staticTiles.get(key);
-            if (staticTile) return staticTile.height;
-            
-            // Default to procedural generation for non-static tiles
-            const noise = new SimplexNoise(this.mapDefinition.seed);
-            const value1 = noise.noise2D(x * 0.02, y * 0.02);
-            const value2 = noise.noise2D(x * 0.04, y * 0.04) * 0.5;
-            const value = (value1 + value2) / 1.5;
-            return Math.pow((value + 1) * 0.5, 0.8);
-        };
-
-        this.generateMoisture = (x, y) => {
-            const key = `${x},${y}`;
-            const staticTile = this.staticTiles.get(key);
-            if (staticTile) return staticTile.moisture;
-            
-            // Default to procedural generation for non-static tiles
-            const noise = new SimplexNoise(this.mapDefinition.seed);
-            const value = noise.noise2D(x * 0.02 + 1000, y * 0.02 + 1000);
-            return (value + 1) * 0.5;
-        };
+        console.log('World: Processing structures:', this.mapDefinition.structures);
+        
+        this.mapDefinition.structures.forEach(structureDef => {
+            const { type, x, y } = structureDef;
+            console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`);
+            this.createStructure(type, x, y);
+        });
     }
 
     generateInitialChunks() {
@@ -96,56 +91,21 @@ export class World {
     }
 
     generateTile(x, y, height, moisture) {
-        const key = `${x},${y}`;
-        
-        // Check static tiles first
-        if (this.staticTiles.has(key)) {
-            return this.staticTiles.get(key);
-        }
-        
-        // Check cache
-        if (this.tileCache.has(key)) {
-            return this.tileCache.get(key);
-        }
-
-        const tileType = this.tileManager.determineTileType(height, moisture);
-        
-        const tile = {
-            type: tileType,
-            variant: this.tileManager.getRandomVariant(tileType),
-            height: Math.floor(height * 4),
-            moisture,
-            x,
-            y,
-            id: `tile_${x}_${y}`,
-            decoration: this.tileManager.getPersistentDecoration(`tile_${x}_${y}`, tileType)
-        };
-
-        // Cache management
-        if (this.tileCache.size >= this.maxCacheSize) {
-            const firstKey = this.tileCache.keys().next().value;
-            this.tileCache.delete(firstKey);
-        }
-
-        this.tileCache.set(key, tile);
-        return tile;
+        // Delegate tile generation to WorldGenerator
+        return this.worldGenerator.generateTile(x, y, height, moisture);
     }
 
     getTileAt(x, y) {
-        const chunkX = Math.floor(x / this.chunkSize);
-        const chunkY = Math.floor(y / this.chunkSize);
-        const chunk = this.chunks.get(`${chunkX},${chunkY}`);
-        
-        let tile;
-        if (chunk) {
-            const localX = x % this.chunkSize;
-            const localY = y % this.chunkSize;
-            tile = chunk[localY * this.chunkSize + localX];
-        } else {
-            tile = this.generateTile(x, y, this.generateHeight(x, y), this.generateMoisture(x, y));
+        // First check if there's a static tile defined
+        const staticKey = `${x},${y}`;
+        if (this.staticTiles.has(staticKey)) {
+            return this.staticTiles.get(staticKey);
         }
-        
-        return tile;
+
+        // If no static tile, generate one
+        const height = this.generateHeight(x, y);
+        const moisture = this.generateMoisture(x, y);
+        return this.generateTile(x, y, height, moisture);
     }
 
     updateActiveChunks(centerX, centerY, radius) {
@@ -160,6 +120,13 @@ export class World {
     }
 
     generateChunk(chunkX, chunkY) {
+        // Add basic height generation if missing
+        if (!this.generateHeight) {
+            this.generateHeight = (x, y) => {
+                return 0.5; // Default height if no generation function exists
+            };
+        }
+        
         const chunk = new Array(this.chunkSize * this.chunkSize);
         for (let y = 0; y < this.chunkSize; y++) {
             for (let x = 0; x < this.chunkSize; x++) {
@@ -182,6 +149,45 @@ export class World {
         const heightOffset = tile.height * 4;
         screenY -= heightOffset;
         this.tileManager.renderTile(ctx, tile, screenX, screenY);
+    }
+
+    createStructure(type, x, y) {
+        if (!type || typeof type !== 'string') {
+            console.warn('World: Invalid structure type:', type);
+            return null;
+        }
+
+        const template = this.structureTemplates[type];
+        if (!template) {
+            console.warn('World: No template found for structure type:', type);
+            return null;
+        }
+
+        // Create structure instance
+        const structure = {
+            type: type,
+            x: x,
+            y: y,
+            width: template.width,
+            height: template.height,
+            floors: template.floors,
+            roofType: template.roofType,
+            template: template,
+            states: {
+                doorOpen: false,
+                lightOn: Math.random() > 0.5
+            }
+        };
+
+        // Add to structures map using coordinates as key
+        const key = `${x},${y}`;
+        this.structures.set(key, structure);
+        
+        if (this.debug?.flags?.logStructures) {
+            console.log(`World: Created structure: ${type} at (${x}, ${y})`);
+        }
+
+        return structure;
     }
 }
 

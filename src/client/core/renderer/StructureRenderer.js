@@ -15,10 +15,19 @@ export class StructureRenderer {
         const heightOffset = structure.getVerticalOffset();
         screenY -= heightOffset;
 
-        // Render structure components in correct order (back to front, bottom to top)
-        this.renderWalls(structure, blueprint, screenX, screenY);
-        this.renderDecorations(structure, screenX, screenY);
-        this.renderRoof(structure, screenX, screenY - (structure.floors * this.tileHeight));
+        // Adjust scale for larger structures
+        const scaleX = Math.max(1, structure.width / 4);  // Base scale on structure width
+        const scaleY = Math.max(1, structure.height / 4); // Base scale on structure height
+
+        this.ctx.save();
+        this.ctx.scale(scaleX, scaleY);
+
+        // Render structure components in correct order
+        this.renderWalls(structure, blueprint, screenX / scaleX, screenY / scaleY);
+        this.renderDecorations(structure, screenX / scaleX, screenY / scaleY);
+        this.renderRoof(structure, screenX / scaleX, (screenY - (structure.floors * this.tileHeight)) / scaleY);
+
+        this.ctx.restore();
     }
 
     renderWalls(structure, blueprint, screenX, screenY) {
