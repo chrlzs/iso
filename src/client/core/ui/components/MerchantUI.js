@@ -7,6 +7,13 @@ export class MerchantUI {
         this.createElements();
     }
 
+    // Add render method for canvas-based UI elements
+    render(ctx) {
+        // We don't need to render anything on canvas for this UI
+        // since it's DOM-based, but we need the method to avoid warnings
+        return;
+    }
+
     createElements() {
         console.log('Creating merchant UI elements');
         this.container = document.createElement('div');
@@ -258,6 +265,7 @@ export class MerchantUI {
         return html;
     }
 }
+
 
 
 

@@ -475,15 +475,6 @@ export class GameInstance {
         for (const entity of this.entities) {
             if (entity && entity.render) {
                 entity.render(this.ctx, this.renderer);
-                
-                // Debug: Draw entity position
-                if (this.debug.enabled) {
-                    const isoPos = this.convertToIsometric(entity.x, entity.y);
-                    this.ctx.fillStyle = 'red';
-                    this.ctx.beginPath();
-                    this.ctx.arc(isoPos.x, isoPos.y, 5, 0, Math.PI * 2);
-                    this.ctx.fill();
-                }
             }
         }
 
@@ -493,6 +484,14 @@ export class GameInstance {
         }
 
         this.ctx.restore();
+
+        // Render UI with a fresh context state
+        if (this.uiManager) {
+            //console.log('Rendering UI...');
+            this.uiManager.render(this.ctx);
+        } else {
+            console.warn('UIManager not initialized');
+        }
     }
 
     drawDebugGrid() {
@@ -757,6 +756,9 @@ export class GameInstance {
         return null;
     }
 }
+
+
+
 
 
 

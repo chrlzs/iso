@@ -9,44 +9,55 @@ export class UIManager {
         this.game = game;
         this.components = new Map();
         this.activeWindows = new Set();
+        this.canvasComponents = new Set(['statusBar', 'minimap', 'messageLog']); // Components that need canvas rendering
         
-        // Initialize UI components
         this.initializeComponents();
-        
-        // Handle UI events
         this.setupEventListeners();
     }
 
     initializeComponents() {
-        // Core UI components
-        this.components.set('statusBar', new StatusBar({
-            position: { x: 10, y: 10 },
-            width: 200,
-            height: 60,
-            game: this.game
-        }));
+        // Ensure game.world exists before initializing components
+        if (!this.game || !this.game.world) {
+            console.error('Game or world not initialized when creating UI components');
+            return;
+        }
 
-        this.components.set('minimap', new Minimap({
-            position: { x: window.innerWidth - 210, y: window.innerHeight - 210 },
-            size: 200,
-            game: this.game
-        }));
+        // Core UI components with error checking
+        try {
+            this.components.set('statusBar', new StatusBar({
+                position: { x: 10, y: 10 },
+                width: 200,
+                height: 60,
+                game: this.game
+            }));
 
-        this.components.set('messageLog', new MessageLog({
-            position: { x: 10, y: window.innerHeight - 110 },
-            width: 300,
-            height: 100,
-            game: this.game
-        }));
+            this.components.set('minimap', new Minimap({
+                position: { x: window.innerWidth - 210, y: window.innerHeight - 210 },
+                size: 200,
+                game: this.game
+            }));
 
-        this.components.set('mainMenu', new MainMenu({
-            position: { x: window.innerWidth - 50, y: 10 },
-            game: this.game
-        }));
+            this.components.set('messageLog', new MessageLog({
+                position: { x: 10, y: window.innerHeight - 110 },
+                width: 300,
+                height: 100,
+                game: this.game
+            }));
 
-        this.components.set('merchantUI', new MerchantUI({
-            game: this.game
-        }));
+            this.components.set('mainMenu', new MainMenu({
+                position: { x: window.innerWidth - 50, y: 10 },
+                game: this.game
+            }));
+
+            this.components.set('merchantUI', new MerchantUI({
+                game: this.game
+            }));
+
+            console.log('UI Components initialized:', 
+                Array.from(this.components.keys()).join(', '));
+        } catch (error) {
+            console.error('Error initializing UI components:', error);
+        }
     }
 
     setupEventListeners() {
@@ -114,21 +125,35 @@ export class UIManager {
     }
 
     update(deltaTime) {
-        this.components.forEach(component => {
+        this.components.forEach((component, key) => {
             if (component && typeof component.update === 'function') {
-                component.update(deltaTime);
+                try {
+                    component.update(deltaTime);
+                } catch (error) {
+                    console.error(`Error updating UI component ${key}:`, error);
+                }
             }
         });
     }
 
     render(ctx) {
+        if (!ctx) {
+            console.error('No context provided for UI rendering');
+            return;
+        }
+
         ctx.save();
-        // Reset transform for UI rendering in screen space
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         
-        this.components.forEach(component => {
-            if (component && typeof component.render === 'function') {
-                component.render(ctx);
+        this.components.forEach((component, key) => {
+            // Only render canvas-based components
+            if (this.canvasComponents.has(key) && component && typeof component.render === 'function') {
+                try {
+                    component.render(ctx);
+                    //console.log(`Successfully rendered ${key}`);
+                } catch (error) {
+                    console.error(`Error rendering UI component ${key}:`, error);
+                }
             }
         });
         
@@ -201,6 +226,9 @@ export class UIManager {
         });
     }
 }
+
+
+
 
 
 

@@ -4,13 +4,12 @@ export class InventoryUI {
     constructor(config) {
         this.game = config.game;
         this.isVisible = false;
-        this.selectedSlot = null;
-        this.draggedItem = null;
-        this.hoveredSlot = null;
-        
-        // Create DOM elements
-        this.createElements();
-        this.setupEventListeners();
+    }
+
+    render(ctx) {
+        // We don't need to render anything on canvas for this UI
+        // since it's DOM-based, but we need the method to avoid warnings
+        return;
     }
 
     createElements() {
@@ -287,6 +286,7 @@ export class InventoryUI {
         }
     }
 }
+
 
 
 
