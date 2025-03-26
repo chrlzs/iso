@@ -68,17 +68,9 @@ export class IsometricRenderer {
             return;
         }
 
-        const screenTileWidth = Math.ceil(this.canvas.width / (this.tileWidth * camera.zoom)) + 4;
-        const screenTileHeight = Math.ceil(this.canvas.height / (this.tileHeight * camera.zoom)) + 6;
-        
-        const startX = Math.max(0, Math.floor(camera.x / this.tileWidth - screenTileWidth / 2));
-        const startY = Math.max(0, Math.floor(camera.y / this.tileHeight - screenTileHeight / 2));
-        const endX = Math.min(world.width, startX + screenTileWidth);
-        const endY = Math.min(world.height, startX + screenTileHeight);
-
-        // Render tiles in isometric order
-        for (let y = startY; y < endY; y++) {
-            for (let x = startX; x < endX; x++) {
+        // Render all tiles in the world
+        for (let y = 0; y < world.height; y++) {
+            for (let x = 0; x < world.width; x++) {
                 const tile = world.getTileAt(x, y);
                 if (tile) {
                     this.renderTile(tile, x, y);
