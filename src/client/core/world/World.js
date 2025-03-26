@@ -288,7 +288,17 @@ export class World {
             this.onTileChanged?.(x, y);
         }
     }
+
+    getStructureAt(x, y) {
+        const key = `${x},${y}`;
+        return this.structures.get(key) || null;
+    }
+
+    getAllStructures() {
+        return Array.from(this.structures.values());
+    }
 }
+
 
 
 

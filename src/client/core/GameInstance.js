@@ -431,6 +431,38 @@ export class GameInstance {
             }
         });
 
+        // Find the structure at player's position
+        let playerX = Math.floor(this.player.x);
+        let playerY = Math.floor(this.player.y);
+        
+        // Check each structure to see if player is inside
+        let playerStructure = null;
+        this.world.getAllStructures().forEach(structure => {
+            if (playerX >= structure.x && 
+                playerX < structure.x + structure.width &&
+                playerY >= structure.y && 
+                playerY < structure.y + structure.height) {
+                playerStructure = structure;
+            }
+        });
+
+        // Update structure visibility
+        this.world.getAllStructures().forEach(structure => {
+            if (structure === playerStructure) {
+                structure.updateVisibility(this.player.x, this.player.y);
+            } else {
+                // Reset visibility for structures the player isn't in
+                structure.visibility = {
+                    frontLeftWall: true,
+                    frontRightWall: true,
+                    backLeftWall: true,
+                    backRightWall: true,
+                    roof: true,
+                    floor: true
+                };
+            }
+        });
+
         // Update UI
         this.uiManager.update(deltaTime);
     }
@@ -828,6 +860,8 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
+
 
 
 

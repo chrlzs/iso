@@ -60,6 +60,16 @@ export class Structure {
         
         // Calculate height offset based on floors
         this.heightOffset = (this.floors - 1) * 32; // 32 pixels per floor
+
+        // Add visibility states
+        this.visibility = {
+            frontLeftWall: true,
+            frontRightWall: true,
+            backLeftWall: true,
+            backRightWall: true,
+            roof: true,
+            floor: true
+        };
     }
 
     isDecorativeComponent(type) {
@@ -146,7 +156,28 @@ export class Structure {
             console.warn(`Structure ${this.id} rendered multiple times!`);
         }
     }
+
+    // Add method to update visibility based on entity position
+    updateVisibility(entityX, entityY) {
+        // Check if entity is inside the structure's bounds
+        const isInside = (
+            entityX >= this.x && 
+            entityX < this.x + this.width &&
+            entityY >= this.y && 
+            entityY < this.y + this.height
+        );
+
+        this.visibility = {
+            frontLeftWall: !isInside,
+            frontRightWall: !isInside,
+            backLeftWall: true,
+            backRightWall: true,
+            roof: !isInside,
+            floor: true
+        };
+    }
 }
+
 
 
 

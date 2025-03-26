@@ -144,67 +144,80 @@ export class StructureRenderer {
 
         const totalHeight = (structure.template.floors || 1) * this.floorHeight;
         
-        this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type);
+        this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
 
         this.ctx.restore();
     }
 
-    drawStructureBox(points, height, colors, structureType) {
+    drawStructureBox(points, height, colors, structureType, structure) {
         const floors = Math.floor(height / this.floorHeight);
         
-        // Draw front-right face (SE)
-        this.ctx.fillStyle = colors.frontRight;
+        // Draw back walls first (always visible)
+        if (structure.visibility.backRightWall) {
+            // Draw back-right wall
+            this.drawWall(points.topRight, points.topLeft, height, colors.frontRight, 'right');
+        }
+        
+        if (structure.visibility.backLeftWall) {
+            // Draw back-left wall
+            this.drawWall(points.topLeft, points.bottomLeft, height, colors.frontLeft, 'left');
+        }
+
+        // Draw floor
+        if (structure.visibility.floor) {
+            this.drawFloor(points, colors.top);
+        }
+
+        // Draw front walls only if visible
+        if (structure.visibility.frontRightWall) {
+            // Draw front-right face (SE)
+            this.drawWall(points.bottomRight, points.topRight, height, colors.frontRight, 'right');
+            this.drawWindows(points.topRight.x, points.topRight.y, 
+                points.bottomRight.x - points.topRight.x, height, floors, 'right');
+        }
+
+        if (structure.visibility.frontLeftWall) {
+            // Draw front-left face (SW)
+            this.drawWall(points.bottomRight, points.bottomLeft, height, colors.frontLeft, 'left');
+            this.drawWindows(points.bottomLeft.x, points.bottomLeft.y,
+                points.bottomRight.x - points.bottomLeft.x, height, floors, 'left');
+            this.drawDoor(points.bottomLeft.x, points.bottomLeft.y + this.floorHeight,
+                points.bottomRight.x - points.bottomLeft.x, structureType);
+        }
+
+        // Draw roof only if visible
+        if (structure.visibility.roof) {
+            this.drawRoof(points, height, colors.top);
+        }
+    }
+
+    drawWall(start, end, height, color, face) {
+        this.ctx.fillStyle = color;
         this.ctx.beginPath();
-        this.ctx.moveTo(points.bottomRight.x, points.bottomRight.y);
-        this.ctx.lineTo(points.topRight.x, points.topRight.y);
-        this.ctx.lineTo(points.topRight.x, points.topRight.y - height);
-        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
+        this.ctx.moveTo(start.x, start.y);
+        this.ctx.lineTo(end.x, end.y);
+        this.ctx.lineTo(end.x, end.y - height);
+        this.ctx.lineTo(start.x, start.y - height);
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
         this.ctx.stroke();
+    }
 
-        // Add windows to front-right face
-        this.drawWindows(
-            points.topRight.x,
-            points.topRight.y,
-            points.bottomRight.x - points.topRight.x,
-            height,
-            floors,
-            'right'
-        );
-
-        // Draw front-left face (SW)
-        this.ctx.fillStyle = colors.frontLeft;
+    drawFloor(points, color) {
+        this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.moveTo(points.bottomRight.x, points.bottomRight.y);
+        this.ctx.lineTo(points.topRight.x, points.topRight.y);
+        this.ctx.lineTo(points.topLeft.x, points.topLeft.y);
         this.ctx.lineTo(points.bottomLeft.x, points.bottomLeft.y);
-        this.ctx.lineTo(points.bottomLeft.x, points.bottomLeft.y - height);
-        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
+    }
 
-        // Draw door on front-left face at first floor, with structure-specific adjustments
-        this.drawDoor(
-            points.bottomLeft.x,
-            points.bottomLeft.y + this.floorHeight,
-            points.bottomRight.x - points.bottomLeft.x,
-            structureType  // Pass structure type to drawDoor
-        );
-
-        // Add windows to front-left face
-        this.drawWindows(
-            points.bottomLeft.x,
-            points.bottomLeft.y,
-            points.bottomRight.x - points.bottomLeft.x,
-            height,
-            floors,
-            'left'
-        );
-
-        // Draw top face
-        this.ctx.fillStyle = colors.top;
+    drawRoof(points, height, color) {
+        this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.moveTo(points.bottomRight.x, points.bottomRight.y - height);
         this.ctx.lineTo(points.topRight.x, points.topRight.y - height);
@@ -407,6 +420,8 @@ export class StructureRenderer {
         };
     }
 }
+
+
 
 
 
