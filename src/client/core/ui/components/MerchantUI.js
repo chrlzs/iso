@@ -5,21 +5,13 @@ export class MerchantUI {
         this.isVisible = false;
         
         this.createElements();
-    }
-
-    // Add render method for canvas-based UI elements
-    render(ctx) {
-        // We don't need to render anything on canvas for this UI
-        // since it's DOM-based, but we need the method to avoid warnings
-        return;
+        this.setupEventListeners();
     }
 
     createElements() {
-        console.log('Creating merchant UI elements');
+        // Main container
         this.container = document.createElement('div');
         this.container.className = 'merchant-ui';
-        
-        // Force initial positioning
         this.container.style.cssText = `
             position: fixed;
             top: 50vh;
@@ -27,26 +19,102 @@ export class MerchantUI {
             transform: translate(-50%, -50%);
             display: none;
             z-index: 100000;
+            background: #1a1a1a;
+            border: 4px solid #00f2ff;
+            width: 800px;
+            height: 600px;
+            padding: 20px;
         `;
 
-        // Merchant inventory
+        // Create merchant inventory section
         this.merchantInventory = document.createElement('div');
         this.merchantInventory.className = 'merchant-inventory';
+        this.container.appendChild(this.merchantInventory);
 
-        // Player inventory
+        // Create player inventory section
         this.playerInventory = document.createElement('div');
         this.playerInventory.className = 'player-inventory';
-
-        // Gold display
-        this.goldDisplay = document.createElement('div');
-        this.goldDisplay.className = 'merchant-gold-display';
-
-        this.container.appendChild(this.merchantInventory);
         this.container.appendChild(this.playerInventory);
+
+        // Create gold display section
+        this.goldDisplay = document.createElement('div');
+        this.goldDisplay.className = 'gold-display';
+        this.goldDisplay.style.cssText = `
+            margin-top: 20px;
+            padding: 10px;
+            background: #333;
+        `;
         this.container.appendChild(this.goldDisplay);
 
-        // Append to document.body
+        // Add close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            cursor: pointer;
+        `;
+        closeButton.onclick = () => this.hide();
+        this.container.appendChild(closeButton);
+
+        // Add to document body
         document.body.appendChild(this.container);
+
+        // Add CSS styles for slots
+        const style = document.createElement('style');
+        style.textContent = `
+            .merchant-slot, .player-slot {
+                width: 64px;
+                height: 64px;
+                border: 2px solid #666;
+                margin: 4px;
+                display: inline-block;
+                position: relative;
+                background: #2a2a2a;
+                cursor: pointer;
+            }
+            .merchant-slot img, .player-slot img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+            .merchant-slot.empty, .player-slot.empty {
+                background: #222;
+            }
+            .item-price {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(0,0,0,0.7);
+                color: #00f2ff;
+                font-size: 12px;
+                padding: 2px;
+                text-align: center;
+            }
+            .item-quantity {
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                background: rgba(0,0,0,0.7);
+                color: white;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-size: 12px;
+            }
+            .merchant-slots, .player-slots {
+                display: grid;
+                grid-template-columns: repeat(8, 1fr);
+                gap: 4px;
+                padding: 10px;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     setupEventListeners() {
@@ -215,7 +283,10 @@ export class MerchantUI {
 
     renderMerchantSlots() {
         let html = '';
-        for (let i = 0; i < this.merchant.inventory.maxSlots; i++) {
+        // Limit to 24 slots (3 rows of 8) for merchant inventory
+        const maxVisibleSlots = 24;
+        
+        for (let i = 0; i < Math.min(maxVisibleSlots, this.merchant.inventory.maxSlots); i++) {
             const item = this.merchant.inventory.getSlot(i);
             if (item) {
                 const price = this.merchant.getSellPrice(item);
@@ -265,6 +336,9 @@ export class MerchantUI {
         return html;
     }
 }
+
+
+
 
 
 

@@ -10,6 +10,7 @@ export class StructureManager {
     }
 
     createStructure(type, x, y) {
+        console.log(`Attempting to create structure: ${type} at ${x},${y}`);
         const template = this.templates.get(type);
         if (!template) {
             console.warn(`No template found for structure type: ${type}`);
@@ -24,15 +25,15 @@ export class StructureManager {
         );
 
         if (!location) {
-            if (this.world.debug?.flags?.logStructures) {
-                console.log(`Failed to find suitable location for ${type} near ${x},${y}`);
-            }
+            console.warn(`Failed to find suitable location for ${type} near ${x},${y}`);
             return null;
         }
 
         const structureId = `structure_${this.structureIdCounter++}`;
         const structure = new Structure(template, location.x, location.y, this.world);
         structure.id = structureId;
+        
+        console.log(`Successfully created structure: ${type} (${structureId}) at ${location.x},${location.y}`);
         
         this.structures.set(structureId, structure);
         this.occupyTiles(structure);
@@ -314,6 +315,8 @@ export class StructureManager {
         return null;
     }
 }
+
+
 
 
 

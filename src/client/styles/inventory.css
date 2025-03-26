@@ -7,15 +7,34 @@
     border: 2px solid #666;
     border-radius: 8px;
     padding: 20px;
-    display: flex;
+    display: none; /* Changed from flex to none - will be controlled by JS */
     gap: 20px;
     color: white;
     z-index: 1000;
+    min-width: 800px;
+}
+
+.inventory-container {
+    display: flex;
+    gap: 20px;
 }
 
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+}
+
+.equipment-slots {
+    display: grid;
+    grid-template-areas:
+        ". head ."
+        "mainHand body offHand"
+        ". legs ."
+        ". feet .";
     gap: 4px;
     padding: 10px;
     background: rgba(0, 0, 0, 0.5);
@@ -31,6 +50,13 @@
     position: relative;
     cursor: pointer;
     transition: background 0.2s;
+}
+
+.stats-display {
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    min-width: 150px;
 }
 
 .inventory-slot:hover, .equipment-slot:hover {
@@ -54,32 +80,12 @@
     font-size: 12px;
 }
 
-.equipment-slots {
-    display: grid;
-    grid-template-areas:
-        ". head ."
-        "mainHand body offHand"
-        ". legs ."
-        ". feet .";
-    gap: 4px;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-}
-
 .equipment-slot.head { grid-area: head; }
 .equipment-slot.body { grid-area: body; }
 .equipment-slot.legs { grid-area: legs; }
 .equipment-slot.feet { grid-area: feet; }
 .equipment-slot.mainHand { grid-area: mainHand; }
 .equipment-slot.offHand { grid-area: offHand; }
-
-.stats-display {
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-    min-width: 150px;
-}
 
 .gold-display {
     position: absolute;
@@ -160,3 +166,4 @@
     border: 1px solid #fff;
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
+

@@ -4,42 +4,85 @@ export class InventoryUI {
     constructor(config) {
         this.game = config.game;
         this.isVisible = false;
+        this.createElements();
+        this.setupEventListeners();
     }
 
-    render(ctx) {
-        // We don't need to render anything on canvas for this UI
-        // since it's DOM-based, but we need the method to avoid warnings
+    // Add empty render method for DOM-based UI
+    render() {
+        // DOM-based component, no canvas rendering needed
         return;
+    }
+
+    // Add update method for consistency
+    update(deltaTime) {
+        // Update any dynamic content if needed
+        if (this.isVisible) {
+            // Optional: Update any real-time elements
+        }
     }
 
     createElements() {
         // Main container
         this.container = document.createElement('div');
         this.container.className = 'inventory-ui';
-        this.container.style.display = 'none';
-
-        // Create inventory grid
-        this.inventoryGrid = document.createElement('div');
-        this.inventoryGrid.className = 'inventory-grid';
-
-        // Create equipment slots
+        
+        // Create flex container for the three columns
+        this.inventoryContainer = document.createElement('div');
+        this.inventoryContainer.className = 'inventory-container';
+        
+        // Equipment slots (left column)
         this.equipmentSlots = document.createElement('div');
         this.equipmentSlots.className = 'equipment-slots';
-
-        // Create stats display
+        
+        // Create equipment slot positions
+        const slots = ['head', 'mainHand', 'body', 'offHand', 'legs', 'feet'];
+        slots.forEach(slotName => {
+            const slot = document.createElement('div');
+            slot.className = `equipment-slot ${slotName}`;
+            slot.dataset.slot = slotName;
+            slot.dataset.type = 'equipment';
+            slot.draggable = true;
+            this.equipmentSlots.appendChild(slot);
+        });
+        
+        // Inventory grid (middle column)
+        this.inventoryGrid = document.createElement('div');
+        this.inventoryGrid.className = 'inventory-grid';
+        
+        // Stats display (right column)
         this.statsDisplay = document.createElement('div');
         this.statsDisplay.className = 'stats-display';
-
-        // Create gold display
+        
+        // Gold display
         this.goldDisplay = document.createElement('div');
         this.goldDisplay.className = 'gold-display';
-
-        // Add all elements to container
-        this.container.appendChild(this.equipmentSlots);
-        this.container.appendChild(this.inventoryGrid);
-        this.container.appendChild(this.statsDisplay);
+        
+        // Assemble the UI
+        this.inventoryContainer.appendChild(this.equipmentSlots);
+        this.inventoryContainer.appendChild(this.inventoryGrid);
+        this.inventoryContainer.appendChild(this.statsDisplay);
+        
+        this.container.appendChild(this.inventoryContainer);
         this.container.appendChild(this.goldDisplay);
-
+        
+        // Add close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = '×';
+        closeButton.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+        `;
+        closeButton.onclick = () => this.hide();
+        this.container.appendChild(closeButton);
+        
         document.body.appendChild(this.container);
     }
 
@@ -182,6 +225,8 @@ export class InventoryUI {
     }
 
     refresh() {
+        if (!this.isVisible) return;
+
         const inventory = this.game.player.inventory;
         const equipment = this.game.player.equipment;
 
@@ -202,28 +247,20 @@ export class InventoryUI {
                         `<span class="item-quantity">${item.quantity}</span>` : ''}
                 `;
             }
-
             this.inventoryGrid.appendChild(slot);
         }
 
         // Update equipment slots
-        this.equipmentSlots.innerHTML = '';
-        Object.entries(equipment).forEach(([slot, item]) => {
-            const slotElement = document.createElement('div');
-            slotElement.className = `equipment-slot ${slot}`;
-            slotElement.dataset.slot = slot;
-            slotElement.dataset.type = 'equipment';
-            slotElement.draggable = true;
-
-            if (item) {
-                slotElement.innerHTML = `<img src="${item.icon}" alt="${item.name}">`;
+        Object.entries(equipment).forEach(([slotName, item]) => {
+            const slotElement = this.equipmentSlots.querySelector(`.equipment-slot.${slotName}`);
+            if (slotElement) {
+                slotElement.innerHTML = item ? `<img src="${item.icon}" alt="${item.name}">` : '';
             }
-
-            this.equipmentSlots.appendChild(slotElement);
         });
 
         // Update stats
         this.statsDisplay.innerHTML = `
+            <h3>Stats</h3>
             <div>Defense: ${this.game.player.defense || 0}</div>
             <div>Damage: ${this.game.player.damage || 0}</div>
             <div>Weight: ${inventory.weight}/${inventory.maxWeight} kg</div>
@@ -236,10 +273,8 @@ export class InventoryUI {
     updateGoldDisplay() {
         const ethAmount = this.game.player.inventory.eth || 0;
         this.goldDisplay.innerHTML = `
-            <div class="eth">
-                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBQMkmBk1AGjDhh1wKgDRh0w6oBRB4w6YNQBow4YdcCoA0YdMOqAUQeMOmAQOAAAQu8F/Q7yucQAAAAASUVORK5CYII=" alt="ETH">
-                ${ethAmount}
-            </div>
+            <img src="assets/icons/eth.png" alt="ETH">
+            <span>${ethAmount.toFixed(2)} ETH</span>
         `;
     }
 
@@ -267,7 +302,7 @@ export class InventoryUI {
 
     show() {
         this.isVisible = true;
-        this.container.style.display = 'flex';
+        this.container.style.display = 'block';
         this.refresh();
         this.game.uiManager.activeWindows.add('inventoryUI');
     }
@@ -286,6 +321,8 @@ export class InventoryUI {
         }
     }
 }
+
+
 
 
 

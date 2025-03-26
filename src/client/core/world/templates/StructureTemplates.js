@@ -72,5 +72,41 @@ export const StructureTemplates = {
             { type: 'speaker', x: 3, y: 2 }
         ],
         zone: 'commercial'
+    },
+    warehouse: {
+        type: 'warehouse',
+        name: 'Large Warehouse',
+        width: 10,
+        height: 10,
+        floors: 2,
+        roofType: 'flat',
+        material: 'metal',
+        states: {
+            lightOn: true,
+            doorOpen: false
+        },
+        blueprint: [
+            ['wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'door', 'door', 'wall', 'wall', 'wall', 'wall', 'door', 'door', 'wall']
+        ],
+        decorations: [
+            { type: 'window', x: 2, y: 0 },
+            { type: 'window', x: 7, y: 0 },
+            { type: 'window', x: 0, y: 3 },
+            { type: 'window', x: 9, y: 3 },
+            { type: 'window', x: 0, y: 6 },
+            { type: 'window', x: 9, y: 6 },
+            { type: 'sign', x: 4, y: 0 },
+            { type: 'ac_unit', x: 5, y: 0 }
+        ],
+        zone: 'industrial'
     }
 };

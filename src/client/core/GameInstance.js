@@ -27,18 +27,19 @@ export class GameInstance {
         this.camera = {
             x: 0,
             y: 0,
-            zoom: 0.5  // Changed from 1 to 0.5 for maximum zoom out
+            zoom: 0.5
         };
         
         // Centralize debug configuration
         this.debug = {
-            enabled: false,
+            enabled: true,  // Enable debug temporarily
             flags: {
                 showPath: false,
                 showGrid: false,
                 logTextureLoading: false,
-                logDecorations: false,
-                logZoomChanges: false
+                logDecorations: true,  // Enable structure logging
+                logZoomChanges: false,
+                logStructures: true    // Add this flag
             }
         };
 
@@ -77,14 +78,18 @@ export class GameInstance {
             structures: [
                 { x: 15, y: 15, type: 'apartment' },
                 { x: 20, y: 20, type: 'office' },
+                // Move warehouse to a more visible location
+                { x: 32, y: 32, type: 'warehouse' },  // Place it in the center for testing
                 // ... more structure definitions
             ],
             zones: [
                 { type: 'commercial', x: 30, y: 30, size: 10 },
+                // Add an industrial zone for the warehouse
+                { type: 'industrial', x: 40, y: 40, size: 15 },
                 // ... more zone definitions
             ],
             spawnPoints: [
-                { x: 32, y: 32 }
+                { x: 25, y: 25 }  // Move spawn point away from warehouse
             ]
         });
 
@@ -778,6 +783,8 @@ export class GameInstance {
         return null;
     }
 }
+
+
 
 
 

@@ -9,7 +9,9 @@ export class UIManager {
         this.game = game;
         this.components = new Map();
         this.activeWindows = new Set();
-        this.canvasComponents = new Set(['statusBar', 'minimap', 'messageLog']); // Components that need canvas rendering
+        
+        // Define which components need canvas rendering
+        this.canvasComponents = new Set(['statusBar', 'minimap', 'messageLog']);
         
         this.initializeComponents();
         this.setupEventListeners();
@@ -150,7 +152,6 @@ export class UIManager {
             if (this.canvasComponents.has(key) && component && typeof component.render === 'function') {
                 try {
                     component.render(ctx);
-                    //console.log(`Successfully rendered ${key}`);
                 } catch (error) {
                     console.error(`Error rendering UI component ${key}:`, error);
                 }
@@ -226,6 +227,7 @@ export class UIManager {
         });
     }
 }
+
 
 
 
