@@ -94,10 +94,24 @@ export class IsometricRenderer {
         const heightOffset = tile.type === 'water' ? 0 : (tile.height * this.heightScale);
         const finalY = isoY - heightOffset;
 
+        // Save the current context state
+        this.ctx.save();
+
+        // Create a diamond-shaped clipping path
+        this.ctx.beginPath();
+        this.ctx.moveTo(isoX, finalY);  // Top point
+        this.ctx.lineTo(isoX + this.tileWidth/2, finalY + this.tileHeight/2);  // Right point
+        this.ctx.lineTo(isoX, finalY + this.tileHeight);  // Bottom point
+        this.ctx.lineTo(isoX - this.tileWidth/2, finalY + this.tileHeight/2);  // Left point
+        this.ctx.closePath();
+
+        // Create the clipping mask
+        this.ctx.clip();
+
         if (tile.type === 'water') {
             this.waterRenderer.renderWaterTile(
                 this.ctx,
-                isoX,
+                isoX - this.tileWidth/2,  // Adjust position to account for clipping
                 finalY,
                 this.tileWidth,
                 this.tileHeight
@@ -105,14 +119,48 @@ export class IsometricRenderer {
         } else {
             const texture = this.tileManager.getTexture(tile.type, tile.variant);
             if (texture && texture.complete) {
-                this.ctx.drawImage(texture, isoX, finalY, this.tileWidth, this.tileHeight);
+                // Draw the image slightly larger to ensure it fills the diamond
+                this.ctx.drawImage(
+                    texture, 
+                    isoX - this.tileWidth/2,  // Adjust position to account for clipping
+                    finalY,
+                    this.tileWidth,
+                    this.tileHeight
+                );
+            } else {
+                // Fallback color fill if texture isn't available
+                this.ctx.fillStyle = this.getTileColor(tile.type);
+                this.ctx.fill();
             }
         }
+
+        // Optional: Add tile border
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+
+        // Restore the context state
+        this.ctx.restore();
     }
 
     animate() {
         this.waterRenderer.update();
         requestAnimationFrame(() => this.animate());
     }
+
+    // Helper method to get tile colors
+    getTileColor(tileType) {
+        const colors = {
+            'water': '#4A90E2',
+            'sand': '#F5A623',
+            'grass': '#7ED321',
+            'wetland': '#417505',
+            'dirt': '#8B572A',
+            'stone': '#9B9B9B',
+            'mountain': '#757575'
+        };
+        return colors[tileType] || '#FF0000';
+    }
 }
+
 

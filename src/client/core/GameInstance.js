@@ -4,7 +4,6 @@ import { TileManager } from './world/TileManager.js';
 import { Player } from './entities/Player.js';
 import { InputManager } from './engine/InputManager.js';
 import { PathFinder } from './world/PathFinder.js';
-import { CanvasRenderer } from './renderer/CanvasRenderer.js';
 import { NPC } from './entities/NPC.js';
 import { Merchant } from './entities/Merchant.js';
 import { UIManager } from './ui/UIManager.js';
@@ -62,9 +61,14 @@ export class GameInstance {
             height: 64,
             seed: 12345,
             terrain: [
-                // Water area
-                { x: 10, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
-                // ... other terrain definitions ...
+                // One of each terrain type for reference
+                { x: 1, y: 1, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 1, y: 2, type: 'wetland', height: 0.40, moisture: 0.8 },
+                { x: 1, y: 3, type: 'sand', height: 0.40, moisture: 0.2 },
+                { x: 1, y: 4, type: 'dirt', height: 0.50, moisture: 0.1 },
+                { x: 1, y: 5, type: 'grass', height: 0.50, moisture: 0.5 },
+                { x: 1, y: 6, type: 'forest', height: 0.60, moisture: 0.7 },
+                { x: 1, y: 7, type: 'mountain', height: 0.85, moisture: 0.3 },
             ],
             structures: [
                 { x: 5, y: 5, type: 'apartment' },
@@ -791,6 +795,8 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
+
 
 
 
