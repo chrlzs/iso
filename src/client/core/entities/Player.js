@@ -1,4 +1,3 @@
-
 import { Inventory } from '../inventory/Inventory.js';
 import { Item } from '../inventory/Item.js';
 import { Entity } from './Entity.js';
@@ -14,6 +13,22 @@ export class Player extends Entity {
             owner: this,
             eth: 1000 // Starting ETH
         });
+
+        // Initialize equipment slots
+        this.equipment = {
+            head: null,
+            body: null,
+            mainHand: null,
+            offHand: null,
+            legs: null,
+            feet: null
+        };
+
+        // Initialize base stats
+        this.baseDefense = 10;
+        this.baseDamage = 5;
+        this.defense = this.baseDefense;
+        this.damage = this.baseDamage;
 
         if (!this.inventory) {
             throw new Error('Failed to initialize player inventory');

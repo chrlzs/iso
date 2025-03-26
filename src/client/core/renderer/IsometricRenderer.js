@@ -10,9 +10,9 @@ export class IsometricRenderer {
         this.tileHeight = 32;
         this.heightOffset = 16;
         
-        // Initialize sub-renderers
-        this.waterRenderer = new WaterRenderer(this.ctx, tileManager);
-        this.decorationRenderer = new DecorationRenderer(this.ctx, tileManager);
+        // Initialize sub-renderers with correct parameters
+        this.waterRenderer = new WaterRenderer();  // WaterRenderer doesn't need parameters
+        this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
     }
 
     // Convert world coordinates to screen coordinates

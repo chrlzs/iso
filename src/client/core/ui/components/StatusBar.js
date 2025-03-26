@@ -39,14 +39,21 @@ export class StatusBar {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(this.position.x, this.position.y, this.width, this.height);
 
+        // Get player stats with proper null checking and defaults
+        const stats = {
+            health: this.game?.player?.health ?? 100,
+            mana: this.game?.player?.mana ?? 100,
+            stamina: this.game?.player?.stamina ?? 100
+        };
+
         // Health bar
-        this.drawBar(ctx, 0, 'Health', '#ff0000', this.game.player?.health ?? 100);
+        this.drawBar(ctx, 0, 'Health', '#ff0000', stats.health);
         
         // Mana bar
-        this.drawBar(ctx, 20, 'Mana', '#0000ff', this.game.player?.mana ?? 100);
+        this.drawBar(ctx, 20, 'Mana', '#0000ff', stats.mana);
         
         // Stamina bar
-        this.drawBar(ctx, 40, 'Stamina', '#00ff00', this.game.player?.stamina ?? 100);
+        this.drawBar(ctx, 40, 'Stamina', '#00ff00', stats.stamina);
     }
 }
 
