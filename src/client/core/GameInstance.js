@@ -49,43 +49,53 @@ export class GameInstance {
             height: 64,
             seed: 12345,
             terrain: [
-                // Add water tiles in southwest region (around x: 10-15, y: 45-50)
-                // Increased height values to 0.3 for water tiles
-                { x: 10, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 11, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 12, y: 45, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 10, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 11, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 12, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 13, y: 46, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 11, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 12, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 13, y: 47, type: 'water', height: 0.3, moisture: 0.9 },
+                // Large water area
+                { x: 10, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 11, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 12, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 10, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 11, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 12, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 10, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 11, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
+                { x: 12, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
                 
-                // Increased height values for sand tiles to 0.38
-                { x: 13, y: 45, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 14, y: 46, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 14, y: 47, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 13, y: 48, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 12, y: 48, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 10, y: 47, type: 'sand', height: 0.38, moisture: 0.3 },
-                { x: 9, y: 46, type: 'sand', height: 0.38, moisture: 0.3 },
-                
-                // Keep existing terrain definitions with adjusted heights
-                { x: 10, y: 10, type: 'water', height: 0.3, moisture: 0.9 },
-                { x: 11, y: 10, type: 'sand', height: 0.38, moisture: 0.3 },
-                // ... more static terrain definitions
+                // Sand border around water
+                { x: 9, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 10, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 11, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 12, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 10, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 11, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 12, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 12, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 11, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 10, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 9, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 9, y: 12, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 9, y: 11, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 9, y: 10, type: 'sand', height: 0.41, moisture: 0.3 },
+
+                // Keep your existing sand area
+                { x: 13, y: 45, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 14, y: 46, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 14, y: 47, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 13, y: 48, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 12, y: 48, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 10, y: 47, type: 'sand', height: 0.41, moisture: 0.3 },
+                { x: 9, y: 46, type: 'sand', height: 0.41, moisture: 0.3 },
             ],
             structures: [
-                { x: 15, y: 15, type: 'apartment' },
-                { x: 20, y: 20, type: 'office' },
-                { x: 32, y: 32, type: 'warehouse' },
-                { x: 25, y: 35, type: 'factory' },
-                // ... more structure definitions
+                { x: 5, y: 5, type: 'apartment' },
+                { x: 15, y: 15, type: 'office' },
+                { x: 25, y: 25, type: 'warehouse' },
+                { x: 35, y: 35, type: 'factory' }
             ],
             zones: [
-                { type: 'commercial', x: 30, y: 30, size: 10 },
-                { type: 'industrial', x: 40, y: 40, size: 15 },
+                { type: 'commercial', x: 20, y: 20, size: 10 },
+                { type: 'industrial', x: 30, y: 30, size: 15 },
                 // ... more zone definitions
             ],
             spawnPoints: [
@@ -108,6 +118,10 @@ export class GameInstance {
         
         // Initialize renderer and input manager
         this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
+        
+        // Start the water animation
+        this.renderer.animate();
+        
         this.inputManager = new InputManager();
 
         // Find valid spawn point
@@ -783,6 +797,10 @@ export class GameInstance {
         return null;
     }
 }
+
+
+
+
 
 
 

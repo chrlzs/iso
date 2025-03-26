@@ -1,15 +1,17 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
-import { StructureRenderer } from './StructureRenderer.js'; // Import StructureRenderer
+import { StructureRenderer } from './StructureRenderer.js';
 
 export class IsometricRenderer {
     constructor(canvas, tileManager) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.tileManager = tileManager;
-        this.tileWidth = 64;  // or whatever your tile size is
+        
+        // Define tile dimensions
+        this.tileWidth = 64;
         this.tileHeight = 32;
-        this.heightOffset = 16;
+        this.heightScale = 32; // Height scale for elevation
         
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();  // WaterRenderer doesn't need parameters
@@ -60,8 +62,7 @@ export class IsometricRenderer {
     }
 
     clear() {
-        this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     renderWorld(world, camera) {
@@ -98,69 +99,30 @@ export class IsometricRenderer {
     }
 
     renderTile(tile, x, y) {
-        const screenX = (x - y) * this.tileWidth / 2;
-        const screenY = (x + y) * this.tileHeight / 2 - (tile.height * this.heightOffset);
+        if (!tile || !tile.type) return;
 
-        // Get texture from TileManager
-        const texture = this.tileManager.getTextureForTile(tile);
-        if (texture) {
-            // Draw the base tile with texture
-            this.ctx.drawImage(
-                texture,
-                screenX - this.tileWidth / 2,
-                screenY - this.tileHeight / 2,
+        // Calculate isometric position
+        const isoX = (x - y) * this.tileWidth / 2;
+        const isoY = (x + y) * this.tileHeight / 2;
+
+        // Adjust Y position based on height, except for water
+        const heightOffset = tile.type === 'water' ? 0 : (tile.height * this.heightScale);
+        const finalY = isoY - heightOffset;
+
+        if (tile.type === 'water') {
+            // Use WaterRenderer for water tiles
+            this.waterRenderer.renderWaterTile(
+                this.ctx,
+                isoX,
+                finalY,
                 this.tileWidth,
                 this.tileHeight
             );
         } else {
-            // Fallback to solid color if texture not found
-            this.ctx.fillStyle = this.getTileColor(tile);
-            this.ctx.beginPath();
-            this.ctx.moveTo(screenX, screenY);
-            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight);
-            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-        }
-
-        // Draw tile sides if elevated
-        if (tile.height > 0) {
-            // Left side
-            this.ctx.fillStyle = this.getShadedColor(tile, 'left');
-            this.ctx.beginPath();
-            this.ctx.moveTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.heightOffset);
-            this.ctx.lineTo(screenX - this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.heightOffset);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-
-            // Right side
-            this.ctx.fillStyle = this.getShadedColor(tile, 'right');
-            this.ctx.beginPath();
-            this.ctx.moveTo(screenX, screenY + this.tileHeight);
-            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2);
-            this.ctx.lineTo(screenX + this.tileWidth / 2, screenY + this.tileHeight / 2 + tile.height * this.heightOffset);
-            this.ctx.lineTo(screenX, screenY + this.tileHeight + tile.height * this.heightOffset);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-        }
-
-        // Draw decoration if present
-        if (tile.decoration) {
-            const decorationTexture = this.tileManager.getDecorationTexture(tile.decoration.type);
-            if (decorationTexture) {
-                this.ctx.drawImage(
-                    decorationTexture,
-                    screenX - this.tileWidth / 2,
-                    screenY - this.tileHeight / 2,
-                    this.tileWidth,
-                    this.tileHeight
-                );
+            // Use static textures for all other tiles
+            const texture = this.tileManager.getTexture(tile.type, tile.variant);
+            if (texture && texture.complete) {
+                this.ctx.drawImage(texture, isoX, finalY, this.tileWidth, this.tileHeight);
             }
         }
     }
@@ -206,14 +168,15 @@ export class IsometricRenderer {
     }
 
     animate() {
-        // Update water animation
         this.waterRenderer.update();
-        
-        // Don't trigger full re-render here - the main game loop will handle that
-        // Instead, just request next frame
         requestAnimationFrame(() => this.animate());
     }
 }
+
+
+
+
+
 
 
 

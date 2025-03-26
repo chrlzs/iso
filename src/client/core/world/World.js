@@ -43,7 +43,7 @@ export class World {
             // Adjust the range to produce more land
             const value = this.noise2D(x / 20, y / 20);
             // Scale to ensure more values are above water threshold
-            return value * 0.6 + 0.4; // This will give range of 0.4 to 1.0
+            return value * 0.5 + 0.5; // This will give range of 0.5 to 1.0
         };
 
         // Initialize moisture generation function
@@ -152,6 +152,12 @@ export class World {
     }
 
     createStructure(type, x, y) {
+        // Check if coordinates are within map bounds
+        if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
+            console.warn(`World: Structure position (${x}, ${y}) is outside map bounds (${this.width}x${this.height})`);
+            return null;
+        }
+
         if (!type || typeof type !== 'string') {
             console.warn('World: Invalid structure type:', type);
             return null;
@@ -163,8 +169,14 @@ export class World {
             return null;
         }
 
+        // Check if structure would extend beyond map bounds
+        if (x + template.width > this.width || y + template.height > this.height) {
+            console.warn(`World: Structure ${type} at (${x}, ${y}) would extend beyond map bounds`);
+            return null;
+        }
+
         // Create structure instance
-        const structure = new Structure(template, x, y, this); // Use the Structure class constructor
+        const structure = new Structure(template, x, y, this);
 
         // Add to structures map using coordinates as key
         const key = `${x},${y}`;
@@ -177,6 +189,8 @@ export class World {
         return structure;
     }
 }
+
+
 
 
 

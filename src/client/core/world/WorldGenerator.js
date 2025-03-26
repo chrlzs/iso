@@ -6,10 +6,10 @@ export class WorldGenerator {
     generateTile(x, y, height, moisture) {
         let tileType;
         
-        // Adjusted thresholds for less water
-        if (height < 0.42) {
+        // Adjusted water threshold to get moderate water coverage
+        if (height < 0.38) {
             tileType = 'water';
-        } else if (height < 0.45) {
+        } else if (height < 0.42) {
             tileType = moisture > 0.6 ? 'wetland' : 'sand';
         } else if (height < 0.8) {
             if (moisture < 0.2) {
@@ -34,6 +34,8 @@ export class WorldGenerator {
         };
     }
 }
+
+
 
 
 

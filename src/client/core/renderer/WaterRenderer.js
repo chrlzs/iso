@@ -22,9 +22,6 @@ export class WaterRenderer {
     }
 
     renderWaterTile(ctx, x, y, width, height) {
-        // Update time
-        this.time += this.speed;
-
         // Resize canvas if needed
         if (this.canvas.width !== width || this.canvas.height !== height) {
             this.canvas.width = width;
@@ -50,14 +47,14 @@ export class WaterRenderer {
         for (let wave of this.waves) {
             this.ctx.beginPath();
             for (let i = 0; i < width; i++) {
-                const y = height / 2 + 
+                const yPos = height / 2 + 
                     Math.sin(i * wave.frequency + this.time + wave.phase) * 
                     wave.amplitude;
                 
                 if (i === 0) {
-                    this.ctx.moveTo(i, y);
+                    this.ctx.moveTo(i, yPos);
                 } else {
-                    this.ctx.lineTo(i, y);
+                    this.ctx.lineTo(i, yPos);
                 }
             }
             this.ctx.stroke();
@@ -71,7 +68,6 @@ export class WaterRenderer {
         ctx.drawImage(this.canvas, x, y);
     }
 
-    // Method to update animation
     update() {
         this.time += this.speed;
     }
