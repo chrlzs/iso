@@ -1,33 +1,121 @@
 export class StructureRenderer {
     constructor(ctx) {
         this.ctx = ctx;
-        this.tileWidth = 64; // Base tile width
-        this.tileHeight = 32; // Base tile height
+        this.tileWidth = 64;
+        this.tileHeight = 32;
+        this.DEBUG = {
+            enabled: true,
+            showGrid: true,
+            showAnchors: true,
+            showBoundary: true
+        };
     }
 
     render(structure, worldX, worldY, screenX, screenY) {
-        if (!structure || !structure.template) return;
+        if (!structure?.template) return;
 
-        const template = structure.template;
-        const { blueprint } = template;
-        
-        // Calculate vertical offset for multi-story buildings
+        // Convert world coordinates to screen space with offset correction
+        const isoX = screenX + (worldX - worldY) * (this.tileWidth / 2);
+        const isoY = screenY + (worldX + worldY) * (this.tileHeight / 2);
         const heightOffset = structure.getVerticalOffset();
-        screenY -= heightOffset;
 
-        // Adjust scale for larger structures
-        const scaleX = Math.max(1, structure.width / 4);  // Base scale on structure width
-        const scaleY = Math.max(1, structure.height / 4); // Base scale on structure height
+        // Sort components by depth (back to front)
+        const sortedComponents = [...structure.components].sort((a, b) => {
+            const depthA = (a.worldX + a.worldY) * 100 + (a.type === 'wall' ? 0 : 50);
+            const depthB = (b.worldX + b.worldY) * 100 + (b.type === 'wall' ? 0 : 50);
+            return depthA - depthB;
+        });
 
         this.ctx.save();
-        this.ctx.scale(scaleX, scaleY);
 
-        // Render structure components in correct order
-        this.renderWalls(structure, blueprint, screenX / scaleX, screenY / scaleY);
-        this.renderDecorations(structure, screenX / scaleX, screenY / scaleY);
-        this.renderRoof(structure, screenX / scaleX, (screenY - (structure.floors * this.tileHeight)) / scaleY);
+        // Draw shadow and base
+        this.drawStructureBase(isoX, isoY, structure);
+
+        // Draw components
+        sortedComponents.forEach(comp => {
+            const localIsoX = (comp.localX - comp.localY) * (this.tileWidth / 2);
+            const localIsoY = (comp.localX + comp.localY) * (this.tileHeight / 2);
+            
+            const compX = isoX + localIsoX;
+            const compY = isoY + localIsoY - heightOffset;
+            
+            this.renderComponent(comp, compX, compY, structure);
+        });
+
+        // Debug visualization
+        if (this.DEBUG.enabled) {
+            this.drawDebugInfo(structure, worldX, worldY, isoX, isoY - heightOffset);
+        }
 
         this.ctx.restore();
+    }
+
+    drawStructureBase(x, y, structure) {
+        // Larger shadow for multi-story buildings
+        const shadowDepth = Math.min(structure.floors * 4, 20);
+        
+        this.ctx.fillStyle = `rgba(0,0,0,${0.1 + (structure.floors * 0.02)})`;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(x + structure.width * this.tileWidth/2, y + structure.height * this.tileHeight/2);
+        this.ctx.lineTo(x, y + structure.height * this.tileHeight);
+        this.ctx.lineTo(x - structure.width * this.tileWidth/2, y + structure.height * this.tileHeight/2);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+
+    drawDebugInfo(structure, worldX, worldY, screenX, screenY) {
+        const ctx = this.ctx;
+        
+        if (this.DEBUG.showBoundary) {
+            // Structure boundary
+            ctx.strokeStyle = 'rgba(255,0,0,0.5)';
+            ctx.strokeRect(
+                screenX, 
+                screenY,
+                structure.width * this.tileWidth/2,
+                structure.height * this.tileHeight
+            );
+        }
+
+        if (this.DEBUG.showGrid) {
+            // Isometric grid
+            ctx.strokeStyle = 'rgba(0,255,0,0.2)';
+            for (let x = 0; x <= structure.width; x++) {
+                for (let y = 0; y <= structure.height; y++) {
+                    const gridX = screenX + (x - y) * this.tileWidth/2;
+                    const gridY = screenY + (x + y) * this.tileHeight/2;
+                    ctx.beginPath();
+                    ctx.moveTo(gridX - this.tileWidth/2, gridY);
+                    ctx.lineTo(gridX, gridY - this.tileHeight/2);
+                    ctx.lineTo(gridX + this.tileWidth/2, gridY);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Structure info
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.fillText(
+            `${structure.type} (${worldX},${worldY}) h:${structure.floors}`,
+            screenX,
+            screenY - 10
+        );
+    }
+
+    renderComponent(comp, x, y, structure) {
+        switch (comp.type) {
+            case 'wall':
+                this.drawWallSegment(x, y, structure);
+                break;
+            case 'door':
+                this.drawDoor(x, y, structure.states.doorOpen);
+                break;
+            case 'window':
+                this.drawWindow(x, y, structure.states.lightOn);
+                break;
+        }
     }
 
     renderWalls(structure, blueprint, screenX, screenY) {
@@ -156,6 +244,28 @@ export class StructureRenderer {
 
         // Roof
         this.drawRoof(structure, isoX, isoY - height);
+    }
+
+    drawWallSegment(x, y, structure) {
+        const height = structure.floors * this.tileHeight;
+        const baseColor = this.getMaterialColor(structure.material);
+        
+        // Wall face
+        this.ctx.fillStyle = baseColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(x, y - height);
+        this.ctx.lineTo(x + this.tileWidth/2, y - height + this.tileHeight/2);
+        this.ctx.lineTo(x + this.tileWidth/2, y + this.tileHeight/2);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        if (this.DEBUG) {
+            // Wall anchor point
+            this.ctx.fillStyle = 'red';
+            this.ctx.fillRect(x-2, y-2, 4, 4);
+        }
     }
 
     drawDoor(x, y, isOpen) {
