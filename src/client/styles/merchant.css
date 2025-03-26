@@ -43,7 +43,7 @@ h3 {
 .merchant-slots,
 .player-slots {
     display: grid;
-    grid-template-columns: repeat(8, 1fr); /* 8 slots per row */
+    grid-template-columns: repeat(4, 1fr); /* Changed from 8 to 4 columns */
     gap: 8px;
     padding: 10px;
 }
@@ -107,6 +107,8 @@ h3 {
 .merchant-gold-display div {
     color: #00f2ff; /* Changed from gold to cyber blue */
 }
+
+
 
 
 

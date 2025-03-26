@@ -109,7 +109,7 @@ export class MerchantUI {
             }
             .merchant-slots, .player-slots {
                 display: grid;
-                grid-template-columns: repeat(8, 1fr);
+                grid-template-columns: repeat(4, 1fr);
                 gap: 4px;
                 padding: 10px;
             }
@@ -283,8 +283,8 @@ export class MerchantUI {
 
     renderMerchantSlots() {
         let html = '';
-        // Limit to 24 slots (3 rows of 8) for merchant inventory
-        const maxVisibleSlots = 24;
+        // Limit to 16 slots (4 rows of 4) for merchant inventory
+        const maxVisibleSlots = 16;
         
         for (let i = 0; i < Math.min(maxVisibleSlots, this.merchant.inventory.maxSlots); i++) {
             const item = this.merchant.inventory.getSlot(i);
@@ -317,8 +317,10 @@ export class MerchantUI {
 
         let html = '';
         const inventory = this.game.player.inventory;
+        // Limit to 16 slots (4 rows of 4) for player inventory
+        const maxVisibleSlots = 16;
         
-        for (let i = 0; i < inventory.maxSlots; i++) {
+        for (let i = 0; i < Math.min(maxVisibleSlots, inventory.maxSlots); i++) {
             const item = inventory.getSlot(i);
             if (item) {
                 const price = this.merchant.getBuyPrice(item);
@@ -336,6 +338,8 @@ export class MerchantUI {
         return html;
     }
 }
+
+
 
 
 
