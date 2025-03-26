@@ -35,7 +35,7 @@ export class GameInstance {
             flags: {
                 showPath: false,
                 showGrid: false,
-                showCoordinates: true,  // Set to true by default
+                //showCoordinates: true,  // Set to true by default
                 logTextureLoading: false,
                 logDecorations: true,
                 logZoomChanges: false,

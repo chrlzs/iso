@@ -150,6 +150,8 @@ export class StructureRenderer {
     }
 
     drawStructureBox(points, height, colors) {
+        const floors = Math.floor(height / this.floorHeight);
+        
         // Draw front-right face (SE)
         this.ctx.fillStyle = colors.frontRight;
         this.ctx.beginPath();
@@ -162,6 +164,16 @@ export class StructureRenderer {
         this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
         this.ctx.stroke();
 
+        // Add windows to front-right face
+        this.drawWindows(
+            points.topRight.x,
+            points.topRight.y,
+            points.bottomRight.x - points.topRight.x,
+            height,
+            floors,
+            'right'
+        );
+
         // Draw front-left face (SW)
         this.ctx.fillStyle = colors.frontLeft;
         this.ctx.beginPath();
@@ -172,6 +184,16 @@ export class StructureRenderer {
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
+
+        // Add windows to front-left face
+        this.drawWindows(
+            points.bottomLeft.x,
+            points.bottomLeft.y,
+            points.bottomRight.x - points.bottomLeft.x,
+            height,
+            floors,
+            'left'
+        );
 
         // Draw top face
         this.ctx.fillStyle = colors.top;
@@ -185,6 +207,124 @@ export class StructureRenderer {
         this.ctx.stroke();
     }
 
+    drawWindows(startX, startY, faceWidth, totalHeight, floors, face) {
+        const windowPadding = 8;
+        const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / 48));
+        const windowWidth = (Math.abs(faceWidth) - (windowPadding * (windowsPerFloor + 1))) / windowsPerFloor;
+        
+        // Adjust window height to ensure all floors fit
+        const availableHeightPerFloor = (totalHeight - this.floorHeight) / (floors - 1); // Subtract ground floor
+        const windowHeight = Math.min(
+            availableHeightPerFloor - (windowPadding * 2),
+            this.floorHeight - (windowPadding * 3) // Add extra padding for top margin
+        );
+        
+        // Use tile dimensions (64x32) to calculate correct isometric angle
+        const tileWidth = 64;
+        const tileHeight = 32;
+        const isoSkew = (windowWidth * tileHeight) / tileWidth;
+
+        this.ctx.save();
+
+        // Skip ground floor and adjust starting position
+        for (let floor = 1; floor < floors; floor++) {
+            // Adjust floor Y position to ensure windows fit within building height
+            const floorY = startY - (floor * availableHeightPerFloor) + windowPadding;
+            
+            for (let w = 0; w < windowsPerFloor; w++) {
+                const windowX = startX + (face === 'left' ? 1 : -1) * 
+                    (windowPadding + (w * (windowWidth + windowPadding)));
+                const windowY = floorY;
+
+                // Draw window frame with depth
+                this.ctx.beginPath();
+                if (face === 'left') {
+                    this.ctx.moveTo(windowX - 2, windowY - 2);
+                    this.ctx.lineTo(windowX + windowWidth, windowY + isoSkew - 2);
+                    this.ctx.lineTo(windowX + windowWidth, windowY + windowHeight + isoSkew);
+                    this.ctx.lineTo(windowX - 2, windowY + windowHeight);
+                } else {
+                    this.ctx.moveTo(windowX + 2, windowY - 2);
+                    this.ctx.lineTo(windowX - windowWidth, windowY + isoSkew - 2);
+                    this.ctx.lineTo(windowX - windowWidth, windowY + windowHeight + isoSkew);
+                    this.ctx.lineTo(windowX + 2, windowY + windowHeight);
+                }
+                this.ctx.closePath();
+                this.ctx.fillStyle = 'rgba(60, 60, 60, 0.6)';
+                this.ctx.fill();
+
+                // Draw main window glass
+                this.ctx.beginPath();
+                if (face === 'left') {
+                    this.ctx.moveTo(windowX, windowY);
+                    this.ctx.lineTo(windowX + windowWidth, windowY + isoSkew);
+                    this.ctx.lineTo(windowX + windowWidth, windowY + windowHeight + isoSkew);
+                    this.ctx.lineTo(windowX, windowY + windowHeight);
+                } else {
+                    this.ctx.moveTo(windowX, windowY);
+                    this.ctx.lineTo(windowX - windowWidth, windowY + isoSkew);
+                    this.ctx.lineTo(windowX - windowWidth, windowY + windowHeight + isoSkew);
+                    this.ctx.lineTo(windowX, windowY + windowHeight);
+                }
+                this.ctx.closePath();
+
+                // Window glass gradient
+                const gradient = this.ctx.createLinearGradient(
+                    windowX, windowY,
+                    windowX + (face === 'left' ? windowWidth : -windowWidth), 
+                    windowY + windowHeight
+                );
+                gradient.addColorStop(0, 'rgba(180, 214, 230, 0.8)');
+                gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
+                gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fill();
+
+                // Draw window panes
+                const paneCount = 3;
+                
+                // Vertical panes
+                for (let i = 1; i < paneCount; i++) {
+                    const ratio = i / paneCount;
+                    const x1 = windowX + (face === 'left' ? windowWidth * ratio : -windowWidth * ratio);
+                    const y1 = windowY + (isoSkew * ratio);
+                    const x2 = x1;
+                    const y2 = y1 + windowHeight;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+                }
+
+                // Horizontal panes
+                for (let i = 1; i < paneCount; i++) {
+                    const ratio = i / paneCount;
+                    const startX = windowX;
+                    const startY = windowY + (windowHeight * ratio);
+                    const endX = windowX + (face === 'left' ? windowWidth : -windowWidth);
+                    const endY = windowY + (windowHeight * ratio) + isoSkew;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(startX, startY);
+                    this.ctx.lineTo(endX, endY);
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+                }
+
+                // Window frame
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.stroke();
+            }
+        }
+
+        this.ctx.restore();
+    }
+
     worldToScreen(x, y) {
         return {
             x: (x - y) * (this.tileWidth / 2),
@@ -192,6 +332,21 @@ export class StructureRenderer {
         };
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
