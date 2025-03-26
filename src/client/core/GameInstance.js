@@ -48,6 +48,28 @@ export class GameInstance {
             height: 64,
             seed: 12345,
             terrain: [
+                // Add water tiles in southwest region (around x: 10-15, y: 45-50)
+                { x: 10, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 11, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 12, y: 45, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 10, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 11, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 12, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 13, y: 46, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 11, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 12, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
+                { x: 13, y: 47, type: 'water', height: 0.04, moisture: 0.9 },
+                
+                // Add some sand tiles around the water (transition)
+                { x: 13, y: 45, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 14, y: 46, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 14, y: 47, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 13, y: 48, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 12, y: 48, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 10, y: 47, type: 'sand', height: 0.15, moisture: 0.3 },
+                { x: 9, y: 46, type: 'sand', height: 0.15, moisture: 0.3 },
+                
+                // Keep existing terrain definitions
                 { x: 10, y: 10, type: 'water', height: 0.1, moisture: 0.9 },
                 { x: 11, y: 10, type: 'sand', height: 0.2, moisture: 0.3 },
                 // ... more static terrain definitions
@@ -756,13 +778,6 @@ export class GameInstance {
         return null;
     }
 }
-
-
-
-
-
-
-
 
 
 
