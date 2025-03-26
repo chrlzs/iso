@@ -71,10 +71,42 @@ export class GameInstance {
                 { x: 1, y: 7, type: 'mountain', height: 0.85, moisture: 0.3 },
             ],
             structures: [
-                { x: 5, y: 5, type: 'apartment' },
-                { x: 15, y: 15, type: 'office' },
-                { x: 25, y: 25, type: 'warehouse' },
-                { x: 35, y: 35, type: 'factory' }
+                { 
+                    x: 5, 
+                    y: 5, 
+                    type: 'apartment',
+                    floors: 4,
+                    width: 2,
+                    material: 'concrete',
+                    states: { lightOn: true }
+                },
+                { 
+                    x: 15, 
+                    y: 15, 
+                    type: 'office',
+                    floors: 6,
+                    width: 3,
+                    material: 'glass',
+                    states: { lightOn: true }
+                },
+                { 
+                    x: 25, 
+                    y: 25, 
+                    type: 'warehouse',
+                    floors: 2,
+                    width: 4,
+                    material: 'metal',
+                    states: { lightOn: false }
+                },
+                { 
+                    x: 35, 
+                    y: 35, 
+                    type: 'factory',
+                    floors: 3,
+                    width: 5,
+                    material: 'brick',
+                    states: { lightOn: true }
+                }
             ],
             zones: [
                 { type: 'commercial', x: 20, y: 20, size: 10 },
@@ -795,6 +827,7 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
 
 
 
