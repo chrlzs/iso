@@ -32,60 +32,38 @@ export class GameInstance {
         
         // Centralize debug configuration
         this.debug = {
-            enabled: true,  // Enable debug temporarily
+            enabled: true,
             flags: {
                 showPath: false,
                 showGrid: false,
                 logTextureLoading: false,
-                logDecorations: true,  // Enable structure logging
+                logDecorations: true,
                 logZoomChanges: false,
-                logStructures: true    // Add this flag
+                logStructures: true,
+                enableLayoutMode: true
             }
         };
 
-        // Example of creating a game with a static map
+        // Initialize layout mode
+        this.layoutMode = {
+            enabled: false,
+            currentTool: 'terrain',
+            selectedTerrainType: 'grass',
+            selectedStructureType: 'apartment',
+            brushSize: 1,
+            heightValue: 0.5,
+            moistureValue: 0.5
+        };
+
+        // Create static map definition
         const staticMap = new MapDefinition({
             width: 64,
             height: 64,
             seed: 12345,
             terrain: [
-                // Large water area
+                // Water area
                 { x: 10, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 11, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 12, y: 10, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 10, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 11, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 12, y: 11, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 10, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 11, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 12, y: 12, type: 'water', height: 0.35, moisture: 0.9 },
-                
-                // Sand border around water
-                { x: 9, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 10, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 11, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 12, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 9, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 10, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 11, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 12, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 12, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 11, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 10, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 9, y: 13, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 9, y: 12, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 9, y: 11, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 9, y: 10, type: 'sand', height: 0.41, moisture: 0.3 },
-
-                // Keep your existing sand area
-                { x: 13, y: 45, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 14, y: 46, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 14, y: 47, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 13, y: 48, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 12, y: 48, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 10, y: 47, type: 'sand', height: 0.41, moisture: 0.3 },
-                { x: 9, y: 46, type: 'sand', height: 0.41, moisture: 0.3 },
+                // ... other terrain definitions ...
             ],
             structures: [
                 { x: 5, y: 5, type: 'apartment' },
@@ -95,39 +73,28 @@ export class GameInstance {
             ],
             zones: [
                 { type: 'commercial', x: 20, y: 20, size: 10 },
-                { type: 'industrial', x: 30, y: 30, size: 15 },
-                // ... more zone definitions
+                { type: 'industrial', x: 30, y: 30, size: 15 }
             ],
             spawnPoints: [
                 { x: 25, y: 25 }
             ]
         });
 
-        // Initialize game with static map
+        // Initialize world
         this.world = new World(64, 64, {
             chunkSize: 16,
             debug: this.debug,
             mapDefinition: staticMap
         });
-        
-        // Get reference to TileManager from World
-        this.tileManager = this.world.tileManager;
-        
-        // Initialize pathfinder with world reference
-        this.pathFinder = new PathFinder(this.world);
-        
-        // Initialize renderer and input manager
-        this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
-        
-        // Start the water animation
-        this.renderer.animate();
-        
-        this.inputManager = new InputManager();
 
-        // Find valid spawn point
-        const playerSpawnPoint = this.findValidSpawnPoint();
+        // Initialize core components
+        this.tileManager = this.world.tileManager;
+        this.pathFinder = new PathFinder(this.world);
+        this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
+        this.inputManager = new InputManager();
         
-        // Create player with ALL required dependencies
+        // Initialize player
+        const playerSpawnPoint = this.findValidSpawnPoint();
         this.player = new Player({
             x: playerSpawnPoint.x,
             y: playerSpawnPoint.y,
@@ -135,79 +102,21 @@ export class GameInstance {
             pathFinder: this.pathFinder
         });
 
-        // Center camera on player initially
+        // Center camera on player
         this.camera.x = this.player.x;
         this.camera.y = this.player.y;
 
-        // Debug log to verify pathFinder
-        console.log('PathFinder instance:', this.pathFinder);
-        console.log('Player config:', {
-            x: playerSpawnPoint.x,
-            y: playerSpawnPoint.y,
-            hasWorld: !!this.world,
-            hasPathFinder: !!this.pathFinder
-        });
-
-        // Initialize UI
+        // Initialize UI components
         this.uiManager = new UIManager(this);
-
-        // Add dialog state
-        this.dialogState = {
-            active: false,
-            currentNPC: null
-        };
-
-        // Initialize message system
         this.messageSystem = new MessageSystem(this);
-
-        // Show intro message sequence
-        this.showIntroSequence();
-
-        // Add inventory UI
-        this.uiManager.components.set('inventoryUI', new InventoryUI({
-            game: this
-        }));
-
-        // Add merchant UI
-        this.uiManager.components.set('merchantUI', new MerchantUI({
-            game: this
-        }));
-
-        // Create a merchant at a position near the player spawn
-        const merchantPosition = {
-            x: playerSpawnPoint.x + 5,
-            y: playerSpawnPoint.y + 5
-        };
-
-        console.log('Creating merchant at position:', merchantPosition);
         
-        try {
-            const merchant = this.createMerchant(merchantPosition);
-            if (merchant) {
-                this.entities.add(merchant);
-                console.log('Merchant added successfully:', {
-                    position: merchantPosition,
-                    entityCount: this.entities.size,
-                    merchantExists: this.entities.has(merchant)
-                });
-            } else {
-                console.error('Failed to create merchant');
-            }
-        } catch (error) {
-            console.error('Error creating merchant:', error);
-        }
+        // Setup debug controls and input handlers
+        console.log('Setting up debug controls...');
+        this.setupDebugControls();
+        this.setupInput();
 
-        // Add debug logging in render loop
-        const originalRender = this.render.bind(this);
-        this.render = () => {
-            /*
-            console.log('Current entities:', Array.from(this.entities).map(e => ({
-                type: e.constructor.name,
-                position: { x: e.x, y: e.y }
-            })));
-            */
-            originalRender();
-        };
+        // Show intro sequence
+        this.showIntroSequence();
     }
 
     showIntroSequence() {
@@ -570,23 +479,37 @@ export class GameInstance {
     }
 
     setupDebugControls() {
+        console.log('Debug controls setup started...');
+        
         window.addEventListener('keydown', (e) => {
-            // Only respond to Ctrl + D combinations
-            if (!e.ctrlKey) return;
+            console.log('Key pressed:', e.key, 'Alt:', e.altKey);
             
-            switch(e.key.toLowerCase()) {
-                case 'd': // Toggle debug mode
-                    this.debug.enabled = !this.debug.enabled;
-                    console.log(`Debug mode: ${this.debug.enabled ? 'enabled' : 'disabled'}`);
-                    break;
-                case 'p':
-                    if (!this.debug.enabled) return;
-                    this.debug.flags.showPath = !this.debug.flags.showPath;
-                    break;
-                case 'g':
-                    if (!this.debug.enabled) return;
-                    this.debug.flags.showGrid = !this.debug.flags.showGrid;
-                    break;
+            // Layout mode toggle
+            if (e.altKey && e.key.toLowerCase() === 'l') {
+                console.log('Layout mode toggle triggered');
+                if (this.debug.flags.enableLayoutMode) {
+                    this.layoutMode.enabled = !this.layoutMode.enabled;
+                    console.log(`Layout mode: ${this.layoutMode.enabled ? 'enabled' : 'disabled'}`);
+                    this.updateLayoutMode();
+                }
+            }
+            
+            // Other debug controls
+            if (e.ctrlKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'd':
+                        this.debug.enabled = !this.debug.enabled;
+                        console.log(`Debug mode: ${this.debug.enabled ? 'enabled' : 'disabled'}`);
+                        break;
+                    case 'p':
+                        if (!this.debug.enabled) return;
+                        this.debug.flags.showPath = !this.debug.flags.showPath;
+                        break;
+                    case 'g':
+                        if (!this.debug.enabled) return;
+                        this.debug.flags.showGrid = !this.debug.flags.showGrid;
+                        break;
+                }
             }
         });
     }
@@ -796,62 +719,36 @@ export class GameInstance {
         }
         return null;
     }
+
+    updateLayoutMode() {
+        console.log('Updating layout mode state...');
+        
+        if (this.layoutMode.enabled) {
+            // Enable layout mode specific features
+            this.canvas.style.cursor = 'crosshair';
+            
+            // Update UI if LayoutToolsUI exists
+            if (this.layoutToolsUI) {
+                this.layoutToolsUI.update();
+            }
+            
+            // Enable grid by default in layout mode
+            this.debug.flags.showGrid = true;
+        } else {
+            // Disable layout mode features
+            this.canvas.style.cursor = 'default';
+            
+            // Reset grid to previous state
+            this.debug.flags.showGrid = false;
+        }
+        
+        // Trigger a re-render
+        if (this.renderer) {
+            this.renderer.clear();
+            this.render();
+        }
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

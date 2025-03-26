@@ -8,187 +8,294 @@ export class World {
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
+        this.debug = options.debug || { flags: {} };
+        
+        // Initialize chunk system
         this.chunkSize = options.chunkSize || 16;
-        this.debug = options.debug || { enabled: false, flags: {} };
-        this.tileManager = new TileManager(this.debug);
-        this.chunks = new Map();
-        this.tileCache = new Map();
         this.activeChunks = new Set();
-        this.maxCacheSize = 1000;
+        this.chunks = new Map();
+        
+        // Calculate chunk dimensions
+        this.chunksWidth = Math.ceil(width / this.chunkSize);
+        this.chunksHeight = Math.ceil(height / this.chunkSize);
+        
+        // Initialize structure templates
+        this.structureTemplates = { ...StructureTemplates };
+        
+        // Initialize collections
         this.structures = new Map();
+        this.tiles = new Array(width * height).fill(null).map(() => ({
+            type: 'grass',
+            height: 0.5,
+            moisture: 0.5
+        }));
         
-        // Initialize noise generators with seed if provided
-        this.seed = options.mapDefinition?.seed || Math.random() * 10000;
+        // Initialize managers
+        this.tileManager = new TileManager(this.debug);
         
-        // Initialize WorldGenerator with TileManager
+        // Initialize world generator
         this.worldGenerator = new WorldGenerator(this.tileManager);
         
-        this.initializeGenerators();
+        // Set world generation parameters
+        this.moistureScale = options.moistureScale || 0.01;
+        this.heightScale = options.heightScale || 0.01;
+        this.seed = options.seed || Math.random() * 10000;
         
-        // Handle static map definition if provided
+        // Process map definition if provided
         this.mapDefinition = options.mapDefinition;
-        this.staticTiles = new Map();
-        
-        // Initialize structure templates from import
-        this.structureTemplates = StructureTemplates;
-        
         if (this.mapDefinition) {
             this.initializeFromMapDefinition();
         }
     }
 
-    initializeGenerators() {
-        // Initialize height generation function with better scaling
-        this.generateHeight = (x, y) => {
-            // Adjust the range to produce more land
-            const value = this.noise2D(x / 20, y / 20);
-            // Scale to ensure more values are above water threshold
-            return value * 0.5 + 0.5; // This will give range of 0.5 to 1.0
-        };
+    updateActiveChunks(centerX, centerY, viewDistance) {
+        // Convert world coordinates to chunk coordinates
+        const centerChunkX = Math.floor(centerX / this.chunkSize);
+        const centerChunkY = Math.floor(centerY / this.chunkSize);
 
-        // Initialize moisture generation function
-        this.generateMoisture = (x, y) => {
-            return (this.noise2D((x + 1000) / 30, (y + 1000) / 30) + 1) * 0.5;
-        };
-    }
-
-    // Improved 2D noise function
-    noise2D(x, y) {
-        const X = Math.floor(x) & 255;
-        const Y = Math.floor(y) & 255;
-        const xf = x - Math.floor(x);
-        const yf = y - Math.floor(y);
-        
-        // Better noise calculation
-        const n = ((X + Y * 16) * 1013) ^ this.seed;
-        const value = (((n * n * n * 60493) / 0x7fffffff) % 2147483648) / 2147483648;
-        
-        return value;
-    }
-
-    initializeFromMapDefinition() {
-        if (!this.mapDefinition?.structures) return;
-
-        console.log('World: Processing structures:', this.mapDefinition.structures);
-        
-        this.mapDefinition.structures.forEach(structureDef => {
-            const { type, x, y } = structureDef;
-            console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`);
-            this.createStructure(type, x, y);
-        });
-    }
-
-    generateInitialChunks() {
-        // Generate chunks around the center of the world
-        const centerX = Math.floor(this.width / (2 * this.chunkSize));
-        const centerY = Math.floor(this.height / (2 * this.chunkSize));
-        
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                this.generateChunk(centerX + dx, centerY + dy);
-            }
-        }
-    }
-
-    generateTile(x, y, height, moisture) {
-        // Delegate tile generation to WorldGenerator
-        return this.worldGenerator.generateTile(x, y, height, moisture);
-    }
-
-    getTileAt(x, y) {
-        // First check if there's a static tile defined
-        const staticKey = `${x},${y}`;
-        if (this.staticTiles.has(staticKey)) {
-            return this.staticTiles.get(staticKey);
-        }
-
-        // If no static tile, generate one
-        const height = this.generateHeight(x, y);
-        const moisture = this.generateMoisture(x, y);
-        return this.generateTile(x, y, height, moisture);
-    }
-
-    updateActiveChunks(centerX, centerY, radius) {
+        // Clear previous active chunks
         this.activeChunks.clear();
-        for (let y = centerY - radius; y <= centerY + radius; y++) {
-            for (let x = centerX - radius; x <= centerX + radius; x++) {
-                const key = `${x},${y}`;
-                if (!this.chunks.has(key)) this.generateChunk(x, y);
-                this.activeChunks.add(key);
+
+        // Calculate chunk range to load
+        const minChunkX = Math.max(0, centerChunkX - viewDistance);
+        const maxChunkX = Math.min(this.chunksWidth - 1, centerChunkX + viewDistance);
+        const minChunkY = Math.max(0, centerChunkY - viewDistance);
+        const maxChunkY = Math.min(this.chunksHeight - 1, centerChunkY + viewDistance);
+
+        // Add chunks within range to active set
+        for (let x = minChunkX; x <= maxChunkX; x++) {
+            for (let y = minChunkY; y <= maxChunkY; y++) {
+                const chunkKey = `${x},${y}`;
+                this.activeChunks.add(chunkKey);
+
+                // Generate chunk if it doesn't exist
+                if (!this.chunks.has(chunkKey)) {
+                    this.generateChunk(x, y);
+                }
             }
+        }
+
+        if (this.debug.flags.logChunks) {
+            console.log(`Active chunks: ${this.activeChunks.size}`);
         }
     }
 
     generateChunk(chunkX, chunkY) {
-        // Add basic height generation if missing
-        if (!this.generateHeight) {
-            this.generateHeight = (x, y) => {
-                return 0.5; // Default height if no generation function exists
-            };
-        }
+        const chunkKey = `${chunkX},${chunkY}`;
         
-        const chunk = new Array(this.chunkSize * this.chunkSize);
+        // Calculate world coordinates for this chunk
+        const worldX = chunkX * this.chunkSize;
+        const worldY = chunkY * this.chunkSize;
+        
+        // Create chunk data structure
+        const chunk = {
+            x: chunkX,
+            y: chunkY,
+            tiles: [],
+            entities: new Set()
+        };
+
+        // Generate tiles for this chunk
         for (let y = 0; y < this.chunkSize; y++) {
             for (let x = 0; x < this.chunkSize; x++) {
-                const worldX = chunkX * this.chunkSize + x;
-                const worldY = chunkY * this.chunkSize + y;
-                const height = this.generateHeight(worldX, worldY);
-                const moisture = this.generateMoisture(worldX, worldY);
-                chunk[y * this.chunkSize + x] = this.generateTile(worldX, worldY, height, moisture);
+                const worldTileX = worldX + x;
+                const worldTileY = worldY + y;
+                
+                // Skip if outside world bounds
+                if (worldTileX >= this.width || worldTileY >= this.height) {
+                    continue;
+                }
+                
+                // Generate or get existing tile
+                const tile = this.generateTile(worldTileX, worldTileY);
+                chunk.tiles.push(tile);
             }
         }
-        this.chunks.set(`${chunkX},${chunkY}`, chunk);
+
+        // Store chunk
+        this.chunks.set(chunkKey, chunk);
+        return chunk;
     }
 
-    clearCache() {
-        this.tileCache.clear();
+    isChunkActive(chunkX, chunkY) {
+        return this.activeChunks.has(`${chunkX},${chunkY}`);
     }
 
-    renderTile(ctx, tile, screenX, screenY) {
-        // Base tile rendering
-        const heightOffset = tile.height * 4;
-        screenY -= heightOffset;
-        this.tileManager.renderTile(ctx, tile, screenX, screenY);
+    getChunk(chunkX, chunkY) {
+        return this.chunks.get(`${chunkX},${chunkY}`);
+    }
+
+    getChunkByWorldCoords(worldX, worldY) {
+        const chunkX = Math.floor(worldX / this.chunkSize);
+        const chunkY = Math.floor(worldY / this.chunkSize);
+        return this.getChunk(chunkX, chunkY);
+    }
+
+    generateTile(x, y, height = null, moisture = null) {
+        // Check if there's a predefined tile first
+        const existingTile = this.getTileAt(x, y);
+        if (existingTile && existingTile.type) {
+            return existingTile;
+        }
+
+        // Generate height and moisture if not provided
+        const tileHeight = height !== null ? height : this.generateHeight(x, y);
+        const tileMoisture = moisture !== null ? moisture : this.generateMoisture(x, y);
+
+        // Use WorldGenerator to create the tile
+        return this.worldGenerator.generateTile(x, y, tileHeight, tileMoisture);
+    }
+
+    getTileAt(x, y) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            return null;
+        }
+        return this.tiles[y * this.width + x];
+    }
+
+    setTileAt(x, y, tile) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            return false;
+        }
+        this.tiles[y * this.width + x] = tile;
+        return true;
+    }
+
+    generateMoisture(x, y) {
+        // Check if there's a predefined tile first
+        const tile = this.getTileAt(x, y);
+        if (tile && tile.moisture !== undefined) {
+            return tile.moisture;
+        }
+
+        // Generate moisture based on distance from water bodies and height
+        const height = this.generateHeight(x, y);
+        
+        // Base moisture decreases with height
+        let moisture = 1 - (height * 0.5);
+        
+        // Add some variation based on position
+        moisture += Math.sin(x * this.moistureScale + this.seed) * 0.1;
+        moisture += Math.cos(y * this.moistureScale + this.seed) * 0.1;
+        
+        // Ensure moisture stays within valid range
+        return Math.max(0, Math.min(1, moisture));
+    }
+
+    generateHeight(x, y) {
+        // Check if there's a predefined tile first
+        const tile = this.getTileAt(x, y);
+        if (tile && tile.height !== undefined) {
+            return tile.height;
+        }
+
+        // Generate height using multiple noise functions for more natural terrain
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        
+        // Base height decreases from center
+        const distanceFromCenter = Math.sqrt(
+            Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+        );
+        let height = Math.max(0.1, 1 - (distanceFromCenter / (this.width / 2)));
+        
+        // Add some variation based on position
+        height += Math.sin(x * this.heightScale + this.seed) * 0.1;
+        height += Math.cos(y * this.heightScale + this.seed) * 0.1;
+        
+        // Ensure height stays within valid range
+        return Math.max(0, Math.min(1, height));
+    }
+
+    initializeFromMapDefinition() {
+        if (!this.mapDefinition) return;
+
+        // Initialize terrain
+        if (this.mapDefinition.terrain) {
+            this.mapDefinition.terrain.forEach(terrain => {
+                this.setTileAt(terrain.x, terrain.y, {
+                    type: terrain.type,
+                    height: terrain.height,
+                    moisture: terrain.moisture
+                });
+            });
+        }
+
+        // Initialize structures
+        if (this.mapDefinition.structures) {
+            console.log('World: Processing structures:', this.mapDefinition.structures);
+            
+            this.mapDefinition.structures.forEach(structureDef => {
+                const { type, x, y } = structureDef;
+                console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`);
+                this.createStructure(type, x, y);
+            });
+        }
     }
 
     createStructure(type, x, y) {
-        // Check if coordinates are within map bounds
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
-            console.warn(`World: Structure position (${x}, ${y}) is outside map bounds (${this.width}x${this.height})`);
-            return null;
-        }
-
-        if (!type || typeof type !== 'string') {
-            console.warn('World: Invalid structure type:', type);
+            console.warn(`World: Structure position (${x}, ${y}) is outside map bounds`);
             return null;
         }
 
         const template = this.structureTemplates[type];
         if (!template) {
-            console.warn('World: No template found for structure type:', type);
+            console.warn(`World: No template found for structure type: ${type}`);
             return null;
         }
 
-        // Check if structure would extend beyond map bounds
-        if (x + template.width > this.width || y + template.height > this.height) {
-            console.warn(`World: Structure ${type} at (${x}, ${y}) would extend beyond map bounds`);
-            return null;
-        }
-
-        // Create structure instance
-        const structure = new Structure(template, x, y, this);
-
-        // Add to structures map using coordinates as key
-        const key = `${x},${y}`;
-        this.structures.set(key, structure);
-        
         if (this.debug?.flags?.logStructures) {
-            console.log(`World: Created structure: ${type} at (${x}, ${y})`);
+            console.log('World: Available structure templates:', 
+                Object.keys(this.structureTemplates));
         }
 
-        return structure;
+        try {
+            const structure = new Structure(template, x, y, this);
+            const key = `${x},${y}`;
+            this.structures.set(key, structure);
+            return structure;
+        } catch (error) {
+            console.error(`World: Failed to create structure ${type} at (${x}, ${y}):`, error);
+            return null;
+        }
+    }
+
+    setTileType(x, y, type) {
+        if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+        const tile = this.getTileAt(x, y);
+        if (tile) {
+            tile.type = type;
+            // Trigger any necessary updates or redraws
+            this.onTileChanged?.(x, y);
+        }
+    }
+
+    setTileHeight(x, y, height) {
+        if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+        const tile = this.getTileAt(x, y);
+        if (tile) {
+            tile.height = Math.max(0, Math.min(1, height));
+            this.onTileChanged?.(x, y);
+        }
+    }
+
+    setTileMoisture(x, y, moisture) {
+        if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+        const tile = this.getTileAt(x, y);
+        if (tile) {
+            tile.moisture = Math.max(0, Math.min(1, moisture));
+            this.onTileChanged?.(x, y);
+        }
     }
 }
+
+
+
+
+
+
+
 
 
 

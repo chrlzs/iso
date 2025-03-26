@@ -1,4 +1,3 @@
-
 import { NPC } from './NPC.js';
 import { Inventory } from '../inventory/Inventory.js';
 import { Item } from '../inventory/Item.js';
