@@ -5,6 +5,11 @@ export const StructureTemplates = {
         height: 4,
         floors: 3,
         roofType: 'flat',
+        roofConfig: {
+            style: 'flat',
+            color: '#8B4513',
+            height: 0
+        },
         material: 'concrete',
         states: {
             lightOn: false,
@@ -23,6 +28,11 @@ export const StructureTemplates = {
         height: 5,
         floors: 4,
         roofType: 'flat',
+        roofConfig: {
+            style: 'flat',
+            color: '#696969',
+            height: 0
+        },
         material: 'glass',
         states: {
             lightOn: false
@@ -41,6 +51,12 @@ export const StructureTemplates = {
         height: 4,
         floors: 1,
         roofType: 'sloped',
+        roofConfig: {
+            style: 'gabled',
+            color: '#8B0000',
+            height: 48,  // Increased for more prominent roof
+            angle: 45
+        },
         material: 'metal',
         states: {
             doorOpen: false
@@ -57,7 +73,16 @@ export const StructureTemplates = {
         width: 8,
         height: 6,
         floors: 2,
-        roofType: 'flat',
+        roofType: 'clerestory',
+        roofConfig: {
+            style: 'clerestory',
+            baseColor: '#4A4A4A',     // Color of main flat roof
+            overlapColor: '#363636',   // Color of overlapping section
+            height: 48,               // Height of main flat roof
+            overlapHeight: 64,        // Height where overlap section starts
+            overlapWidth: 0.6,        // How much of building width to overlap
+            overlapExtend: 0.3        // How far to extend past building (as % of width)
+        },
         material: 'concrete',
         states: {
             active: false

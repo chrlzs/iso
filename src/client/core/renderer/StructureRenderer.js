@@ -191,7 +191,7 @@ export class StructureRenderer {
 
         // Draw roof only if visible
         if (structure.visibility.roof) {
-            this.drawRoof(points, height, colors.top);
+            this.drawRoof(points, height, colors.top, structure);
         }
     }
 
@@ -220,7 +220,27 @@ export class StructureRenderer {
         this.ctx.stroke();
     }
 
-    drawRoof(points, height, color) {
+    drawRoof(points, height, color, structure) {
+        const roofConfig = structure.template.roofConfig || {
+            style: 'flat',
+            color: color,
+            height: 0
+        };
+
+        switch (roofConfig.style) {
+            case 'gabled':
+                this.drawGabledRoof(points, height, roofConfig);
+                break;
+            case 'clerestory':
+                this.drawClerestoryRoof(points, height, roofConfig);
+                break;
+            default:
+                this.drawFlatRoof(points, height, roofConfig.color);
+                break;
+        }
+    }
+
+    drawFlatRoof(points, height, color) {
         this.ctx.fillStyle = color;
         this.ctx.beginPath();
         this.ctx.moveTo(points.bottomRight.x, points.bottomRight.y - height);
@@ -230,6 +250,154 @@ export class StructureRenderer {
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
+    }
+
+    drawGabledRoof(points, height, config) {
+        // Calculate ridge line (peak of the roof)
+        const ridgeHeight = height + config.height;
+        
+        // Calculate back and front ridge points
+        const backRidgeX = (points.topLeft.x + points.topRight.x) / 2;
+        const backRidgeY = ((points.topLeft.y + points.topRight.y) / 2) - ridgeHeight;
+        
+        const frontRidgeX = (points.bottomLeft.x + points.bottomRight.x) / 2;
+        const frontRidgeY = ((points.bottomLeft.y + points.bottomRight.y) / 2) - ridgeHeight;
+
+        // Draw slopes in order: back, right, left, front
+        // Back slope
+        this.ctx.fillStyle = this.adjustColorBrightness(config.color, -30);
+        this.ctx.beginPath();
+        this.ctx.moveTo(points.topLeft.x, points.topLeft.y - height);
+        this.ctx.lineTo(backRidgeX, backRidgeY);
+        this.ctx.lineTo(points.topRight.x, points.topRight.y - height);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Right slope
+        this.ctx.fillStyle = this.adjustColorBrightness(config.color, -15);
+        this.ctx.beginPath();
+        this.ctx.moveTo(points.topRight.x, points.topRight.y - height);
+        this.ctx.lineTo(backRidgeX, backRidgeY);
+        this.ctx.lineTo(frontRidgeX, frontRidgeY);
+        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Left slope
+        this.ctx.fillStyle = config.color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(points.topLeft.x, points.topLeft.y - height);
+        this.ctx.lineTo(backRidgeX, backRidgeY);
+        this.ctx.lineTo(frontRidgeX, frontRidgeY);
+        this.ctx.lineTo(points.bottomLeft.x, points.bottomLeft.y - height);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Front slope
+        this.ctx.fillStyle = this.adjustColorBrightness(config.color, -10);
+        this.ctx.beginPath();
+        this.ctx.moveTo(points.bottomLeft.x, points.bottomLeft.y - height);
+        this.ctx.lineTo(frontRidgeX, frontRidgeY);
+        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+    }
+
+    drawSawtoothRoof(points, height, config) {
+        const toothHeight = config.height || 48;
+        const halfWidth = (points.bottomRight.x - points.bottomLeft.x) / 2;
+        const halfDepth = (points.bottomRight.y - points.topRight.y) / 2;
+        const overlap = halfWidth * 0.5; // 50% overlap (increased from 20%)
+        
+        // Calculate points for left gabled roof (extends further past center)
+        const leftPoints = {
+            topLeft: points.topLeft,
+            topRight: { 
+                x: points.topLeft.x + halfWidth + overlap, 
+                y: points.topLeft.y + halfDepth + (overlap * 0.5) 
+            },
+            bottomLeft: points.bottomLeft,
+            bottomRight: { 
+                x: points.bottomLeft.x + halfWidth + overlap, 
+                y: points.bottomLeft.y - halfDepth - (overlap * 0.5) 
+            }
+        };
+
+        // Calculate points for right gabled roof (extends further past center)
+        const rightPoints = {
+            topLeft: { 
+                x: points.topRight.x - halfWidth - overlap, 
+                y: points.topRight.y + halfDepth + (overlap * 0.5) 
+            },
+            topRight: points.topRight,
+            bottomLeft: { 
+                x: points.bottomRight.x - halfWidth - overlap, 
+                y: points.bottomRight.y - halfDepth - (overlap * 0.5) 
+            },
+            bottomRight: points.bottomRight
+        };
+
+        // Draw left gabled roof
+        const leftConfig = {
+            ...config,
+            height: toothHeight
+        };
+        this.drawGabledRoof(leftPoints, height, leftConfig);
+
+        // Draw right gabled roof
+        const rightConfig = {
+            ...config,
+            height: toothHeight,
+            color: this.adjustColorBrightness(config.color, -10)
+        };
+        this.drawGabledRoof(rightPoints, height, rightConfig);
+    }
+
+    drawClerestoryRoof(points, height, config) {
+        // Draw base flat roof first
+        this.drawFlatRoof(points, height, config.baseColor);
+
+        const extension = config.overlapExtend || 0.3;
+        
+        // Right side starting point (top of wall)
+        const startX = points.topRight.x;
+        const startY = points.topRight.y - height;
+        
+        // Extended point now goes down instead of up
+        const extendX = points.bottomRight.x + (points.bottomRight.x - points.topRight.x) * extension;
+        const extendY = points.bottomRight.y + (points.bottomRight.y - points.topRight.y) * extension;
+        
+        // Draw angled section
+        this.ctx.fillStyle = this.adjustColorBrightness(config.overlapColor || config.baseColor, -10);
+        this.ctx.beginPath();
+        
+        // Start from top of right wall
+        this.ctx.moveTo(startX, startY);
+        // Go to extended point at base height
+        this.ctx.lineTo(extendX, extendY - height);
+        // Back to wall
+        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
+        
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+    }
+
+    adjustColorBrightness(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = (num >> 16) + percent;
+        const g = ((num >> 8) & 0x00FF) + percent;
+        const b = (num & 0x0000FF) + percent;
+        
+        return '#' + (0x1000000 +
+            (r < 255 ? (r < 0 ? 0 : r) : 255) * 0x10000 +
+            (g < 255 ? (g < 0 ? 0 : g) : 255) * 0x100 +
+            (b < 255 ? (b < 0 ? 0 : b) : 255)
+        ).toString(16).slice(1);
     }
 
     drawWindows(startX, startY, faceWidth, totalHeight, floors, face) {
