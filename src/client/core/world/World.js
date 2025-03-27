@@ -226,50 +226,41 @@ export class World {
             console.log('World: Processing structures:', this.mapDefinition.structures);
             
             this.mapDefinition.structures.forEach(structureDef => {
-                const { type, x, y } = structureDef;
-                console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`);
-                this.createStructure(type, x, y);
+                const { type, x, y, ...options } = structureDef;
+                console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`, 'with options:', options);
+                this.createStructure(type, x, y, options);
             });
         }
     }
 
-    createStructure(type, x, y) {
-        console.log(`Attempting to create structure ${type} at (${x}, ${y})`);
-        
-        if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
-            console.warn(`World: Structure position (${x}, ${y}) is outside map bounds`);
-            return null;
-        }
-
+    createStructure(type, x, y, options = {}) {
         const template = this.structureTemplates[type];
-        if (!template) {
-            console.warn(`World: No template found for structure type: ${type}`);
-            return null;
-        }
-
-        // Log the tile information at this location
-        const tile = this.getTileAt(x, y);
-        console.log(`Tile at (${x}, ${y}):`, tile);
+        if (!template) return null;
 
         try {
-            const structure = new Structure(template, x, y, this);
+            // Deep merge template with options, prioritizing options over template
+            const mergedTemplate = {
+                ...template,
+                ...options,  // This ensures options override template values
+                roofConfig: {
+                    ...template.roofConfig,
+                    ...(options.roofConfig || {})
+                },
+                states: {
+                    ...template.states,
+                    ...(options.states || {})
+                }
+            };
+
+            const structure = new Structure(mergedTemplate, x, y, this);
             const key = `${x},${y}`;
             this.structures.set(key, structure);
             
-            // Add this debug logging
-            console.log(`Structure created:`, structure);
-            
-            // Log the tile after structure assignment
-            const updatedTile = this.getTileAt(x, y);
-            console.log(`Updated tile at (${x}, ${y}):`, updatedTile);
-            
-            // Log entities inside this structure
-            const entitiesInside = this.game?.entities?.filter(entity => 
-                entity.currentStructure === structure
-            ) || [];
-            if (entitiesInside.length > 0) {
-                console.log(`Entities inside structure:`, entitiesInside);
-            }
+            console.log(`Structure created:`, {
+                type,
+                material: mergedTemplate.material,
+                originalMaterial: template.material
+            });
             
             return structure;
         } catch (error) {
@@ -319,6 +310,8 @@ export class World {
         return Array.from(this.structures.values());
     }
 }
+
+
 
 
 

@@ -33,7 +33,7 @@ export const StructureTemplates = {
             color: '#696969',
             height: 0
         },
-        material: 'glass',
+        material: 'brick',
         states: {
             lightOn: false
         },

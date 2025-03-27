@@ -103,7 +103,7 @@ export class GameInstance {
                     type: 'office',
                     floors: 6,
                     width: 3,
-                    material: 'glass',
+                    material: 'brick',
                     states: { lightOn: true }
                 },
                 { 
@@ -121,17 +121,8 @@ export class GameInstance {
                     type: 'factory',
                     floors: 3,
                     width: 5,
-                    material: 'brick',
+                    material: 'metal', 
                     states: { lightOn: true }
-                },
-                {
-                    x: 52,
-                    y: 45,
-                    type: 'dumpster',
-                    floors: 1,
-                    width: 1,
-                    material: 'metal',
-                    states: { lightOn: false }
                 },
                 // Standalone dumpster structure
                 {

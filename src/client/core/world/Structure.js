@@ -1,6 +1,14 @@
 export class Structure {
     constructor(template, x, y, world) {
-        this.template = template;
+        // Merge template with any overrides
+        this.template = {
+            ...template,
+            material: template.material || 'concrete', // Default material
+            states: {
+                ...template.states
+            }
+        };
+        
         this.type = template.type;
         this.x = x;
         this.y = y;
@@ -186,6 +194,7 @@ export class Structure {
         };
     }
 }
+
 
 
 
