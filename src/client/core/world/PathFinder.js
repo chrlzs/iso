@@ -128,7 +128,8 @@ export class PathFinder {
             'grass': 1,
             'stone': 1.2,
             'water': Infinity,  // Make water impassable
-            'wetland': Infinity // Make wetland impassable
+            'wetland': Infinity, // Make wetland impassable
+            'door': 0.5  // Prefer doors when available
         };
 
         cost *= terrainCosts[toTile.type] || 1;
@@ -162,12 +163,13 @@ export class PathFinder {
     }
 
     getValidNeighbors(x, y) {
-        // Include diagonal movements
+        // Modify to only allow orthogonal movement (no diagonals)
+        // This helps prevent cutting corners of buildings
         const neighbors = [
-            {x: x-1, y: y}, {x: x+1, y: y},
-            {x: x, y: y-1}, {x: x, y: y+1},
-            {x: x-1, y: y-1}, {x: x-1, y: y+1},
-            {x: x+1, y: y-1}, {x: x+1, y: y+1}
+            {x: x-1, y: y},
+            {x: x+1, y: y},
+            {x: x, y: y-1},
+            {x: x, y: y+1}
         ];
         
         return neighbors.filter(n => 
@@ -207,16 +209,21 @@ export class PathFinder {
             return false;
         }
 
-        // Check if tile has a structure blocking the path
-        if (tile.structure) {
-            // You might want to add logic here to allow walking through doors
-            // or specific parts of structures
-            return false;
+        // Get all structures and check if point is inside any of them
+        const structures = this.world.getAllStructures();
+        for (const structure of structures) {
+            // If point is inside structure bounds
+            if (x >= structure.x && x < structure.x + structure.width &&
+                y >= structure.y && y < structure.y + structure.height) {
+                // Only allow walking on doors
+                return tile.type === 'door';
+            }
         }
 
         return true;
     }
 }
+
 
 
 

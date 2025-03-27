@@ -97,5 +97,69 @@ export class NPC {
         // Otherwise, NPC should be hidden
         this.isVisible = (this.currentStructure === playerStructure);
     }
+
+    findNearestDoor(structure) {
+        if (!structure) return null;
+        
+        // Search the structure's perimeter for door tiles
+        for (let y = structure.y; y < structure.y + structure.height; y++) {
+            for (let x = structure.x; x < structure.x + structure.width; x++) {
+                // Only check perimeter tiles
+                if (x > structure.x && x < structure.x + structure.width - 1 &&
+                    y > structure.y && y < structure.y + structure.height - 1) {
+                    continue;
+                }
+                
+                const tile = this.world.getTileAt(x, y);
+                if (tile && tile.type === 'door') {
+                    return { x, y };
+                }
+            }
+        }
+        return null;
+    }
+
+    async moveTo(targetX, targetY) {
+        const currentStructure = this.currentStructure;
+        const targetTile = this.world.getTileAt(targetX, targetY);
+        const targetStructure = targetTile?.structure;
+
+        // If entering or exiting a structure, find the nearest door
+        if (currentStructure !== targetStructure) {
+            const door = this.findNearestDoor(currentStructure || targetStructure);
+            if (door) {
+                // First move to the door
+                await this.pathfindTo(door.x, door.y);
+                // Then move to final destination
+                await this.pathfindTo(targetX, targetY);
+                return;
+            }
+        }
+
+        // Regular movement if not crossing structure boundaries
+        await this.pathfindTo(targetX, targetY);
+    }
+
+    async pathfindTo(x, y) {
+        if (!this.world || !this.world.pathFinder) return;
+        
+        const path = this.world.pathFinder.findPath(
+            Math.round(this.x),
+            Math.round(this.y),
+            Math.round(x),
+            Math.round(y)
+        );
+
+        if (path) {
+            // Implement movement along path
+            for (const point of path) {
+                this.x = point.x;
+                this.y = point.y;
+                // Add delay or animation between moves
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+    }
 }
+
 

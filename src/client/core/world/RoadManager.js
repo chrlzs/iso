@@ -48,6 +48,20 @@ export class RoadManager {
             'wetland': Infinity
         };
 
+        // Check and avoid structures
+        const structures = this.world.getAllStructures();
+        for (const structure of structures) {
+            // Mark structure tiles as impassable for roads
+            for (let dx = 0; dx < structure.width; dx++) {
+                for (let dy = 0; dy < structure.height; dy++) {
+                    const x = structure.x + dx;
+                    const y = structure.y + dy;
+                    const key = `${x},${y}`;
+                    roadCosts[key] = Infinity;
+                }
+            }
+        }
+
         // Find path using modified A* algorithm
         const path = this.pathFinder.findPath(
             startPoint.x, startPoint.y,
