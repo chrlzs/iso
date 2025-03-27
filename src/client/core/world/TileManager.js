@@ -26,7 +26,8 @@ export class TileManager {
             // Special tiles
             door: 1,
             helipad: 1,
-            parking: 1
+            parking: 1,
+            dumpster: 1
         };
 
         // Define base colors for each tile type
@@ -52,7 +53,8 @@ export class TileManager {
             // Special colors
             door: '#FFD700',      // Gold
             helipad: '#F57F17',   // Orange
-            parking: '#37474F'    // Dark blue-gray
+            parking: '#37474F',    // Dark blue-gray
+            dumpster: '#696969'   // Dark gray for dumpster
         };
         
         // Create temporary canvas for texture generation
@@ -162,6 +164,9 @@ export class TileManager {
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 }
+
+
+
 
 
 

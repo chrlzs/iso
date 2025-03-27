@@ -35,10 +35,10 @@ export class GameInstance {
             enabled: true,
             flags: {
                 showPath: false,
-                showGrid: false,
+                //showGrid: false,
                 //showCoordinates: true,  // Set to true by default
                 logTextureLoading: false,
-                logDecorations: true,
+                logDecorations: true,  // Make sure this is true
                 logZoomChanges: false,
                 logStructures: true,
                 enableLayoutMode: true
@@ -82,7 +82,10 @@ export class GameInstance {
                 
                 // Special terrain types
                 { x: 1, y: 15, type: 'helipad', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 16, type: 'parking', height: 0.50, moisture: 0.3 }
+                { x: 1, y: 16, type: 'parking', height: 0.50, moisture: 0.3 },
+                
+                // Remove this line:
+                // { x: 52, y: 45, type: 'concrete', height: 0.5, moisture: 0.3 },
             ],
             structures: [
                 { 
@@ -113,13 +116,33 @@ export class GameInstance {
                     states: { lightOn: false }
                 },
                 { 
-                    x: 35, 
-                    y: 35, 
+                    x: 43, 
+                    y: 40, 
                     type: 'factory',
                     floors: 3,
                     width: 5,
                     material: 'brick',
                     states: { lightOn: true }
+                },
+                {
+                    x: 52,
+                    y: 45,
+                    type: 'dumpster',
+                    floors: 1,
+                    width: 1,
+                    material: 'metal',
+                    states: { lightOn: false }
+                },
+                // Standalone dumpster structure
+                {
+                    x: 52,
+                    y: 45,
+                    type: 'dumpster',
+                    floors: 1,
+                    width: 1,
+                    height: 1,
+                    material: 'metal',
+                    states: { isOpen: false }
                 }
             ],
             zones: [
@@ -892,6 +915,14 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
+
+
+
+
+
+
+
 
 
 

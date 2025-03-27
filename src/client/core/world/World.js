@@ -20,7 +20,7 @@ export class World {
         this.chunksHeight = Math.ceil(height / this.chunkSize);
         
         // Initialize structure templates
-        this.structureTemplates = { ...StructureTemplates };
+        this.structureTemplates = StructureTemplates;
         
         // Initialize collections
         this.structures = new Map();
@@ -234,6 +234,8 @@ export class World {
     }
 
     createStructure(type, x, y) {
+        console.log(`Attempting to create structure ${type} at (${x}, ${y})`);
+        
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
             console.warn(`World: Structure position (${x}, ${y}) is outside map bounds`);
             return null;
@@ -245,15 +247,22 @@ export class World {
             return null;
         }
 
-        if (this.debug?.flags?.logStructures) {
-            console.log('World: Available structure templates:', 
-                Object.keys(this.structureTemplates));
-        }
+        // Log the tile information at this location
+        const tile = this.getTileAt(x, y);
+        console.log(`Tile at (${x}, ${y}):`, tile);
 
         try {
             const structure = new Structure(template, x, y, this);
             const key = `${x},${y}`;
             this.structures.set(key, structure);
+            
+            // Add this debug logging
+            console.log(`Structure created:`, structure);
+            
+            // Log the tile after structure assignment
+            const updatedTile = this.getTileAt(x, y);
+            console.log(`Updated tile at (${x}, ${y}):`, updatedTile);
+            
             return structure;
         } catch (error) {
             console.error(`World: Failed to create structure ${type} at (${x}, ${y}):`, error);
@@ -302,6 +311,9 @@ export class World {
         return Array.from(this.structures.values());
     }
 }
+
+
+
 
 
 

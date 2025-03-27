@@ -1,15 +1,22 @@
 export class Structure {
     constructor(template, x, y, world) {
         this.template = template;
+        this.type = template.type;
         this.x = x;
         this.y = y;
-        this.type = template.type;
         this.width = template.width;
         this.height = template.height;
-        this.id = null;
+        this.world = world;
 
-        // Calculate base height from terrain
-        this.calculateTerrainHeight(world);
+        // Special handling for dumpster
+        if (this.type === 'dumpster') {
+            this.height = 1;
+            this.elevation = 0.3; // Makes it appear slightly raised
+            this.states = {
+                ...template.states,
+                isOpen: false
+            };
+        }
 
         // Components mapping for multi-tile structures
         this.components = [];
@@ -179,6 +186,7 @@ export class Structure {
         };
     }
 }
+
 
 
 

@@ -119,34 +119,38 @@ export class StructureRenderer {
 
     render(structure, worldX, worldY, screenX, screenY) {
         if (!structure?.template) return;
-        this.world = structure.world; // Store world reference FIRST
 
         this.ctx.save();
         
-        const material = structure.template.material || 'concrete';
-        const colors = {
-            frontRight: this.patterns.get(material) || '#a0a0a0',
-            frontLeft: this.patterns.get(material) || '#808080',
-            top: '#c0c0c0'  // Keep top solid for now
-        };
+        if (structure.type === 'dumpster') {
+            this.drawDumpster(screenX, screenY, structure);
+        } else {
+            // Regular structure rendering
+            const material = structure.template.material || 'concrete';
+            const colors = {
+                frontRight: this.patterns.get(material) || '#a0a0a0',
+                frontLeft: this.patterns.get(material) || '#808080',
+                top: '#c0c0c0'
+            };
+            
+            const basePoints = {
+                bottomLeft: { x: worldX, y: worldY + structure.height },
+                bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
+                topRight: { x: worldX + structure.width, y: worldY },
+                topLeft: { x: worldX, y: worldY }
+            };
 
-        const basePoints = {
-            bottomLeft: { x: worldX, y: worldY + structure.height },
-            bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
-            topRight: { x: worldX + structure.width, y: worldY },
-            topLeft: { x: worldX, y: worldY }
-        };
+            const screenPoints = {
+                bottomLeft: this.worldToScreen(basePoints.bottomLeft.x, basePoints.bottomLeft.y),
+                bottomRight: this.worldToScreen(basePoints.bottomRight.x, basePoints.bottomRight.y),
+                topRight: this.worldToScreen(basePoints.topRight.x, basePoints.topRight.y),
+                topLeft: this.worldToScreen(basePoints.topLeft.x, basePoints.topLeft.y)
+            };
 
-        const screenPoints = {
-            bottomLeft: this.worldToScreen(basePoints.bottomLeft.x, basePoints.bottomLeft.y),
-            bottomRight: this.worldToScreen(basePoints.bottomRight.x, basePoints.bottomRight.y),
-            topRight: this.worldToScreen(basePoints.topRight.x, basePoints.topRight.y),
-            topLeft: this.worldToScreen(basePoints.topLeft.x, basePoints.topLeft.y)
-        };
-
-        const totalHeight = (structure.template.floors || 1) * this.floorHeight;
-        
-        this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
+            const totalHeight = (structure.template.floors || 1) * this.floorHeight;
+            
+            this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
+        }
 
         this.ctx.restore();
         // Store world reference from structure
@@ -681,7 +685,96 @@ export class StructureRenderer {
         const y = Math.round((screenY / (this.tileHeight / 2) - screenX / (this.tileWidth / 2)) / 2);
         return { x, y };
     }
+
+    drawIsometricBox(x, y, width, height, depth, colors) {
+        // Draw front face
+        this.ctx.fillStyle = colors.frontRight;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(x + width, y);
+        this.ctx.lineTo(x + width, y - height);
+        this.ctx.lineTo(x, y - height);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw back face
+        this.ctx.fillStyle = colors.frontLeft;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(x, y - height);
+        this.ctx.lineTo(x - depth, y - height);
+        this.ctx.lineTo(x - depth, y);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw top face
+        this.ctx.fillStyle = colors.top;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y - height);
+        this.ctx.lineTo(x + width, y - height);
+        this.ctx.lineTo(x + width - depth, y - height - depth);
+        this.ctx.lineTo(x - depth, y - height - depth);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+
+    drawDumpster(screenX, screenY, structure) {
+        const colors = {
+            base: '#3A3A3A',      // Dark gray for main body
+            lid: '#4A4A4A',       // Slightly lighter for lid
+            shadow: '#2A2A2A',    // Darker for shadows
+            highlight: '#5A5A5A'  // Lighter for highlights
+        };
+
+        // Base elevation
+        const elevation = structure.elevation * this.tileHeight;
+        screenY -= elevation;
+
+        // Dimensions
+        const width = this.tileWidth;
+        const height = this.tileHeight * 0.8;
+        const depth = this.tileHeight * 0.3;
+
+        // Draw main body
+        this.ctx.beginPath();
+        this.ctx.fillStyle = colors.base;
+        
+        // Front face
+        this.ctx.moveTo(screenX, screenY);
+        this.ctx.lineTo(screenX + width, screenY);
+        this.ctx.lineTo(screenX + width, screenY + height);
+        this.ctx.lineTo(screenX, screenY + height);
+        this.ctx.fill();
+
+        // Top face (lid)
+        this.ctx.beginPath();
+        this.ctx.fillStyle = structure.states.isOpen ? colors.highlight : colors.lid;
+        this.ctx.moveTo(screenX, screenY);
+        this.ctx.lineTo(screenX + width, screenY);
+        this.ctx.lineTo(screenX + width - depth, screenY - depth);
+        this.ctx.lineTo(screenX - depth, screenY - depth);
+        this.ctx.fill();
+
+        // Side face
+        this.ctx.beginPath();
+        this.ctx.fillStyle = colors.shadow;
+        this.ctx.moveTo(screenX + width, screenY);
+        this.ctx.lineTo(screenX + width - depth, screenY - depth);
+        this.ctx.lineTo(screenX + width - depth, screenY + height - depth);
+        this.ctx.lineTo(screenX + width, screenY + height);
+        this.ctx.fill();
+
+        // Add some detail lines
+        this.ctx.strokeStyle = colors.highlight;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX + width * 0.2, screenY + height * 0.2);
+        this.ctx.lineTo(screenX + width * 0.8, screenY + height * 0.2);
+        this.ctx.stroke();
+    }
 }
+
+
 
 
 

@@ -21,7 +21,8 @@ TileManager.prototype.loadTextures = function() {
         'metal': createTempTexture('#A0A0A0'),
         'dec_cameras': createTempTexture('#404040'),
         'dec_terminals': createTempTexture('#00FF00'),
-        'dec_drones': createTempTexture('#202020')
+        'dec_drones': createTempTexture('#202020'),
+        'dec_dumpster': createTempTexture('#2F4F4F')  // Add dumpster texture
     };
     return Promise.resolve();
 };
@@ -43,24 +44,13 @@ async function runTest() {
     // Create a simple test grid
     const testGrid = [
         [
-            { type: 'grass', height: 0, decoration: null },
-            { type: 'grass', height: 0, decoration: {
-                type: 'flowers',
-                offset: { x: 0, y: -8 },
-                scale: { x: 0.5, y: 0.5 }
-            }}
-        ],
-        [
-            { type: 'grass', height: 0, decoration: {
-                type: 'rocks',
-                offset: { x: 0, y: -4 },
-                scale: { x: 0.6, y: 0.6 }
+            { type: 'asphalt', height: 0, decoration: {
+                type: 'dumpster',
+                texture: 'dec_dumpster',
+                offset: { x: -16, y: -16 },  // Offset to position it properly on the tile
+                scale: { x: 1.2, y: 1.2 }    // Slightly larger than default
             }},
-            { type: 'grass', height: 0, decoration: {
-                type: 'grassTufts',
-                offset: { x: 0, y: -6 },
-                scale: { x: 0.7, y: 0.7 }
-            }}
+            { type: 'asphalt', height: 0, decoration: null }
         ]
     ];
 
@@ -80,5 +70,7 @@ async function runTest() {
 
 // Run test
 runTest().catch(console.error);
+
+
 
 

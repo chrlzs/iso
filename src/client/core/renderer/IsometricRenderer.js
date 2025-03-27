@@ -91,6 +91,16 @@ export class IsometricRenderer {
         const isoX = (x - y) * this.tileWidth / 2;
         const isoY = (x + y) * this.tileHeight / 2;
 
+        // Add debug logging for structure tiles
+        if (tile.structure) {
+            console.log(`Rendering tile with structure:`, {
+                x, y,
+                tileType: tile.type,
+                structureType: tile.structure.type,
+                isoX, isoY
+            });
+        }
+
         const heightOffset = tile.type === 'water' ? 0 : (tile.height * this.heightScale);
         const finalY = isoY - heightOffset;
 
@@ -170,6 +180,7 @@ export class IsometricRenderer {
         return colors[tileType] || '#FF0000';
     }
 }
+
 
 
 

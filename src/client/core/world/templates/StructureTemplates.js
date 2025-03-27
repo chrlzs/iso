@@ -95,5 +95,20 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'door', 'door', 'door', 'door', 'wall']
         ]
+    },
+    dumpster: {
+        type: 'dumpster',
+        width: 1,
+        height: 1,
+        floors: 1,
+        material: 'metal',
+        states: {
+            isOpen: false
+        },
+        blueprint: [
+            ['dumpster']
+        ]
     }
 };
+
+export const getTemplate = (type) => StructureTemplates[type];
