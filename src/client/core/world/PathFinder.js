@@ -9,6 +9,18 @@ export class PathFinder {
 
         this.maxIterations = options.maxIterations || 1000;
         this.maxPathLength = options.maxPathLength || 100;
+        this.currentStructure = null; // Track which structure the player is in
+    }
+
+    isInsideStructure(x, y) {
+        const structures = this.world.getAllStructures();
+        for (const structure of structures) {
+            if (x >= structure.x && x < structure.x + structure.width &&
+                y >= structure.y && y < structure.y + structure.height) {
+                return structure;
+            }
+        }
+        return null;
     }
 
     findPath(startX, startY, endX, endY) {
@@ -19,6 +31,9 @@ export class PathFinder {
         startY = Math.round(startY);
         endX = Math.round(endX);
         endY = Math.round(endY);
+
+        // Check if player is inside a structure
+        this.currentStructure = this.isInsideStructure(startX, startY);
 
         // Check if target is inside a structure
         const structures = this.world.getAllStructures();
@@ -31,18 +46,24 @@ export class PathFinder {
             }
         }
 
+        // If player is inside a structure
+        if (this.currentStructure) {
+            // Allow direct movement to target if it's in the same structure
+            if (targetStructure === this.currentStructure) {
+                return this.findSinglePath(startX, startY, endX, endY, true);
+            }
+            // Moving outside - path to nearest door
+            const nearestDoor = this.findNearestDoor(startX, startY);
+            if (!nearestDoor) return null;
+            
+            return this.findSinglePath(startX, startY, nearestDoor.x, nearestDoor.y, true);
+        }
+
         // If targeting inside a structure, path to door + one step inside
         if (targetStructure) {
             const nearestDoor = this.findNearestDoor(endX, endY);
             if (!nearestDoor) {
                 console.warn('No door found for structure');
-                return null;
-            }
-
-            // Get the interior tile adjacent to the door
-            const interiorTile = this.getInteriorTileFromDoor(nearestDoor.x, nearestDoor.y, targetStructure);
-            if (!interiorTile) {
-                console.warn('Could not find walkable interior tile next to door');
                 return null;
             }
 
@@ -53,6 +74,16 @@ export class PathFinder {
                 return null;
             }
 
+            // Get the interior tile adjacent to the door
+            const interiorTile = this.getInteriorTileFromDoor(nearestDoor.x, nearestDoor.y, targetStructure);
+            if (!interiorTile) {
+                console.warn('Could not find walkable interior tile next to door');
+                return null;
+            }
+
+            // Set the target structure as current before adding interior tile
+            this.currentStructure = targetStructure;
+            
             // Add the interior tile to the path
             pathToDoor.push(interiorTile);
             return pathToDoor;
@@ -71,16 +102,23 @@ export class PathFinder {
             {x: doorX, y: doorY+1}
         ];
 
+        // Temporarily set currentStructure to allow checking interior tiles
+        const previousStructure = this.currentStructure;
+        this.currentStructure = structure;
+
         for (const tile of adjacentTiles) {
             if (tile.x >= structure.x && tile.x < structure.x + structure.width &&
                 tile.y >= structure.y && tile.y < structure.y + structure.height) {
-                // Verify the tile is actually walkable inside the structure
                 if (this.isWalkable(tile.x, tile.y, true)) {
+                    // Restore previous structure state
+                    this.currentStructure = previousStructure;
                     return tile;
                 }
             }
         }
 
+        // Restore previous structure state
+        this.currentStructure = previousStructure;
         return null;
     }
 
@@ -382,8 +420,13 @@ export class PathFinder {
             // If point is inside structure bounds
             if (x >= structure.x && x < structure.x + structure.width &&
                 y >= structure.y && y < structure.y + structure.height) {
-                // Allow interior movement or only on doors based on flag
-                return allowInterior || tile.type === 'door';
+                // Allow movement if:
+                // 1. We're explicitly allowing interior movement
+                // 2. This is the structure we're currently in
+                // 3. It's a door tile
+                return allowInterior || 
+                       structure === this.currentStructure ||
+                       tile.type === 'door';
             }
         }
 
