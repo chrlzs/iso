@@ -76,12 +76,12 @@ export const StructureTemplates = {
         roofType: 'clerestory',
         roofConfig: {
             style: 'clerestory',
-            baseColor: '#4A4A4A',     // Color of main flat roof
-            overlapColor: '#363636',   // Color of overlapping section
-            height: 48,               // Height of main flat roof
-            overlapHeight: 64,        // Height where overlap section starts
-            overlapWidth: 0.6,        // How much of building width to overlap
-            overlapExtend: 0.3        // How far to extend past building (as % of width)
+            baseColor: '#4A4A4A',     // Main structure color
+            overlapColor: '#363636',   // Top angled roof color
+            height: 48,               // Base roof height
+            overlapHeight: 40,        // Height of clerestory section (increased)
+            overlapWidth: 0.7,        // Width of raised section (70% of building)
+            overlapExtend: 0.3        // Roof overhang amount
         },
         material: 'concrete',
         states: {

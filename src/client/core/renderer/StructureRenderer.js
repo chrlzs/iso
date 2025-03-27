@@ -232,7 +232,8 @@ export class StructureRenderer {
                 this.drawGabledRoof(points, height, roofConfig);
                 break;
             case 'clerestory':
-                this.drawClerestoryRoof(points, height, roofConfig);
+                // Just draw a flat roof for now
+                this.drawFlatRoof(points, height, roofConfig.baseColor || '#4A4A4A');
                 break;
             default:
                 this.drawFlatRoof(points, height, roofConfig.color);
@@ -358,33 +359,99 @@ export class StructureRenderer {
     }
 
     drawClerestoryRoof(points, height, config) {
-        // Draw base flat roof first
-        this.drawFlatRoof(points, height, config.baseColor);
+        // Draw base flat roof first with slightly darker color
+        const baseColor = this.adjustColorBrightness(config.baseColor || '#4A4A4A', -15);
+        this.drawFlatRoof(points, height, baseColor);
 
         const extension = config.overlapExtend || 0.3;
+        const overlapHeight = config.overlapHeight || 32;
+        const overlapWidth = config.overlapWidth || 0.7;
+        const sideMargin = 0.15;
         
-        // Right side starting point (top of wall)
-        const startX = points.topRight.x;
-        const startY = points.topRight.y - height;
+        // Isometric angles (30 degrees)
+        const isoAngle = Math.PI / 6;
+        const isoSkewX = Math.cos(isoAngle);
+        const isoSkewY = Math.sin(isoAngle);
+
+        // Calculate base points for raised section
+        const raisedStart = {
+            x: points.topRight.x - (points.topRight.x - points.topLeft.x) * (overlapWidth + sideMargin),
+            y: points.topRight.y - height
+        };
         
-        // Extended point now goes down instead of up
-        const extendX = points.bottomRight.x + (points.bottomRight.x - points.topRight.x) * extension;
-        const extendY = points.bottomRight.y + (points.bottomRight.y - points.topRight.y) * extension;
-        
-        // Draw angled section
-        this.ctx.fillStyle = this.adjustColorBrightness(config.overlapColor || config.baseColor, -10);
+        const raisedEnd = {
+            x: points.bottomRight.x - (points.bottomRight.x - points.bottomLeft.x) * (overlapWidth + sideMargin),
+            y: points.bottomRight.y - height
+        };
+
+        // Draw vertical walls with isometric perspective
+        const wallColor = this.adjustColorBrightness(config.baseColor || '#4A4A4A', -20);
+        this.ctx.fillStyle = wallColor;
+
+        // Right wall (darker)
         this.ctx.beginPath();
-        
-        // Start from top of right wall
-        this.ctx.moveTo(startX, startY);
-        // Go to extended point at base height
-        this.ctx.lineTo(extendX, extendY - height);
-        // Back to wall
-        this.ctx.lineTo(points.bottomRight.x, points.bottomRight.y - height);
-        
+        this.ctx.moveTo(points.topRight.x - (points.topRight.x - points.topLeft.x) * sideMargin, points.topRight.y - height);
+        this.ctx.lineTo(points.bottomRight.x - (points.bottomRight.x - points.bottomLeft.x) * sideMargin, points.bottomRight.y - height);
+        this.ctx.lineTo(points.bottomRight.x - (points.bottomRight.x - points.bottomLeft.x) * sideMargin, points.bottomRight.y - height - overlapHeight);
+        this.ctx.lineTo(points.topRight.x - (points.topRight.x - points.topLeft.x) * sideMargin, points.topRight.y - height - overlapHeight);
         this.ctx.closePath();
         this.ctx.fill();
         this.ctx.stroke();
+
+        // Draw windows with isometric perspective
+        const windowCount = Math.max(2, Math.floor((raisedEnd.x - raisedStart.x) / 40));
+        const windowSpacing = (raisedEnd.x - raisedStart.x) / windowCount;
+        const windowHeight = overlapHeight * 0.7;
+        const windowWidth = windowSpacing * 0.7;
+
+        for (let i = 0; i < windowCount; i++) {
+            const wx = raisedStart.x + (windowSpacing * i) + (windowSpacing * 0.15);
+            const wy = raisedStart.y - overlapHeight + (overlapHeight * 0.15);
+            
+            // Draw isometric window frame
+            this.ctx.fillStyle = '#2a2a2a';
+            
+            // Calculate isometric window points
+            const windowPoints = [
+                { x: wx, y: wy },
+                { x: wx + windowWidth * isoSkewX, y: wy + windowWidth * isoSkewY },
+                { x: wx + windowWidth * isoSkewX, y: wy + windowWidth * isoSkewY + windowHeight },
+                { x: wx, y: wy + windowHeight }
+            ];
+
+            // Draw window frame
+            this.ctx.beginPath();
+            this.ctx.moveTo(windowPoints[0].x, windowPoints[0].y);
+            this.ctx.lineTo(windowPoints[1].x, windowPoints[1].y);
+            this.ctx.lineTo(windowPoints[2].x, windowPoints[2].y);
+            this.ctx.lineTo(windowPoints[3].x, windowPoints[3].y);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Draw window glass with gradient
+            const gradient = this.ctx.createLinearGradient(
+                windowPoints[0].x, windowPoints[0].y,
+                windowPoints[2].x, windowPoints[2].y
+            );
+            gradient.addColorStop(0, 'rgba(173, 216, 230, 0.9)');
+            gradient.addColorStop(0.5, 'rgba(173, 216, 230, 0.7)');
+            gradient.addColorStop(1, 'rgba(173, 216, 230, 0.8)');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+
+            // Draw window panes following isometric perspective
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.beginPath();
+            // Vertical pane
+            this.ctx.moveTo(wx + (windowWidth * 0.5) * isoSkewX, wy + (windowWidth * 0.5) * isoSkewY);
+            this.ctx.lineTo(wx + (windowWidth * 0.5) * isoSkewX, wy + (windowWidth * 0.5) * isoSkewY + windowHeight);
+            // Horizontal pane
+            this.ctx.moveTo(wx, wy + windowHeight * 0.5);
+            this.ctx.lineTo(wx + windowWidth * isoSkewX, wy + windowWidth * isoSkewY + windowHeight * 0.5);
+            this.ctx.stroke();
+        }
     }
 
     adjustColorBrightness(hex, percent) {
@@ -615,6 +682,14 @@ export class StructureRenderer {
         return { x, y };
     }
 }
+
+
+
+
+
+
+
+
 
 
 
