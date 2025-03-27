@@ -5,18 +5,33 @@ export class TileManager {
         
         // Define variants for each tile type
         this.variants = {
-            grass: 3,    // 3 variants of grass
-            dirt: 2,     // 2 variants of dirt
-            sand: 2,     // 2 variants of sand
-            forest: 2,   // 2 variants of forest
-            mountain: 2, // 2 variants of mountain
-            water: 1,    // 1 variant of water
-            wetland: 2,  // 2 variants of wetland
-            door: 1      // 1 variant for door tiles
+            // Natural tiles
+            grass: 3,
+            dirt: 2,
+            sand: 2,
+            forest: 2,
+            mountain: 2,
+            water: 1,
+            wetland: 2,
+            
+            // Urban tiles
+            concrete: 3,     // Different wear patterns
+            asphalt: 3,      // Various road textures
+            metal: 2,        // Industrial flooring
+            tiles: 2,        // Urban plaza tiles
+            gravel: 2,       // Construction areas
+            solar: 1,        // Solar panel arrays
+            garden: 2,       // Urban gardens/parks
+            
+            // Special tiles
+            door: 1,
+            helipad: 1,
+            parking: 1
         };
 
         // Define base colors for each tile type
         this.tileColors = {
+            // Natural colors
             grass: '#4CAF50',
             dirt: '#795548',
             sand: '#FDD835',
@@ -24,7 +39,20 @@ export class TileManager {
             mountain: '#757575',
             water: '#1976D2',
             wetland: '#558B2F',
-            door: '#FFD700'  // Gold color for door tiles
+            
+            // Urban colors
+            concrete: '#9E9E9E',  // Medium gray
+            asphalt: '#424242',   // Dark gray
+            metal: '#B0BEC5',     // Bluish gray
+            tiles: '#78909C',     // Cool gray
+            gravel: '#707070',    // Warm gray
+            solar: '#1A237E',     // Deep blue
+            garden: '#66BB6A',    // Light green
+            
+            // Special colors
+            door: '#FFD700',      // Gold
+            helipad: '#F57F17',   // Orange
+            parking: '#37474F'    // Dark blue-gray
         };
         
         // Create temporary canvas for texture generation
@@ -134,6 +162,7 @@ export class TileManager {
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 }
+
 
 
 

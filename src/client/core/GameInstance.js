@@ -62,7 +62,7 @@ export class GameInstance {
             height: 64,
             seed: 12345,
             terrain: [
-                // One of each terrain type for reference
+                // Natural terrain types
                 { x: 1, y: 1, type: 'water', height: 0.35, moisture: 0.9 },
                 { x: 1, y: 2, type: 'wetland', height: 0.40, moisture: 0.8 },
                 { x: 1, y: 3, type: 'sand', height: 0.40, moisture: 0.2 },
@@ -70,6 +70,19 @@ export class GameInstance {
                 { x: 1, y: 5, type: 'grass', height: 0.50, moisture: 0.5 },
                 { x: 1, y: 6, type: 'forest', height: 0.60, moisture: 0.7 },
                 { x: 1, y: 7, type: 'mountain', height: 0.85, moisture: 0.3 },
+                
+                // Urban terrain types
+                { x: 1, y: 8, type: 'concrete', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 9, type: 'asphalt', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 10, type: 'metal', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 11, type: 'tiles', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 12, type: 'gravel', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 13, type: 'solar', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 14, type: 'garden', height: 0.50, moisture: 0.4 },
+                
+                // Special terrain types
+                { x: 1, y: 15, type: 'helipad', height: 0.50, moisture: 0.3 },
+                { x: 1, y: 16, type: 'parking', height: 0.50, moisture: 0.3 }
             ],
             structures: [
                 { 
@@ -879,6 +892,8 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
+
 
 
 
