@@ -263,6 +263,14 @@ export class World {
             const updatedTile = this.getTileAt(x, y);
             console.log(`Updated tile at (${x}, ${y}):`, updatedTile);
             
+            // Log entities inside this structure
+            const entitiesInside = this.game?.entities?.filter(entity => 
+                entity.currentStructure === structure
+            ) || [];
+            if (entitiesInside.length > 0) {
+                console.log(`Entities inside structure:`, entitiesInside);
+            }
+            
             return structure;
         } catch (error) {
             console.error(`World: Failed to create structure ${type} at (${x}, ${y}):`, error);

@@ -210,15 +210,16 @@ export class GameInstance {
         });
     }
 
-    createMerchant(pos) {
-        console.log('Starting merchant creation at position:', pos);
+    createMerchant(pos, structure = null) {
+        console.log('Starting merchant creation at position:', pos, 'in structure:', structure?.type);
         
         try {
             const merchant = new Merchant({
                 x: pos.x,
                 y: pos.y,
-                name: 'Tech Merchant',
-                eth: 1000
+                name: structure ? 'Shop Owner' : 'Wandering Merchant',
+                eth: 1000,
+                world: this.world  // Pass world reference
             });
 
             // Verify merchant creation
@@ -489,9 +490,9 @@ export class GameInstance {
         // Find the structure at player's position
         let playerX = Math.floor(this.player.x);
         let playerY = Math.floor(this.player.y);
-        
-        // Check each structure to see if player is inside
         let playerStructure = null;
+
+        // Check each structure to see if player is inside
         this.world.getAllStructures().forEach(structure => {
             if (playerX >= structure.x && 
                 playerX < structure.x + structure.width &&
@@ -515,6 +516,14 @@ export class GameInstance {
                     roof: true,
                     floor: true
                 };
+            }
+        });
+
+        // Update NPC visibility based on structures
+        this.entities.forEach(entity => {
+            if (entity instanceof NPC) {
+                entity.update(deltaTime);
+                entity.updateVisibility(playerStructure);
             }
         });
 
@@ -543,32 +552,52 @@ export class GameInstance {
         );
         this.ctx.scale(this.camera.zoom, this.camera.zoom);
 
-        // Render world
+        // Render world first (includes structures with transparency)
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);
         
-        // Draw tile coordinates
+        // Draw tile coordinates if enabled
         this.drawTileCoordinates();
         
-        // Render all entities
-        for (const entity of this.entities) {
-            if (entity && entity.render) {
+        // Split entities into inside/outside groups
+        const entitiesOutside = [];
+        const entitiesInside = [];
+        
+        this.entities.forEach(entity => {
+            if (entity.currentStructure) {
+                entitiesInside.push(entity);
+            } else {
+                entitiesOutside.push(entity);
+            }
+        });
+
+        // Sort each group by Y position
+        entitiesOutside.sort((a, b) => a.y - b.y);
+        entitiesInside.sort((a, b) => a.y - b.y);
+
+        // Render outside entities first
+        entitiesOutside.forEach(entity => {
+            if (entity.render && entity.isVisible) {
                 entity.render(this.ctx, this.renderer);
             }
-        }
+        });
 
-        // Render player last to ensure they're on top
+        // Render inside entities after structure transparency
+        entitiesInside.forEach(entity => {
+            if (entity.render && entity.isVisible) {
+                entity.render(this.ctx, this.renderer);
+            }
+        });
+
+        // Render player last
         if (this.player) {
             this.player.render(this.ctx, this.renderer);
         }
 
         this.ctx.restore();
 
-        // Render UI with a fresh context state
+        // Render UI on top of everything
         if (this.uiManager) {
-            //console.log('Rendering UI...');
             this.uiManager.render(this.ctx);
-        } else {
-            console.warn('UIManager not initialized');
         }
     }
 
@@ -824,9 +853,32 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 
-    // Add this new method to GameInstance class
     addMerchantNearPlayer() {
-        // Calculate merchant position relative to player
+        // Try to find a nearby structure first
+        const nearbyStructures = this.world.getAllStructures().filter(structure => 
+            structure.type !== 'dumpster' &&  // Skip certain structure types
+            Math.abs(structure.x - this.player.x) < 10 && 
+            Math.abs(structure.y - this.player.y) < 10
+        );
+
+        if (nearbyStructures.length > 0) {
+            // Pick a random structure
+            const structure = nearbyStructures[Math.floor(Math.random() * nearbyStructures.length)];
+            
+            // Place merchant inside the structure
+            const merchantPosition = {
+                x: structure.x + Math.floor(structure.width / 2),
+                y: structure.y + Math.floor(structure.height / 2)
+            };
+
+            const merchant = this.createMerchant(merchantPosition, structure);
+            if (merchant) {
+                this.entities.add(merchant);
+                return merchant;
+            }
+        }
+
+        // Fallback to original outdoor placement
         const merchantPosition = {
             x: this.player.x + 5,
             y: this.player.y + 5

@@ -1,4 +1,3 @@
-
 export class NPC {
     constructor(config) {
         this.x = config.x || 0;
@@ -7,9 +6,40 @@ export class NPC {
         this.size = config.size || 32;
         this.color = config.color || '#8B4513';
         this.world = config.world;
+        this.currentStructure = null;
+        this.isVisible = true;
+
+        // If world is provided, check if spawning inside a structure
+        if (this.world) {
+            const structures = this.world.getAllStructures();
+            this.currentStructure = structures.find(structure => 
+                this.x >= structure.x && 
+                this.x < structure.x + structure.width &&
+                this.y >= structure.y && 
+                this.y < structure.y + structure.height
+            );
+
+            if (this.currentStructure) {
+                console.log(`${this.name} spawned inside structure at (${this.x}, ${this.y})`);
+            }
+        }
+    }
+
+    update(deltaTime) {
+        // Get current structure if any
+        if (this.world) {
+            const structures = this.world.getAllStructures();
+            this.currentStructure = structures.find(structure => 
+                this.x >= structure.x && 
+                this.x < structure.x + structure.width &&
+                this.y >= structure.y && 
+                this.y < structure.y + structure.height
+            );
+        }
     }
 
     render(ctx, renderer) {
+        if (!this.isVisible) return;
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);
         const isoY = (this.x + this.y) * (renderer.tileHeight / 2);
@@ -54,6 +84,18 @@ export class NPC {
         );
         
         ctx.restore();
+    }
+
+    updateVisibility(playerStructure) {
+        // If NPC is not in a structure, always visible
+        if (!this.currentStructure) {
+            this.isVisible = true;
+            return;
+        }
+
+        // If player is in the same structure as NPC, visible
+        // Otherwise, NPC should be hidden
+        this.isVisible = (this.currentStructure === playerStructure);
     }
 }
 
