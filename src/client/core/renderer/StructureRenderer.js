@@ -100,21 +100,54 @@ export class StructureRenderer {
         }
         this.patterns.set('metal', this.ctx.createPattern(patternCanvas, 'repeat'));
 
-        // Brick pattern
-        patternCtx.clearRect(0, 0, 64, 64);
-        patternCtx.fillStyle = '#963a2f';
-        patternCtx.fillRect(0, 0, 64, 64);
-        
-        // Draw brick pattern
-        patternCtx.fillStyle = '#732219';
-        for (let y = 0; y < 64; y += 16) {
-            let offset = (y % 32) === 0 ? 0 : 32;
-            for (let x = offset; x < 64; x += 64) {
-                patternCtx.fillRect(x, y, 30, 14);
-                patternCtx.strokeRect(x, y, 30, 14);
+        // Brick patterns - create two patterns for different wall faces
+        const createBrickPattern = (angle) => {
+            patternCtx.clearRect(0, 0, 64, 64);
+            patternCtx.fillStyle = '#963a2f';
+            patternCtx.fillRect(0, 0, 64, 64);
+            
+            patternCtx.save();
+            patternCtx.translate(32, 32);
+            // For isometric walls, use atan2(0.5, 1) ≈ 26.57 degrees for proper alignment
+            patternCtx.rotate(Math.atan2(0.5, 1) * (angle > 0 ? 1 : -1));
+            patternCtx.translate(-32, -32);
+            
+            patternCtx.fillStyle = '#732219';
+            // Adjust brick dimensions to match isometric perspective
+            const brickWidth = 40;  // Increased for better coverage
+            const brickHeight = 12;
+            
+            for (let y = -32; y < 96; y += brickHeight) {
+                let offset = (y % (brickHeight * 2)) === 0 ? 0 : brickWidth / 2;
+                for (let x = offset - 32; x < 96; x += brickWidth) {
+                    patternCtx.fillRect(x, y, brickWidth - 2, brickHeight - 1);
+                    patternCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+                    patternCtx.strokeRect(x, y, brickWidth - 2, brickHeight - 1);
+                    
+                    // Add highlights
+                    patternCtx.fillStyle = 'rgba(255,255,255,0.1)';
+                    patternCtx.fillRect(x, y, brickWidth - 2, 2);
+                    patternCtx.fillStyle = '#732219';
+                }
             }
+            patternCtx.restore();
+            return this.ctx.createPattern(patternCanvas, 'repeat');
+        };
+
+        // Create brick patterns with corrected angles
+        this.patterns.set('brick_right', createBrickPattern(1));  // Right face
+        this.patterns.set('brick_left', createBrickPattern(-1));  // Left face
+        this.patterns.set('brick', createBrickPattern(1));  // Default pattern
+
+        // Metal pattern
+        patternCtx.clearRect(0, 0, 64, 64);
+        patternCtx.fillStyle = '#8a8a8a';
+        patternCtx.fillRect(0, 0, 64, 64);
+        for (let y = 0; y < 64; y += 8) {
+            patternCtx.fillStyle = 'rgba(255,255,255,0.1)';
+            patternCtx.fillRect(0, y, 64, 1);
         }
-        this.patterns.set('brick', this.ctx.createPattern(patternCanvas, 'repeat'));
+        this.patterns.set('metal', this.ctx.createPattern(patternCanvas, 'repeat'));
     }
 
     render(structure, worldX, worldY, screenX, screenY) {
@@ -128,8 +161,9 @@ export class StructureRenderer {
             // Regular structure rendering
             const material = structure.template.material || 'concrete';
             const colors = {
-                frontRight: this.patterns.get(material) || '#a0a0a0',
-                frontLeft: this.patterns.get(material) || '#808080',
+                // Swap right/left patterns to match the wall angles correctly
+                frontRight: this.patterns.get(material === 'brick' ? 'brick_left' : material) || '#a0a0a0',
+                frontLeft: this.patterns.get(material === 'brick' ? 'brick_right' : material) || '#808080',
                 top: '#c0c0c0'
             };
             
