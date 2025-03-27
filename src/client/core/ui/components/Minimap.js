@@ -14,8 +14,14 @@ export class Minimap {
                 'nightclub': '#FF1493',  // Deep pink for neon effect
                 'office': '#4682B4',     // Steel blue
                 'wall': '#696969',       // Dim gray
-                'door': '#4A4A4A'        // Dark gray
+                'door': '#FFD700'        // Gold color for doors
             };
+            
+            // If the structure component is a door, return door color
+            if (tile.structure.type === 'door') {
+                return structureColors.door;
+            }
+            
             return structureColors[tile.structure.type] || '#DAA520'; // Default: Goldenrod
         }
 
@@ -81,6 +87,7 @@ export class Minimap {
         ctx.fill();
     }
 }
+
 
 
 

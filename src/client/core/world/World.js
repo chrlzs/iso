@@ -265,6 +265,10 @@ export class World {
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
         const tile = this.getTileAt(x, y);
         if (tile) {
+            // Store previous type if setting a door tile
+            if (type === 'door' && !tile.originalType) {
+                tile.originalType = tile.type;
+            }
             tile.type = type;
             // Trigger any necessary updates or redraws
             this.onTileChanged?.(x, y);

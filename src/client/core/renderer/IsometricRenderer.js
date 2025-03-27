@@ -108,6 +108,9 @@ export class IsometricRenderer {
         // Create the clipping mask
         this.ctx.clip();
 
+        // Check if tile has a door structure
+        const hasDoor = tile.structure && tile.structure.type === 'door';
+
         if (tile.type === 'water') {
             this.waterRenderer.renderWaterTile(
                 this.ctx,
@@ -118,7 +121,7 @@ export class IsometricRenderer {
             );
         } else {
             const texture = this.tileManager.getTexture(tile.type, tile.variant);
-            if (texture && texture.complete) {
+            if (texture && texture.complete && !hasDoor) {  // Don't use texture for door tiles
                 // Draw the image slightly larger to ensure it fills the diamond
                 this.ctx.drawImage(
                     texture, 
@@ -128,15 +131,15 @@ export class IsometricRenderer {
                     this.tileHeight
                 );
             } else {
-                // Fallback color fill if texture isn't available
-                this.ctx.fillStyle = this.getTileColor(tile.type);
+                // Fallback color fill if texture isn't available or if it's a door tile
+                this.ctx.fillStyle = this.getTileColor(tile.type, hasDoor);
                 this.ctx.fill();
             }
         }
 
         // Optional: Add tile border
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = hasDoor ? '#FFD700' : 'rgba(0,0,0,0.1)';  // Gold border for door tiles
+        this.ctx.lineWidth = hasDoor ? 2 : 1;  // Thicker border for door tiles
         this.ctx.stroke();
 
         // Restore the context state
@@ -149,7 +152,11 @@ export class IsometricRenderer {
     }
 
     // Helper method to get tile colors
-    getTileColor(tileType) {
+    getTileColor(tileType, hasDoor = false) {
+        if (hasDoor) {
+            return '#FFD700'; // Gold color for door tiles
+        }
+
         const colors = {
             'water': '#4A90E2',
             'sand': '#F5A623',
@@ -157,10 +164,13 @@ export class IsometricRenderer {
             'wetland': '#417505',
             'dirt': '#8B572A',
             'stone': '#9B9B9B',
-            'mountain': '#757575'
+            'mountain': '#757575',
+            'door': '#FFD700'
         };
         return colors[tileType] || '#FF0000';
     }
 }
+
+
 
 

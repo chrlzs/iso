@@ -222,7 +222,7 @@ export class GameInstance {
 
     findValidSpawnPoint() {
         const worldCenter = Math.floor(this.world.width / 2);
-        const searchRadius = 5;
+        const searchRadius = 10; // Increased radius to have more options
         
         for (let dy = -searchRadius; dy <= searchRadius; dy++) {
             for (let dx = -searchRadius; dx <= searchRadius; dx++) {
@@ -233,9 +233,28 @@ export class GameInstance {
                 const moisture = this.world.generateMoisture(x, y);
                 const tile = this.world.generateTile(x, y, height, moisture);
                 
-                if (tile.type !== 'water' && tile.type !== 'wetland') {
-                    console.log('Found valid spawn point at:', x, y);
-                    return { x, y };
+                // Check if tile is valid (not water/wetland and no structure)
+                if (tile.type !== 'water' && 
+                    tile.type !== 'wetland' && 
+                    !tile.structure) {
+                    
+                    // Additional check: make sure none of the surrounding tiles have structures
+                    let hasNearbyStructure = false;
+                    for (let ny = -1; ny <= 1; ny++) {
+                        for (let nx = -1; nx <= 1; nx++) {
+                            const nearTile = this.world.getTileAt(x + nx, y + ny);
+                            if (nearTile && nearTile.structure) {
+                                hasNearbyStructure = true;
+                                break;
+                            }
+                        }
+                        if (hasNearbyStructure) break;
+                    }
+                    
+                    if (!hasNearbyStructure) {
+                        console.log('Found valid spawn point at:', x, y);
+                        return { x, y };
+                    }
                 }
             }
         }
@@ -860,6 +879,7 @@ export class GameInstance {
         this.ctx.restore();
     }
 }
+
 
 
 

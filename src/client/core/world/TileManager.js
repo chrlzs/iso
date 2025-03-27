@@ -11,7 +11,8 @@ export class TileManager {
             forest: 2,   // 2 variants of forest
             mountain: 2, // 2 variants of mountain
             water: 1,    // 1 variant of water
-            wetland: 2   // 2 variants of wetland
+            wetland: 2,  // 2 variants of wetland
+            door: 1      // 1 variant for door tiles
         };
 
         // Define base colors for each tile type
@@ -22,7 +23,8 @@ export class TileManager {
             forest: '#2E7D32',
             mountain: '#757575',
             water: '#1976D2',
-            wetland: '#558B2F'
+            wetland: '#558B2F',
+            door: '#FFD700'  // Gold color for door tiles
         };
         
         // Create temporary canvas for texture generation
@@ -132,6 +134,8 @@ export class TileManager {
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 }
+
+
 
 
 

@@ -70,6 +70,8 @@ export class Structure {
             roof: true,
             floor: true
         };
+
+        this.world = world; // Ensure world reference is set
     }
 
     isDecorativeComponent(type) {

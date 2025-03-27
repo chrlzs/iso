@@ -8,6 +8,7 @@ export class StructureRenderer {
         // Initialize material patterns
         this.patterns = new Map();
         this.initializeMaterialPatterns();
+        this.world = null; // Add reference to world
     }
 
     initializeMaterialPatterns() {
@@ -118,6 +119,7 @@ export class StructureRenderer {
 
     render(structure, worldX, worldY, screenX, screenY) {
         if (!structure?.template) return;
+        this.world = structure.world; // Store world reference FIRST
 
         this.ctx.save();
         
@@ -147,6 +149,8 @@ export class StructureRenderer {
         this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
 
         this.ctx.restore();
+        // Store world reference from structure
+        this.world = structure.world;
     }
 
     drawStructureBox(points, height, colors, structureType, structure) {
@@ -371,17 +375,32 @@ export class StructureRenderer {
         // Move forward by 0.5 tiles in isometric space
         let doorX = tileCenter.x + (this.tileWidth / 4);
         const doorY = tileCenter.y - (this.tileHeight / 4);
+        let doorShifted = false;
 
         // Check if door position overlaps with any window position
         for (let w = 0; w < windowsPerFloor; w++) {
             const windowX = startX + (windowPadding + (w * (windowWidth + windowPadding)));
             const windowRight = windowX + windowWidth;
             
-            // If door overlaps with window, shift door one tile to the right
+            // If door overlaps with window, mark that we need to shift
             if (doorX >= windowX - doorWidth && doorX <= windowRight + doorWidth) {
+                doorShifted = true;
                 doorX += this.tileWidth / 2; // Shift right by half a tile width
                 break;
             }
+        }
+
+        // Convert coordinates and mark door tile, accounting for shift
+        if (this.world) {
+            const worldCoords = this.screenToWorld(startX, startY);
+            // If door was shifted right, also shift the tile marker right
+            if (doorShifted) {
+                worldCoords.x += 1;
+            }
+            // Subtract one from Y to move the door tile back one space
+            worldCoords.y -= 1;
+            //console.log('Door position:', worldCoords); // Debug log
+            this.world.setTileType(worldCoords.x, worldCoords.y, 'door');
         }
 
         const isoSkew = (doorWidth * this.tileHeight) / this.tileWidth;
@@ -418,6 +437,14 @@ export class StructureRenderer {
             x: (x - y) * (this.tileWidth / 2),
             y: (x + y) * (this.tileHeight / 2)
         };
+    }
+
+    // Add this helper method
+    screenToWorld(screenX, screenY) {
+        // Convert isometric screen coordinates back to world coordinates
+        const x = Math.round((screenX / (this.tileWidth / 2) + screenY / (this.tileHeight / 2)) / 2);
+        const y = Math.round((screenY / (this.tileHeight / 2) - screenX / (this.tileWidth / 2)) / 2);
+        return { x, y };
     }
 }
 
