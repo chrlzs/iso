@@ -15,7 +15,7 @@ import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 
 export class GameInstance {
-    constructor(canvas) {
+    constructor(canvas, options = {}) {
         console.log('Game: Initializing...');
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -55,6 +55,12 @@ export class GameInstance {
             heightValue: 0.5,
             moistureValue: 0.5
         };
+
+        // Add time tracking properties
+        this.gameTimeScale = 60; // 1 real second = 1 game minute
+        this.gameStartTime = Date.now();
+        this.gamePausedTime = 0;
+        this.lastPauseTime = null;
 
         // Create static map definition
         const staticMap = new MapDefinition({
@@ -453,6 +459,10 @@ export class GameInstance {
             console.warn('Required components not initialized');
             return;
         }
+
+        // Update game time (assuming you have a day/night cycle system)
+        const gameHour = this.getGameHour(); // implement this based on your time system
+        this.renderer.structureRenderer.updateTimeOfDay(gameHour);
 
         // Get terrain information at player's position
         const terrainHeight = this.getTerrainHeightAt(this.player.x, this.player.y);
@@ -957,7 +967,58 @@ export class GameInstance {
         
         this.ctx.restore();
     }
+
+    getGameHour() {
+        if (!this.running) {
+            return this.gamePausedTime / (1000 * this.gameTimeScale) % 24;
+        }
+
+        const currentTime = Date.now();
+        const elapsedRealTime = currentTime - this.gameStartTime;
+        const gameTime = elapsedRealTime * (this.gameTimeScale / 60); // Convert to game minutes
+        
+        // Convert to hours (0-24)
+        return (gameTime / 60) % 24;
+    }
+
+    pause() {
+        if (this.running) {
+            this.running = false;
+            this.lastPauseTime = Date.now();
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+        }
+    }
+
+    resume() {
+        if (!this.running) {
+            if (this.lastPauseTime) {
+                const pauseDuration = Date.now() - this.lastPauseTime;
+                this.gameStartTime += pauseDuration; // Adjust start time to account for pause
+            }
+            this.running = true;
+            this.lastTime = performance.now();
+            this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        }
+    }
+
+    // Optional: Add method to set specific time of day
+    setGameHour(hour) {
+        if (hour < 0 || hour >= 24) {
+            console.warn('Invalid hour value. Must be between 0 and 24');
+            return;
+        }
+        
+        const currentHour = this.getGameHour();
+        const hourDiff = hour - currentHour;
+        const timeAdjustment = (hourDiff * 60 * 60 * 1000) / this.gameTimeScale;
+        this.gameStartTime -= timeAdjustment;
+    }
 }
+
+
 
 
 

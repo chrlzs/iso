@@ -4,11 +4,30 @@ export class StructureRenderer {
         this.tileWidth = 64;
         this.tileHeight = 32;
         this.floorHeight = 32;
-        
-        // Initialize material patterns
         this.patterns = new Map();
+        
+        // Add time of day properties
+        this.timeOfDay = 0; // 0-24 hour format
+        this.isNight = false;
+        this.windowLightIntensity = 0;
+        
         this.initializeMaterialPatterns();
-        this.world = null; // Add reference to world
+        this.world = null;
+    }
+
+    // Add method to update time
+    updateTimeOfDay(hour) {
+        this.timeOfDay = hour;
+        // Consider night between 18:00 and 06:00
+        this.isNight = (hour >= 18 || hour < 6);
+        // Calculate window light intensity based on time
+        if (this.isNight) {
+            // Stronger glow at midnight, dimmer at dawn/dusk
+            const distanceFromMidnight = Math.abs(((hour + 12) % 24) - 12);
+            this.windowLightIntensity = 1 - (distanceFromMidnight / 12);
+        } else {
+            this.windowLightIntensity = 0;
+        }
     }
 
     initializeMaterialPatterns() {
@@ -230,6 +249,11 @@ export class StructureRenderer {
         // Draw roof only if visible
         if (structure.visibility.roof) {
             this.drawRoof(points, height, colors.top, structure);
+        }
+
+        // Draw chimneys after the roof
+        if (structure.visibility.roof) {
+            this.drawChimneys(points, height, structure);
         }
     }
 
@@ -507,32 +531,52 @@ export class StructureRenderer {
 
     drawWindows(startX, startY, faceWidth, totalHeight, floors, face) {
         const windowPadding = 8;
-        // Make window width exactly 50% of a tile width
         const windowWidth = Math.floor(this.tileWidth * 0.5);
         const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / this.tileWidth));
         
-        // Adjust available height per floor
         const availableHeightPerFloor = (totalHeight - this.floorHeight) / (floors - 1);
         const windowHeight = Math.min(
             availableHeightPerFloor - (windowPadding * 2),
             this.floorHeight - (windowPadding * 3)
         );
         
-        // Calculate isometric skew based on tile dimensions
         const isoSkew = (windowWidth * this.tileHeight) / this.tileWidth;
 
         this.ctx.save();
 
-        // Skip ground floor and adjust starting position
-        for (let floor = 1; floor < floors; floor++) {
-            const floorY = startY - (floor * availableHeightPerFloor) + windowPadding;
+        for (let f = 1; f < floors; f++) {
+            const floorY = startY - (f * this.floorHeight);
             
             for (let w = 0; w < windowsPerFloor; w++) {
                 const windowX = startX + (face === 'left' ? 1 : -1) * 
                     (windowPadding + (w * (this.tileWidth)));
                 const windowY = floorY;
 
-                // Draw window frame with depth
+                // Random chance for this window to be lit
+                const isLit = this.isNight && Math.random() < 0.7;
+
+                // Draw window glow effect if lit
+                if (isLit) {
+                    const glowRadius = Math.max(windowWidth, windowHeight) * 0.8;
+                    const gradient = this.ctx.createRadialGradient(
+                        windowX, windowY + windowHeight/2,
+                        0,
+                        windowX, windowY + windowHeight/2,
+                        glowRadius
+                    );
+                    gradient.addColorStop(0, `rgba(255, 255, 200, ${0.2 * this.windowLightIntensity})`);
+                    gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
+                    
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fillRect(
+                        windowX - glowRadius, 
+                        windowY - glowRadius/2,
+                        glowRadius * 2,
+                        glowRadius * 2
+                    );
+                }
+
+                // Draw window frame
                 this.ctx.beginPath();
                 if (face === 'left') {
                     this.ctx.moveTo(windowX - 2, windowY - 2);
@@ -546,79 +590,67 @@ export class StructureRenderer {
                     this.ctx.lineTo(windowX + 2, windowY + windowHeight);
                 }
                 this.ctx.closePath();
-                this.ctx.fillStyle = 'rgba(60, 60, 60, 0.6)';
-                this.ctx.fill();
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.stroke();
 
-                // Draw main window glass
-                this.ctx.beginPath();
-                if (face === 'left') {
-                    this.ctx.moveTo(windowX, windowY);
-                    this.ctx.lineTo(windowX + windowWidth, windowY + isoSkew);
-                    this.ctx.lineTo(windowX + windowWidth, windowY + windowHeight + isoSkew);
-                    this.ctx.lineTo(windowX, windowY + windowHeight);
-                } else {
-                    this.ctx.moveTo(windowX, windowY);
-                    this.ctx.lineTo(windowX - windowWidth, windowY + isoSkew);
-                    this.ctx.lineTo(windowX - windowWidth, windowY + windowHeight + isoSkew);
-                    this.ctx.lineTo(windowX, windowY + windowHeight);
-                }
-                this.ctx.closePath();
-
-                // Window glass gradient
+                // Create window gradient based on time of day
                 const gradient = this.ctx.createLinearGradient(
                     windowX, windowY,
-                    windowX + (face === 'left' ? windowWidth : -windowWidth), 
-                    windowY + windowHeight
+                    windowX, windowY + windowHeight
                 );
-                gradient.addColorStop(0, 'rgba(180, 214, 230, 0.8)');
-                gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
-                gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
+
+                if (isLit) {
+                    // Lit window at night
+                    gradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+                    gradient.addColorStop(0.5, 'rgba(255, 255, 150, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 255, 200, 0.9)');
+                } else {
+                    // Normal window during day or unlit at night
+                    gradient.addColorStop(0, 'rgba(180, 214, 230, 0.8)');
+                    gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
+                    gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
+                }
+                
                 this.ctx.fillStyle = gradient;
                 this.ctx.fill();
 
-                // Draw window panes
-                const paneCount = 3;
-                
-                // Vertical panes
-                for (let i = 1; i < paneCount; i++) {
-                    const ratio = i / paneCount;
-                    const x1 = windowX + (face === 'left' ? windowWidth * ratio : -windowWidth * ratio);
-                    const y1 = windowY + (isoSkew * ratio);
-                    const x2 = x1;
-                    const y2 = y1 + windowHeight;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x1, y1);
-                    this.ctx.lineTo(x2, y2);
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.stroke();
-                }
-
-                // Horizontal panes
-                for (let i = 1; i < paneCount; i++) {
-                    const ratio = i / paneCount;
-                    const startX = windowX;
-                    const startY = windowY + (windowHeight * ratio);
-                    const endX = windowX + (face === 'left' ? windowWidth : -windowWidth);
-                    const endY = windowY + (windowHeight * ratio) + isoSkew;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(startX, startY);
-                    this.ctx.lineTo(endX, endY);
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.stroke();
-                }
-
-                // Window frame
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                this.ctx.lineWidth = 1.5;
-                this.ctx.stroke();
+                // Draw window panes with adjusted opacity
+                const paneOpacity = isLit ? 0.6 : 0.4;
+                this.ctx.strokeStyle = `rgba(255, 255, 255, ${paneOpacity})`;
+                this.drawWindowPanes(windowX, windowY, windowWidth, windowHeight, isoSkew, face);
             }
         }
-
         this.ctx.restore();
+    }
+
+    drawWindowPanes(windowX, windowY, windowWidth, windowHeight, isoSkew, face) {
+        const paneCount = 3;
+        
+        // Vertical panes
+        for (let i = 1; i < paneCount; i++) {
+            const ratio = i / paneCount;
+            const x1 = windowX + (face === 'left' ? windowWidth * ratio : -windowWidth * ratio);
+            const y1 = windowY + (isoSkew * ratio);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x1, y1 + windowHeight);
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+        }
+
+        // Horizontal panes
+        for (let i = 1; i < paneCount; i++) {
+            const ratio = i / paneCount;
+            const y = windowY + (windowHeight * ratio);
+            const x1 = windowX;
+            const x2 = windowX + (face === 'left' ? windowWidth : -windowWidth);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y);
+            this.ctx.lineTo(x2, y + isoSkew);
+            this.ctx.stroke();
+        }
     }
 
     drawDoor(startX, startY, faceWidth, structureType) {
@@ -806,7 +838,86 @@ export class StructureRenderer {
         this.ctx.lineTo(screenX + width * 0.8, screenY + height * 0.2);
         this.ctx.stroke();
     }
+
+    drawChimneys(points, height, structure) {
+        if (!structure.template.chimneys) return;
+
+        // Draw chimneys after the roof
+        structure.template.chimneys.forEach(chimney => {
+            // Calculate relative position (0-1) in building space
+            const relX = chimney.x / structure.width;
+            const relY = chimney.y / structure.height;
+            
+            // Interpolate points along the roof surface
+            const leftEdgeX = points.topLeft.x + (points.bottomLeft.x - points.topLeft.x) * relY;
+            const leftEdgeY = points.topLeft.y + (points.bottomLeft.y - points.topLeft.y) * relY;
+            const rightEdgeX = points.topRight.x + (points.bottomRight.x - points.topRight.x) * relY;
+            const rightEdgeY = points.topRight.y + (points.bottomRight.y - points.topRight.y) * relY;
+            
+            // Final chimney base position
+            const baseX = leftEdgeX + (rightEdgeX - leftEdgeX) * relX;
+            const baseY = leftEdgeY + (rightEdgeY - leftEdgeY) * relY - height;
+
+            const chimneyWidth = chimney.width || 12;
+            const chimneyDepth = chimneyWidth * 0.5;
+
+            // Draw chimney box
+            this.drawIsometricBox(
+                baseX, baseY,
+                chimneyWidth, chimney.height, chimneyDepth,
+                {
+                    frontRight: '#4a4a4a',
+                    frontLeft: '#3a3a3a',
+                    top: '#5a5a5a'
+                }
+            );
+
+            // Draw smoke if active
+            if (chimney.smokeActive) {
+                this.drawChimneySmoke(
+                    baseX + chimneyWidth/2,
+                    baseY - chimney.height,
+                    chimney
+                );
+            }
+        });
+    }
+
+    drawChimneySmoke(x, y, chimney) {
+        const smokeColor = chimney.smokeColor || '#8a8a8a';
+        const smokeRate = chimney.smokeRate || 0.5;
+        const time = Date.now() * 0.001 * smokeRate;
+        
+        // Create multiple smoke particles
+        for (let i = 0; i < 5; i++) {
+            const offset = i * 0.8;
+            const particleY = y - (time + offset) * 20;
+            const spread = Math.sin((time + offset) * 2) * 10;
+            const size = Math.min(20, (time + offset) * 5);
+            const alpha = Math.max(0, 0.3 - (time + offset) * 0.05);
+
+            if (alpha <= 0) continue;
+
+            // Draw smoke particle
+            const gradient = this.ctx.createRadialGradient(
+                x + spread, particleY, 0,
+                x + spread, particleY, size
+            );
+            gradient.addColorStop(0, `${smokeColor}ff`);
+            gradient.addColorStop(1, `${smokeColor}00`);
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.globalAlpha = alpha;
+            this.ctx.beginPath();
+            this.ctx.arc(x + spread, particleY, size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        
+        this.ctx.globalAlpha = 1;
+    }
 }
+
+
 
 
 

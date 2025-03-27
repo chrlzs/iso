@@ -20,7 +20,16 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'wall'],
             ['wall', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'wall']
-        ]
+        ],
+        chimneys: [{
+            x: 0.5,    // Center of the building
+            y: 0.6,    // Moved further south
+            height: 24,
+            width: 10,
+            smokeActive: true,
+            smokeColor: '#707070',
+            smokeRate: 0.3
+        }]
     },
     office: {
         type: 'office',
@@ -43,7 +52,25 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'door', 'wall']
-        ]
+        ],
+        chimneys: [{
+            x: 0.3,    // Left side
+            y: 0.6,    // Moved further south
+            height: 32,
+            width: 14,
+            smokeActive: true,
+            smokeColor: '#606060',
+            smokeRate: 0.4
+        },
+        {
+            x: 0.7,    // Right side
+            y: 0.6,    // Moved further south
+            height: 32,
+            width: 14,
+            smokeActive: true,
+            smokeColor: '#606060',
+            smokeRate: 0.4
+        }]
     },
     warehouse: {
         type: 'warehouse',
@@ -66,7 +93,16 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'door', 'door', 'wall']
-        ]
+        ],
+        chimneys: [{
+            x: 0.4,    // Left of center
+            y: 0.7,    // Moved further south
+            height: 36,
+            width: 16,
+            smokeActive: true,
+            smokeColor: '#505050',
+            smokeRate: 0.6
+        }]
     },
     factory: {
         type: 'factory',
@@ -94,7 +130,16 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'door', 'door', 'door', 'door', 'wall']
-        ]
+        ],
+        chimneys: [{
+            x: 0.7,    // Moved more to the right
+            y: 0.6,    // Moved further south
+            height: 48, // Made taller
+            width: 24,  // Made wider
+            smokeActive: true,
+            smokeColor: '#666666',
+            smokeRate: 1.0
+        }]
     },
     dumpster: {
         type: 'dumpster',
