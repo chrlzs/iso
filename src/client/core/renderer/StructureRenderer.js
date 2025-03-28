@@ -10,6 +10,10 @@ export class StructureRenderer {
         this.timeOfDay = 0; // 0-24 hour format
         this.isNight = false;
         this.windowLightIntensity = 0;
+
+        // Add tracking for building lights
+        this.buildingLights = new Map();
+        this.lightTransitionSpeed = 0.0005; // Much slower transitions
         
         this.initializeMaterialPatterns();
         this.world = null;
@@ -18,16 +22,34 @@ export class StructureRenderer {
     // Add method to update time
     updateTimeOfDay(hour) {
         this.timeOfDay = hour;
-        // Consider night between 18:00 and 06:00
         this.isNight = (hour >= 18 || hour < 6);
-        // Calculate window light intensity based on time
-        if (this.isNight) {
-            // Stronger glow at midnight, dimmer at dawn/dusk
-            const distanceFromMidnight = Math.abs(((hour + 12) % 24) - 12);
-            this.windowLightIntensity = 1 - (distanceFromMidnight / 12);
-        } else {
-            this.windowLightIntensity = 0;
-        }
+        
+        // Update each building's light state
+        const now = Date.now();
+        this.buildingLights.forEach((light, structure) => {
+            // Skip if we haven't passed the transition delay
+            if (now < light.lastUpdate + light.transitionDelay) {
+                return;
+            }
+
+            // Calculate target intensity based on time of day
+            if (this.isNight) {
+                const distanceFromMidnight = Math.abs(((hour + 12) % 24) - 12);
+                light.targetIntensity = 1 - (distanceFromMidnight / 24);
+            } else {
+                light.targetIntensity = 0;
+            }
+
+            // Gradually adjust current intensity
+            const delta = (now - light.lastUpdate) * light.transitionSpeed;
+            if (light.currentIntensity < light.targetIntensity) {
+                light.currentIntensity = Math.min(light.targetIntensity, light.currentIntensity + delta);
+            } else if (light.currentIntensity > light.targetIntensity) {
+                light.currentIntensity = Math.max(light.targetIntensity, light.currentIntensity - delta);
+            }
+
+            light.lastUpdate = now;
+        });
     }
 
     initializeMaterialPatterns() {
@@ -172,6 +194,17 @@ export class StructureRenderer {
     render(structure, worldX, worldY, screenX, screenY) {
         if (!structure?.template) return;
 
+        // Initialize or update light state for this building
+        if (!this.buildingLights.has(structure)) {
+            this.buildingLights.set(structure, {
+                currentIntensity: 0,
+                targetIntensity: 0,
+                transitionDelay: Math.random() * 2000, // Random delay up to 2 seconds
+                lastUpdate: Date.now(),
+                transitionSpeed: this.lightTransitionSpeed * (0.5 + Math.random()) // Randomize per building
+            });
+        }
+
         this.ctx.save();
         
         if (structure.type === 'dumpster') {
@@ -235,14 +268,14 @@ export class StructureRenderer {
             this.ctx.globalAlpha = structure.transparency.frontRightWall;
             this.drawWall(points.bottomRight, points.topRight, height, colors.frontRight, 'right');
             this.drawWindows(points.topRight.x, points.topRight.y, 
-                points.bottomRight.x - points.topRight.x, height, floors, 'right');
+                points.bottomRight.x - points.topRight.x, height, floors, 'right', structure);
         }
 
         if (structure.visibility.frontLeftWall) {
             this.ctx.globalAlpha = structure.transparency.frontLeftWall;
             this.drawWall(points.bottomRight, points.bottomLeft, height, colors.frontLeft, 'left');
             this.drawWindows(points.bottomLeft.x, points.bottomLeft.y,
-                points.bottomRight.x - points.bottomLeft.x, height, floors, 'left');
+                points.bottomRight.x - points.bottomLeft.x, height, floors, 'left', structure);
             this.drawDoor(points.bottomLeft.x, points.bottomLeft.y + this.floorHeight,
                 points.bottomRight.x - points.bottomLeft.x, structureType);
         }
@@ -534,7 +567,7 @@ export class StructureRenderer {
         ).toString(16).slice(1);
     }
 
-    drawWindows(startX, startY, faceWidth, totalHeight, floors, face) {
+    drawWindows(startX, startY, faceWidth, totalHeight, floors, face, structure) {
         const windowPadding = 8;
         const windowWidth = Math.floor(this.tileWidth * 0.5);
         const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / this.tileWidth));
@@ -557,7 +590,8 @@ export class StructureRenderer {
                     (windowPadding + (w * (this.tileWidth)));
                 const windowY = floorY;
 
-                // Random chance for this window to be lit
+                // Use building-specific light intensity instead of global
+                const buildingLight = this.buildingLights.get(structure);
                 const isLit = this.isNight && Math.random() < 0.7;
 
                 // Draw window glow effect if lit
@@ -569,7 +603,7 @@ export class StructureRenderer {
                         windowX, windowY + windowHeight/2,
                         glowRadius
                     );
-                    gradient.addColorStop(0, `rgba(255, 255, 200, ${0.2 * this.windowLightIntensity})`);
+                    gradient.addColorStop(0, `rgba(255, 255, 200, ${0.2 * buildingLight.currentIntensity})`);
                     gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
                     
                     this.ctx.fillStyle = gradient;
