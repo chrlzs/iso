@@ -177,6 +177,27 @@ export class GameInstance {
         this.camera.x = this.player.x;
         this.camera.y = this.player.y;
 
+        // Force all structures to be fully opaque on initialization
+        this.world.getAllStructures().forEach(structure => {
+            // Explicitly create new objects to avoid reference issues
+            structure.transparency = {
+                frontLeftWall: 1,
+                frontRightWall: 1,
+                backLeftWall: 1,
+                backRightWall: 1,
+                roof: 1,
+                floor: 1
+            };
+            structure.visibility = {
+                frontLeftWall: true,
+                frontRightWall: true,
+                backLeftWall: true,
+                backRightWall: true,
+                roof: true,
+                floor: true
+            };
+        });
+
         // Initialize UI components
         this.uiManager = new UIManager(this);
         this.messageSystem = new MessageSystem(this);
@@ -503,10 +524,18 @@ export class GameInstance {
             }
         });
 
-        // Update structure visibility
+        // Update structure visibility and transparency
         this.world.getAllStructures().forEach(structure => {
             if (structure === playerStructure) {
                 structure.updateVisibility(this.player.x, this.player.y);
+                structure.transparency = {
+                    frontLeftWall: 1,
+                    frontRightWall: 1,
+                    backLeftWall: 1,
+                    backRightWall: 1,
+                    roof: 1,
+                    floor: 1
+                };
             } else {
                 // Reset visibility for structures the player isn't in
                 structure.visibility = {
@@ -517,6 +546,13 @@ export class GameInstance {
                     roof: true,
                     floor: true
                 };
+                
+                // Always update transparency based on player position
+                const cameraAngle = Math.atan2(
+                    this.camera.y - this.player.y,
+                    this.camera.x - this.player.x
+                );
+                structure.updateTransparency(this.player.x, this.player.y, cameraAngle);
             }
         });
 

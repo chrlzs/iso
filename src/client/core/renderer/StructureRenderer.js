@@ -215,30 +215,31 @@ export class StructureRenderer {
         
         // Draw back walls first (always visible)
         if (structure.visibility.backRightWall) {
-            // Draw back-right wall
+            this.ctx.globalAlpha = structure.transparency.backRightWall;
             this.drawWall(points.topRight, points.topLeft, height, colors.frontRight, 'right');
         }
         
         if (structure.visibility.backLeftWall) {
-            // Draw back-left wall
+            this.ctx.globalAlpha = structure.transparency.backLeftWall;
             this.drawWall(points.topLeft, points.bottomLeft, height, colors.frontLeft, 'left');
         }
 
         // Draw floor
         if (structure.visibility.floor) {
+            this.ctx.globalAlpha = structure.transparency.floor;
             this.drawFloor(points, colors.top);
         }
 
         // Draw front walls only if visible
         if (structure.visibility.frontRightWall) {
-            // Draw front-right face (SE)
+            this.ctx.globalAlpha = structure.transparency.frontRightWall;
             this.drawWall(points.bottomRight, points.topRight, height, colors.frontRight, 'right');
             this.drawWindows(points.topRight.x, points.topRight.y, 
                 points.bottomRight.x - points.topRight.x, height, floors, 'right');
         }
 
         if (structure.visibility.frontLeftWall) {
-            // Draw front-left face (SW)
+            this.ctx.globalAlpha = structure.transparency.frontLeftWall;
             this.drawWall(points.bottomRight, points.bottomLeft, height, colors.frontLeft, 'left');
             this.drawWindows(points.bottomLeft.x, points.bottomLeft.y,
                 points.bottomRight.x - points.bottomLeft.x, height, floors, 'left');
@@ -248,8 +249,12 @@ export class StructureRenderer {
 
         // Draw roof only if visible
         if (structure.visibility.roof) {
+            this.ctx.globalAlpha = structure.transparency.roof;
             this.drawRoof(points, height, colors.top, structure);
         }
+
+        // Reset global alpha
+        this.ctx.globalAlpha = 1;
 
         // Draw chimneys after the roof
         if (structure.visibility.roof) {

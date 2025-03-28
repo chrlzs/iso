@@ -86,6 +86,16 @@ export class Structure {
             floor: true
         };
 
+        // Add transparency state
+        this.transparency = {
+            frontLeftWall: 1,
+            frontRightWall: 1,
+            backLeftWall: 1,
+            backRightWall: 1,
+            roof: 1,
+            floor: 1
+        };
+
         this.world = world; // Ensure world reference is set
     }
 
@@ -192,6 +202,59 @@ export class Structure {
             roof: !isInside,
             floor: true
         };
+    }
+
+    // Add new method to handle transparency
+    updateTransparency(playerX, playerY, cameraAngle) {
+        // Reset all transparency values to fully opaque
+        this.transparency = {
+            frontLeftWall: 1,
+            frontRightWall: 1,
+            backLeftWall: 1,
+            backRightWall: 1,
+            roof: 1,
+            floor: 1
+        };
+
+        // Early return if player is inside
+        if (playerX >= this.x && 
+            playerX < this.x + this.width &&
+            playerY >= this.y && 
+            playerY < this.y + this.height) {
+            return;
+        }
+
+        // Calculate distance from player to structure
+        const dx = this.x + (this.width / 2) - playerX;
+        const dy = this.y + (this.height / 2) - playerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Only apply transparency if player is within reasonable distance (e.g., 10 tiles)
+        const maxTransparencyDistance = 10;
+        if (distance > maxTransparencyDistance) {
+            return;
+        }
+
+        // Player is behind the structure if they have a LOWER Y coordinate
+        const isPlayerBehind = playerY < this.y;
+
+        if (isPlayerBehind) {
+            const occludedAlpha = 0.3;
+
+            // Make relevant walls transparent when player is behind
+            this.transparency.frontLeftWall = occludedAlpha;
+            this.transparency.frontRightWall = occludedAlpha;
+            this.transparency.roof = occludedAlpha;
+            
+            // Apply additional transparency for side closest to player
+            if (playerX < this.x) {
+                this.transparency.frontRightWall = occludedAlpha;
+                this.transparency.backRightWall = occludedAlpha;
+            } else if (playerX > this.x + this.width) {
+                this.transparency.frontLeftWall = occludedAlpha;
+                this.transparency.backLeftWall = occludedAlpha;
+            }
+        }
     }
 }
 
