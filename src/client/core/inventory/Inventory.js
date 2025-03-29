@@ -8,9 +8,19 @@ export class Inventory {
         this.maxSlots = config.maxSlots || 20;
         this.items = new Map(); // slot -> item mapping
         this.owner = config.owner; // reference to the entity that owns this inventory
-        this.gold = config.gold || 0;
+        this.eth = config.eth || 0;
         this.weight = 0;
         this.maxWeight = config.maxWeight || 100;
+        
+        // Add categories for better organization
+        this.categories = {
+            WEAPON: 'weapon',
+            ARMOR: 'armor',
+            CONSUMABLE: 'consumable',
+            MATERIAL: 'material',
+            QUEST: 'quest',
+            MISC: 'misc'
+        };
     }
 
     /**
@@ -122,4 +132,106 @@ export class Inventory {
 
         return this.items.size < this.maxSlots;
     }
+
+    /**
+     * Sorts and optimizes inventory space
+     * @param {string} [sortBy='category'] - Sort by: 'category', 'value', 'weight', 'name'
+     */
+    sort(sortBy = 'category') {
+        const items = Array.from(this.items.values());
+        this.items.clear();
+        
+        // Stack similar items first
+        this.consolidateStacks(items);
+        
+        // Sort items based on criteria
+        items.sort((a, b) => {
+            switch(sortBy) {
+                case 'category':
+                    return a.type.localeCompare(b.type) || b.value - a.value;
+                case 'value':
+                    return b.value - a.value;
+                case 'weight':
+                    return a.weight - b.weight;
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                default:
+                    return 0;
+            }
+        });
+
+        // Reassign to slots
+        items.forEach((item, index) => {
+            this.items.set(index, item);
+        });
+    }
+
+    /**
+     * Consolidates stackable items
+     * @private
+     */
+    consolidateStacks(items) {
+        const stackMap = new Map();
+        
+        // Group stackable items
+        items.forEach(item => {
+            if (item.isStackable) {
+                const existing = stackMap.get(item.id);
+                if (existing) {
+                    existing.quantity += item.quantity;
+                } else {
+                    stackMap.set(item.id, item);
+                }
+            }
+        });
+
+        return items.filter(item => {
+            if (!item.isStackable) return true;
+            const stack = stackMap.get(item.id);
+            return stack === item;
+        });
+    }
+
+    /**
+     * Finds the first slot containing an item matching the criteria
+     * @param {Function} predicate - Function to test each item
+     * @returns {number|null} - Slot number or null if not found
+     */
+    findItem(predicate) {
+        for (const [slot, item] of this.items) {
+            if (predicate(item)) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets all items of a specific category
+     * @param {string} category - Category to filter by
+     * @returns {Array} - Array of items
+     */
+    getItemsByCategory(category) {
+        return Array.from(this.items.values())
+            .filter(item => item.type === category);
+    }
+
+    /**
+     * Splits a stack of items
+     * @param {number} fromSlot - Source slot
+     * @param {number} quantity - Amount to split
+     * @returns {boolean} - Whether the split was successful
+     */
+    splitStack(fromSlot, quantity) {
+        const sourceItem = this.items.get(fromSlot);
+        if (!sourceItem || !sourceItem.isStackable || sourceItem.quantity <= quantity) {
+            return false;
+        }
+
+        const newStack = { ...sourceItem, quantity: quantity };
+        sourceItem.quantity -= quantity;
+
+        return this.addItem(newStack);
+    }
 }
+

@@ -1,4 +1,4 @@
-.inventory-ui {
+.inventory-window {
     position: fixed;
     top: 50%;
     left: 50%;
@@ -7,67 +7,40 @@
     border: 2px solid #666;
     border-radius: 8px;
     padding: 20px;
-    display: none; /* Changed from flex to none - will be controlled by JS */
-    gap: 20px;
-    color: white;
     z-index: 1000;
-    min-width: 800px;
-}
-
-.inventory-container {
-    display: flex;
-    gap: 20px;
+    min-width: 400px;
+    color: white;
 }
 
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 4px;
+    gap: 8px;
     padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
 }
 
-.equipment-slots {
-    display: grid;
-    grid-template-areas:
-        ". head ."
-        "mainHand body offHand"
-        ". legs ."
-        ". feet .";
-    gap: 4px;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-}
-
-.inventory-slot, .equipment-slot {
+.inventory-slot {
     width: 50px;
     height: 50px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid #444;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #666;
     border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
-.stats-display {
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-    min-width: 150px;
+.inventory-slot:hover {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.1);
 }
 
-.inventory-slot:hover, .equipment-slot:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.inventory-slot img, .equipment-slot img {
-    width: 100%;
-    height: 100%;
+.inventory-slot img {
+    max-width: 80%;
+    max-height: 80%;
     object-fit: contain;
-    pointer-events: none;
 }
 
 .item-quantity {
@@ -80,84 +53,8 @@
     font-size: 12px;
 }
 
-.equipment-slot.head { grid-area: head; }
-.equipment-slot.body { grid-area: body; }
-.equipment-slot.legs { grid-area: legs; }
-.equipment-slot.feet { grid-area: feet; }
-.equipment-slot.mainHand { grid-area: mainHand; }
-.equipment-slot.offHand { grid-area: offHand; }
-
-.gold-display {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.gold-display img {
-    width: 20px;
-    height: 20px;
-}
-
-.item-tooltip {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.95);
-    border: 1px solid #666;
-    border-radius: 4px;
-    padding: 10px;
-    color: white;
-    font-size: 14px;
-    pointer-events: none;
-    z-index: 1100;
-    max-width: 250px;
-    min-width: 200px;
-}
-
-.tooltip-header {
-    color: #fff;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 5px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #444;
-}
-
-.tooltip-stat {
-    color: #88f;
-    margin: 2px 0;
-}
-
-.tooltip-description {
-    color: #aaa;
-    margin: 8px 0;
-    font-style: italic;
-}
-
-.tooltip-footer {
-    display: flex;
-    justify-content: space-between;
-    color: #888;
-    font-size: 12px;
-    margin-top: 5px;
-    padding-top: 5px;
-    border-top: 1px solid #444;
-}
-
-/* Rarity colors for tooltip headers */
-.item-tooltip[data-rarity="common"] .tooltip-header { color: #ffffff; }
-.item-tooltip[data-rarity="uncommon"] .tooltip-header { color: #1eff00; }
-.item-tooltip[data-rarity="rare"] .tooltip-header { color: #0070dd; }
-.item-tooltip[data-rarity="epic"] .tooltip-header { color: #a335ee; }
-.item-tooltip[data-rarity="legendary"] .tooltip-header { color: #ff8000; }
-
 /* Dragging states */
-.inventory-slot.drag-over,
-.equipment-slot.drag-over {
+.inventory-slot.drag-over {
     background: rgba(255, 255, 255, 0.3);
     border: 1px dashed #fff;
 }
@@ -166,4 +63,6 @@
     border: 1px solid #fff;
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
+
+
 
