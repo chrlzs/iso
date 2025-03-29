@@ -12,6 +12,49 @@
     color: white;
 }
 
+.inventory-categories {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.category-button {
+    padding: 5px 10px;
+    background: #333;
+    border: 1px solid #666;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.category-button:hover {
+    background: #444;
+}
+
+.weight-bar {
+    margin-top: 10px;
+    background: #333;
+    height: 20px;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.weight-fill {
+    height: 100%;
+    background: #4a4;
+    transition: width 0.3s;
+}
+
+.weight-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+}
+
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -63,6 +106,7 @@
     border: 1px solid #fff;
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
+
 
 
 

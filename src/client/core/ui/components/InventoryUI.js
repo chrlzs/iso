@@ -2,6 +2,8 @@ import { Item } from '../../inventory/Item.js';
 
 export class InventoryUI {
     constructor(game) {
+        console.log('InventoryUI constructor started');
+        
         this.game = game;
         this.selectedSlot = null;
         this.draggedItem = null;
@@ -19,14 +21,32 @@ export class InventoryUI {
         this.inventoryGrid.className = 'inventory-grid';
         this.container.appendChild(this.inventoryGrid);
 
-        // Initialize UI elements
-        this.initializeUI();
+        // Create category buttons
+        const categoryContainer = document.createElement('div');
+        categoryContainer.className = 'inventory-categories';
         
+        ['All', 'Weapons', 'Armor', 'Consumables', 'Materials'].forEach(category => {
+            const button = document.createElement('button');
+            button.textContent = category;
+            button.className = 'category-button';
+            button.addEventListener('click', () => this.setCategory(category));
+            categoryContainer.appendChild(button);
+        });
+
+        this.container.insertBefore(categoryContainer, this.inventoryGrid);
+
+        // Create weight bar
+        this.weightBar = document.createElement('div');
+        this.weightBar.className = 'weight-bar';
+        this.container.appendChild(this.weightBar);
+
         // Add to document
         document.body.appendChild(this.container);
 
         // Setup event listeners
         this.setupEventListeners();
+        
+        console.log('InventoryUI constructor completed');
     }
 
     setupEventListeners() {
@@ -115,4 +135,6 @@ export class InventoryUI {
         }
     }
 }
+
+
 

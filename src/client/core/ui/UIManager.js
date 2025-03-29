@@ -1,20 +1,39 @@
-import { StatusBar } from './components/StatusBar.js';
-import { Minimap } from './components/Minimap.js';
-import { MessageLog } from './components/MessageLog.js';
-import { MainMenu } from './components/MainMenu.js';
-import { MerchantUI } from './components/MerchantUI.js';
+import { InventoryUI } from './components/InventoryUI.js';
 
 export class UIManager {
     constructor(game) {
+        console.log('UIManager constructor started');
+        
+        if (!game) {
+            console.error('UIManager initialized without game instance');
+            return;
+        }
+
         this.game = game;
         this.components = new Map();
         this.activeWindows = new Set();
-        
-        // Define which components need canvas rendering
-        this.canvasComponents = new Set(['statusBar', 'minimap', 'messageLog']);
-        
-        this.initializeComponents();
-        this.setupEventListeners();
+        this.canvasComponents = new Set(); // Initialize the Set for canvas-based components
+
+        try {
+            console.log('Initializing UI components...');
+            
+            // Initialize inventory UI
+            console.log('Creating InventoryUI instance...');
+            this.inventoryUI = new InventoryUI(this.game);
+            console.log('InventoryUI created:', this.inventoryUI);
+            
+            this.components.set('inventoryUI', this.inventoryUI);
+            console.log('Added InventoryUI to components Map');
+            console.log('Current components:', Array.from(this.components.entries()));
+
+            // Setup event listeners
+            this.setupEventListeners();
+            
+        } catch (error) {
+            console.error('Error initializing UI components:', error);
+            console.error('Stack:', error.stack);
+            throw error;
+        }
     }
 
     initializeComponents() {
@@ -63,6 +82,8 @@ export class UIManager {
     }
 
     setupEventListeners() {
+        console.log('Setting up UIManager event listeners');
+        
         // Handle menu button click
         this.game.canvas.addEventListener('click', (e) => {
             const mainMenu = this.components.get('mainMenu');
@@ -115,7 +136,6 @@ export class UIManager {
         // Global ESC handler
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.activeWindows.size > 0) {
-                // Close the last opened window
                 const lastWindow = Array.from(this.activeWindows).pop();
                 const component = this.components.get(lastWindow);
                 if (component && component.hide) {
@@ -148,8 +168,8 @@ export class UIManager {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         this.components.forEach((component, key) => {
-            // Only render canvas-based components
-            if (this.canvasComponents.has(key) && component && typeof component.render === 'function') {
+            // Only render components that have a render method
+            if (component && typeof component.render === 'function') {
                 try {
                     component.render(ctx);
                 } catch (error) {
@@ -227,6 +247,14 @@ export class UIManager {
         });
     }
 }
+
+
+
+
+
+
+
+
 
 
 

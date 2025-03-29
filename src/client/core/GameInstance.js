@@ -342,6 +342,24 @@ export class GameInstance {
         const moveSpeed = 5;
         
         window.addEventListener('keydown', (e) => {
+            console.log('Key pressed in GameInstance:', e.key, 'KeyCode:', e.keyCode);
+            
+            // Handle inventory toggle first
+            if (e.key.toLowerCase() === 'i') {
+                console.log('Inventory key detected, attempting to toggle...');
+                const inventoryUI = this.uiManager.components.get('inventoryUI');
+                if (inventoryUI) {
+                    console.log('InventoryUI found, calling toggle()');
+                    inventoryUI.toggle();
+                    e.preventDefault(); // Prevent any default behavior
+                    return;
+                } else {
+                    console.warn('InventoryUI not found in UIManager components');
+                    console.log('Available components:', Array.from(this.uiManager.components.keys()));
+                }
+            }
+
+            // Handle other keyboard inputs
             switch(e.key) {
                 case 'ArrowLeft':
                     this.camera.x -= moveSpeed;
@@ -1053,6 +1071,10 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
+
+
+
 
 
 
