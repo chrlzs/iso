@@ -1,8 +1,12 @@
 export class MessageLog {
     constructor(config) {
+        if (!config || !config.position) {
+            throw new Error('MessageLog requires configuration with position');
+        }
+        
         this.position = config.position;
-        this.width = config.width;
-        this.height = config.height;
+        this.width = config.width || 300;
+        this.height = config.height || 100;
         this.game = config.game;
         this.messages = [];
         this.maxMessages = 5;
@@ -43,6 +47,8 @@ export class MessageLog {
     }
 
     render(ctx) {
+        if (!ctx || !this.position) return;
+
         // Draw message log background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(this.position.x, this.position.y, this.width, this.height);
@@ -63,3 +69,5 @@ export class MessageLog {
         // Update logic here if needed
     }
 }
+
+

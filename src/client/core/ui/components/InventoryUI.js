@@ -101,6 +101,57 @@ export class InventoryUI {
         }
     }
 
+    updateWeightBar() {
+        if (!this.weightBar) return;
+
+        const inventory = this.game.player.inventory;
+        const currentWeight = inventory.getCurrentWeight();
+        const maxWeight = inventory.maxWeight;
+        const weightPercentage = (currentWeight / maxWeight) * 100;
+
+        // Create or get the fill element
+        let fillElement = this.weightBar.querySelector('.weight-fill');
+        if (!fillElement) {
+            fillElement = document.createElement('div');
+            fillElement.className = 'weight-fill';
+            this.weightBar.appendChild(fillElement);
+        }
+
+        // Update the fill width and color
+        fillElement.style.width = `${weightPercentage}%`;
+        
+        // Color coding based on weight percentage
+        if (weightPercentage >= 90) {
+            fillElement.style.backgroundColor = '#ff4444'; // Red when near max
+        } else if (weightPercentage >= 75) {
+            fillElement.style.backgroundColor = '#ffaa44'; // Orange when getting heavy
+        } else {
+            fillElement.style.backgroundColor = '#44aa44'; // Green for normal weight
+        }
+
+        // Add weight text
+        this.weightBar.setAttribute('data-weight', 
+            `${Math.round(currentWeight)}/${maxWeight} units`);
+    }
+
+    setCategory(category) {
+        // Update active category
+        this.activeCategory = category === 'All' ? null : category;
+
+        // Update button styles
+        const buttons = this.container.querySelectorAll('.category-button');
+        buttons.forEach(button => {
+            if (button.textContent === category) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+
+        // Refresh the inventory display
+        this.refresh();
+    }
+
     refresh() {
         if (!this.isVisible) return;
 
@@ -109,6 +160,15 @@ export class InventoryUI {
         // Clear existing grid
         this.inventoryGrid.innerHTML = '';
 
+        // Get items based on category
+        let items = [];
+        if (this.activeCategory) {
+            items = Array.from(inventory.items.entries())
+                .filter(([_, item]) => item.type === this.activeCategory);
+        } else {
+            items = Array.from(inventory.items.entries());
+        }
+
         // Populate inventory slots
         for (let i = 0; i < inventory.maxSlots; i++) {
             const slot = document.createElement('div');
@@ -116,8 +176,9 @@ export class InventoryUI {
             slot.dataset.slot = i;
             slot.dataset.type = 'inventory';
             
-            const item = inventory.items.get(i);
-            if (item) {
+            const itemEntry = items.find(([slot, _]) => slot === i);
+            if (itemEntry) {
+                const item = itemEntry[1];
                 slot.innerHTML = `
                     <img src="${item.icon}" alt="${item.name}">
                     ${item.isStackable && item.quantity > 1 ? 
@@ -129,12 +190,12 @@ export class InventoryUI {
             this.inventoryGrid.appendChild(slot);
         }
 
-        // Update weight bar if it exists
-        if (this.weightBar) {
-            this.updateWeightBar();
-        }
+        // Update weight bar
+        this.updateWeightBar();
     }
 }
+
+
 
 
 

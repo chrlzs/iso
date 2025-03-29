@@ -5,9 +5,6 @@ export class MessageSystem {
         this.currentMessage = null;
         this.isActive = false;
         this.createMessageContainer();
-        
-        // Get reference to MessageLog from UIManager
-        this.messageLog = this.game.uiManager.components.get('messageLog');
     }
 
     createMessageContainer() {
@@ -17,15 +14,28 @@ export class MessageSystem {
         document.body.appendChild(this.container);
     }
 
+    getMessageLog() {
+        if (!this._messageLog) {
+            this._messageLog = this.game.uiManager.components.get('messageLog');
+            if (!this._messageLog) {
+                console.warn('MessageLog component not found in UIManager');
+            }
+        }
+        return this._messageLog;
+    }
+
     showMessage(messageConfig) {
         this.isActive = true;
         this.currentMessage = messageConfig;
         
         // Log the message to MessageLog if it's significant
-        if (messageConfig.speaker) {
-            this.messageLog.addMessage(`${messageConfig.speaker}: ${messageConfig.text}`);
-        } else if (messageConfig.logMessage) {
-            this.messageLog.addMessage(messageConfig.text);
+        const messageLog = this.getMessageLog();
+        if (messageLog) {
+            if (messageConfig.speaker) {
+                messageLog.addMessage(`${messageConfig.speaker}: ${messageConfig.text}`);
+            } else if (messageConfig.logMessage) {
+                messageLog.addMessage(messageConfig.text);
+            }
         }
         
         this.container.innerHTML = `
@@ -92,8 +102,9 @@ export class MessageSystem {
     }
 
     handleChoice(option) {
-        if (this.currentMessage.speaker) {
-            this.messageLog.addMessage(`[You chose: ${option.text}]`);
+        const messageLog = this.getMessageLog();
+        if (messageLog && this.currentMessage.speaker) {
+            messageLog.addMessage(`[You chose: ${option.text}]`);
         }
         
         if (option.action) {
@@ -102,4 +113,5 @@ export class MessageSystem {
         this.next();
     }
 }
+
 

@@ -4,23 +4,20 @@ import { Item } from './Item.js';
  * Base inventory system that can be used by any entity
  */
 export class Inventory {
-    constructor(config = {}) {
-        this.maxSlots = config.maxSlots || 20;
-        this.items = new Map(); // slot -> item mapping
-        this.owner = config.owner; // reference to the entity that owns this inventory
-        this.eth = config.eth || 0;
+    constructor(maxSlots = 30, maxWeight = 100) {
+        this.maxSlots = maxSlots;
+        this.maxWeight = maxWeight;
+        this.items = new Map();
         this.weight = 0;
-        this.maxWeight = config.maxWeight || 100;
-        
-        // Add categories for better organization
-        this.categories = {
-            WEAPON: 'weapon',
-            ARMOR: 'armor',
-            CONSUMABLE: 'consumable',
-            MATERIAL: 'material',
-            QUEST: 'quest',
-            MISC: 'misc'
-        };
+        this.eth = 0;
+    }
+
+    getCurrentWeight() {
+        let totalWeight = 0;
+        for (const [slot, item] of this.items) {
+            totalWeight += item.weight * (item.quantity || 1);
+        }
+        return totalWeight;
     }
 
     /**
@@ -30,7 +27,7 @@ export class Inventory {
      * @returns {boolean} - Whether the addition was successful
      */
     addItem(item, quantity = 1) {
-        if (this.weight + (item.weight * quantity) > this.maxWeight) {
+        if (this.getCurrentWeight() + (item.weight * quantity) > this.maxWeight) {
             return false;
         }
 
@@ -42,7 +39,6 @@ export class Inventory {
             for (const [slot, existingItem] of this.items) {
                 if (existingItem.id === itemToAdd.id) {
                     existingItem.quantity += quantity;
-                    this.weight += itemToAdd.weight * quantity;
                     return true;
                 }
             }
@@ -51,9 +47,8 @@ export class Inventory {
         // Find first empty slot
         for (let i = 0; i < this.maxSlots; i++) {
             if (!this.items.has(i)) {
-                this.items.set(i, itemToAdd);
                 itemToAdd.quantity = quantity;
-                this.weight += itemToAdd.weight * quantity;
+                this.items.set(i, itemToAdd);
                 return true;
             }
         }
@@ -118,7 +113,7 @@ export class Inventory {
      * @returns {boolean} - Whether the item can be added
      */
     hasSpace(item, quantity = 1) {
-        if (this.weight + (item.weight * quantity) > this.maxWeight) {
+        if (this.getCurrentWeight() + (item.weight * quantity) > this.maxWeight) {
             return false;
         }
 
@@ -234,4 +229,5 @@ export class Inventory {
         return this.addItem(newStack);
     }
 }
+
 

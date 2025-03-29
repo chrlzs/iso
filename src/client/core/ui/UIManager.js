@@ -1,4 +1,5 @@
 import { InventoryUI } from './components/InventoryUI.js';
+import { MessageLog } from './components/MessageLog.js';
 
 export class UIManager {
     constructor(game) {
@@ -12,18 +13,26 @@ export class UIManager {
         this.game = game;
         this.components = new Map();
         this.activeWindows = new Set();
-        this.canvasComponents = new Set(); // Initialize the Set for canvas-based components
+        this.canvasComponents = new Set();
 
         try {
             console.log('Initializing UI components...');
             
+            // Initialize MessageLog first with proper configuration
+            console.log('Creating MessageLog instance...');
+            const messageLog = new MessageLog({
+                position: { x: 10, y: window.innerHeight - 110 },
+                width: 300,
+                height: 100,
+                game: this.game
+            });
+            this.components.set('messageLog', messageLog);
+            
             // Initialize inventory UI
             console.log('Creating InventoryUI instance...');
             this.inventoryUI = new InventoryUI(this.game);
-            console.log('InventoryUI created:', this.inventoryUI);
-            
             this.components.set('inventoryUI', this.inventoryUI);
-            console.log('Added InventoryUI to components Map');
+            
             console.log('Current components:', Array.from(this.components.entries()));
 
             // Setup event listeners
@@ -33,51 +42,6 @@ export class UIManager {
             console.error('Error initializing UI components:', error);
             console.error('Stack:', error.stack);
             throw error;
-        }
-    }
-
-    initializeComponents() {
-        // Ensure game.world exists before initializing components
-        if (!this.game || !this.game.world) {
-            console.error('Game or world not initialized when creating UI components');
-            return;
-        }
-
-        // Core UI components with error checking
-        try {
-            this.components.set('statusBar', new StatusBar({
-                position: { x: 10, y: 10 },
-                width: 200,
-                height: 60,
-                game: this.game
-            }));
-
-            this.components.set('minimap', new Minimap({
-                position: { x: window.innerWidth - 210, y: window.innerHeight - 210 },
-                size: 200,
-                game: this.game
-            }));
-
-            this.components.set('messageLog', new MessageLog({
-                position: { x: 10, y: window.innerHeight - 110 },
-                width: 300,
-                height: 100,
-                game: this.game
-            }));
-
-            this.components.set('mainMenu', new MainMenu({
-                position: { x: window.innerWidth - 50, y: 10 },
-                game: this.game
-            }));
-
-            this.components.set('merchantUI', new MerchantUI({
-                game: this.game
-            }));
-
-            console.log('UI Components initialized:', 
-                Array.from(this.components.keys()).join(', '));
-        } catch (error) {
-            console.error('Error initializing UI components:', error);
         }
     }
 
@@ -92,7 +56,6 @@ export class UIManager {
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 
-                // Check if click is within menu button bounds
                 if (x >= mainMenu.position.x && 
                     x <= mainMenu.position.x + 40 && 
                     y >= mainMenu.position.y && 
@@ -104,7 +67,6 @@ export class UIManager {
 
         // Handle window resize
         window.addEventListener('resize', () => {
-            // Update positions of UI elements that depend on window size
             const mainMenu = this.components.get('mainMenu');
             const minimap = this.components.get('minimap');
             const messageLog = this.components.get('messageLog');
@@ -168,7 +130,6 @@ export class UIManager {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         this.components.forEach((component, key) => {
-            // Only render components that have a render method
             if (component && typeof component.render === 'function') {
                 try {
                     component.render(ctx);
@@ -196,13 +157,11 @@ export class UIManager {
             </div>
         `;
 
-        // Position dialog
         dialogElement.style.position = 'absolute';
         dialogElement.style.bottom = '20%';
         dialogElement.style.left = '50%';
         dialogElement.style.transform = 'translateX(-50%)';
         
-        // Add event listeners
         dialogElement.querySelectorAll('.dialog-option').forEach((button, index) => {
             button.addEventListener('click', () => {
                 dialogConfig.options[index].action();
@@ -211,11 +170,6 @@ export class UIManager {
 
         document.body.appendChild(dialogElement);
         this.currentDialog = dialogElement;
-    }
-
-    showTradeDialog(merchant) {
-        // Implement merchant-specific dialog with inventory
-        // Similar to showDialog but with trade-specific UI
     }
 
     hideDialog() {
@@ -247,24 +201,4 @@ export class UIManager {
         });
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

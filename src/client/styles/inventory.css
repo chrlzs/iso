@@ -25,10 +25,17 @@
     color: white;
     cursor: pointer;
     border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
 .category-button:hover {
     background: #444;
+}
+
+.category-button.active {
+    background: #555;
+    border-color: #888;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
 }
 
 .weight-bar {
@@ -46,12 +53,14 @@
     transition: width 0.3s;
 }
 
-.weight-text {
+.weight-bar::after {
+    content: attr(data-weight);
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
     font-size: 12px;
 }
 
@@ -106,6 +115,8 @@
     border: 1px solid #fff;
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
+
+
 
 
 
