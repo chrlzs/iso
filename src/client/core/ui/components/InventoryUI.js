@@ -161,22 +161,21 @@ export class InventoryUI {
         this.inventoryGrid.innerHTML = '';
 
         // Get items based on category
-        let items = [];
+        let items = Array.from(inventory.items.entries());
         if (this.activeCategory) {
-            items = Array.from(inventory.items.entries())
-                .filter(([_, item]) => item.type === this.activeCategory);
-        } else {
-            items = Array.from(inventory.items.entries());
+            items = items.filter(([_, item]) => item.type === this.activeCategory);
         }
 
-        // Populate inventory slots
+        // Create all slots (empty or filled)
         for (let i = 0; i < inventory.maxSlots; i++) {
             const slot = document.createElement('div');
             slot.className = 'inventory-slot';
             slot.dataset.slot = i;
             slot.dataset.type = 'inventory';
             
-            const itemEntry = items.find(([slot, _]) => slot === i);
+            // Find item for this slot
+            const itemEntry = items.find(([slotNum, _]) => slotNum === i);
+            
             if (itemEntry) {
                 const item = itemEntry[1];
                 slot.innerHTML = `
@@ -194,6 +193,7 @@ export class InventoryUI {
         this.updateWeightBar();
     }
 }
+
 
 
 
