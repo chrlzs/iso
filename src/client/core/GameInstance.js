@@ -13,6 +13,7 @@ import { MerchantUI } from './ui/components/MerchantUI.js';
 import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
+import { AssetManager } from './assets/AssetManager.js';
 
 export class GameInstance {
     constructor(canvas, options = {}) {
@@ -20,6 +21,12 @@ export class GameInstance {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
+        // Initialize asset manager
+        this.assetManager = new AssetManager();
+        
+        // Make instance globally available
+        window.gameInstance = this;
+
         // Initialize entities collection
         this.entities = new Set();
         
@@ -389,6 +396,11 @@ export class GameInstance {
     async init() {
         console.log('Game: Starting initialization...');
         try {
+            // Set base URL for assets if provided in options
+            if (this.options?.assetsBaseUrl) {
+                this.assetManager.setBaseUrl(this.options.assetsBaseUrl);
+            }
+            
             await this.world.tileManager.loadTextures();
             console.log('Game: Textures loaded successfully');
             this.setupInput();

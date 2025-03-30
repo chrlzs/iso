@@ -56,12 +56,6 @@ export class TileManager {
             parking: '#37474F',    // Dark blue-gray
             dumpster: '#696969'   // Dark gray for dumpster
         };
-        
-        // Create temporary canvas for texture generation
-        this.tempCanvas = document.createElement('canvas');
-        this.tempCanvas.width = 64;  // Standard tile size
-        this.tempCanvas.height = 32;  // Isometric tile height
-        this.tempCtx = this.tempCanvas.getContext('2d');
 
         // Track loaded textures
         this.texturesLoaded = false;
@@ -78,13 +72,12 @@ export class TileManager {
         for (const [tileType, variantCount] of Object.entries(this.variants)) {
             const baseColor = this.tileColors[tileType];
             
-            // Generate base texture
+            // Generate base texture using AssetManager
             loadPromises.push(this.generateTexture(tileType, baseColor));
 
             // Generate variant textures
             for (let i = 1; i <= variantCount; i++) {
                 const variantKey = `${tileType}_var${i}`;
-                // Slightly modify the color for variants
                 const variantColor = this.adjustColor(baseColor, i * 5);
                 loadPromises.push(this.generateTexture(variantKey, variantColor));
             }
@@ -104,31 +97,30 @@ export class TileManager {
 
     generateTexture(name, baseColor) {
         return new Promise((resolve) => {
-            const width = this.tempCanvas.width;
-            const height = this.tempCanvas.height;
+            const texture = window.gameInstance.assetManager.createTempTexture(
+                `tile_${name}`,
+                64,
+                32,
+                (ctx, canvas) => {
+                    // Clear canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Fill with base color
+                    ctx.fillStyle = baseColor;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Add subtle noise pattern
+                    ctx.fillStyle = this.adjustColor(baseColor, 10);
+                    const pattern = ctx.createPattern(this.createNoisePattern(baseColor), 'repeat');
+                    ctx.fillStyle = pattern;
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.globalAlpha = 1.0;
+                }
+            );
             
-            // Clear canvas
-            this.tempCtx.clearRect(0, 0, width, height);
-
-            // Fill with base color
-            this.tempCtx.fillStyle = baseColor;
-            this.tempCtx.fillRect(0, 0, width, height);
-
-            // Add subtle noise pattern
-            this.tempCtx.fillStyle = this.adjustColor(baseColor, 10);
-            const pattern = this.tempCtx.createPattern(this.createNoisePattern(baseColor), 'repeat');
-            this.tempCtx.fillStyle = pattern;
-            this.tempCtx.globalAlpha = 0.3;
-            this.tempCtx.fillRect(0, 0, width, height);
-            this.tempCtx.globalAlpha = 1.0;
-
-            // Create image from canvas
-            const img = new Image();
-            img.onload = () => {
-                this.textures.set(name, img);
-                resolve();
-            };
-            img.src = this.tempCanvas.toDataURL();
+            this.textures.set(name, texture);
+            resolve();
         });
     }
 
