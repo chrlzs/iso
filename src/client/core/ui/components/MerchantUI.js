@@ -6,6 +6,9 @@ export class MerchantUI {
         
         this.createElements();
         this.setupEventListeners();
+        
+        // Don't call hide() in constructor
+        this.container.style.display = 'none';
     }
 
     createElements() {
@@ -24,97 +27,130 @@ export class MerchantUI {
             width: 800px;
             height: 600px;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
         `;
+
+        // Create header
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        `;
+        this.container.appendChild(header);
+
+        // Create inventories container
+        const inventoriesContainer = document.createElement('div');
+        inventoriesContainer.style.cssText = `
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        `;
+        this.container.appendChild(inventoriesContainer);
 
         // Create merchant inventory section
         this.merchantInventory = document.createElement('div');
         this.merchantInventory.className = 'merchant-inventory';
-        this.container.appendChild(this.merchantInventory);
+        this.merchantInventory.style.cssText = `
+            flex: 1;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 0;
+        `;
+        inventoriesContainer.appendChild(this.merchantInventory);
 
         // Create player inventory section
         this.playerInventory = document.createElement('div');
         this.playerInventory.className = 'player-inventory';
-        this.container.appendChild(this.playerInventory);
+        this.playerInventory.style.cssText = `
+            flex: 1;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 0;
+        `;
+        inventoriesContainer.appendChild(this.playerInventory);
 
-        // Create gold display section
+        // Create gold display section at the bottom
         this.goldDisplay = document.createElement('div');
         this.goldDisplay.className = 'gold-display';
         this.goldDisplay.style.cssText = `
             margin-top: 20px;
             padding: 10px;
             background: #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
         `;
         this.container.appendChild(this.goldDisplay);
 
-        // Add close button
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'Close';
-        closeButton.style.cssText = `
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 5px 10px;
-            background: #ff4444;
-            color: white;
-            border: none;
-            cursor: pointer;
-        `;
-        closeButton.onclick = () => this.hide();
-        this.container.appendChild(closeButton);
-
-        // Add to document body
-        document.body.appendChild(this.container);
-
-        // Add CSS styles for slots
+        // Add styles for slots
         const style = document.createElement('style');
         style.textContent = `
-            .merchant-slot, .player-slot {
-                width: 64px;
-                height: 64px;
-                border: 2px solid #666;
-                margin: 4px;
-                display: inline-block;
-                position: relative;
-                background: #2a2a2a;
-                cursor: pointer;
+            .merchant-slots, .player-slots {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                padding: 10px;
             }
+            
+            .merchant-slot, .player-slot {
+                aspect-ratio: 1;
+                background: #333;
+                border: 2px solid #444;
+                border-radius: 4px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                cursor: pointer;
+                padding: 5px;
+            }
+            
+            .merchant-slot:hover, .player-slot:hover {
+                border-color: #00f2ff;
+            }
+            
             .merchant-slot img, .player-slot img {
-                width: 100%;
-                height: 100%;
+                max-width: 70%;
+                max-height: 70%;
                 object-fit: contain;
             }
+            
             .merchant-slot.empty, .player-slot.empty {
                 background: #222;
+                border: 2px dashed #444;
             }
+            
             .item-price {
                 position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: rgba(0,0,0,0.7);
-                color: #00f2ff;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.7);
+                padding: 2px 6px;
+                border-radius: 4px;
                 font-size: 12px;
-                padding: 2px;
-                text-align: center;
+                color: #00f2ff;
             }
+            
             .item-quantity {
                 position: absolute;
                 top: 2px;
                 right: 2px;
-                background: rgba(0,0,0,0.7);
-                color: white;
-                padding: 2px 4px;
-                border-radius: 3px;
+                background: rgba(0, 0, 0, 0.7);
+                padding: 2px 6px;
+                border-radius: 4px;
                 font-size: 12px;
-            }
-            .merchant-slots, .player-slots {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 4px;
-                padding: 10px;
+                color: white;
             }
         `;
         document.head.appendChild(style);
+
+        document.body.appendChild(this.container);
     }
 
     setupEventListeners() {
@@ -228,21 +264,24 @@ export class MerchantUI {
         `;
         
         this.refresh();
-        this.game.messageSystem.hide();
-        this.game.uiManager.activeWindows.add('merchantUI');
+        if (this.game?.messageSystem) {
+            this.game.messageSystem.hide();
+        }
+        if (this.game?.uiManager?.activeWindows) {
+            this.game.uiManager.activeWindows.add('merchantUI');
+        }
     }
 
     hide() {
         this.isVisible = false;
         this.container.style.display = 'none';
-        this.game.uiManager.activeWindows.delete('merchantUI');
+        // Only modify activeWindows if game and uiManager exist
+        if (this.game?.uiManager?.activeWindows) {
+            this.game.uiManager.activeWindows.delete('merchantUI');
+        }
     }
 
     refresh() {
-        console.log('MerchantUI.refresh called');
-        console.log('Current merchant ETH:', this.merchant?.inventory?.eth);
-        console.log('Current player ETH:', this.game.player?.inventory?.eth);
-        
         if (!this.merchant) {
             console.warn('No merchant set for UI refresh');
             return;
@@ -250,15 +289,15 @@ export class MerchantUI {
 
         // Update the displays
         this.merchantInventory.innerHTML = `
-            <h3 style="color: yellow; font-size: 24px;">Merchant's Goods</h3>
-            <div class="merchant-slots" style="background: #333; padding: 20px;">
+            <h3 style="color: #00f2ff; font-size: 20px; margin-bottom: 15px; text-align: center;">Merchant's Goods</h3>
+            <div class="merchant-slots">
                 ${this.renderMerchantSlots()}
             </div>
         `;
 
         this.playerInventory.innerHTML = `
-            <h3 style="color: yellow; font-size: 24px;">Your Items</h3>
-            <div class="player-slots" style="background: #333; padding: 20px;">
+            <h3 style="color: #00f2ff; font-size: 20px; margin-bottom: 15px; text-align: center;">Your Items</h3>
+            <div class="player-slots">
                 ${this.renderPlayerSlots()}
             </div>
         `;
@@ -283,7 +322,6 @@ export class MerchantUI {
 
     renderMerchantSlots() {
         let html = '';
-        // Limit to 16 slots (4 rows of 4) for merchant inventory
         const maxVisibleSlots = 16;
         
         for (let i = 0; i < Math.min(maxVisibleSlots, this.merchant.inventory.maxSlots); i++) {
@@ -292,7 +330,7 @@ export class MerchantUI {
                 const price = this.merchant.getSellPrice(item);
                 html += `
                     <div class="merchant-slot" data-slot="${i}">
-                        <img src="${item.icon}" alt="${item.name}">
+                        <img src="${item.icon}" alt="${item.name}" title="${item.name}">
                         <div class="item-price">${price} ETH</div>
                         ${item.isStackable ? `<span class="item-quantity">${item.quantity}</span>` : ''}
                     </div>
@@ -305,19 +343,13 @@ export class MerchantUI {
     }
 
     renderPlayerSlots() {
-        // Check if player and inventory exist
         if (!this.game?.player?.inventory) {
-            console.error('Player inventory not initialized:', {
-                hasGame: !!this.game,
-                hasPlayer: !!this.game?.player,
-                hasInventory: !!this.game?.player?.inventory
-            });
+            console.error('Player inventory not initialized');
             return '';
         }
 
         let html = '';
         const inventory = this.game.player.inventory;
-        // Limit to 16 slots (4 rows of 4) for player inventory
         const maxVisibleSlots = 16;
         
         for (let i = 0; i < Math.min(maxVisibleSlots, inventory.maxSlots); i++) {
@@ -326,7 +358,7 @@ export class MerchantUI {
                 const price = this.merchant.getBuyPrice(item);
                 html += `
                     <div class="player-slot" data-slot="${i}">
-                        <img src="${item.icon}" alt="${item.name}">
+                        <img src="${item.icon}" alt="${item.name}" title="${item.name}">
                         <div class="item-price">${price} ETH</div>
                         ${item.isStackable ? `<span class="item-quantity">${item.quantity}</span>` : ''}
                     </div>
@@ -338,6 +370,9 @@ export class MerchantUI {
         return html;
     }
 }
+
+
+
 
 
 

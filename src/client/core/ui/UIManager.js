@@ -1,5 +1,6 @@
 import { InventoryUI } from './components/InventoryUI.js';
 import { MessageLog } from './components/MessageLog.js';
+import { MerchantUI } from './components/MerchantUI.js';
 
 export class UIManager {
     constructor(game) {
@@ -18,7 +19,7 @@ export class UIManager {
         try {
             console.log('Initializing UI components...');
             
-            // Initialize MessageLog first with proper configuration
+            // Initialize MessageLog
             console.log('Creating MessageLog instance...');
             const messageLog = new MessageLog({
                 position: { x: 10, y: window.innerHeight - 110 },
@@ -30,8 +31,17 @@ export class UIManager {
             
             // Initialize inventory UI
             console.log('Creating InventoryUI instance...');
-            this.inventoryUI = new InventoryUI(this.game);
-            this.components.set('inventoryUI', this.inventoryUI);
+            const inventoryUI = new InventoryUI(this.game);
+            this.components.set('inventoryUI', inventoryUI);
+
+            // Initialize merchant UI
+            console.log('Creating MerchantUI instance...');
+            const merchantUI = new MerchantUI({ game: this.game });
+            this.components.set('merchantUI', merchantUI);
+            
+            // Now that all components are initialized, we can safely hide them
+            inventoryUI.hide();
+            merchantUI.hide();
             
             console.log('Current components:', Array.from(this.components.entries()));
 
@@ -200,5 +210,13 @@ export class UIManager {
             this.hideWindow(windowId);
         });
     }
+
+    // Add a helper method to get components
+    getComponent(name) {
+        return this.components.get(name);
+    }
 }
+
+
+
 

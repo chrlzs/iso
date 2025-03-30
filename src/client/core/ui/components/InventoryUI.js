@@ -11,10 +11,19 @@ export class InventoryUI {
         this.isVisible = false;
         this.activeCategory = null;
 
-        // Create the container
+        // Create the container with explicit styles
         this.container = document.createElement('div');
         this.container.className = 'inventory-window';
-        this.container.style.display = 'none';
+        this.container.style.cssText = `
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+            position: fixed;
+            z-index: 1000;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        `;
         
         // Create inventory grid
         this.inventoryGrid = document.createElement('div');
@@ -42,7 +51,7 @@ export class InventoryUI {
 
         // Add to document
         document.body.appendChild(this.container);
-
+        
         // Setup event listeners
         this.setupEventListeners();
         
@@ -50,9 +59,13 @@ export class InventoryUI {
     }
 
     setupEventListeners() {
+        console.log('Setting up InventoryUI event listeners');
+        
         // Add key event listener for inventory toggle
         document.addEventListener('keydown', (e) => {
+            console.log('Keydown in InventoryUI:', e.key);
             if (e.key.toLowerCase() === 'i') {
+                console.log('I key pressed in InventoryUI');
                 e.preventDefault(); // Prevent default 'i' behavior
                 this.toggle();
             }
@@ -75,29 +88,35 @@ export class InventoryUI {
         });
     }
 
+    toggle() {
+        console.log('Toggle called. Current visibility:', this.isVisible);
+        if (this.isVisible) {
+            this.hide();
+        } else {
+            this.show();
+        }
+    }
+
     show() {
+        console.log('Showing inventory');
         this.isVisible = true;
         this.container.style.display = 'block';
+        this.container.style.visibility = 'visible';
+        this.container.style.opacity = '1';
         this.refresh();
-        if (this.game.uiManager) {
+        if (this.game?.uiManager) {
             this.game.uiManager.activeWindows.add('inventoryUI');
         }
     }
 
     hide() {
+        console.log('Hiding inventory');
         this.isVisible = false;
         this.container.style.display = 'none';
-        if (this.game.uiManager) {
+        this.container.style.visibility = 'hidden';
+        this.container.style.opacity = '0';
+        if (this.game?.uiManager) {
             this.game.uiManager.activeWindows.delete('inventoryUI');
-        }
-    }
-
-    toggle() {
-        console.log('Toggling inventory. Current state:', this.isVisible); // Debug log
-        if (this.isVisible) {
-            this.hide();
-        } else {
-            this.show();
         }
     }
 
@@ -193,6 +212,10 @@ export class InventoryUI {
         this.updateWeightBar();
     }
 }
+
+
+
+
 
 
 
