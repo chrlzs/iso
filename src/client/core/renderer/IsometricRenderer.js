@@ -86,7 +86,14 @@ export class IsometricRenderer {
     }
 
     renderTile(tile, x, y) {
-        if (!tile || !tile.type) return;
+        if (!tile || !tile.type) {
+            console.warn('Invalid tile at', x, y, tile);
+            return;
+        }
+
+        if (!this.getTileColor(tile.type)) {
+            console.warn('Unknown tile type:', tile.type, 'at', x, y);
+        }
 
         const isoX = (x - y) * this.tileWidth / 2;
         const isoY = (x + y) * this.tileHeight / 2;
@@ -161,23 +168,30 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 
-    // Helper method to get tile colors
     getTileColor(tileType, hasDoor = false) {
         if (hasDoor) {
             return '#FFD700'; // Gold color for door tiles
         }
 
         const colors = {
-            'water': '#4A90E2',
-            'sand': '#F5A623',
-            'grass': '#7ED321',
-            'wetland': '#417505',
-            'dirt': '#8B572A',
-            'stone': '#9B9B9B',
-            'mountain': '#757575',
-            'door': '#FFD700'
+            'water': '#1976D2',     // Blue
+            'wetland': '#558B2F',    // Dark green
+            'sand': '#FDD835',       // Sand yellow
+            'dirt': '#795548',       // Brown
+            'grass': '#4CAF50',      // Green
+            'forest': '#2E7D32',     // Dark green
+            'mountain': '#757575',   // Gray
+            'concrete': '#9E9E9E',   // Medium gray
+            'asphalt': '#424242',    // Dark gray
+            'metal': '#B0BEC5',      // Bluish gray
+            'tiles': '#78909C',      // Cool gray
+            'gravel': '#707070',     // Warm gray
+            'solar': '#1A237E',      // Deep blue
+            'garden': '#66BB6A',     // Light green
+            'helipad': '#F57F17',    // Orange
+            'parking': '#37474F'     // Dark blue-gray
         };
-        return colors[tileType] || '#FF0000';
+        return colors[tileType] || '#FF0000';  // Return red for unknown types
     }
 }
 
