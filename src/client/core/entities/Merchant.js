@@ -91,25 +91,30 @@ export class Merchant extends NPC {
         if (!item) return false;
 
         const price = this.getBuyPrice(item) * quantity;
-        const currentEth = Number(this.inventory.eth || 0);
+        const merchantEth = Number(this.inventory.eth || 0);
 
         console.log('Buy transaction details:', {
+            itemName: item.name,
             price: price,
-            quantity: quantity,
-            totalPrice: price * quantity,
-            merchantCurrentEth: currentEth
+            merchantEth: merchantEth,
+            quantity: quantity
         });
 
-        if (currentEth < price) {
-            console.log('Insufficient merchant ETH:', {
-                required: price,
-                available: currentEth
-            });
+        if (merchantEth < price) {
+            console.log('Insufficient merchant ETH');
             return false;
         }
 
-        if (player.inventory.transferItem(playerSlot, this.inventory, quantity)) {
-            this.inventory.eth = currentEth - price;
+        // Create a copy of the item for transfer
+        const transferItem = item.clone();
+        transferItem.quantity = quantity;
+
+        if (this.inventory.addItem(transferItem)) {
+            // Remove item from player
+            player.inventory.removeItem(playerSlot, quantity);
+            
+            // Transfer ETH
+            this.inventory.eth = merchantEth - price;
             player.inventory.eth = Number(player.inventory.eth || 0) + price;
             
             console.log('Transaction complete:', {
@@ -128,20 +133,27 @@ export class Merchant extends NPC {
         const price = this.getSellPrice(item) * quantity;
         const playerEth = Number(player.inventory.eth || 0);
         
-        console.log('Sell to player:', {
+        console.log('Sell transaction details:', {
+            itemName: item.name,
             price: price,
-            playerEth: playerEth
+            playerEth: playerEth,
+            quantity: quantity
         });
 
         if (playerEth < price) {
-            console.log('Insufficient player ETH:', {
-                required: price,
-                available: playerEth
-            });
+            console.log('Insufficient player ETH');
             return false;
         }
 
-        if (this.inventory.transferItem(merchantSlot, player.inventory, quantity)) {
+        // Create a copy of the item for transfer
+        const transferItem = item.clone();
+        transferItem.quantity = quantity;
+
+        if (player.inventory.addItem(transferItem)) {
+            // Remove item from merchant
+            this.inventory.removeItem(merchantSlot, quantity);
+            
+            // Transfer ETH
             this.inventory.eth = Number(this.inventory.eth || 0) + price;
             player.inventory.eth = playerEth - price;
             
@@ -265,6 +277,9 @@ export class Merchant extends NPC {
         ctx.restore();
     }
 }
+
+
+
 
 
 

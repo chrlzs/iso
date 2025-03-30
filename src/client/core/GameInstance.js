@@ -443,6 +443,8 @@ export class GameInstance {
         });
 
         this.canvas.addEventListener('click', (e) => {
+            console.log('Canvas clicked');
+            
             const rect = this.canvas.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
@@ -451,6 +453,7 @@ export class GameInstance {
             const clickedNPC = this.findClickedNPC(screenX, screenY);
             
             if (clickedNPC) {
+                console.log('NPC clicked:', clickedNPC);
                 // Find adjacent tile to NPC
                 const adjacentTile = this.findAdjacentTile(clickedNPC);
                 if (adjacentTile) {
@@ -459,16 +462,22 @@ export class GameInstance {
                     const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
                     
                     if (path) {
+                        console.log('Path found, moving player');
                         this.player.setPath(path);
                         // Start dialog when path is complete
                         this.player.onPathComplete = () => {
+                            console.log('Path complete, starting dialog');
                             this.startDialog(clickedNPC);
                         };
+                    } else {
+                        console.log('No path found to NPC');
                     }
+                } else {
+                    console.log('No adjacent tile found for NPC');
                 }
                 return;
             }
-
+            
             // Get the center offset where (0,0) should be
             const centerX = this.canvas.width / 2;
             const centerY = this.canvas.height / 2;
@@ -818,127 +827,165 @@ export class GameInstance {
         };
     }
 
-    findClickedNPC(screenX, screenY) {
+    screenToWorld(screenX, screenY) {
         // Get the center offset where (0,0) should be
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         
-        // Get player's isometric position
-        const playerIso = this.convertToIsometric(this.player.x, this.player.y);
+        // Calculate the player's isometric position
+        const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
+        const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
         
-        // Convert screen coordinates to world coordinates
-        const worldPos = this.renderer.screenToWorld(
-            screenX - centerX + playerIso.x * this.camera.zoom,
-            screenY - centerY + playerIso.y * this.camera.zoom,
-            this.camera.zoom,
-            this.camera.x,
-            this.camera.y
+        // Adjust click coordinates relative to player position and camera zoom
+        const adjustedX = (screenX - centerX) / this.camera.zoom + isoX;
+        const adjustedY = (screenY - centerY) / this.camera.zoom + isoY;
+        
+        // Convert isometric coordinates back to world coordinates
+        const worldX = Math.round(
+            (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
+        );
+        const worldY = Math.round(
+            (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
         );
         
+        return { x: worldX, y: worldY };
+    }
+
+    findClickedNPC(screenX, screenY) {
+        const worldPos = this.screenToWorld(screenX, screenY);
+        
+        console.log('Click detected:', {
+            screen: { x: screenX, y: screenY },
+            world: worldPos,
+            entities: Array.from(this.entities).map(e => ({
+                type: e.constructor.name,
+                pos: { x: e.x, y: e.y }
+            }))
+        });
+
+        // Check all entities with a larger threshold
         for (const entity of this.entities) {
-            if (entity instanceof NPC) {
-                // Calculate distance in world coordinates
-                const dx = worldPos.x - entity.x;
-                const dy = worldPos.y - entity.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+            if (entity instanceof Merchant) {
+                const distance = Math.sqrt(
+                    Math.pow(entity.x - worldPos.x, 2) + 
+                    Math.pow(entity.y - worldPos.y, 2)
+                );
                 
-                // Use a larger click radius to make it easier to click NPCs
-                const clickRadius = 3;
-                
-                if (this.debug.enabled) {
-                    console.log(`Click check for ${entity.name}:`, {
-                        entityPos: { x: entity.x, y: entity.y },
-                        worldClick: worldPos,
-                        clickPos: { x: screenX, y: screenY },
-                        distance,
-                        clickRadius
-                    });
-                }
-                
-                if (distance < clickRadius) {
-                    console.log(`Clicked on NPC: ${entity.name}`);
+                console.log('Checking merchant:', {
+                    merchantPos: { x: entity.x, y: entity.y },
+                    distance: distance,
+                    clickThreshold: 1.5  // Increased from 1.0 to 1.5
+                });
+
+                if (distance < 1.5) {  // Increased threshold
+                    console.log('Merchant clicked:', entity);
                     return entity;
                 }
             }
         }
+        
         return null;
     }
 
     findAdjacentTile(npc) {
-        // Check tiles in cardinal directions
-        const adjacentPositions = [
-            { x: npc.x + 1, y: npc.y },
-            { x: npc.x - 1, y: npc.y },
-            { x: npc.x, y: npc.y + 1 },
-            { x: npc.x, y: npc.y - 1 }
-        ];
+        console.log('Finding adjacent tile for:', npc);
         
-        // Find first valid position
+        // Check if NPC is inside a structure
+        const isInStructure = this.pathFinder.isInsideStructure(npc.x, npc.y);
+        console.log('NPC structure check:', { isInStructure, npcPos: { x: npc.x, y: npc.y } });
+
+        // Check tiles in a cross pattern around the NPC
+        const adjacentPositions = [
+            { x: 0, y: 1 },  // North
+            { x: 1, y: 0 },  // East
+            { x: 0, y: -1 }, // South
+            { x: -1, y: 0 }  // West
+        ];
+
         for (const pos of adjacentPositions) {
-            if (this.pathFinder.isValidCoordinate(pos.x, pos.y)) {
-                const height = this.world.generateHeight(pos.x, pos.y);
-                const moisture = this.world.generateMoisture(pos.x, pos.y);
-                const tile = this.world.generateTile(pos.x, pos.y, height, moisture);
-                
-                if (tile.type !== 'water' && tile.type !== 'wetland') {
-                    return pos;
-                }
+            const checkX = Math.round(npc.x + pos.x);
+            const checkY = Math.round(npc.y + pos.y);
+            
+            // Allow interior movement if NPC is inside a structure
+            if (this.pathFinder.isWalkable(checkX, checkY, isInStructure)) {
+                console.log('Found adjacent tile:', { x: checkX, y: checkY });
+                return { x: checkX, y: checkY };
             }
         }
+
+        // If no adjacent tile found, try diagonal positions as fallback
+        const diagonalPositions = [
+            { x: 1, y: 1 },   // Northeast
+            { x: -1, y: 1 },  // Northwest
+            { x: 1, y: -1 },  // Southeast
+            { x: -1, y: -1 }  // Southwest
+        ];
+
+        for (const pos of diagonalPositions) {
+            const checkX = Math.round(npc.x + pos.x);
+            const checkY = Math.round(npc.y + pos.y);
+            
+            if (this.pathFinder.isWalkable(checkX, checkY, isInStructure)) {
+                console.log('Found diagonal adjacent tile:', { x: checkX, y: checkY });
+                return { x: checkX, y: checkY };
+            }
+        }
+
+        console.log('No adjacent tile found');
         return null;
     }
 
     startDialog(npc) {
+        console.log('Starting dialog with:', npc);
+        
+        if (!this.messageSystem) {
+            console.error('MessageSystem not initialized');
+            return;
+        }
+        
         if (npc instanceof Merchant) {
+            console.log('Opening merchant dialog');
+            
+            // First verify the merchant's inventory
+            if (!npc.inventory) {
+                console.error('Merchant inventory not initialized');
+                return;
+            }
+
+            // Verify UI components
+            if (!this.uiManager?.components?.get('merchantUI')) {
+                console.error('MerchantUI component not found');
+                return;
+            }
+
+            const dialogOptions = [
+                { 
+                    text: "Show me what you have",
+                    action: () => {
+                        console.log('Dialog option clicked - opening merchant UI');
+                        const merchantUI = this.uiManager.components.get('merchantUI');
+                        merchantUI.show(npc);
+                    }
+                },
+                {
+                    text: "Goodbye",
+                    action: () => {
+                        console.log('Dialog option clicked - closing');
+                        this.messageSystem.hide();
+                    }
+                }
+            ];
+
+            // Add debug logging for message queue
+            console.log('Queueing merchant dialog message with options:', dialogOptions);
+
             this.messageSystem.queueMessage({
-                speaker: npc.name,
+                speaker: npc.name || 'Merchant',
                 text: "Welcome to my shop! Would you like to see my wares?",
                 logMessage: true,
-                options: [
-                    { 
-                        text: "Show me what you have",
-                        action: () => {
-                            console.log('Opening merchant UI...');
-                            const merchantUI = this.uiManager.components.get('merchantUI');
-                            console.log('MerchantUI component:', merchantUI);
-                            
-                            // Debug: Log all elements with higher or equal z-index
-                            const elements = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight / 2);
-                            console.log('Elements at center of screen:', elements);
-                            
-                            if (merchantUI) {
-                                merchantUI.show(npc);
-                            } else {
-                                console.error('MerchantUI not found in UIManager components');
-                            }
-                        }
-                    },
-                    { 
-                        text: "Maybe later",
-                        action: () => this.messageSystem.hide()
-                    }
-                ]
-            });
-        } else {
-            this.messageSystem.queueMessage({
-                speaker: npc.name,
-                text: `Hello traveler! I am ${npc.name}.`,
-                options: [
-                    { 
-                        text: "Hello!",
-                        action: () => {
-                            this.messageSystem.queueMessage({
-                                speaker: npc.name,
-                                text: "How can I help you today?",
-                                options: [
-                                    { text: "Just saying hi" },
-                                    { text: "Goodbye" }
-                                ]
-                            });
-                        }
-                    },
-                    { text: "Goodbye" }
-                ]
+                options: dialogOptions,
+                onShow: () => console.log('Dialog message shown'),
+                onHide: () => console.log('Dialog message hidden')
             });
         }
     }
@@ -1121,38 +1168,6 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1,8 +1,8 @@
 .merchant-ui {
-    position: fixed !important;
-    top: 50vh !important;
-    left: 50vw !important;
-    transform: translate(-50%, -50%) !important;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: #1a1a1a;
     border: 4px solid gold;
     border-radius: 8px;
@@ -107,6 +107,7 @@ h3 {
 .merchant-gold-display div {
     color: #00f2ff; /* Changed from gold to cyber blue */
 }
+
 
 
 

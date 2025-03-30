@@ -1,117 +1,107 @@
-export class MessageSystem {
+class MessageSystem {
     constructor(game) {
         this.game = game;
         this.messageQueue = [];
-        this.currentMessage = null;
-        this.isActive = false;
-        this.createMessageContainer();
-    }
-
-    createMessageContainer() {
+        this.isDisplaying = false;
+        
+        // Create dialog container if it doesn't exist
         this.container = document.createElement('div');
-        this.container.className = 'message-system';
+        this.container.className = 'message-dialog';
         this.container.style.display = 'none';
         document.body.appendChild(this.container);
     }
 
-    getMessageLog() {
-        if (!this._messageLog) {
-            this._messageLog = this.game.uiManager.components.get('messageLog');
-            if (!this._messageLog) {
-                console.warn('MessageLog component not found in UIManager');
-            }
+    queueMessage(messageConfig) {
+        console.log('Queueing message:', {
+            text: messageConfig.text,
+            speaker: messageConfig.speaker,
+            hasOptions: !!messageConfig.options,
+            optionsCount: messageConfig.options?.length
+        });
+        
+        // Ensure options are properly structured
+        if (messageConfig.options) {
+            messageConfig.options = messageConfig.options.map(option => ({
+                text: option.text,
+                action: typeof option.action === 'function' ? option.action : () => {
+                    console.warn('No action defined for option:', option.text);
+                }
+            }));
         }
-        return this._messageLog;
+
+        this.messageQueue.push(messageConfig);
+        
+        if (!this.isDisplaying) {
+            this.displayNextMessage();
+        }
     }
 
-    showMessage(messageConfig) {
-        this.isActive = true;
-        this.currentMessage = messageConfig;
-        
-        // Log the message to MessageLog if it's significant
-        const messageLog = this.getMessageLog();
-        if (messageLog) {
-            if (messageConfig.speaker) {
-                messageLog.addMessage(`${messageConfig.speaker}: ${messageConfig.text}`);
-            } else if (messageConfig.logMessage) {
-                messageLog.addMessage(messageConfig.text);
-            }
+    displayNextMessage() {
+        if (this.messageQueue.length === 0) {
+            this.isDisplaying = false;
+            this.container.style.display = 'none';
+            return;
         }
-        
+
+        const message = this.messageQueue[0];
+        console.log('Displaying message:', {
+            text: message.text,
+            speaker: message.speaker,
+            hasOptions: !!message.options,
+            optionsCount: message.options?.length
+        });
+
+        this.isDisplaying = true;
         this.container.innerHTML = `
-            <div class="message-content">
-                ${messageConfig.speaker ? `<div class="message-speaker">${messageConfig.speaker}</div>` : ''}
-                <div class="message-text">${messageConfig.text}</div>
-                <div class="message-options">
-                    ${this.generateOptions(messageConfig)}
-                </div>
+            <div class="dialog-header">
+                <h3>${message.speaker || ''}</h3>
+            </div>
+            <div class="dialog-content">
+                <p>${message.text}</p>
+                ${message.options ? `
+                    <div class="dialog-options">
+                        ${message.options.map((option, index) => `
+                            <button class="dialog-option" data-option="${index}">
+                                ${option.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>
         `;
-        
+
+        // Add click handlers for options
+        if (message.options) {
+            this.container.querySelectorAll('.dialog-option').forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    console.log('Dialog option clicked:', index);
+                    if (typeof message.options[index].action === 'function') {
+                        message.options[index].action();
+                        // Remove the current message after action is executed
+                        this.messageQueue.shift();
+                        this.displayNextMessage();
+                    } else {
+                        console.error('Invalid action for option:', message.options[index]);
+                    }
+                });
+            });
+        }
+
         this.container.style.display = 'block';
         
-        // Add to active windows
-        this.game.uiManager.activeWindows.add('messageSystem');
-        
-        // Add event listeners to options
-        const options = this.container.querySelectorAll('.message-option');
-        options.forEach((option, index) => {
-            option.addEventListener('click', () => {
-                const selectedOption = messageConfig.options[index];
-                this.handleChoice(selectedOption);
-            });
-        });
-    }
-
-    generateOptions(messageConfig) {
-        if (!messageConfig.options) {
-            return '<button class="message-option">Next</button>';
-        }
-        
-        return messageConfig.options
-            .map(option => `<button class="message-option">${option.text}</button>`)
-            .join('');
-    }
-
-    queueMessage(messageConfig) {
-        this.messageQueue.push(messageConfig);
-        if (!this.isActive) {
-            this.next();
-        }
-    }
-
-    next() {
-        if (this.messageQueue.length > 0) {
-            const nextMessage = this.messageQueue.shift();
-            this.showMessage(nextMessage);
-        } else {
-            this.hide();
+        if (message.onShow) {
+            message.onShow();
         }
     }
 
     hide() {
-        this.isActive = false;
-        this.currentMessage = null;
+        console.log('Hiding message dialog');
+        this.isDisplaying = false;
         this.container.style.display = 'none';
-        this.game.uiManager.activeWindows.delete('messageSystem');
-    }
-
-    clear() {
         this.messageQueue = [];
-        this.hide();
-    }
-
-    handleChoice(option) {
-        const messageLog = this.getMessageLog();
-        if (messageLog && this.currentMessage.speaker) {
-            messageLog.addMessage(`[You chose: ${option.text}]`);
-        }
-        
-        if (option.action) {
-            option.action();
-        }
-        this.next();
     }
 }
+
+export { MessageSystem };
 
 

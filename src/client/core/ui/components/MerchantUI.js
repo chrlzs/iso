@@ -234,7 +234,12 @@ export class MerchantUI {
         if (!merchant || !merchant.inventory) {
             console.error('Invalid merchant or merchant inventory:', {
                 hasMerchant: !!merchant,
-                hasInventory: !!merchant?.inventory
+                hasInventory: !!merchant?.inventory,
+                merchantDetails: merchant ? {
+                    name: merchant.name,
+                    eth: merchant.inventory?.eth,
+                    slots: merchant.inventory?.slots?.length
+                } : null
             });
             return;
         }
@@ -248,20 +253,21 @@ export class MerchantUI {
         this.merchant = merchant;
         this.isVisible = true;
         
-        this.container.style.cssText = `
-            position: fixed !important;
-            top: 50vh !important;
-            left: 50vw !important;
-            transform: translate(-50%, -50%) !important;
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 100000 !important;
-            background: #1a1a1a !important;
-            border: 4px solid #00f2ff !important;
-            width: 800px !important;
-            height: 600px !important;
-        `;
+        // Make sure container exists and is properly styled
+        if (!this.container) {
+            console.error('Merchant UI container not initialized');
+            return;
+        }
+        
+        // Use display: flex instead of modifying all styles
+        this.container.style.display = 'flex';
+        
+        console.log('Merchant UI shown:', {
+            merchantName: merchant.name,
+            merchantEth: merchant.inventory.eth,
+            playerEth: this.game.player.inventory.eth,
+            containerDisplay: this.container.style.display
+        });
         
         this.refresh();
         if (this.game?.messageSystem) {
@@ -370,6 +376,8 @@ export class MerchantUI {
         return html;
     }
 }
+
+
 
 
 
