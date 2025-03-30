@@ -339,42 +339,47 @@ export class GameInstance {
 
     setupInput() {
         console.log('Game: Setting up input handlers');
-        const moveSpeed = 5;
         
-        window.addEventListener('keydown', (e) => {
-            console.log('Key pressed in GameInstance:', e.key, 'KeyCode:', e.keyCode);
-            
-            // Handle inventory toggle first
-            if (e.key.toLowerCase() === 'i') {
-                console.log('Inventory key detected, attempting to toggle...');
-                const inventoryUI = this.uiManager.components.get('inventoryUI');
+        // Track key states
+        const keyStates = new Set();
+        let lastToggleTime = 0;
+        const TOGGLE_COOLDOWN = 200;
+
+        // Handle keydown
+        const handleKeyDown = (e) => {
+            if (e.key.toLowerCase() === 'i' && !keyStates.has('i')) {
+                const now = Date.now();
+                if (now - lastToggleTime < TOGGLE_COOLDOWN) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                keyStates.add('i');
+                lastToggleTime = now;
+                
+                const inventoryUI = this.uiManager.getComponent('inventoryUI');
                 if (inventoryUI) {
-                    console.log('InventoryUI found, calling toggle()');
+                    console.log('Processing inventory toggle...');
                     inventoryUI.toggle();
-                    e.preventDefault(); // Prevent any default behavior
-                    return;
-                } else {
-                    console.warn('InventoryUI not found in UIManager components');
-                    console.log('Available components:', Array.from(this.uiManager.components.keys()));
                 }
             }
+        };
 
-            // Handle other keyboard inputs
-            switch(e.key) {
-                case 'ArrowLeft':
-                    this.camera.x -= moveSpeed;
-                    break;
-                case 'ArrowRight':
-                    this.camera.x += moveSpeed;
-                    break;
-                case 'ArrowUp':
-                    this.camera.y -= moveSpeed;
-                    break;
-                case 'ArrowDown':
-                    this.camera.y += moveSpeed;
-                    break;
+        // Handle keyup
+        const handleKeyUp = (e) => {
+            if (e.key.toLowerCase() === 'i') {
+                keyStates.delete('i');
+                e.preventDefault();
+                e.stopPropagation();
             }
-        });
+        };
+
+        // Clean up any existing listeners
+        document.removeEventListener('keydown', handleKeyDown, true);
+        document.removeEventListener('keyup', handleKeyUp, true);
+
+        // Add listeners with capture
+        document.addEventListener('keydown', handleKeyDown, { capture: true });
+        document.addEventListener('keyup', handleKeyUp, { capture: true });
 
         this.canvas.addEventListener('wheel', (e) => {
             const zoomSpeed = 0.1;

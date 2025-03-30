@@ -14,43 +14,33 @@ export class InventoryUI {
         // Create the container with explicit styles
         this.container = document.createElement('div');
         this.container.className = 'inventory-window';
-        this.container.style.cssText = `
-            display: none;
-            visibility: hidden;
-            opacity: 0;
-            position: fixed;
-            z-index: 1000;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        `;
         
-        // Create inventory grid
-        this.inventoryGrid = document.createElement('div');
-        this.inventoryGrid.className = 'inventory-grid';
-        this.container.appendChild(this.inventoryGrid);
-
         // Create category buttons
         const categoryContainer = document.createElement('div');
         categoryContainer.className = 'inventory-categories';
-        
         ['All', 'Weapons', 'Armor', 'Consumables', 'Materials'].forEach(category => {
             const button = document.createElement('button');
             button.textContent = category;
             button.className = 'category-button';
+            if (category === 'All') button.classList.add('active');
             button.addEventListener('click', () => this.setCategory(category));
             categoryContainer.appendChild(button);
         });
+        this.container.appendChild(categoryContainer);
 
-        this.container.insertBefore(categoryContainer, this.inventoryGrid);
+        // Create inventory grid with explicit dimensions
+        this.inventoryGrid = document.createElement('div');
+        this.inventoryGrid.className = 'inventory-grid';
+        this.container.appendChild(this.inventoryGrid);
 
         // Create weight bar
         this.weightBar = document.createElement('div');
         this.weightBar.className = 'weight-bar';
         this.container.appendChild(this.weightBar);
 
-        // Add to document
+        // Add to document and hide initially
         document.body.appendChild(this.container);
+        this.hide();
         
         // Setup event listeners
         this.setupEventListeners();
@@ -59,19 +49,7 @@ export class InventoryUI {
     }
 
     setupEventListeners() {
-        console.log('Setting up InventoryUI event listeners');
-        
-        // Add key event listener for inventory toggle
-        document.addEventListener('keydown', (e) => {
-            console.log('Keydown in InventoryUI:', e.key);
-            if (e.key.toLowerCase() === 'i') {
-                console.log('I key pressed in InventoryUI');
-                e.preventDefault(); // Prevent default 'i' behavior
-                this.toggle();
-            }
-        });
-
-        // Close inventory when clicking outside
+        // Only handle click-outside behavior
         document.addEventListener('mousedown', (e) => {
             if (this.isVisible && !this.container.contains(e.target)) {
                 this.hide();
@@ -89,8 +67,10 @@ export class InventoryUI {
     }
 
     toggle() {
-        console.log('Toggle called. Current visibility:', this.isVisible);
-        if (this.isVisible) {
+        const isCurrentlyVisible = this.container.classList.contains('visible');
+        console.log('Toggle called, currently visible:', isCurrentlyVisible);
+        
+        if (isCurrentlyVisible) {
             this.hide();
         } else {
             this.show();
@@ -98,26 +78,30 @@ export class InventoryUI {
     }
 
     show() {
+        if (this.container.classList.contains('visible')) {
+            console.log('Inventory already visible, ignoring show call');
+            return;
+        }
+        
         console.log('Showing inventory');
         this.isVisible = true;
-        this.container.style.display = 'block';
-        this.container.style.visibility = 'visible';
-        this.container.style.opacity = '1';
-        this.refresh();
-        if (this.game?.uiManager) {
-            this.game.uiManager.activeWindows.add('inventoryUI');
-        }
+        
+        // Use RAF to ensure smooth transition
+        requestAnimationFrame(() => {
+            this.container.classList.add('visible');
+            this.refresh();
+        });
     }
 
     hide() {
+        if (!this.container.classList.contains('visible')) {
+            console.log('Inventory already hidden, ignoring hide call');
+            return;
+        }
+        
         console.log('Hiding inventory');
         this.isVisible = false;
-        this.container.style.display = 'none';
-        this.container.style.visibility = 'hidden';
-        this.container.style.opacity = '0';
-        if (this.game?.uiManager) {
-            this.game.uiManager.activeWindows.delete('inventoryUI');
-        }
+        this.container.classList.remove('visible');
     }
 
     updateWeightBar() {
@@ -174,42 +158,37 @@ export class InventoryUI {
     refresh() {
         if (!this.isVisible) return;
 
+        console.log('Refreshing inventory UI');
         const inventory = this.game.player.inventory;
         
         // Clear existing grid
         this.inventoryGrid.innerHTML = '';
-
-        // Get items based on category
-        let items = Array.from(inventory.items.entries());
-        if (this.activeCategory) {
-            items = items.filter(([_, item]) => item.type === this.activeCategory);
-        }
 
         // Create all slots (empty or filled)
         for (let i = 0; i < inventory.maxSlots; i++) {
             const slot = document.createElement('div');
             slot.className = 'inventory-slot';
             slot.dataset.slot = i;
-            slot.dataset.type = 'inventory';
             
-            // Find item for this slot
-            const itemEntry = items.find(([slotNum, _]) => slotNum === i);
-            
-            if (itemEntry) {
-                const item = itemEntry[1];
+            const item = inventory.getSlot(i);
+            if (item) {
                 slot.innerHTML = `
-                    <img src="${item.icon}" alt="${item.name}">
+                    <img src="${item.icon}" alt="${item.name}" title="${item.name}">
                     ${item.isStackable && item.quantity > 1 ? 
                         `<span class="item-quantity">${item.quantity}</span>` : ''}
                 `;
-                slot.draggable = true;
+            } else {
+                slot.classList.add('empty');
             }
             
             this.inventoryGrid.appendChild(slot);
         }
 
         // Update weight bar
-        this.updateWeightBar();
+        const currentWeight = inventory.getCurrentWeight();
+        const maxWeight = inventory.maxWeight;
+        this.weightBar.setAttribute('data-weight', 
+            `${Math.round(currentWeight)}/${maxWeight}`);
     }
 }
 
