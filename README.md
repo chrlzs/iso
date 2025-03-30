@@ -19,13 +19,25 @@ Isometric RPG Game Engine
 src/
 ├── client/
 │   ├── core/
-│   │   ├── engine/        # Core game engine components
-│   │   ├── world/         # World management and generation
-│   │   ├── entities/      # Entity management
-│   │   ├── systems/       # Game systems (Combat, Inventory, etc.)
-│   │   └── ui/           # UI components and management
-│   └── utils/            # Utility functions and helpers
-└── server/               # Basic server for serving static files
+│   │   ├── GameInstance.js     # Main game instance and loop
+│   │   ├── world/             # World management and generation
+│   │   ├── entities/          # Entity management
+│   │   ├── renderer/          # Rendering system
+│   │   ├── ui/               # UI components and management
+│   │   └── inventory/        # Inventory system
+│   ├── styles/               # CSS styles
+│   └── index.html           # Main entry point
+└── server/                  # Basic server for serving static files
+
+## Architecture
+
+The game uses a single GameInstance class that coordinates all game systems:
+- Rendering using isometric projection on HTML5 Canvas
+- Entity management with player, NPCs, and merchants
+- World generation with terrain and structures
+- UI system with inventory, merchant interactions, and messages
+- Input handling for keyboard and mouse
+- Debug tools and layout mode for development
 ```
 
 3. Architecture
@@ -156,3 +168,4 @@ src/
 - InventoryUI: Item management interface
 
 - StatusBars: Health/Mana/Stamina display
+
