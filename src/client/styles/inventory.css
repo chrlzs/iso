@@ -94,6 +94,24 @@
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
 
+.inventory-slot.equipped {
+    border-color: #ffab40;
+    box-shadow: 0 0 8px rgba(255, 171, 64, 0.4);
+}
+
+.inventory-slot.equipped::after {
+    content: 'E';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 171, 64, 0.8);
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
 .item-quantity {
     position: absolute;
     bottom: 4px;

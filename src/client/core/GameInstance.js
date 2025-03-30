@@ -164,13 +164,58 @@ export class GameInstance {
         this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
         this.inputManager = new InputManager();
         
-        // Initialize player
+        // Initialize player with starting equipment
         const playerSpawnPoint = this.findValidSpawnPoint();
         this.player = new Player({
             x: playerSpawnPoint.x,
             y: playerSpawnPoint.y,
             world: this.world,
             pathFinder: this.pathFinder
+        });
+
+        // Give player starting ETH
+        this.player.inventory.eth = 100;
+
+        // Add starting clothing items
+        const startingItems = [
+            new Item({
+                id: 'basic_shirt',
+                name: 'Basic Shirt',
+                description: 'A simple cotton shirt',
+                type: 'armor',
+                value: 10,
+                weight: 0.5,
+                slot: 'chest',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMglEwCkbBKBgFo2AUjIJRMAqGIWBkZGQEis0DzQdjxkH3AuQS6wNtAQN/GIyCUTAKBjMAALl5C/V1fHh4AAAAAElFTkSuQmCC'
+            }),
+            new Item({
+                id: 'basic_pants',
+                name: 'Basic Pants',
+                description: 'Simple cotton pants',
+                type: 'armor',
+                value: 10,
+                weight: 0.5,
+                slot: 'legs',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMglEwCkbBKBgFo2AUjIJRMAqGIWBkZGQEis0DzQdjxkH3AuQS6wNtAQN/GIyCUTAKBjMAALl5C/V1fHh4AAAAAElFTkSuQmCC'
+            }),
+            new Item({
+                id: 'basic_shoes',
+                name: 'Basic Shoes',
+                description: 'Simple leather shoes',
+                type: 'armor',
+                value: 5,
+                weight: 0.3,
+                slot: 'feet',
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMglEwCkbBKBgFo2AUjIJRMAqGIWBkZGQEis0DzQdjxkH3AuQS6wNtAQN/GIyCUTAKBjMAALl5C/V1fHh4AAAAAElFTkSuQmCC'
+            })
+        ];
+
+        startingItems.forEach(item => {
+            this.player.inventory.addItem(item);
+            // Auto-equip the items
+            if (item.slot) {
+                this.player.equipItem(item);
+            }
         });
 
         // Center camera on player

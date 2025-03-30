@@ -7,21 +7,16 @@ export class Player extends Entity {
         super(config);
         
         // Initialize inventory with default values
-        this.inventory = new Inventory({
-            maxSlots: 20,
-            maxWeight: 100,
-            owner: this,
-            eth: 1000 // Starting ETH
-        });
+        this.inventory = new Inventory(25);
 
         // Initialize equipment slots
-        this.equipment = {
+        this.equippedItems = {
             head: null,
-            body: null,
-            mainHand: null,
-            offHand: null,
+            chest: null,
             legs: null,
-            feet: null
+            feet: null,
+            mainHand: null,
+            offHand: null
         };
 
         // Initialize base stats
@@ -304,34 +299,27 @@ export class Player extends Entity {
         this.updateTerrainInfo(terrainHeight, terrainAngle);
     }
 
-    equipItem(slot, itemSlot) {
-        const item = this.inventory.getSlot(itemSlot);
-        if (!item) return false;
-
-        // Check if item can be equipped in this slot
-        if (item.slot !== slot) return false;
-
-        // Unequip current item if any
-        if (this.equipment[slot]) {
-            this.inventory.addItem(this.equipment[slot]);
+    equipItem(item) {
+        if (item && item.slot && this.equippedItems.hasOwnProperty(item.slot)) {
+            // Unequip current item in that slot if any
+            if (this.equippedItems[item.slot]) {
+                this.equippedItems[item.slot].equipped = false;
+            }
+            
+            // Equip new item
+            this.equippedItems[item.slot] = item;
+            item.equipped = true;
+            return true;
         }
-
-        // Equip new item
-        this.equipment[slot] = item;
-        this.inventory.removeItem(itemSlot);
-        
-        // Update player stats based on equipment
-        this.updateStats();
-        
-        return true;
+        return false;
     }
 
     unequipItem(slot) {
-        const item = this.equipment[slot];
+        const item = this.equippedItems[slot];
         if (!item) return false;
 
         if (this.inventory.addItem(item)) {
-            this.equipment[slot] = null;
+            this.equippedItems[slot] = null;
             this.updateStats();
             return true;
         }
@@ -343,7 +331,7 @@ export class Player extends Entity {
         let totalDefense = 0;
         let totalDamage = 0;
 
-        Object.values(this.equipment).forEach(item => {
+        Object.values(this.equippedItems).forEach(item => {
             if (item) {
                 if (item.defense) totalDefense += item.defense;
                 if (item.damage) totalDamage += item.damage;

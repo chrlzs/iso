@@ -161,22 +161,34 @@ export class InventoryUI {
         console.log('Refreshing inventory UI');
         const inventory = this.game.player.inventory;
         
+        // Log inventory state for debugging
+        console.log('Current inventory state:', {
+            slots: inventory.slots,
+            maxSlots: inventory.maxSlots,
+            eth: inventory.eth
+        });
+
         // Clear existing grid
         this.inventoryGrid.innerHTML = '';
 
         // Create all slots (empty or filled)
-        for (let i = 0; i < inventory.maxSlots; i++) {
+        const maxSlots = inventory.maxSlots || 25; // Fallback to 25 slots if maxSlots isn't set
+        for (let i = 0; i < maxSlots; i++) {
             const slot = document.createElement('div');
             slot.className = 'inventory-slot';
             slot.dataset.slot = i;
             
             const item = inventory.getSlot(i);
             if (item) {
+                console.log(`Slot ${i} contains:`, item);
                 slot.innerHTML = `
                     <img src="${item.icon}" alt="${item.name}" title="${item.name}">
                     ${item.isStackable && item.quantity > 1 ? 
                         `<span class="item-quantity">${item.quantity}</span>` : ''}
                 `;
+                if (item.equipped) {
+                    slot.classList.add('equipped');
+                }
             } else {
                 slot.classList.add('empty');
             }
@@ -185,10 +197,7 @@ export class InventoryUI {
         }
 
         // Update weight bar
-        const currentWeight = inventory.getCurrentWeight();
-        const maxWeight = inventory.maxWeight;
-        this.weightBar.setAttribute('data-weight', 
-            `${Math.round(currentWeight)}/${maxWeight}`);
+        this.updateWeightBar();
     }
 }
 
