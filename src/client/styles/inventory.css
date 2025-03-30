@@ -157,6 +157,55 @@
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
 }
 
+.inventory-sort {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.sort-button {
+    padding: 4px 8px;
+    background: #333;
+    border: 1px solid #666;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.sort-button:hover {
+    background: #444;
+}
+
+.weight-warning {
+    animation: pulse 1s infinite;
+}
+
+.weight-warning-popup {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    animation: fadeInOut 3s forwards;
+}
+
+@keyframes pulse {
+    0% { background: rgba(255, 0, 0, 0.2); }
+    50% { background: rgba(255, 0, 0, 0.4); }
+    100% { background: rgba(255, 0, 0, 0.2); }
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10% { opacity: 1; transform: translate(-50%, 0); }
+    90% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
 
 
 

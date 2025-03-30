@@ -33,6 +33,21 @@ export class InventoryUI {
         this.inventoryGrid.className = 'inventory-grid';
         this.container.appendChild(this.inventoryGrid);
 
+        // Create sort buttons
+        const sortContainer = document.createElement('div');
+        sortContainer.className = 'inventory-sort';
+        ['Type', 'Name', 'Weight', 'Value'].forEach(sortType => {
+            const button = document.createElement('button');
+            button.textContent = `Sort by ${sortType}`;
+            button.className = 'sort-button';
+            button.addEventListener('click', () => {
+                this.game.player.inventory.sortItems(sortType.toLowerCase());
+                this.refresh();
+            });
+            sortContainer.appendChild(button);
+        });
+        this.container.insertBefore(sortContainer, this.weightBar);
+
         // Create weight bar
         this.weightBar = document.createElement('div');
         this.weightBar.className = 'weight-bar';
@@ -135,6 +150,22 @@ export class InventoryUI {
         // Add weight text
         this.weightBar.setAttribute('data-weight', 
             `${Math.round(currentWeight)}/${maxWeight} units`);
+
+        // Add weight warning
+        if (weightPercentage > 90) {
+            this.weightBar.classList.add('weight-warning');
+            this.showWeightWarning();
+        } else {
+            this.weightBar.classList.remove('weight-warning');
+        }
+    }
+
+    showWeightWarning() {
+        const warning = document.createElement('div');
+        warning.className = 'weight-warning-popup';
+        warning.textContent = 'You are carrying too much!';
+        this.container.appendChild(warning);
+        setTimeout(() => warning.remove(), 3000);
     }
 
     setCategory(category) {
