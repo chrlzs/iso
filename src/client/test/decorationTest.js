@@ -22,7 +22,8 @@ TileManager.prototype.loadTextures = function() {
         'dec_cameras': createTempTexture('#404040'),
         'dec_terminals': createTempTexture('#00FF00'),
         'dec_drones': createTempTexture('#202020'),
-        'dec_dumpster': createTempTexture('#2F4F4F')  // Add dumpster texture
+        'dec_dumpster': createTempTexture('#2F4F4F'),
+        'dec_tree': createTempTexture('#228B22')  // Add tree texture with forest green color
     };
     return Promise.resolve();
 };
@@ -45,10 +46,10 @@ async function runTest() {
     const testGrid = [
         [
             { type: 'asphalt', height: 0, decoration: {
-                type: 'dumpster',
-                texture: 'dec_dumpster',
-                offset: { x: -16, y: -16 },  // Offset to position it properly on the tile
-                scale: { x: 1.2, y: 1.2 }    // Slightly larger than default
+                type: 'tree',
+                texture: 'dec_tree',
+                offset: { x: -8, y: -24 },  // Offset to position it properly on the tile
+                scale: { x: 0.8, y: 1.5 }   // Taller than wide for tree shape
             }},
             { type: 'asphalt', height: 0, decoration: null }
         ]
@@ -70,6 +71,8 @@ async function runTest() {
 
 // Run test
 runTest().catch(console.error);
+
+
 
 
 

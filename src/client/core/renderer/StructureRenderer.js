@@ -244,6 +244,15 @@ export class StructureRenderer {
     }
 
     drawStructureBox(points, height, colors, structureType, structure) {
+        if (structure.type === 'tree') {
+            this.drawTree(points.bottomLeft.x, points.bottomLeft.y, structure);
+            return;
+        }
+        if (structure.type === 'dumpster') {
+            this.drawDumpster(points.bottomLeft.x, points.bottomLeft.y, structure);
+            return;
+        }
+
         const floors = Math.floor(height / this.floorHeight);
         
         // Draw back walls first (always visible)
@@ -693,6 +702,11 @@ export class StructureRenderer {
     }
 
     drawDoor(startX, startY, faceWidth, structureType) {
+        // Skip door rendering for trees and dumpsters
+        if (structureType === 'tree' || structureType === 'dumpster') {
+            return;
+        }
+
         const doorWidth = 16;
         let doorHeight;
 
@@ -954,12 +968,32 @@ export class StructureRenderer {
         
         this.ctx.globalAlpha = 1;
     }
+
+    drawTree(screenX, screenY, structure) {
+        const trunkColor = '#8B4513';  // Saddle brown for trunk
+        const foliageColor = '#228B22'; // Forest green for leaves
+        
+        // Draw trunk
+        this.ctx.fillStyle = trunkColor;
+        const trunkWidth = 12;
+        const trunkHeight = 24;
+        this.ctx.fillRect(
+            screenX - trunkWidth/2,
+            screenY - trunkHeight,
+            trunkWidth,
+            trunkHeight
+        );
+        
+        // Draw foliage (triangle shape)
+        this.ctx.fillStyle = foliageColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX, screenY - trunkHeight - 48); // Top of tree
+        this.ctx.lineTo(screenX - 24, screenY - trunkHeight); // Left bottom of foliage
+        this.ctx.lineTo(screenX + 24, screenY - trunkHeight); // Right bottom of foliage
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
 }
-
-
-
-
-
 
 
 

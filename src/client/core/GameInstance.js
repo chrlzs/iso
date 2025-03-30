@@ -140,6 +140,17 @@ export class GameInstance {
                     height: 1,
                     material: 'metal',
                     states: { isOpen: false }
+                },
+                // Add tree next to dumpster
+                {
+                    x: 53,  // One tile to the right of dumpster
+                    y: 45,
+                    type: 'tree',
+                    floors: 1,
+                    width: 1,
+                    height: 1,
+                    material: 'organic',
+                    states: { swaying: false, season: 'summer' }
                 }
             ],
             zones: [
@@ -1168,6 +1179,7 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
 
 
 

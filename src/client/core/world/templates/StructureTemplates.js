@@ -153,6 +153,20 @@ export const StructureTemplates = {
         blueprint: [
             ['dumpster']
         ]
+    },
+    tree: {
+        type: 'tree',
+        width: 1,
+        height: 1,
+        floors: 1,
+        material: 'organic',
+        states: {
+            swaying: false,  // Could be used for wind animation
+            season: 'summer' // Could be used for seasonal variations
+        },
+        blueprint: [
+            ['tree']
+        ]
     }
 };
 
