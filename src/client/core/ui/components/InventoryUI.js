@@ -139,7 +139,8 @@ export class InventoryUI {
 
     setCategory(category) {
         // Update active category
-        this.activeCategory = category === 'All' ? null : category;
+        this.activeCategory = category === 'All' ? null : category.toLowerCase();
+        console.log('Setting category to:', this.activeCategory);
 
         // Update button styles
         const buttons = this.container.querySelectorAll('.category-button');
@@ -165,14 +166,15 @@ export class InventoryUI {
         console.log('Current inventory state:', {
             slots: inventory.slots,
             maxSlots: inventory.maxSlots,
-            eth: inventory.eth
+            eth: inventory.eth,
+            activeCategory: this.activeCategory
         });
 
         // Clear existing grid
         this.inventoryGrid.innerHTML = '';
 
         // Create all slots (empty or filled)
-        const maxSlots = inventory.maxSlots || 25; // Fallback to 25 slots if maxSlots isn't set
+        const maxSlots = inventory.maxSlots || 25;
         for (let i = 0; i < maxSlots; i++) {
             const slot = document.createElement('div');
             slot.className = 'inventory-slot';
@@ -180,14 +182,23 @@ export class InventoryUI {
             
             const item = inventory.getSlot(i);
             if (item) {
-                console.log(`Slot ${i} contains:`, item);
-                slot.innerHTML = `
-                    <img src="${item.icon}" alt="${item.name}" title="${item.name}">
-                    ${item.isStackable && item.quantity > 1 ? 
-                        `<span class="item-quantity">${item.quantity}</span>` : ''}
-                `;
-                if (item.equipped) {
-                    slot.classList.add('equipped');
+                // Check if item matches active category
+                const matchesCategory = !this.activeCategory || 
+                    item.type.toLowerCase() === this.activeCategory;
+
+                if (matchesCategory) {
+                    console.log(`Slot ${i} contains matching item:`, item);
+                    slot.innerHTML = `
+                        <img src="${item.icon}" alt="${item.name}" title="${item.name}">
+                        ${item.isStackable && item.quantity > 1 ? 
+                            `<span class="item-quantity">${item.quantity}</span>` : ''}
+                    `;
+                    if (item.equipped) {
+                        slot.classList.add('equipped');
+                    }
+                } else {
+                    // If item doesn't match category, show empty slot
+                    slot.classList.add('empty');
                 }
             } else {
                 slot.classList.add('empty');
