@@ -248,6 +248,10 @@ export class StructureRenderer {
             this.drawTree(points.bottomLeft.x, points.bottomLeft.y, structure);
             return;
         }
+        if (structure.type === 'bush') {
+            this.drawBush(points.bottomLeft.x, points.bottomLeft.y, structure);
+            return;
+        }
         if (structure.type === 'dumpster') {
             this.drawDumpster(points.bottomLeft.x, points.bottomLeft.y, structure);
             return;
@@ -993,7 +997,35 @@ export class StructureRenderer {
         this.ctx.closePath();
         this.ctx.fill();
     }
+
+    drawBush(screenX, screenY, structure) {
+        const bushColor = '#2E8B57';  // Sea green for the bush
+        
+        // Draw main bush shape (circular)
+        this.ctx.fillStyle = bushColor;
+        this.ctx.beginPath();
+        
+        // Draw three overlapping circles for fuller appearance
+        const radius = 16;
+        // Bottom circle
+        this.ctx.arc(screenX, screenY - radius, radius, 0, Math.PI * 2);
+        // Left circle
+        this.ctx.arc(screenX - radius/2, screenY - radius * 1.2, radius * 0.8, 0, Math.PI * 2);
+        // Right circle
+        this.ctx.arc(screenX + radius/2, screenY - radius * 1.2, radius * 0.8, 0, Math.PI * 2);
+        
+        this.ctx.fill();
+        
+        // Add some darker details for depth
+        this.ctx.fillStyle = '#1C6E3C';  // Darker green
+        this.ctx.beginPath();
+        this.ctx.arc(screenX - radius/2, screenY - radius, radius/3, 0, Math.PI * 2);
+        this.ctx.arc(screenX + radius/2, screenY - radius * 1.1, radius/3, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
 }
+
+
 
 
 

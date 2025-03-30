@@ -151,6 +151,17 @@ export class GameInstance {
                     height: 1,
                     material: 'organic',
                     states: { swaying: false, season: 'summer' }
+                },
+                // Add bush near the dumpster and tree
+                {
+                    x: 52,  // In front of dumpster
+                    y: 46,
+                    type: 'bush',
+                    floors: 1,
+                    width: 1,
+                    height: 1,
+                    material: 'organic',
+                    states: { swaying: false, trimmed: true }
                 }
             ],
             zones: [
@@ -1179,6 +1190,7 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
 
 
 

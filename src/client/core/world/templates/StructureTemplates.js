@@ -167,6 +167,20 @@ export const StructureTemplates = {
         blueprint: [
             ['tree']
         ]
+    },
+    bush: {
+        type: 'bush',
+        width: 1,
+        height: 1,
+        floors: 1,
+        material: 'organic',
+        states: {
+            swaying: false,  // Could be used for wind animation
+            trimmed: true    // Could be used for maintenance state
+        },
+        blueprint: [
+            ['bush']
+        ]
     }
 };
 
