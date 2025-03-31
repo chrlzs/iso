@@ -68,6 +68,19 @@ export class InventorySystem {
     }
 
     /**
+     * Gets item from specified slot
+     * @param {number} slotIndex - Slot to get item from
+     * @returns {Item|null} Item in slot or null if empty
+     */
+    getSlot(slotIndex) {
+        if (slotIndex < 0 || slotIndex >= this.maxSlots) {
+            console.warn('Invalid slot index:', slotIndex);
+            return null;
+        }
+        return this.slots[slotIndex];
+    }
+
+    /**
      * Gets current total weight of inventory
      * @returns {number} Current weight
      */

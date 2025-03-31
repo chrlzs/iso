@@ -260,51 +260,29 @@ export class MerchantUI {
      * @returns {void}
      */
     show(merchant) {
-        if (!merchant || !merchant.inventory) {
-            console.error('Invalid merchant or merchant inventory:', {
-                hasMerchant: !!merchant,
-                hasInventory: !!merchant?.inventory,
-                merchantDetails: merchant ? {
-                    name: merchant.name,
-                    eth: merchant.inventory?.eth,
-                    slots: merchant.inventory?.slots?.length
-                } : null
-            });
+        console.log('MerchantUI show called with merchant:', {
+            id: merchant?.id,
+            hasInventory: !!merchant?.inventory,
+            uiVisible: this.isVisible,
+            containerExists: !!this.container
+        });
+
+        if (!merchant?.inventory) {
+            console.error('Invalid merchant or missing inventory');
             return;
         }
 
-        // Verify player inventory exists
-        if (!this.game?.player?.inventory) {
-            console.error('Player inventory not initialized');
-            return;
-        }
-        
         this.merchant = merchant;
         this.isVisible = true;
-        
-        // Make sure container exists and is properly styled
-        if (!this.container) {
-            console.error('Merchant UI container not initialized');
-            return;
+
+        if (this.container) {
+            this.container.style.display = 'flex';
+            this.refresh();
+        } else {
+            console.error('MerchantUI container not initialized');
         }
-        
-        // Use display: flex instead of modifying all styles
-        this.container.style.display = 'flex';
-        
-        console.log('Merchant UI shown:', {
-            merchantName: merchant.name,
-            merchantEth: merchant.inventory.eth,
-            playerEth: this.game.player.inventory.eth,
-            containerDisplay: this.container.style.display
-        });
-        
-        this.refresh();
-        if (this.game?.messageSystem) {
-            this.game.messageSystem.hide();
-        }
-        if (this.game?.uiManager?.activeWindows) {
-            this.game.uiManager.activeWindows.add('merchantUI');
-        }
+
+        console.log('MerchantUI shown successfully');
     }
 
     hide() {

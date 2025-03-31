@@ -1,48 +1,53 @@
+import { Entity } from './Entity.js';
+import { InventorySystem } from '../inventory/InventorySystem.js';
+
 /**
  * Represents a non-player character in the game world
  * @class NPC
+ * @extends Entity
  */
-export class NPC {
+export class NPC extends Entity {
     /**
      * Creates a new NPC instance
-     * @param {Object} config - NPC configuration object
-     * @param {number} [config.x=0] - Initial X position
-     * @param {number} [config.y=0] - Initial Y position
-     * @param {string} [config.name='NPC'] - NPC's display name
-     * @param {number} [config.size=32] - NPC's size in pixels
-     * @param {string} [config.color='#8B4513'] - NPC's color in hex format
-     * @param {World} [config.world] - Reference to the game world
+     * @param {Object} config - NPC configuration
+     * @param {string} config.name - NPC's name
+     * @param {string} config.type - NPC type (merchant, quest_giver, enemy, etc.)
+     * @param {Array<Object>} [config.dialog] - NPC's dialog options
+     * @param {Array<Object>} [config.inventory] - NPC's inventory items
+     * @param {Object} [config.schedule] - NPC's daily schedule
+     * @param {Object} [config.behavior] - NPC behavior configuration
      */
     constructor(config) {
-        this.x = config.x || 0;
-        this.y = config.y || 0;
-        this.name = config.name || 'NPC';
-        this.size = config.size || 32;
-        this.color = config.color || '#8B4513';
-        this.world = config.world;
-        this.currentStructure = null;
-        this.isVisible = true;
-
-        // If world is provided, check if spawning inside a structure
-        if (this.world) {
-            const structures = this.world.getAllStructures();
-            this.currentStructure = structures.find(structure => 
-                this.x >= structure.x && 
-                this.x < structure.x + structure.width &&
-                this.y >= structure.y && 
-                this.y < structure.y + structure.height
-            );
-
-            if (this.currentStructure) {
-                console.log(`${this.name} spawned inside structure at (${this.x}, ${this.y})`);
-            }
+        super(config);
+        
+        this.name = config.name;
+        this.type = config.type;
+        this.dialog = config.dialog || [];
+        this.inventory = new InventorySystem(config.inventory);
+        this.schedule = config.schedule || {};
+        this.behavior = config.behavior || {};
+        
+        // Ensure game reference is available
+        this.game = config.game || config.world?.game;
+        
+        if (!this.game) {
+            console.warn('NPC created without game reference:', {
+                id: this.id,
+                type: this.type,
+                hasWorld: !!this.world
+            });
         }
+        
+        // State tracking
+        this.interactionRange = 2;
+        this.isInteracting = false;
+        this.currentDialog = null;
+        this.lastInteractionTime = 0;
     }
 
     /**
-     * Updates NPC state and structure occupancy
+     * Updates NPC state and behavior
      * @param {number} deltaTime - Time elapsed since last update
-     * @returns {void}
      */
     update(deltaTime) {
         // Get current structure if any
@@ -199,6 +204,53 @@ export class NPC {
                 // Add delay or animation between moves
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
+        }
+    }
+
+    /**
+     * Handles player interaction with NPC
+     * @param {Player} player - The interacting player
+     * @returns {boolean} True if interaction was handled
+     */
+    interact(player) {
+        // Interaction logic here
+        if (this.isInteracting) return false;
+
+        const distance = Math.sqrt(
+            Math.pow(player.x - this.x, 2) + Math.pow(player.y - this.y, 2)
+        );
+
+        if (distance <= this.interactionRange) {
+            this.isInteracting = true;
+            this.currentDialog = this.getDialogOptions(player);
+            this.lastInteractionTime = Date.now();
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Gets NPC's current dialog options
+     * @param {Player} player - The interacting player
+     * @returns {Array<Object>} Available dialog options
+     */
+    getDialogOptions(player) {
+        // Return dialog options based on player state or NPC behavior
+        return this.dialog.filter(option => option.condition(player));
+    }
+
+    /**
+     * Updates NPC's schedule based on game time
+     * @param {number} gameHour - Current game hour (0-24)
+     * @private
+     */
+    updateSchedule(gameHour) {
+        // Update NPC's behavior or position based on schedule
+        const currentTask = this.schedule[gameHour];
+        if (currentTask) {
+            this.behavior = currentTask.behavior;
+            this.moveTo(currentTask.x, currentTask.y);
         }
     }
 }

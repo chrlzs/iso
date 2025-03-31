@@ -1,16 +1,44 @@
-import { Inventory } from '../inventory/Inventory.js';
-import { Item } from '../inventory/Item.js';
 import { Entity } from './Entity.js';
+import { InventorySystem } from '../inventory/InventorySystem.js';
 
+/**
+ * Represents the player character in the game world
+ * @class Player
+ * @extends Entity
+ */
 export class Player extends Entity {
+    /**
+     * Creates a new Player instance
+     * @param {Object} config - Player configuration
+     * @param {number} config.x - Initial X position
+     * @param {number} config.y - Initial Y position
+     * @param {World} config.world - Reference to game world
+     * @param {PathFinder} config.pathFinder - Reference to path finder
+     * @param {Object} [config.stats] - Initial player stats
+     * @param {number} [config.stats.maxHealth=100] - Maximum health points
+     * @param {number} [config.stats.maxEnergy=100] - Maximum energy points
+     * @param {number} [config.stats.speed=1] - Movement speed
+     */
     constructor(config) {
         super(config);
-        
-        // Initialize inventory with default values
-        this.inventory = new Inventory(25);
+
+        // Initialize core systems
+        this.inventory = new InventorySystem({
+            maxSlots: 25,
+            maxWeight: 100,
+            startingEth: 0
+        });
+
+        // Initialize stats
+        this.maxHealth = config.stats?.maxHealth || 100;
+        this.maxEnergy = config.stats?.maxEnergy || 100;
+        this.health = this.maxHealth;
+        this.energy = this.maxEnergy;
+        this.experience = 0;
+        this.level = 1;
 
         // Initialize equipment slots
-        this.equippedItems = {
+        this.equipment = {
             head: null,
             chest: null,
             legs: null,
@@ -19,329 +47,365 @@ export class Player extends Entity {
             offHand: null
         };
 
-        // Initialize base stats
-        this.baseDefense = 10;
-        this.baseDamage = 5;
-        this.defense = this.baseDefense;
-        this.damage = this.baseDamage;
-
-        if (!this.inventory) {
-            throw new Error('Failed to initialize player inventory');
-        }
-        
-        if (!config.pathFinder) {
-            throw new Error('PathFinder is required for Player initialization');
-        }
-        
-        // Store pathFinder reference
+        // Initialize path finding
         this.pathFinder = config.pathFinder;
-        
-        // Basic properties
-        this.size = 32;
-        this.color = '#4A90E2'; // Player base color
-        this.direction = 'south';
         this.isMoving = false;
-        this.speed = 0.1; // Movement speed
         this.currentPath = null;
-        this.currentPathIndex = 0;
-        this.targetReachThreshold = 0.1;
+        this.pathIndex = 0;
 
-        // Shadow properties
-        this.shadowSize = { width: 32, height: 10 };
-        this.shadowOffset = 4;
-        this.shadowColor = 'rgba(0, 0, 0, 0.4)';
-
-        // Animation properties
-        this.animationTime = 0;
-        this.bobOffset = 0;
-        
-        // Direction mapping for rendering
-        this.directions = {
-            'north': 0,
-            'northeast': 1,
-            'east': 2,
-            'southeast': 3,
-            'south': 4,
-            'southwest': 5,
-            'west': 6,
-            'northwest': 7
-        };
+        // Initialize interaction state
+        this.interactionRange = 2;
+        this.canInteract = true;
+        this.currentInteraction = null;
     }
 
-    render(ctx, renderer) {
-        if (!renderer) return;
-        
-        const isoPos = renderer.convertToIsometric(this.x, this.y);
-        
-        // Draw shadow
-        ctx.beginPath();
-        ctx.fillStyle = this.shadowColor;
-        ctx.ellipse(
-            isoPos.x,
-            isoPos.y + this.shadowOffset,
-            this.shadowSize.width / 2,
-            this.shadowSize.height / 2,
-            0,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-
-        // Calculate bob animation for walking
-        if (this.isMoving) {
-            this.animationTime += 0.1;
-            this.bobOffset = Math.sin(this.animationTime) * 2;
-        } else {
-            this.bobOffset = 0;
-            this.animationTime = 0;
-        }
-
-        // Save context for character drawing
-        ctx.save();
-        ctx.translate(isoPos.x, isoPos.y - this.size/2 + this.bobOffset);
-
-        // Draw body
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, this.size/3, this.size/2, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw head
-        ctx.fillStyle = '#FFE0BD'; // Skin tone
-        ctx.beginPath();
-        ctx.arc(0, -this.size/2, this.size/4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw direction indicator (eyes and face direction)
-        const directionAngle = this.getDirectionAngle();
-        ctx.fillStyle = '#000000';
-        
-        // Left eye
-        ctx.beginPath();
-        ctx.arc(
-            -5 * Math.cos(directionAngle),
-            -this.size/2 - 2,
-            2,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-        
-        // Right eye
-        ctx.beginPath();
-        ctx.arc(
-            5 * Math.cos(directionAngle),
-            -this.size/2 - 2,
-            2,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-
-        // Draw arms when moving
-        if (this.isMoving) {
-            const armAngle = Math.sin(this.animationTime * 2);
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 4;
-            
-            // Left arm
-            ctx.beginPath();
-            ctx.moveTo(-this.size/3, -this.size/4);
-            ctx.lineTo(
-                -this.size/3 - Math.cos(armAngle) * 10,
-                -this.size/4 + Math.sin(armAngle) * 10
-            );
-            ctx.stroke();
-            
-            // Right arm
-            ctx.beginPath();
-            ctx.moveTo(this.size/3, -this.size/4);
-            ctx.lineTo(
-                this.size/3 + Math.cos(armAngle) * 10,
-                -this.size/4 + Math.sin(armAngle) * 10
-            );
-            ctx.stroke();
-        }
-
-        ctx.restore();
+    /**
+     * Updates player state
+     * @param {number} deltaTime - Time elapsed since last update
+     */
+    update(deltaTime) {
+        super.update(deltaTime);
+        this.updateMovement(deltaTime);
+        this.updateEnergy(deltaTime);
+        this.checkInteractions();
     }
 
-    getDirectionAngle() {
-        const angles = {
-            'north': Math.PI,
-            'northeast': Math.PI * 5/4,
-            'east': Math.PI * 3/2,
-            'southeast': Math.PI * 7/4,
-            'south': 0,
-            'southwest': Math.PI/4,
-            'west': Math.PI/2,
-            'northwest': Math.PI * 3/4
-        };
-        return angles[this.direction] || 0;
-    }
-
+    /**
+     * Sets a new path for the player to follow
+     * @param {Array<{x: number, y: number}>} path - Array of path coordinates
+     */
     setPath(path) {
         this.currentPath = path;
-        this.currentPathIndex = 0;
+        this.pathIndex = 0;
         this.isMoving = true;
     }
 
-    update(deltaTime) {
-        // Verify pathFinder exists
-        if (!this.pathFinder) {
-            console.error('PathFinder is not initialized in Player');
-            this.isMoving = false;
-            return;
-        }
-
-        if (!this.isMoving || !this.currentPath) {
-            return;
-        }
-
-        const target = this.currentPath[this.currentPathIndex];
-        if (!target) {
-            this.isMoving = false;
-            return;
-        }
-
-        try {
-            // Check if next tile is walkable before moving
-            if (!this.pathFinder.isWalkable(target.x, target.y)) {
-                console.warn('Path contains unwalkable tile, stopping movement');
-                this.currentPath = null;
-                this.isMoving = false;
-                return;
-            }
-        } catch (error) {
-            console.error('Error checking walkable tile:', error);
-            this.isMoving = false;
-            return;
-        }
-
-        const dx = target.x - this.x;
-        const dy = target.y - this.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < this.targetReachThreshold) {
-            this.currentPathIndex++;
-            
-            if (this.currentPathIndex >= this.currentPath.length) {
-                this.currentPath = null;
-                this.isMoving = false;
-                
-                if (this.onPathComplete) {
-                    this.onPathComplete();
-                    this.onPathComplete = null;
-                }
-                return;
-            }
-        } else {
-            const moveDistance = this.speed * deltaTime;
-            const ratio = Math.min(moveDistance / distance, 1);
-            
-            this.x += dx * ratio;
-            this.y += dy * ratio;
-            
-            const angle = Math.atan2(dy, dx);
-            this.direction = this.getDirectionFromAngle(angle);
-        }
-    }
-
-    getDirectionFromAngle(angle) {
-        // Convert angle to degrees and normalize to 0-360
-        let degrees = (angle * 180 / Math.PI + 360) % 360;
-        
-        // Define direction sectors
-        if (degrees >= 337.5 || degrees < 22.5) return 'east';
-        if (degrees >= 22.5 && degrees < 67.5) return 'southeast';
-        if (degrees >= 67.5 && degrees < 112.5) return 'south';
-        if (degrees >= 112.5 && degrees < 157.5) return 'southwest';
-        if (degrees >= 157.5 && degrees < 202.5) return 'west';
-        if (degrees >= 202.5 && degrees < 247.5) return 'northwest';
-        if (degrees >= 247.5 && degrees < 292.5) return 'north';
-        return 'northeast';
-    }
-
-    getPosition() {
-        return { x: this.x, y: this.y };
-    }
-
-    // Update terrain information
-    updateTerrainInfo(height, angle) {
-        this.terrainHeight = height || 0;
-        this.terrainAngle = angle || 0;
-        this.updateShadow();
-    }
-
-    // Updated shadow calculations
-    updateShadow() {
-        // Calculate height difference between player and terrain
-        const heightDifference = Math.max(0, this.y - this.terrainHeight);
-        
-        // Update shadow offset based on height difference
-        this.shadowOffset = 4 + heightDifference * 0.3;
-        
-        // Scale shadow based on height with tighter constraints
-        const scale = Math.max(0.4, 1 - heightDifference / 250);
-        this.shadowSize.width = 32 * scale;
-        this.shadowSize.height = 10 * scale;
-        
-        // Adjust shadow opacity based on height
-        const opacity = Math.max(0.2, 0.4 * scale);
-        this.shadowColor = `rgba(0, 0, 0, ${opacity})`;
-    }
-
-    // Example method to test shadow effects
-    testShadowEffects() {
-        // Simulate terrain changes
-        const terrainHeight = Math.sin(Date.now() / 1000) * 50; // Oscillating height
-        const terrainAngle = Math.sin(Date.now() / 1500) * 0.2; // Oscillating angle
-        this.updateTerrainInfo(terrainHeight, terrainAngle);
-    }
-
-    equipItem(item) {
-        if (item && item.slot && this.equippedItems.hasOwnProperty(item.slot)) {
-            // Unequip current item in that slot if any
-            if (this.equippedItems[item.slot]) {
-                this.equippedItems[item.slot].equipped = false;
-            }
-            
-            // Equip new item
-            this.equippedItems[item.slot] = item;
-            item.equipped = true;
-            return true;
-        }
-        return false;
-    }
-
-    unequipItem(slot) {
-        const item = this.equippedItems[slot];
-        if (!item) return false;
-
-        if (this.inventory.addItem(item)) {
-            this.equippedItems[slot] = null;
+    /**
+     * Equips an item in the specified slot
+     * @param {Item} item - Item to equip
+     * @param {string} slot - Equipment slot
+     * @returns {boolean} True if item was equipped successfully
+     */
+    equipItem(item, slot) {
+        if (!this.equipment[slot]) {
+            this.equipment[slot] = item;
             this.updateStats();
             return true;
         }
         return false;
     }
 
+    /**
+     * Unequips an item from the specified slot
+     * @param {string} slot - Equipment slot
+     * @returns {Item|null} Unequipped item or null if slot was empty
+     */
+    unequipItem(slot) {
+        const item = this.equipment[slot];
+        if (item) {
+            this.equipment[slot] = null;
+            this.updateStats();
+            return item;
+        }
+        return null;
+    }
+
+    /**
+     * Gets the player's total attack power
+     * @returns {number} Calculated attack power
+     */
+    getAttackPower() {
+        let power = 1; // Base attack power
+        // Add weapon damage
+        if (this.equipment.mainHand) {
+            power += this.equipment.mainHand.damage || 0;
+        }
+        return power;
+    }
+
+    /**
+     * Gets the player's total armor value
+     * @returns {number} Calculated armor value
+     */
+    getArmorValue() {
+        return Object.values(this.equipment)
+            .filter(item => item && item.armor)
+            .reduce((total, item) => total + item.armor, 0);
+    }
+
+    /**
+     * Updates the player's stats based on equipment
+     * @private
+     */
     updateStats() {
-        // Recalculate stats based on equipment
-        let totalDefense = 0;
-        let totalDamage = 0;
+        // ...existing code...
+    }
 
-        Object.values(this.equippedItems).forEach(item => {
-            if (item) {
-                if (item.defense) totalDefense += item.defense;
-                if (item.damage) totalDamage += item.damage;
+    /**
+     * Gains experience points and handles leveling
+     * @param {number} amount - Amount of experience to gain
+     */
+    gainExperience(amount) {
+        // ...existing code...
+    }
+
+    /**
+     * Handles interaction with nearby entities
+     * @param {Entity} target - Entity to interact with
+     * @returns {boolean} True if interaction was successful
+     */
+    interact(target) {
+        if (!target || !this.canInteract) {
+            console.log('Cannot interact:', { target, canInteract: this.canInteract });
+            return false;
+        }
+
+        const distance = Math.hypot(target.x - this.x, target.y - this.y);
+        if (distance > this.interactionRange) {
+            console.log('Target too far:', distance);
+            return false;
+        }
+
+        console.log('Attempting interaction with:', target.type);
+        if (target.type === 'merchant') {
+            return target.interact(this);
+        }
+
+        return false;
+    }
+
+    /**
+     * Updates player movement
+     * @param {number} deltaTime - Time elapsed since last update
+     * @private
+     */
+    updateMovement(deltaTime) {
+        if (!this.currentPath || !this.isMoving) return;
+
+        const target = this.currentPath[this.pathIndex];
+        if (!target) {
+            this.isMoving = false;
+            this.currentPath = null;
+            
+            // Trigger path complete callback if it exists
+            if (this.onPathComplete) {
+                console.log('Triggering path complete callback');
+                this.onPathComplete();
+                this.onPathComplete = null; // Clear the callback
             }
-        });
+            return;
+        }
 
-        this.defense = this.baseDefense + totalDefense;
-        this.damage = this.baseDamage + totalDamage;
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 0.1) {
+            this.x = target.x;
+            this.y = target.y;
+            this.pathIndex++;
+
+            if (this.pathIndex >= this.currentPath.length) {
+                this.isMoving = false;
+                this.currentPath = null;
+            }
+        } else {
+            const speed = this.speed * deltaTime;
+            const ratio = Math.min(speed / distance, 1);
+            this.x += dx * ratio;
+            this.y += dy * ratio;
+        }
+    }
+
+    /**
+     * Updates player energy
+     * @param {number} deltaTime - Time elapsed since last update
+     * @private
+     */
+    updateEnergy(deltaTime) {
+        // ...existing code...
+    }
+
+    /**
+     * Checks for possible interactions
+     * @private
+     */
+    checkInteractions() {
+        // ...existing code...
+    }
+
+    /**
+     * Renders the player character
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @param {IsometricRenderer} renderer - The game's isometric renderer
+     */
+    render(ctx, renderer) {
+        if (!this.isVisible) return;
+
+        const screenPos = renderer.convertToIsometric(this.x, this.y);
+        
+        // Draw debug path if enabled
+        if (this.game?.debug?.flags?.showPath && this.currentPath) {
+            this.renderPath(ctx, renderer);
+        }
+
+        ctx.save();
+        ctx.translate(screenPos.x, screenPos.y);
+        
+        // Draw shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(0, 8, 20, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw character
+        this.drawCharacter(ctx);
+        
+        // Draw direction indicator when moving
+        if (this.isMoving && this.currentPath?.length > 0) {
+            this.drawDirectionIndicator(ctx);
+        }
+        
+        ctx.restore();
+    }
+
+    /**
+     * Draws the character
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @private
+     */
+    drawCharacter(ctx) {
+        // Draw character base
+        ctx.fillStyle = '#1A1A2E';  // Dark tech-suit base
+        ctx.strokeStyle = '#00f2ff'; // Cyan neon trim
+        ctx.lineWidth = 2;
+        
+        // Draw tech-suit body
+        ctx.beginPath();
+        this.roundRect(ctx, -12, -20, 24, 32, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw neon power lines
+        ctx.strokeStyle = '#00f2ff';
+        ctx.beginPath();
+        ctx.moveTo(-8, -15);
+        ctx.lineTo(-8, 5);
+        ctx.moveTo(8, -15);
+        ctx.lineTo(8, 5);
+        ctx.stroke();
+
+        // Head with cyber-visor
+        ctx.fillStyle = '#1A1A2E';  // Dark base
+        ctx.strokeStyle = '#00f2ff'; // Cyan trim
+        ctx.beginPath();
+        ctx.arc(0, -28, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cyber-visor
+        ctx.fillStyle = '#00f2ff';
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(-8, -32, 16, 4);
+        ctx.globalAlpha = 1;
+
+        // Energy core
+        ctx.fillStyle = '#FF0066';  // Neon pink
+        ctx.beginPath();
+        ctx.arc(0, -4, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tech-boots
+        ctx.fillStyle = '#1A1A2E';
+        ctx.strokeStyle = '#00f2ff';
+        ctx.fillRect(-10, 8, 8, 4);
+        ctx.strokeRect(-10, 8, 8, 4);
+        ctx.fillRect(2, 8, 8, 4);
+        ctx.strokeRect(2, 8, 8, 4);
+
+        // Holographic display
+        ctx.fillStyle = '#00f2ff';
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.roundRect(6, -18, 8, 16, 4);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    /**
+     * Draws movement direction indicator
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @private
+     */
+    drawDirectionIndicator(ctx) {
+        const nextPoint = this.currentPath[this.pathIndex];
+        if (!nextPoint) return;
+
+        const angle = Math.atan2(nextPoint.y - this.y, nextPoint.x - this.x);
+        
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * 20, Math.sin(angle) * 20);
+        ctx.stroke();
+    }
+
+    /**
+     * Helper method to draw rounded rectangles
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {number} width - Rectangle width
+     * @param {number} height - Rectangle height
+     * @param {number} radius - Corner radius
+     * @private
+     */
+    roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+
+    /**
+     * Renders the player's current path
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @param {IsometricRenderer} renderer - The game's isometric renderer
+     * @private
+     */
+    renderPath(ctx, renderer) {
+        if (!this.currentPath) return;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        // Start from current position
+        const startPos = renderer.convertToIsometric(this.x, this.y);
+        ctx.moveTo(startPos.x, startPos.y);
+
+        // Draw path segments
+        for (let i = this.pathIndex; i < this.currentPath.length; i++) {
+            const point = this.currentPath[i];
+            const screenPos = renderer.convertToIsometric(point.x, point.y);
+            ctx.lineTo(screenPos.x, screenPos.y);
+        }
+
+        ctx.stroke();
+        ctx.restore();
     }
 }
+
+
 
 
 

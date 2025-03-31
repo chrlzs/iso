@@ -533,18 +533,25 @@ export class GameInstance {
                 if (adjacentTile) {
                     const startX = Math.round(this.player.x);
                     const startY = Math.round(this.player.y);
-                    const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
                     
-                    if (path) {
-                        console.log('Path found, moving player');
-                        this.player.setPath(path);
-                        // Start dialog when path is complete
-                        this.player.onPathComplete = () => {
-                            console.log('Path complete, starting dialog');
-                            this.startDialog(clickedNPC);
-                        };
+                    // Check if player is already at the adjacent tile
+                    if (startX === adjacentTile.x && startY === adjacentTile.y) {
+                        console.log('Player already at interaction position, starting dialog');
+                        this.startDialog(clickedNPC);
                     } else {
-                        console.log('No path found to NPC');
+                        const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
+                        
+                        if (path) {
+                            console.log('Path found, moving player');
+                            this.player.setPath(path);
+                            // Start dialog when path is complete
+                            this.player.onPathComplete = () => {
+                                console.log('Path complete, starting dialog with:', clickedNPC.constructor.name);
+                                this.startDialog(clickedNPC);
+                            };
+                        } else {
+                            console.log('No path found to NPC');
+                        }
                     }
                 } else {
                     console.log('No adjacent tile found for NPC');
@@ -1032,57 +1039,41 @@ export class GameInstance {
     }
 
     startDialog(npc) {
-        console.log('Starting dialog with:', npc);
+        if (!npc) return;
         
-        if (!this.messageSystem) {
-            console.error('MessageSystem not initialized');
-            return;
-        }
-        
+        console.log('Starting dialog with:', npc.constructor.name);
+
         if (npc instanceof Merchant) {
-            console.log('Opening merchant dialog');
-            
-            // First verify the merchant's inventory
-            if (!npc.inventory) {
-                console.error('Merchant inventory not initialized');
-                return;
+            // First try direct interaction
+            const interactionResult = npc.interact(this.player);
+            console.log('Merchant interaction result:', interactionResult);
+
+            // If interaction fails, fall back to dialog
+            if (!interactionResult) {
+                console.log('Falling back to merchant dialog');
+                this.messageSystem.queueMessage({
+                    speaker: npc.name || 'Merchant',
+                    text: "Welcome to my shop! Would you like to see my wares?",
+                    logMessage: true,
+                    options: [
+                        { 
+                            text: "Show me what you have",
+                            action: () => {
+                                const merchantUI = this.uiManager.components.get('merchantUI');
+                                if (merchantUI) {
+                                    merchantUI.show(npc);
+                                } else {
+                                    console.error('MerchantUI component not found');
+                                }
+                            }
+                        },
+                        {
+                            text: "Goodbye",
+                            action: () => this.messageSystem.hide()
+                        }
+                    ]
+                });
             }
-
-            // Verify UI components
-            if (!this.uiManager?.components?.get('merchantUI')) {
-                console.error('MerchantUI component not found');
-                return;
-            }
-
-            const dialogOptions = [
-                { 
-                    text: "Show me what you have",
-                    action: () => {
-                        console.log('Dialog option clicked - opening merchant UI');
-                        const merchantUI = this.uiManager.components.get('merchantUI');
-                        merchantUI.show(npc);
-                    }
-                },
-                {
-                    text: "Goodbye",
-                    action: () => {
-                        console.log('Dialog option clicked - closing');
-                        this.messageSystem.hide();
-                    }
-                }
-            ];
-
-            // Add debug logging for message queue
-            console.log('Queueing merchant dialog message with options:', dialogOptions);
-
-            this.messageSystem.queueMessage({
-                speaker: npc.name || 'Merchant',
-                text: "Welcome to my shop! Would you like to see my wares?",
-                logMessage: true,
-                options: dialogOptions,
-                onShow: () => console.log('Dialog message shown'),
-                onHide: () => console.log('Dialog message hidden')
-            });
         }
     }
 
@@ -1271,6 +1262,9 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
+
+
 
 
 
