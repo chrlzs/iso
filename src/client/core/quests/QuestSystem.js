@@ -1,6 +1,31 @@
 /**
  * @module QuestSystem
- * @description Provides quest management, tracking, and reward functionality
+ * @description Manages quest progression, objectives, and rewards
+ */
+
+/**
+ * @typedef {Object} QuestConfig
+ * @property {string} id - Unique quest identifier
+ * @property {string} title - Quest title
+ * @property {string} description - Quest description
+ * @property {QuestObjective[]} objectives - Array of quest objectives
+ * @property {QuestReward} rewards - Quest completion rewards
+ */
+
+/**
+ * @typedef {Object} QuestObjective
+ * @property {string} id - Objective identifier
+ * @property {string} description - Objective description
+ * @property {number} required - Required progress for completion
+ * @property {number} [progress=0] - Current progress
+ * @property {boolean} [completed=false] - Completion status
+ */
+
+/**
+ * @typedef {Object} QuestReward
+ * @property {number} [eth] - ETH currency reward
+ * @property {Array<{id: string, quantity: number}>} [items] - Item rewards
+ * @property {number} [experience] - Experience points reward
  */
 
 /**
@@ -136,27 +161,11 @@ export class QuestSystem {
  * @property {string} title - Quest title
  * @property {string} description - Quest description
  * @property {QuestObjective[]} objectives - Quest objectives
- * @property {QuestRewards} rewards - Quest completion rewards
+ * @property {QuestReward} rewards - Quest completion rewards
  * @property {string} status - Current quest status
  * @property {number} progress - Overall quest progress
  * @property {boolean} completed - Whether quest is completed
  * @property {number} started - Timestamp when quest started
- */
-
-/**
- * @typedef {Object} QuestObjective
- * @property {string} id - Objective identifier
- * @property {string} description - Objective description
- * @property {number} required - Required amount for completion
- * @property {number} progress - Current progress
- * @property {boolean} completed - Whether objective is completed
- */
-
-/**
- * @typedef {Object} QuestRewards
- * @property {number} [eth] - ETH currency reward
- * @property {Array<{id: string, quantity: number}>} [items] - Item rewards
- * @property {number} [experience] - Experience points reward
  */
 
 /**

@@ -1,21 +1,42 @@
+/**
+ * @module NPC
+ * @description Provides base functionality for non-player characters
+ */
+
 import { Entity } from './Entity.js';
 import { InventorySystem } from '../inventory/InventorySystem.js';
 
 /**
- * Represents a non-player character in the game world
+ * @typedef {Object} NPCConfig
+ * @property {string} type - NPC type identifier
+ * @property {string} name - NPC name
+ * @property {Object} [behavior] - Behavior configuration
+ * @property {Object} [schedule] - Daily schedule configuration
+ * @property {Array<Object>} [dialog] - Dialog options
+ * @extends EntityConfig
+ */
+
+/**
+ * @typedef {Object} NPCScheduleEntry
+ * @property {number} time - Time of day (0-24)
+ * @property {string} activity - Activity identifier
+ * @property {Object} [params] - Activity parameters
+ */
+
+/**
+ * Base class for all non-player characters
  * @class NPC
  * @extends Entity
+ * @property {string} type - NPC type identifier
+ * @property {string} name - NPC name
+ * @property {Object} behavior - Current behavior state
+ * @property {Array<NPCScheduleEntry>} schedule - Daily schedule
+ * @property {Array<Object>} dialog - Available dialog options
  */
 export class NPC extends Entity {
     /**
      * Creates a new NPC instance
-     * @param {Object} config - NPC configuration
-     * @param {string} config.name - NPC's name
-     * @param {string} config.type - NPC type (merchant, quest_giver, enemy, etc.)
-     * @param {Array<Object>} [config.dialog] - NPC's dialog options
-     * @param {Array<Object>} [config.inventory] - NPC's inventory items
-     * @param {Object} [config.schedule] - NPC's daily schedule
-     * @param {Object} [config.behavior] - NPC behavior configuration
+     * @param {NPCConfig} config - NPC configuration
      */
     constructor(config) {
         super(config);
@@ -238,6 +259,29 @@ export class NPC extends Entity {
     getDialogOptions(player) {
         // Return dialog options based on player state or NPC behavior
         return this.dialog.filter(option => option.condition(player));
+    }
+
+    /**
+     * Initiates dialog with another entity
+     * @param {Entity} target - Entity to interact with
+     * @returns {boolean} True if dialog was initiated successfully
+     */
+    startDialog(target) {
+        // Interaction logic here
+        if (this.isInteracting) return false;
+
+        const distance = Math.sqrt(
+            Math.pow(target.x - this.x, 2) + Math.pow(target.y - this.y, 2)
+        );
+
+        if (distance <= this.interactionRange) {
+            this.isInteracting = true;
+            this.currentDialog = this.getDialogOptions(target);
+            this.lastInteractionTime = Date.now();
+            return true;
+        }
+
+        return false;
     }
 
     /**

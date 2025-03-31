@@ -1,18 +1,36 @@
 /**
- * Base class for all game entities (players, NPCs, enemies, etc.)
+ * @module Entity
+ * @description Base class for all game entities including players, NPCs, and interactive objects
+ */
+
+/**
+ * @typedef {Object} EntityConfig
+ * @property {string} [id] - Unique entity identifier
+ * @property {number} x - Initial X coordinate
+ * @property {number} y - Initial Y coordinate
+ * @property {World} world - Reference to game world
+ * @property {number} [health=100] - Initial health points
+ * @property {number} [speed=1] - Movement speed
+ * @property {boolean} [isActive=true] - Whether entity is active
+ */
+
+/**
+ * Base entity class providing core functionality for game objects
  * @class Entity
+ * @property {string} id - Unique entity identifier
+ * @property {number} x - Current X coordinate
+ * @property {number} y - Current Y coordinate
+ * @property {World} world - Reference to game world
+ * @property {number} health - Current health points
+ * @property {number} speed - Movement speed
+ * @property {boolean} isActive - Whether entity is active
+ * @property {boolean} isVisible - Whether entity is visible
  */
 export class Entity {
     /**
      * Creates a new Entity instance
-     * @param {Object} config - Entity configuration
-     * @param {number} config.x - Initial X position
-     * @param {number} config.y - Initial Y position
-     * @param {World} config.world - Reference to game world
-     * @param {string} [config.id] - Unique entity identifier
-     * @param {number} [config.health=100] - Initial health points
-     * @param {number} [config.maxHealth=100] - Maximum health points
-     * @param {number} [config.speed=1] - Movement speed
+     * @param {EntityConfig} config - Entity configuration
+     * @throws {Error} When required config properties are missing
      */
     constructor(config) {
         if (!config.world) {
@@ -142,11 +160,12 @@ export class Entity {
     }
 
     /**
-     * Takes damage and updates health
-     * @param {number} amount - Amount of damage to take
-     * @returns {number} Actual damage taken
+     * Damages the entity
+     * @param {number} amount - Amount of damage to deal
+     * @param {Entity} [source] - Entity dealing the damage
+     * @returns {number} Actual damage dealt
      */
-    takeDamage(amount) {
+    takeDamage(amount, source) {
         const previousHealth = this.health;
         this.health = Math.max(0, this.health - amount);
         const actualDamage = previousHealth - this.health;
@@ -160,7 +179,7 @@ export class Entity {
 
     /**
      * Heals the entity
-     * @param {number} amount - Amount of health to restore
+     * @param {number} amount - Amount to heal
      * @returns {number} Actual amount healed
      */
     heal(amount) {

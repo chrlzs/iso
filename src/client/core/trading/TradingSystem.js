@@ -1,15 +1,23 @@
 /**
  * @module TradingSystem
- * @description Manages trading interactions between players and merchants in a cyberpunk marketplace
+ * @description Manages trading interactions between players and merchants
  */
 
 /**
  * @typedef {Object} TradeConfig
- * @property {InventorySystem} buyer - Buyer's inventory system
- * @property {InventorySystem} seller - Seller's inventory system
+ * @property {InventorySystem} buyer - Buyer's inventory
+ * @property {InventorySystem} seller - Seller's inventory
  * @property {Item} item - Item being traded
- * @property {number} quantity - Amount of items being traded
+ * @property {number} quantity - Amount being traded
  * @property {number} price - Price per unit
+ */
+
+/**
+ * @typedef {Object} MerchantConfig
+ * @property {number} level - Merchant's trading level
+ * @property {number} profitMargin - Base profit margin
+ * @property {number} maxDiscount - Maximum possible discount
+ * @property {Object} inventory - Initial inventory items
  */
 
 /**
@@ -24,7 +32,7 @@
  */
 
 /**
- * Manages trading interactions between players and merchants
+ * Manages trading interactions and price calculations
  * @class TradingSystem
  * @property {number} profitMargin - Base profit margin for merchant sales
  * @property {number} maxDiscount - Maximum possible discount on purchases

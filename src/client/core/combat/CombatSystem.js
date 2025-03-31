@@ -1,4 +1,27 @@
 /**
+ * @module CombatSystem
+ * @description Provides real-time combat mechanics for cyberpunk-themed interactions
+ */
+
+/**
+ * @typedef {Object} CombatConfig
+ * @property {string} weaponType - Type of weapon being used
+ * @property {string} damageType - Type of damage being dealt
+ * @property {number} criticalChance - Chance of critical hit
+ * @property {number} [range] - Attack range
+ * @property {number} [energyCost] - Energy cost of attack
+ */
+
+/**
+ * @typedef {Object} AttackResult
+ * @property {boolean} hit - Whether the attack landed
+ * @property {number} damage - Amount of damage dealt
+ * @property {boolean} isCritical - Whether it was a critical hit
+ * @property {string} attacker - ID of attacking entity
+ * @property {string} defender - ID of defending entity
+ */
+
+/**
  * Manages combat interactions and damage calculations
  * @class CombatSystem
  */
@@ -44,7 +67,7 @@ export class CombatSystem {
      * @param {Entity} attacker - Attacking entity
      * @param {Entity} defender - Defending entity
      * @param {Object} [options={}] - Attack options
-     * @returns {Object} Attack result data
+     * @returns {AttackResult} Attack result data
      */
     processAttack(attacker, defender, options = {}) {
         const hitRoll = Math.random();
@@ -52,7 +75,7 @@ export class CombatSystem {
         const baseDamage = this.calculateBaseDamage(attacker, defender);
 
         if (hitRoll > this.baseHitChance) {
-            return { hit: false, damage: 0, isCritical: false };
+            return { hit: false, damage: 0, isCritical: false, attacker: attacker.id, defender: defender.id };
         }
 
         const finalDamage = isCritical ? baseDamage * 2 : baseDamage;
@@ -126,7 +149,7 @@ export class CombatSystem {
 
     /**
      * Broadcasts combat events to interested systems
-     * @param {Object} event - Combat event data
+     * @param {AttackResult} event - Combat event data
      * @private
      */
     broadcastCombatEvent(event) {
@@ -144,7 +167,7 @@ export class CombatSystem {
 
     /**
      * Formats a combat message for display
-     * @param {Object} event - Combat event data
+     * @param {AttackResult} event - Combat event data
      * @returns {string} Formatted message
      * @private
      */
