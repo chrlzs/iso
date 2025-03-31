@@ -1,6 +1,33 @@
 /**
+ * @module TradingSystem
+ * @description Manages trading interactions between players and merchants in a cyberpunk marketplace
+ */
+
+/**
+ * @typedef {Object} TradeConfig
+ * @property {InventorySystem} buyer - Buyer's inventory system
+ * @property {InventorySystem} seller - Seller's inventory system
+ * @property {Item} item - Item being traded
+ * @property {number} quantity - Amount of items being traded
+ * @property {number} price - Price per unit
+ */
+
+/**
+ * @typedef {Object} Item
+ * @property {string} id - Unique item identifier
+ * @property {string} name - Item name
+ * @property {number} value - Base item value
+ * @property {number} weight - Item weight
+ * @property {boolean} isStackable - Whether item can stack
+ * @property {string} [type] - Item type category
+ * @property {string} [icon] - Item icon URL
+ */
+
+/**
  * Manages trading interactions between players and merchants
  * @class TradingSystem
+ * @property {number} profitMargin - Base profit margin for merchant sales
+ * @property {number} maxDiscount - Maximum possible discount on purchases
  */
 export class TradingSystem {
     /**

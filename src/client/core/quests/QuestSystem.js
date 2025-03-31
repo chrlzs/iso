@@ -1,6 +1,14 @@
 /**
+ * @module QuestSystem
+ * @description Provides quest management, tracking, and reward functionality
+ */
+
+/**
  * Manages quest tracking, progression, and rewards
  * @class QuestSystem
+ * @property {GameInstance} game - Reference to main game instance
+ * @property {Map<string, Quest>} activeQuests - Currently active quests
+ * @property {Set<string>} completedQuests - Completed quest IDs
  */
 export class QuestSystem {
     /**
@@ -121,3 +129,48 @@ export class QuestSystem {
         }
     }
 }
+
+/**
+ * @typedef {Object} Quest
+ * @property {string} id - Unique quest identifier
+ * @property {string} title - Quest title
+ * @property {string} description - Quest description
+ * @property {QuestObjective[]} objectives - Quest objectives
+ * @property {QuestRewards} rewards - Quest completion rewards
+ * @property {string} status - Current quest status
+ * @property {number} progress - Overall quest progress
+ * @property {boolean} completed - Whether quest is completed
+ * @property {number} started - Timestamp when quest started
+ */
+
+/**
+ * @typedef {Object} QuestObjective
+ * @property {string} id - Objective identifier
+ * @property {string} description - Objective description
+ * @property {number} required - Required amount for completion
+ * @property {number} progress - Current progress
+ * @property {boolean} completed - Whether objective is completed
+ */
+
+/**
+ * @typedef {Object} QuestRewards
+ * @property {number} [eth] - ETH currency reward
+ * @property {Array<{id: string, quantity: number}>} [items] - Item rewards
+ * @property {number} [experience] - Experience points reward
+ */
+
+/**
+ * Quest status enumeration
+ * @readonly
+ * @enum {string}
+ */
+export const QuestStatus = {
+    /** Quest not yet available */
+    INACTIVE: 'inactive',
+    /** Quest in progress */
+    ACTIVE: 'active',
+    /** Quest successfully completed */
+    COMPLETED: 'completed',
+    /** Quest failed */
+    FAILED: 'failed'
+};
