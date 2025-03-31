@@ -1,4 +1,5 @@
 import { Item } from '../../inventory/Item.js';
+import { UIStyles } from '../UIStyles.js';
 
 /**
  * Manages and renders the player's inventory interface
@@ -23,10 +24,27 @@ export class InventoryUI {
         this.isVisible = false;
         this.activeCategory = null;
 
-        // Create the container with explicit styles
-        this.container = document.createElement('div');
-        this.container.className = 'inventory-window';
+        this.createElements();
+
+        // Add to document and hide initially
+        document.body.appendChild(this.container);
+        this.hide();
         
+        // Setup event listeners
+        this.setupEventListeners();
+        
+        console.log('InventoryUI constructor completed');
+    }
+
+    createElements() {
+        this.container = UIStyles.createModalWindow({
+            className: 'inventory-window',
+            width: 400,
+            height: 600,
+            title: 'Inventory',
+            onClose: () => this.hide()
+        });
+
         // Create category buttons
         const categoryContainer = document.createElement('div');
         categoryContainer.className = 'inventory-categories';
@@ -64,15 +82,6 @@ export class InventoryUI {
         this.weightBar = document.createElement('div');
         this.weightBar.className = 'weight-bar';
         this.container.appendChild(this.weightBar);
-
-        // Add to document and hide initially
-        document.body.appendChild(this.container);
-        this.hide();
-        
-        // Setup event listeners
-        this.setupEventListeners();
-        
-        console.log('InventoryUI constructor completed');
     }
 
     setupEventListeners() {

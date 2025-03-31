@@ -1,3 +1,5 @@
+import { UIStyles } from '../UIStyles.js';
+
 /**
  * Manages the merchant trading interface
  * @class MerchantUI
@@ -24,33 +26,13 @@ export class MerchantUI {
     }
 
     createElements() {
-        // Main container
-        this.container = document.createElement('div');
-        this.container.className = 'merchant-ui';
-        this.container.style.cssText = `
-            position: fixed;
-            top: 50vh;
-            left: 50vw;
-            transform: translate(-50%, -50%);
-            display: none;
-            z-index: 100000;
-            background: #1a1a1a;
-            border: 4px solid #00f2ff;
-            width: 800px;
-            height: 600px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        `;
-
-        // Create header
-        const header = document.createElement('div');
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        `;
-        this.container.appendChild(header);
+        this.container = UIStyles.createModalWindow({
+            className: 'merchant-ui',
+            width: 800,
+            height: 600,
+            title: 'Merchant Trade',
+            onClose: () => this.hide()
+        });
 
         // Create inventories container
         const inventoriesContainer = document.createElement('div');

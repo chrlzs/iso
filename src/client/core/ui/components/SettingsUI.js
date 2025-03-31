@@ -1,3 +1,5 @@
+import { UIStyles } from '../UIStyles.js';
+
 /**
  * Manages game settings and configuration interface
  * @class SettingsUI
@@ -26,22 +28,13 @@ export class SettingsUI {
      * @private
      */
     createSettingsWindow() {
-        this.container = document.createElement('div');
-        this.container.className = 'settings-window';
-        this.container.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: ${this.width}px;
-            height: ${this.height}px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00f2ff;
-            border-radius: 8px;
-            padding: 20px;
-            display: none;
-            z-index: 1000;
-        `;
+        this.container = UIStyles.createModalWindow({
+            className: 'settings-window',
+            width: this.width,
+            height: this.height,
+            title: 'Settings',
+            onClose: () => this.hide()
+        });
 
         this.createSettingsSections();
         document.body.appendChild(this.container);

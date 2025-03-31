@@ -1,3 +1,5 @@
+import { UIStyles } from '../UIStyles.js';
+
 /**
  * Manages and displays quest information and progress
  * @class QuestLogUI
@@ -27,33 +29,15 @@ export class QuestLogUI {
      * @private
      */
     createQuestLog() {
-        this.container = document.createElement('div');
-        this.container.className = 'quest-log';
-        this.container.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: ${this.width}px;
-            height: ${this.height}px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #fff;
-            border-radius: 8px;
-            display: none;
-            flex-direction: column;
-            padding: 20px;
-            z-index: 1000;
-        `;
+        this.container = UIStyles.createModalWindow({
+            className: 'quest-log',
+            width: this.width,
+            height: this.height,
+            title: 'Quest Log',
+            onClose: () => this.hide()
+        });
 
-        this.title = document.createElement('h2');
-        this.title.textContent = 'Quest Log';
-        this.title.style.cssText = `
-            color: #fff;
-            text-align: center;
-            margin-bottom: 20px;
-        `;
-        this.container.appendChild(this.title);
-
+        // Create quest list container
         this.questList = document.createElement('div');
         this.questList.className = 'quest-list';
         this.questList.style.cssText = `

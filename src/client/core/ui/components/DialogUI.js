@@ -1,3 +1,5 @@
+import { UIStyles } from '../UIStyles.js';
+
 /**
  * Manages in-game dialog windows for NPC interactions
  * @class DialogUI
@@ -74,31 +76,17 @@ export class DialogUI {
      * @private
      */
     createDialogWindow() {
-        this.container = document.createElement('div');
-        this.container.className = 'dialog-window';
-        this.container.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: ${this.width}px;
-            height: ${this.height}px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #fff;
-            border-radius: 8px;
-            display: none;
-            flex-direction: column;
-            padding: 20px;
-            z-index: 1000;
-        `;
+        this.container = UIStyles.createModalWindow({
+            className: 'dialog-window',
+            width: this.width,
+            height: this.height,
+            title: 'Dialog',
+            onClose: () => this.hide()
+        });
 
         this.content = document.createElement('div');
         this.content.className = 'dialog-content';
-        this.content.style.cssText = `
-            flex: 1;
-            overflow-y: auto;
-            color: #fff;
-        `;
+        this.content.style.cssText = UIStyles.modalContent;
         this.container.appendChild(this.content);
 
         document.body.appendChild(this.container);
