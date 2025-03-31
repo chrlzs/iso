@@ -3,6 +3,7 @@ import { TileManager } from './TileManager.js';
 import { Structure } from './Structure.js';
 import { StructureTemplates } from './templates/StructureTemplates.js';
 import { WorldGenerator } from './WorldGenerator.js';
+import { createDemoMap } from './templates/DemoMap.js';
 
 /**
  * Represents the game world and manages world state
@@ -121,10 +122,19 @@ export class World {
         this.heightScale = options.heightScale || 0.01;
         this.seed = options.seed || Math.random() * 10000;
         
-        // Process map definition if provided
-        this.mapDefinition = options.mapDefinition;
-        if (this.mapDefinition) {
-            this.initializeFromMapDefinition();
+        // Load demo map by default if no map definition is provided
+        this.mapDefinition = options.mapDefinition || createDemoMap();
+        this.initializeFromMapDefinition();
+
+        // Debug logging for map initialization
+        if (this.debug?.flags?.logMapInit) {
+            console.log('World initialized with map:', {
+                width: this.width,
+                height: this.height,
+                structures: this.structures.size,
+                zones: this.mapDefinition.zones.length,
+                landmarks: this.mapDefinition.landmarks.length
+            });
         }
     }
 
@@ -494,6 +504,24 @@ export class World {
      */
     getAllStructures() {
         return Array.from(this.structures.values());
+    }
+
+    /**
+     * Debug method to inspect tile at position
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {Object} Tile debug information
+     */
+    debugTileAt(x, y) {
+        const tile = this.getTileAt(x, y);
+        if (!tile) return null;
+
+        return {
+            tile,
+            typeInfo: this.tileManager.getTileTypeInfo(tile.type),
+            texture: this.tileManager.getTexture(tile.type, tile.variant),
+            structure: this.getStructureAt(x, y)
+        };
     }
 }
 

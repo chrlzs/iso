@@ -160,7 +160,9 @@ export class TileManager {
         GARDEN: 'garden',
         DOOR: 'door',
         HELIPAD: 'helipad',
-        PARKING: 'parking'
+        PARKING: 'parking',
+        TREE: 'tree',          // Add tree type
+        BUSH: 'bush'           // Add bush type for completeness
     };
 
     /**
@@ -191,10 +193,12 @@ export class TileManager {
             garden: 2,
             door: 1,
             helipad: 1,
-            parking: 1
+            parking: 1,
+            tree: 2,       // Add tree variants
+            bush: 1        // Add bush variant
         };
 
-        // Define base colors for each tile type
+        // Expanded base colors for all tile types
         this.tileColors = {
             water: '#1976D2',     // Blue
             wetland: '#558B2F',    // Dark green
@@ -212,7 +216,9 @@ export class TileManager {
             garden: '#66BB6A',     // Light green
             door: '#FFD700',       // Gold
             helipad: '#F57F17',    // Orange
-            parking: '#37474F'     // Dark blue-gray
+            parking: '#37474F',     // Dark blue-gray
+            tree: '#2E7D32',       // Dark green (same as forest)
+            bush: '#388E3C'        // Medium green
         };
 
         // Define surface properties for each tile type
@@ -233,8 +239,39 @@ export class TileManager {
             ['garden', TileManager.SURFACE_TYPES.SOLID],
             ['door', TileManager.SURFACE_TYPES.SOLID],
             ['helipad', TileManager.SURFACE_TYPES.SOLID],
-            ['parking', TileManager.SURFACE_TYPES.SOLID]
+            ['parking', TileManager.SURFACE_TYPES.SOLID],
+            ['tree', TileManager.SURFACE_TYPES.IMPASSABLE],
+            ['bush', TileManager.SURFACE_TYPES.ROUGH]
         ]);
+
+        // Register tile types for natural objects
+        this.tileDefinitions.set('tree', {
+            type: 'tree',
+            variants: ['normal', 'tall'],
+            properties: {
+                walkable: false,
+                buildable: false,
+                movementCost: Infinity,
+                height: 0.5,  // Add default height
+                moisture: 0.6  // Add default moisture
+            }
+        });
+
+        this.tileDefinitions.set('bush', {
+            type: 'bush',
+            variants: ['normal'],
+            properties: {
+                walkable: false,
+                buildable: false,
+                movementCost: 2
+            }
+        });
+
+        // Add tree-specific texture generation
+        this.treeTextures = {
+            trunk: '#4A2F1C',  // Dark brown
+            foliage: '#2E5824' // Forest green
+        };
 
         // Track loaded textures
         this.texturesLoaded = false;
@@ -250,36 +287,91 @@ export class TileManager {
      * @throws {Error} If texture loading fails
      */
     async loadTextures() {
-        if (this.debug?.flags?.logTextureLoading) {
-            console.log('TileManager: Loading textures...');
-        }
-
+        console.log('TileManager: Starting texture loading...');
+        const startTime = performance.now();
         const loadPromises = [];
+        const missingTextures = [];
 
-        // Generate textures for each tile type and its variants
-        for (const [tileType, variantCount] of Object.entries(this.variants)) {
+        // Get all possible tile types from TILE_TYPES enum
+        const allTileTypes = Object.values(TileManager.TILE_TYPES);
+        
+        for (const tileType of allTileTypes) {
+            if (!this.tileColors[tileType]) {
+                console.warn(`Missing color definition for tile type: ${tileType}`);
+                missingTextures.push(tileType);
+                // Set a default color for missing definitions
+                this.tileColors[tileType] = '#FF00FF'; // Magenta for missing textures
+            }
+
             const baseColor = this.tileColors[tileType];
-            
-            // Generate base texture using AssetManager
-            loadPromises.push(this.generateTexture(tileType, baseColor));
+            const variantCount = this.variants[tileType] || 1;
 
-            // Generate variant textures
+            // Generate base texture
+            loadPromises.push(this.generateTexture(tileType, baseColor).catch(err => {
+                console.error(`Failed to generate texture for ${tileType}:`, err);
+            }));
+
+            // Generate variants
             for (let i = 1; i <= variantCount; i++) {
                 const variantKey = `${tileType}_var${i}`;
                 const variantColor = this.adjustColor(baseColor, i * 5);
-                loadPromises.push(this.generateTexture(variantKey, variantColor));
+                loadPromises.push(this.generateTexture(variantKey, variantColor).catch(err => {
+                    console.error(`Failed to generate variant texture ${variantKey}:`, err);
+                }));
             }
         }
 
         try {
             await Promise.all(loadPromises);
+            const endTime = performance.now();
+            console.log('TileManager: Texture loading complete', {
+                duration: `${(endTime - startTime).toFixed(2)}ms`,
+                totalTextures: this.textures.size,
+                missingDefinitions: missingTextures
+            });
+            
+            // Validate all textures were created
+            this.validateTextureCompleteness(allTileTypes);
+            
             this.texturesLoaded = true;
-            if (this.debug?.flags?.logTextureLoading) {
-                console.log('TileManager: All textures loaded successfully');
-            }
         } catch (error) {
-            console.error('TileManager: Failed to load textures:', error);
+            console.error('TileManager: Critical error during texture loading:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Validates that all tile types have corresponding textures
+     * @private
+     * @param {Array<string>} tileTypes - Array of tile types to validate
+     */
+    validateTextureCompleteness(tileTypes) {
+        const missingTextures = [];
+        
+        for (const type of tileTypes) {
+            if (!this.textures.has(type)) {
+                missingTextures.push(type);
+                console.error(`Missing texture for tile type: ${type}`);
+            }
+            
+            // Check variants
+            const variantCount = this.variants[type] || 1;
+            for (let i = 1; i <= variantCount; i++) {
+                const variantKey = `${type}_var${i}`;
+                if (!this.textures.has(variantKey)) {
+                    missingTextures.push(variantKey);
+                    console.error(`Missing texture for variant: ${variantKey}`);
+                }
+            }
+        }
+
+        // Add detailed logging for missing textures
+        if (missingTextures.length > 0) {
+            console.warn('Missing textures:', {
+                types: missingTextures,
+                availableTypes: Array.from(this.textures.keys()),
+                tileColors: Object.keys(this.tileColors)
+            });
         }
     }
 
@@ -293,23 +385,76 @@ export class TileManager {
                     // Clear canvas
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                    // Fill with base color
-                    ctx.fillStyle = baseColor;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    if (name === 'tree' || name.startsWith('tree_var')) {
+                        // Special handling for tree textures
+                        this.generateTreeTexture(ctx, canvas);
+                    } else {
+                        // Standard tile texture generation
+                        ctx.fillStyle = baseColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                    // Add subtle noise pattern
-                    ctx.fillStyle = this.adjustColor(baseColor, 10);
-                    const pattern = ctx.createPattern(this.createNoisePattern(baseColor), 'repeat');
-                    ctx.fillStyle = pattern;
-                    ctx.globalAlpha = 0.3;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.globalAlpha = 1.0;
+                        // Add subtle noise pattern
+                        ctx.fillStyle = this.adjustColor(baseColor, 10);
+                        const pattern = ctx.createPattern(this.createNoisePattern(baseColor), 'repeat');
+                        ctx.fillStyle = pattern;
+                        ctx.globalAlpha = 0.3;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.globalAlpha = 1.0;
+                    }
                 }
             );
             
             this.textures.set(name, texture);
             resolve();
         });
+    }
+
+    generateTreeTexture(ctx, canvas) {
+        // Clear canvas first with transparency
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Define tree dimensions relative to canvas size
+        const treeHeight = canvas.height * 0.8;
+        const trunkWidth = canvas.width * 0.2;
+        const trunkHeight = treeHeight * 0.4;
+        const crownWidth = canvas.width * 0.6;
+        const crownHeight = treeHeight * 0.7;
+
+        // Draw trunk - using explicit brown color to avoid red tint
+        ctx.fillStyle = '#4A2F1C'; // Dark brown
+        const trunkX = (canvas.width - trunkWidth) / 2;
+        const trunkY = canvas.height - trunkHeight;
+        ctx.fillRect(trunkX, trunkY, trunkWidth, trunkHeight);
+
+        // Draw tree crown (triangle)
+        ctx.fillStyle = '#2E5824'; // Forest green
+        ctx.beginPath();
+        // Center point of crown
+        const crownCenterX = canvas.width / 2;
+        // Draw triangular crown
+        ctx.moveTo(crownCenterX, canvas.height - treeHeight); // Top point
+        ctx.lineTo(crownCenterX - crownWidth/2, canvas.height - trunkHeight); // Bottom left
+        ctx.lineTo(crownCenterX + crownWidth/2, canvas.height - trunkHeight); // Bottom right
+        ctx.closePath();
+        ctx.fill();
+
+        // Add depth shading
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(crownCenterX, canvas.height - treeHeight);
+        ctx.lineTo(crownCenterX + crownWidth/2, canvas.height - trunkHeight);
+        ctx.lineTo(crownCenterX, canvas.height - trunkHeight);
+        ctx.closePath();
+        ctx.fill();
+
+        // Add highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(crownCenterX, canvas.height - treeHeight);
+        ctx.lineTo(crownCenterX - crownWidth/2, canvas.height - trunkHeight);
+        ctx.lineTo(crownCenterX, canvas.height - trunkHeight);
+        ctx.closePath();
+        ctx.fill();
     }
 
     /**
@@ -430,6 +575,20 @@ export class TileManager {
      */
     applyEffect(tileId, effect) {
         // Implementation to be added
+    }
+
+    /**
+     * Gets detailed information about a tile type
+     * @param {string} type - Tile type identifier
+     * @returns {Object} Tile type information
+     */
+    getTileTypeInfo(type) {
+        return {
+            hasTexture: this.textures.has(type),
+            hasColor: !!this.tileColors[type],
+            hasVariant: type in this.variants,
+            hasSurfaceProperty: this.surfaceProperties.has(type)
+        };
     }
 }
 

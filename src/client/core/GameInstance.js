@@ -15,6 +15,7 @@ import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
+import { createDemoMap } from './world/templates/DemoMap.js';
 
 /**
  * Core game instance managing all game systems and state
@@ -80,123 +81,26 @@ export class GameInstance {
         this.gamePausedTime = 0;
         this.lastPauseTime = null;
 
-        // Create static map definition
-        const staticMap = new MapDefinition({
-            width: 64,
-            height: 64,
-            seed: 12345,
-            terrain: [
-                // Natural terrain types
-                { x: 1, y: 1, type: 'water', height: 0.35, moisture: 0.9 },
-                { x: 1, y: 2, type: 'wetland', height: 0.40, moisture: 0.8 },
-                { x: 1, y: 3, type: 'sand', height: 0.40, moisture: 0.2 },
-                { x: 1, y: 4, type: 'dirt', height: 0.50, moisture: 0.1 },
-                { x: 1, y: 5, type: 'grass', height: 0.50, moisture: 0.5 },
-                { x: 1, y: 6, type: 'forest', height: 0.60, moisture: 0.7 },
-                { x: 1, y: 7, type: 'mountain', height: 0.85, moisture: 0.3 },
-                
-                // Urban terrain types
-                { x: 1, y: 8, type: 'concrete', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 9, type: 'asphalt', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 10, type: 'metal', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 11, type: 'tiles', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 12, type: 'gravel', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 13, type: 'solar', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 14, type: 'garden', height: 0.50, moisture: 0.4 },
-                
-                // Special terrain types
-                { x: 1, y: 15, type: 'helipad', height: 0.50, moisture: 0.3 },
-                { x: 1, y: 16, type: 'parking', height: 0.50, moisture: 0.3 },
-                
-                // Remove this line:
-                // { x: 52, y: 45, type: 'concrete', height: 0.5, moisture: 0.3 },
-            ],
-            structures: [
-                { 
-                    x: 5, 
-                    y: 5, 
-                    type: 'apartment',
-                    floors: 4,
-                    width: 2,
-                    material: 'concrete',
-                    states: { lightOn: true }
-                },
-                { 
-                    x: 15, 
-                    y: 15, 
-                    type: 'office',
-                    floors: 6,
-                    width: 3,
-                    material: 'brick',
-                    states: { lightOn: true }
-                },
-                { 
-                    x: 25, 
-                    y: 25, 
-                    type: 'warehouse',
-                    floors: 2,
-                    width: 4,
-                    material: 'metal',
-                    states: { lightOn: false }
-                },
-                { 
-                    x: 43, 
-                    y: 40, 
-                    type: 'factory',
-                    floors: 3,
-                    width: 5,
-                    material: 'metal', 
-                    states: { lightOn: true }
-                },
-                // Standalone dumpster structure
-                {
-                    x: 52,
-                    y: 45,
-                    type: 'dumpster',
-                    floors: 1,
-                    width: 1,
-                    height: 1,
-                    material: 'metal',
-                    states: { isOpen: false }
-                },
-                // Add tree next to dumpster
-                {
-                    x: 53,  // One tile to the right of dumpster
-                    y: 45,
-                    type: 'tree',
-                    floors: 1,
-                    width: 1,
-                    height: 1,
-                    material: 'organic',
-                    states: { swaying: false, season: 'summer' }
-                },
-                // Add bush near the dumpster and tree
-                {
-                    x: 52,  // In front of dumpster
-                    y: 46,
-                    type: 'bush',
-                    floors: 1,
-                    width: 1,
-                    height: 1,
-                    material: 'organic',
-                    states: { swaying: false, trimmed: true }
-                }
-            ],
-            zones: [
-                { type: 'commercial', x: 20, y: 20, size: 10 },
-                { type: 'industrial', x: 30, y: 30, size: 15 }
-            ],
-            spawnPoints: [
-                { x: 25, y: 25 }
-            ]
+        // Initialize world with demo map
+        this.world = new World(128, 128, {
+            debug: this.debug,
+            mapDefinition: createDemoMap()
         });
 
-        // Initialize world
-        this.world = new World(64, 64, {
-            chunkSize: 16,
-            debug: this.debug,
-            mapDefinition: staticMap
-        });
+        // Set initial camera position to spawn point
+        const spawnPoint = this.world.mapDefinition.spawnPoints[0];
+        if (spawnPoint) {
+            this.camera.centerOn(spawnPoint.x, spawnPoint.y);
+        }
+
+        // Enable debug logging for initialization
+        if (this.debug?.flags?.logInit) {
+            console.log('Game initialized with demo map:', {
+                worldSize: `${this.world.width}x${this.world.height}`,
+                structures: this.world.structures.size,
+                spawnPoint: spawnPoint
+            });
+        }
 
         // Initialize core components
         this.tileManager = this.world.tileManager;
