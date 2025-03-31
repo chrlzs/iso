@@ -1,6 +1,13 @@
 import { InventoryUI } from './components/InventoryUI.js';
 import { MessageLog } from './components/MessageLog.js';
 import { MerchantUI } from './components/MerchantUI.js';
+import { DialogUI } from './components/DialogUI.js';
+import { StatusUI } from './components/StatusUI.js';
+import { QuestLogUI } from './components/QuestLogUI.js';
+import { SettingsUI } from './components/SettingsUI.js';
+import { NotificationSystem } from './components/NotificationSystem.js';
+import { CanvasUI } from './components/CanvasUI.js';
+import { HUD } from './components/HUD.js';
 
 /**
  * Manages all UI components and their interactions
@@ -27,29 +34,31 @@ export class UIManager {
         try {
             console.log('Initializing UI components...');
             
-            // Initialize MessageLog
-            console.log('Creating MessageLog instance...');
-            const messageLog = new MessageLog({
+            // Initialize core UI components
+            this.components.set('messageLog', new MessageLog({
                 position: { x: 10, y: window.innerHeight - 110 },
                 width: 300,
                 height: 100,
                 game: this.game
+            }));
+            
+            this.components.set('inventoryUI', new InventoryUI(this.game));
+            this.components.set('merchantUI', new MerchantUI({ game: this.game }));
+            this.components.set('dialogUI', new DialogUI(this.game));
+            this.components.set('statusUI', new StatusUI(this.game));
+            this.components.set('questLogUI', new QuestLogUI(this.game));
+            this.components.set('settingsUI', new SettingsUI(this.game));
+            this.components.set('notificationSystem', new NotificationSystem(this.game));
+            
+            // Initialize canvas-based UI components
+            this.components.set('canvasUI', new CanvasUI(this.game));
+            this.components.set('hud', new HUD(this.game));
+            
+            // Hide window-based UIs initially
+            ['inventoryUI', 'merchantUI', 'dialogUI', 'questLogUI', 'settingsUI'].forEach(ui => {
+                const component = this.components.get(ui);
+                if (component?.hide) component.hide();
             });
-            this.components.set('messageLog', messageLog);
-            
-            // Initialize inventory UI
-            console.log('Creating InventoryUI instance...');
-            const inventoryUI = new InventoryUI(this.game);
-            this.components.set('inventoryUI', inventoryUI);
-
-            // Initialize merchant UI
-            console.log('Creating MerchantUI instance...');
-            const merchantUI = new MerchantUI({ game: this.game });
-            this.components.set('merchantUI', merchantUI);
-            
-            // Now that all components are initialized, we can safely hide them
-            inventoryUI.hide();
-            merchantUI.hide();
             
             console.log('Current components:', Array.from(this.components.entries()));
 

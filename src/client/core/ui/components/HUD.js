@@ -1,17 +1,18 @@
+import { CanvasUI } from './CanvasUI.js';
+
 /**
  * Manages the heads-up display elements
  * @class HUD
  * @extends CanvasUI
  */
-export class HUD {
+export class HUD extends CanvasUI {
     /**
      * Creates a new HUD instance
      * @param {GameInstance} game - Reference to game instance
      * @param {Object} [options={}] - HUD configuration options
      */
     constructor(game, options = {}) {
-        this.game = game;
-        this.elements = new Map();
+        super(game, options);
         this.setupHUDElements();
     }
 

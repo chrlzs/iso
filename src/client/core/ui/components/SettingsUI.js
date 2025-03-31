@@ -184,6 +184,36 @@ export class SettingsUI {
     }
 
     /**
+     * Sets up event listeners for settings interactions
+     * @private
+     */
+    setupEventListeners() {
+        // Handle ESC key to close settings
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isVisible) {
+                this.hide();
+            }
+        });
+
+        // Handle clicks outside the settings window
+        document.addEventListener('mousedown', (e) => {
+            if (this.isVisible && !this.container.contains(e.target)) {
+                this.hide();
+            }
+        });
+
+        // Add input change handlers
+        this.container.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', () => {
+                // Optional: Add live preview of settings changes
+                if (this.game.previewSetting) {
+                    this.game.previewSetting(input.id, input.type === 'checkbox' ? input.checked : input.value);
+                }
+            });
+        });
+    }
+
+    /**
      * Shows the settings window
      * @returns {void}
      */
