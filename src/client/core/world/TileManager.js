@@ -385,21 +385,22 @@ export class TileManager {
                     // Clear canvas
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                    if (name === 'tree' || name.startsWith('tree_var')) {
-                        // Special handling for tree textures
-                        this.generateTreeTexture(ctx, canvas);
-                    } else {
-                        // Standard tile texture generation
-                        ctx.fillStyle = baseColor;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        // Add subtle noise pattern
-                        ctx.fillStyle = this.adjustColor(baseColor, 10);
-                        const pattern = ctx.createPattern(this.createNoisePattern(baseColor), 'repeat');
-                        ctx.fillStyle = pattern;
-                        ctx.globalAlpha = 0.3;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.globalAlpha = 1.0;
+                    switch(name) {
+                        case TileManager.TILE_TYPES.WATER:
+                            this.generateWaterTexture(ctx, canvas, baseColor);
+                            break;
+                        case TileManager.TILE_TYPES.TREE:
+                        case TileManager.TILE_TYPES.BUSH:
+                            this.generateNaturalTexture(ctx, canvas, name, baseColor);
+                            break;
+                        case TileManager.TILE_TYPES.DOOR:
+                            this.generateDoorTexture(ctx, canvas, baseColor);
+                            break;
+                        case TileManager.TILE_TYPES.HELIPAD:
+                            this.generateHelipadTexture(ctx, canvas, baseColor);
+                            break;
+                        default:
+                            this.generateStandardTexture(ctx, canvas, name, baseColor);
                     }
                 }
             );
@@ -409,73 +410,140 @@ export class TileManager {
         });
     }
 
-    generateTreeTexture(ctx, canvas) {
-        // Clear canvas first with transparency
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    generateWaterTexture(ctx, canvas, baseColor) {
+        // Base water color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add wave pattern
+        ctx.strokeStyle = this.adjustColor(baseColor, 15, true);
+        ctx.lineWidth = 1;
         
-        // Define tree dimensions relative to canvas size
-        const treeHeight = canvas.height * 0.8;
-        const trunkWidth = canvas.width * 0.2;
-        const trunkHeight = treeHeight * 0.4;
-        const crownWidth = canvas.width * 0.6;
-        const crownHeight = treeHeight * 0.7;
+        for (let i = 0; i < canvas.height; i += 4) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            for (let x = 0; x < canvas.width; x += 10) {
+                ctx.lineTo(x, i + Math.sin(x / 20) * 2);
+            }
+            ctx.stroke();
+        }
+    }
 
-        // Draw trunk - using explicit brown color to avoid red tint
-        ctx.fillStyle = '#4A2F1C'; // Dark brown
-        const trunkX = (canvas.width - trunkWidth) / 2;
-        const trunkY = canvas.height - trunkHeight;
-        ctx.fillRect(trunkX, trunkY, trunkWidth, trunkHeight);
+    generateNaturalTexture(ctx, canvas, name, baseColor) {
+        // Base ground
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw tree crown (triangle)
-        ctx.fillStyle = '#2E5824'; // Forest green
+        if (name === TileManager.TILE_TYPES.TREE) {
+            // Tree trunk
+            ctx.fillStyle = this.treeTextures.trunk;
+            ctx.fillRect(canvas.width * 0.4, canvas.height * 0.5, 
+                        canvas.width * 0.2, canvas.height * 0.5);
+            
+            // Tree foliage
+            ctx.fillStyle = this.treeTextures.foliage;
+            ctx.beginPath();
+            ctx.ellipse(canvas.width * 0.5, canvas.height * 0.3,
+                       canvas.width * 0.3, canvas.height * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Bush
+            ctx.fillStyle = baseColor;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.ellipse(
+                    canvas.width * (0.3 + i * 0.2),
+                    canvas.height * 0.5,
+                    canvas.width * 0.2,
+                    canvas.height * 0.2,
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    }
+
+    generateStandardTexture(ctx, canvas, name, baseColor) {
+        // Base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add noise pattern for texture
+        const noisePattern = this.createNoisePattern(baseColor);
+        ctx.fillStyle = ctx.createPattern(noisePattern, 'repeat');
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1.0;
+
+        // Add subtle edge highlighting
+        ctx.strokeStyle = this.adjustColor(baseColor, 20, true);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    }
+
+    generateHelipadTexture(ctx, canvas, baseColor) {
+        // Base concrete
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Helipad marking
+        ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        // Center point of crown
-        const crownCenterX = canvas.width / 2;
-        // Draw triangular crown
-        ctx.moveTo(crownCenterX, canvas.height - treeHeight); // Top point
-        ctx.lineTo(crownCenterX - crownWidth/2, canvas.height - trunkHeight); // Bottom left
-        ctx.lineTo(crownCenterX + crownWidth/2, canvas.height - trunkHeight); // Bottom right
-        ctx.closePath();
+        ctx.arc(canvas.width/2, canvas.height/2, 
+                Math.min(canvas.width, canvas.height) * 0.4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Add depth shading
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillStyle = baseColor;
         ctx.beginPath();
-        ctx.moveTo(crownCenterX, canvas.height - treeHeight);
-        ctx.lineTo(crownCenterX + crownWidth/2, canvas.height - trunkHeight);
-        ctx.lineTo(crownCenterX, canvas.height - trunkHeight);
-        ctx.closePath();
+        ctx.arc(canvas.width/2, canvas.height/2, 
+                Math.min(canvas.width, canvas.height) * 0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Add highlight
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.beginPath();
-        ctx.moveTo(crownCenterX, canvas.height - treeHeight);
-        ctx.lineTo(crownCenterX - crownWidth/2, canvas.height - trunkHeight);
-        ctx.lineTo(crownCenterX, canvas.height - trunkHeight);
-        ctx.closePath();
-        ctx.fill();
+        // H marking
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(canvas.width * 0.4, canvas.height * 0.3, 
+                    canvas.width * 0.2, canvas.height * 0.4);
+        ctx.fillRect(canvas.width * 0.35, canvas.height * 0.45, 
+                    canvas.width * 0.3, canvas.height * 0.1);
     }
 
     /**
-     * Creates a noise pattern for tile textures
-     * @param {string} baseColor - Base color in hex format
-     * @param {Object} [options] - Pattern generation options
-     * @param {number} [options.size=4] - Pattern size in pixels
-     * @param {number} [options.intensity=5] - Color variation intensity
-     * @returns {HTMLCanvasElement} Pattern canvas element
+     * Adjusts a color by a given amount
+     * @param {string} color - Base color in hex format
+     * @param {number} amount - Amount to adjust (-255 to 255)
+     * @returns {string} Adjusted color in hex format
      * @private
      */
-    createNoisePattern(baseColor, options = {}) {
+    adjustColor(color, amount, lighter = false) {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        
+        const adjust = lighter ? amount : -amount;
+        
+        const newR = Math.max(0, Math.min(255, r + adjust));
+        const newG = Math.max(0, Math.min(255, g + adjust));
+        const newB = Math.max(0, Math.min(255, b + adjust));
+        
+        return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+    }
+
+    createNoisePattern(baseColor) {
         const patternCanvas = document.createElement('canvas');
-        patternCanvas.width = options.size || 4;
-        patternCanvas.height = options.size || 4;
+        patternCanvas.width = 4;
+        patternCanvas.height = 4;
         const patternCtx = patternCanvas.getContext('2d');
-
-        patternCtx.fillStyle = this.adjustColor(baseColor, options.intensity || 5);
-        patternCtx.fillRect(0, 0, 2, 2);
-        patternCtx.fillRect(2, 2, 2, 2);
-
+        
+        patternCtx.fillStyle = this.adjustColor(baseColor, 10);
+        for (let x = 0; x < 4; x++) {
+            for (let y = 0; y < 4; y++) {
+                if (Math.random() > 0.5) {
+                    patternCtx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+        
         return patternCanvas;
     }
 
@@ -488,21 +556,6 @@ export class TileManager {
         const variantCount = this.variants[tileType] || 1;
         if (variantCount <= 1) return null;
         return Math.floor(Math.random() * variantCount) + 1;
-    }
-
-    /**
-     * Adjusts a color by a given amount
-     * @param {string} color - Base color in hex format
-     * @param {number} amount - Amount to adjust (-255 to 255)
-     * @returns {string} Adjusted color in hex format
-     * @private
-     */
-    adjustColor(color, amount) {
-        const hex = color.replace('#', '');
-        const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
-        const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
-        const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     /**
@@ -591,6 +644,7 @@ export class TileManager {
         };
     }
 }
+
 
 
 

@@ -216,6 +216,7 @@ export class IsometricRenderer {
             return '#FFD700'; // Gold color for door tiles
         }
 
+        // Ensure this matches TileManager.TILE_TYPES exactly
         const colors = {
             'water': '#1976D2',     // Blue
             'wetland': '#558B2F',    // Dark green
@@ -232,11 +233,21 @@ export class IsometricRenderer {
             'solar': '#1A237E',      // Deep blue
             'garden': '#66BB6A',     // Light green
             'helipad': '#F57F17',    // Orange
-            'parking': '#37474F'     // Dark blue-gray
+            'parking': '#37474F',    // Dark blue-gray
+            'tree': '#2E7D32',       // Dark green
+            'bush': '#388E3C',       // Medium green
+            'door': '#FFD700'        // Gold
         };
-        return colors[tileType] || '#FF0000';  // Return red for unknown types
+
+        const color = colors[tileType];
+        if (!color) {
+            console.warn(`Unknown tile type: ${tileType} - using fallback color`);
+            return '#FF00FF'; // Use magenta for unknown types - more visible than red
+        }
+        return color;
     }
 }
+
 
 
 

@@ -33,9 +33,52 @@ export class GameInstance {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
-        // Initialize asset manager
-        this.assetManager = new AssetManager();
-        
+        // Initialize asset manager with texture configuration
+        this.assetManager = new AssetManager({
+            textureConfig: {
+                baseSize: 64,
+                mipMapping: true,
+                filtering: 'trilinear'
+            }
+        });
+
+        // Define core texture sets
+        this.textureDefinitions = {
+            terrain: {
+                grass: {
+                    base: '#7ec850',
+                    variants: ['grass_var1', 'grass_var2'],
+                    variantColors: ['#8ec860', '#6eb840']
+                },
+                dirt: {
+                    base: '#8b4513',
+                    variants: ['dirt_var1', 'dirt_var2'],
+                    variantColors: ['#9b5523', '#7b3503']
+                },
+                stone: {
+                    base: '#808080',
+                    variants: ['stone_mossy', 'stone_cracked'],
+                    variantColors: ['#708070', '#606060']
+                },
+                concrete: { base: '#808080' },
+                asphalt: { base: '#404040' },
+                metal: { base: '#A0A0A0' }
+            },
+            decorations: {
+                flowers: {
+                    base: '#ff0000',
+                    variants: ['dec_flowers_var0', 'dec_flowers_var1'],
+                    variantColors: ['#ff4444', '#ffff00']
+                },
+                rocks: { base: '#696969' },
+                cameras: { base: '#404040' },
+                terminals: { base: '#00FF00' },
+                drones: { base: '#202020' },
+                dumpster: { base: '#2F4F4F' },
+                tree: { base: '#228B22' }
+            }
+        };
+
         // Make instance globally available
         window.gameInstance = this;
 
@@ -340,9 +383,15 @@ export class GameInstance {
             if (this.options?.assetsBaseUrl) {
                 this.assetManager.setBaseUrl(this.options.assetsBaseUrl);
             }
+
+            // Initialize texture loading
+            await this.initializeTextures();
             
+            // Initialize world after textures are loaded
             await this.world.tileManager.loadTextures();
+            
             console.log('Game: Textures loaded successfully');
+            
             this.setupInput();
             this.setupDebugControls();
             
@@ -354,6 +403,118 @@ export class GameInstance {
             console.error('Game: Failed to initialize:', error);
             return false;
         }
+    }
+
+    /**
+     * Initializes all game textures
+     * @private
+     * @async
+     */
+    async initializeTextures() {
+        const texturePromises = [];
+
+        // Initialize terrain textures
+        for (const [terrainType, config] of Object.entries(this.textureDefinitions.terrain)) {
+            texturePromises.push(
+                this.tileManager.generateTexture(terrainType, config.base)
+            );
+
+            // Generate variant textures if they exist
+            if (config.variants) {
+                config.variants.forEach((variant, index) => {
+                    texturePromises.push(
+                        this.tileManager.generateTexture(
+                            variant,
+                            config.variantColors[index]
+                        )
+                    );
+                });
+            }
+        }
+
+        // Initialize decoration textures
+        for (const [decType, config] of Object.entries(this.textureDefinitions.decorations)) {
+            texturePromises.push(
+                this.tileManager.generateTexture(decType, config.base)
+            );
+
+            // Generate variant textures if they exist
+            if (config.variants) {
+                config.variants.forEach((variant, index) => {
+                    texturePromises.push(
+                        this.tileManager.generateTexture(
+                            variant,
+                            config.variantColors[index]
+                        )
+                    );
+                });
+            }
+        }
+
+        // Add debug logging for texture loading
+        if (this.debug?.flags?.logTextureLoading) {
+            console.log('Game: Loading textures:', {
+                terrain: Object.keys(this.textureDefinitions.terrain),
+                decorations: Object.keys(this.textureDefinitions.decorations)
+            });
+        }
+
+        try {
+            await Promise.all(texturePromises);
+            
+            if (this.debug?.flags?.logTextureLoading) {
+                console.log('Game: All textures loaded successfully');
+            }
+        } catch (error) {
+            console.error('Game: Failed to load textures:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Verifies all required textures are loaded
+     * @private
+     * @returns {boolean} True if all textures are loaded
+     */
+    verifyTextureLoading() {
+        const missingTextures = [];
+
+        // Check terrain textures
+        for (const [terrainType, config] of Object.entries(this.textureDefinitions.terrain)) {
+            if (!this.tileManager.hasTexture(terrainType)) {
+                missingTextures.push(terrainType);
+            }
+            
+            if (config.variants) {
+                config.variants.forEach(variant => {
+                    if (!this.tileManager.hasTexture(variant)) {
+                        missingTextures.push(variant);
+                    }
+                });
+            }
+        }
+
+        // Check decoration textures
+        for (const [decType, config] of Object.entries(this.textureDefinitions.decorations)) {
+            if (!this.tileManager.hasTexture(decType)) {
+                missingTextures.push(decType);
+            }
+            
+            if (config.variants) {
+                config.variants.forEach(variant => {
+                    if (!this.tileManager.hasTexture(variant)) {
+                        missingTextures.push(variant);
+                    }
+                });
+            }
+        }
+
+        if (missingTextures.length > 0) {
+            console.error('Game: Missing textures:', missingTextures);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -1166,6 +1327,7 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
 
 
 
