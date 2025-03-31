@@ -4,7 +4,23 @@ import { Structure } from './Structure.js';
 import { StructureTemplates } from './templates/StructureTemplates.js';
 import { WorldGenerator } from './WorldGenerator.js';
 
+/**
+ * Represents the game world, managing chunks, terrain, and structures
+ * @class World
+ */
 export class World {
+    /**
+     * Creates a new World instance
+     * @param {number} width - World width in tiles
+     * @param {number} height - World height in tiles
+     * @param {Object} [options={}] - World generation options
+     * @param {number} [options.chunkSize=16] - Size of each chunk in tiles
+     * @param {Object} [options.debug] - Debug configuration
+     * @param {number} [options.moistureScale=0.01] - Scale factor for moisture generation
+     * @param {number} [options.heightScale=0.01] - Scale factor for height generation
+     * @param {number} [options.seed] - Seed for world generation
+     * @param {MapDefinition} [options.mapDefinition] - Static map definition
+     */
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
@@ -48,6 +64,12 @@ export class World {
         }
     }
 
+    /**
+     * Updates active chunks based on player position
+     * @param {number} centerX - Center X coordinate in chunks
+     * @param {number} centerY - Center Y coordinate in chunks
+     * @param {number} viewDistance - View distance in chunks
+     */
     updateActiveChunks(centerX, centerY, viewDistance) {
         // Convert world coordinates to chunk coordinates
         const centerChunkX = Math.floor(centerX / this.chunkSize);
@@ -80,6 +102,12 @@ export class World {
         }
     }
 
+    /**
+     * Generates a new chunk at specified coordinates
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {Object} Generated chunk data
+     */
     generateChunk(chunkX, chunkY) {
         const chunkKey = `${chunkX},${chunkY}`;
         
@@ -117,20 +145,46 @@ export class World {
         return chunk;
     }
 
+    /**
+     * Checks if a chunk is currently active
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {boolean} True if chunk is active
+     */
     isChunkActive(chunkX, chunkY) {
         return this.activeChunks.has(`${chunkX},${chunkY}`);
     }
 
+    /**
+     * Gets chunk at specified coordinates
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {Object|null} Chunk data or null if not found
+     */
     getChunk(chunkX, chunkY) {
         return this.chunks.get(`${chunkX},${chunkY}`);
     }
 
+    /**
+     * Gets chunk by world coordinates
+     * @param {number} worldX - World X coordinate
+     * @param {number} worldY - World Y coordinate
+     * @returns {Object|null} Chunk data or null if not found
+     */
     getChunkByWorldCoords(worldX, worldY) {
         const chunkX = Math.floor(worldX / this.chunkSize);
         const chunkY = Math.floor(worldY / this.chunkSize);
         return this.getChunk(chunkX, chunkY);
     }
 
+    /**
+     * Generates a tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {number} [height] - Optional height value
+     * @param {number} [moisture] - Optional moisture value
+     * @returns {Object} Generated tile data
+     */
     generateTile(x, y, height = null, moisture = null) {
         // Check if there's a predefined tile first
         const existingTile = this.getTileAt(x, y);
@@ -146,6 +200,12 @@ export class World {
         return this.worldGenerator.generateTile(x, y, tileHeight, tileMoisture);
     }
 
+    /**
+     * Gets tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {Object|null} Tile data or null if out of bounds
+     */
     getTileAt(x, y) {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
             return null;
@@ -153,6 +213,13 @@ export class World {
         return this.tiles[y * this.width + x];
     }
 
+    /**
+     * Sets tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {Object} tile - Tile data to set
+     * @returns {boolean} True if successful
+     */
     setTileAt(x, y, tile) {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
             return false;
@@ -161,6 +228,12 @@ export class World {
         return true;
     }
 
+    /**
+     * Generates moisture value for coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {number} Moisture value between 0 and 1
+     */
     generateMoisture(x, y) {
         // Check if there's a predefined tile first
         const tile = this.getTileAt(x, y);
@@ -182,6 +255,12 @@ export class World {
         return Math.max(0, Math.min(1, moisture));
     }
 
+    /**
+     * Generates height value for coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {number} Height value between 0 and 1
+     */
     generateHeight(x, y) {
         // Check if there's a predefined tile first
         const tile = this.getTileAt(x, y);
@@ -207,6 +286,10 @@ export class World {
         return Math.max(0, Math.min(1, height));
     }
 
+    /**
+     * Initializes world from map definition
+     * @private
+     */
     initializeFromMapDefinition() {
         if (!this.mapDefinition) return;
 
@@ -233,6 +316,14 @@ export class World {
         }
     }
 
+    /**
+     * Creates a structure in the world
+     * @param {string} type - Structure type
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {Object} [options={}] - Structure options
+     * @returns {Structure|null} Created structure or null if failed
+     */
     createStructure(type, x, y, options = {}) {
         const template = this.structureTemplates[type];
         if (!template) return null;
@@ -269,6 +360,13 @@ export class World {
         }
     }
 
+    /**
+     * Sets the type of a tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {string} type - New tile type
+     * @returns {void}
+     */
     setTileType(x, y, type) {
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
         const tile = this.getTileAt(x, y);
@@ -283,6 +381,13 @@ export class World {
         }
     }
 
+    /**
+     * Sets the height value of a tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {number} height - New height value (0-1)
+     * @returns {void}
+     */
     setTileHeight(x, y, height) {
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
         const tile = this.getTileAt(x, y);
@@ -292,6 +397,13 @@ export class World {
         }
     }
 
+    /**
+     * Sets the moisture value of a tile at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {number} moisture - New moisture value (0-1)
+     * @returns {void}
+     */
     setTileMoisture(x, y, moisture) {
         if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
         const tile = this.getTileAt(x, y);
@@ -301,11 +413,21 @@ export class World {
         }
     }
 
+    /**
+     * Gets a structure at specified coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {Structure|null} Structure at coordinates or null if none exists
+     */
     getStructureAt(x, y) {
         const key = `${x},${y}`;
         return this.structures.get(key) || null;
     }
 
+    /**
+     * Gets all structures in the world
+     * @returns {Structure[]} Array of all structures
+     */
     getAllStructures() {
         return Array.from(this.structures.values());
     }

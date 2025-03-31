@@ -1,8 +1,25 @@
+/**
+ * Handles procedural generation of world terrain and features
+ * @class WorldGenerator
+ */
 export class WorldGenerator {
+    /**
+     * Creates a new WorldGenerator instance
+     * @param {TileManager} tileManager - Reference to game's TileManager
+     */
     constructor(tileManager) {
         this.tileManager = tileManager;
     }
 
+    /**
+     * Generates a tile based on height and moisture values
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {number} height - Height value (0-1)
+     * @param {number} moisture - Moisture value (0-1)
+     * @param {number} [urbanDensity=0] - Urban density value (0-1)
+     * @returns {Object} Generated tile data
+     */
     generateTile(x, y, height, moisture, urbanDensity = 0) {
         let tileType;
         

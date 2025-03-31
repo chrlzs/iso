@@ -1,16 +1,34 @@
+/**
+ * Manages tile properties, textures, and surface types for the game world
+ * @class TileManager
+ */
 export class TileManager {
-    // Add constants for tile types
+    /**
+     * Surface type enum for tile properties
+     * @readonly
+     * @enum {number}
+     */
+    static SURFACE_TYPES = {
+        SOLID: 0,      // Normal walkable surface
+        WATER: 1,      // Water tiles (unwalkable)
+        ROUGH: 2,      // Rough terrain (slower movement)
+        SLIPPERY: 3,   // Slippery surface (less control)
+        IMPASSABLE: 4  // Completely blocked
+    };
+
+    /**
+     * Tile type enum defining all available tile types
+     * @readonly
+     * @enum {string}
+     */
     static TILE_TYPES = {
-        // Natural
-        WATER: 'water',
-        WETLAND: 'wetland',
+        WATER: 'water',         // Changed to lowercase
+        WETLAND: 'wetland',     // to match property keys
         SAND: 'sand',
         DIRT: 'dirt',
         GRASS: 'grass',
         FOREST: 'forest',
         MOUNTAIN: 'mountain',
-        
-        // Urban
         CONCRETE: 'concrete',
         ASPHALT: 'asphalt',
         METAL: 'metal',
@@ -18,88 +36,81 @@ export class TileManager {
         GRAVEL: 'gravel',
         SOLAR: 'solar',
         GARDEN: 'garden',
-        
-        // Special
+        DOOR: 'door',
         HELIPAD: 'helipad',
-        PARKING: 'parking',
-        DOOR: 'door'
+        PARKING: 'parking'
     };
 
-    // Add surface types for movement/pathfinding
-    static SURFACE_TYPES = {
-        SOLID: 'solid',
-        ROUGH: 'rough',
-        SLIPPERY: 'slippery',
-        WATER: 'water',
-        IMPASSABLE: 'impassable'
-    };
-
+    /**
+     * Creates a new TileManager instance
+     * @param {Object} [debug=false] - Debug configuration
+     */
     constructor(debug = false) {
         this.debug = debug;
         this.textures = new Map();
         
         // Define variants for each tile type
         this.variants = {
-            'water': 1,
-            'wetland': 2,
-            'sand': 2,
-            'dirt': 2,
-            'grass': 3,
-            'forest': 2,
-            'mountain': 2,
-            'concrete': 3,
-            'asphalt': 3,
-            'metal': 2,
-            'tiles': 2,
-            'gravel': 2,
-            'solar': 1,
-            'garden': 2,
-            'door': 1,
-            'helipad': 1,
-            'parking': 1
+            water: 1,
+            wetland: 2,
+            sand: 2,
+            dirt: 2,
+            grass: 3,
+            forest: 2,
+            mountain: 2,
+            concrete: 3,
+            asphalt: 3,
+            metal: 2,
+            tiles: 2,
+            gravel: 2,
+            solar: 1,
+            garden: 2,
+            door: 1,
+            helipad: 1,
+            parking: 1
         };
 
         // Define base colors for each tile type
         this.tileColors = {
-            'water': '#1976D2',     // Blue
-            'wetland': '#558B2F',    // Dark green
-            'sand': '#FDD835',       // Sand yellow
-            'dirt': '#795548',       // Brown
-            'grass': '#4CAF50',      // Green
-            'forest': '#2E7D32',     // Dark green
-            'mountain': '#757575',   // Gray
-            'concrete': '#9E9E9E',   // Medium gray
-            'asphalt': '#424242',    // Dark gray
-            'metal': '#B0BEC5',      // Bluish gray
-            'tiles': '#78909C',      // Cool gray
-            'gravel': '#707070',     // Warm gray
-            'solar': '#1A237E',      // Deep blue
-            'garden': '#66BB6A',     // Light green
-            'door': '#FFD700',       // Gold
-            'helipad': '#F57F17',    // Orange
-            'parking': '#37474F'     // Dark blue-gray
+            water: '#1976D2',     // Blue
+            wetland: '#558B2F',    // Dark green
+            sand: '#FDD835',       // Sand yellow
+            dirt: '#795548',       // Brown
+            grass: '#4CAF50',      // Green
+            forest: '#2E7D32',     // Dark green
+            mountain: '#757575',   // Gray
+            concrete: '#9E9E9E',   // Medium gray
+            asphalt: '#424242',    // Dark gray
+            metal: '#B0BEC5',      // Bluish gray
+            tiles: '#78909C',      // Cool gray
+            gravel: '#707070',     // Warm gray
+            solar: '#1A237E',      // Deep blue
+            garden: '#66BB6A',     // Light green
+            door: '#FFD700',       // Gold
+            helipad: '#F57F17',    // Orange
+            parking: '#37474F'     // Dark blue-gray
         };
 
         // Define surface properties for each tile type
-        this.surfaceProperties = {
-            'water': TileManager.SURFACE_TYPES.WATER,
-            'wetland': TileManager.SURFACE_TYPES.SLIPPERY,
-            'sand': TileManager.SURFACE_TYPES.ROUGH,
-            'dirt': TileManager.SURFACE_TYPES.ROUGH,
-            'grass': TileManager.SURFACE_TYPES.SOLID,
-            'forest': TileManager.SURFACE_TYPES.ROUGH,
-            'mountain': TileManager.SURFACE_TYPES.IMPASSABLE,
-            'concrete': TileManager.SURFACE_TYPES.SOLID,
-            'asphalt': TileManager.SURFACE_TYPES.SOLID,
-            'metal': TileManager.SURFACE_TYPES.SLIPPERY,
-            'tiles': TileManager.SURFACE_TYPES.SOLID,
-            'gravel': TileManager.SURFACE_TYPES.ROUGH,
-            'solar': TileManager.SURFACE_TYPES.SLIPPERY,
-            'garden': TileManager.SURFACE_TYPES.SOLID,
-            'door': TileManager.SURFACE_TYPES.SOLID,
-            'helipad': TileManager.SURFACE_TYPES.SOLID,
-            'parking': TileManager.SURFACE_TYPES.SOLID
-        };
+        this.surfaceProperties = new Map([
+            ['water', TileManager.SURFACE_TYPES.WATER],
+            ['wetland', TileManager.SURFACE_TYPES.SLIPPERY],
+            ['sand', TileManager.SURFACE_TYPES.ROUGH],
+            ['dirt', TileManager.SURFACE_TYPES.ROUGH],
+            ['grass', TileManager.SURFACE_TYPES.SOLID],
+            ['forest', TileManager.SURFACE_TYPES.ROUGH],
+            ['mountain', TileManager.SURFACE_TYPES.IMPASSABLE],
+            ['concrete', TileManager.SURFACE_TYPES.SOLID],
+            ['asphalt', TileManager.SURFACE_TYPES.SOLID],
+            ['metal', TileManager.SURFACE_TYPES.SLIPPERY],
+            ['tiles', TileManager.SURFACE_TYPES.SOLID],
+            ['gravel', TileManager.SURFACE_TYPES.ROUGH],
+            ['solar', TileManager.SURFACE_TYPES.SLIPPERY],
+            ['garden', TileManager.SURFACE_TYPES.SOLID],
+            ['door', TileManager.SURFACE_TYPES.SOLID],
+            ['helipad', TileManager.SURFACE_TYPES.SOLID],
+            ['parking', TileManager.SURFACE_TYPES.SOLID]
+        ]);
 
         // Track loaded textures
         this.texturesLoaded = false;
@@ -108,6 +119,12 @@ export class TileManager {
         this.validateTileTypes();
     }
 
+    /**
+     * Loads and initializes tile textures
+     * @async
+     * @returns {Promise<void>}
+     * @throws {Error} If texture loading fails
+     */
     async loadTextures() {
         if (this.debug?.flags?.logTextureLoading) {
             console.log('TileManager: Loading textures...');
@@ -203,23 +220,49 @@ export class TileManager {
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
+    /**
+     * Validates tile type configurations
+     * @private
+     * @throws {Error} If tile type configuration is invalid
+     */
     validateTileTypes() {
-        // Ensure all tile types have surface properties
-        Object.values(TileManager.TILE_TYPES).forEach(tileType => {
-            if (!this.surfaceProperties[tileType]) {
+        // First validate surface properties
+        const surfaceTypes = Object.values(TileManager.SURFACE_TYPES);
+        for (const [tileType, surface] of this.surfaceProperties.entries()) {
+            if (!surfaceTypes.includes(surface)) {
+                console.error('Invalid surface type:', {
+                    tileType,
+                    surface,
+                    validTypes: surfaceTypes
+                });
+                throw new Error(`Invalid surface type for tile ${tileType}: ${surface}`);
+            }
+        }
+
+        // Then validate each tile type
+        for (const [enumKey, tileType] of Object.entries(TileManager.TILE_TYPES)) {
+            // Debug logging for each check
+            console.log(`Validating tile type: ${tileType}`, {
+                hasSurface: this.surfaceProperties.has(tileType),
+                hasVariant: this.variants[tileType] !== undefined,
+                hasColor: !!this.tileColors[tileType],
+                surfaceValue: this.surfaceProperties.get(tileType)
+            });
+
+            if (!this.surfaceProperties.has(tileType)) {
                 throw new Error(`Missing surface property for tile type: ${tileType}`);
             }
-            if (!this.variants[tileType]) {
+            if (this.variants[tileType] === undefined) {
                 throw new Error(`Missing variant definition for tile type: ${tileType}`);
             }
             if (!this.tileColors[tileType]) {
                 throw new Error(`Missing color definition for tile type: ${tileType}`);
             }
-        });
+        }
     }
 
     getSurfaceType(tileType) {
-        return this.surfaceProperties[tileType] || TileManager.SURFACE_TYPES.SOLID;
+        return this.surfaceProperties.get(tileType) ?? TileManager.SURFACE_TYPES.SOLID;
     }
 }
 

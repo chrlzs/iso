@@ -1,4 +1,18 @@
+/**
+ * Represents a non-player character in the game world
+ * @class NPC
+ */
 export class NPC {
+    /**
+     * Creates a new NPC instance
+     * @param {Object} config - NPC configuration object
+     * @param {number} [config.x=0] - Initial X position
+     * @param {number} [config.y=0] - Initial Y position
+     * @param {string} [config.name='NPC'] - NPC's display name
+     * @param {number} [config.size=32] - NPC's size in pixels
+     * @param {string} [config.color='#8B4513'] - NPC's color in hex format
+     * @param {World} [config.world] - Reference to the game world
+     */
     constructor(config) {
         this.x = config.x || 0;
         this.y = config.y || 0;
@@ -25,6 +39,11 @@ export class NPC {
         }
     }
 
+    /**
+     * Updates NPC state and structure occupancy
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
     update(deltaTime) {
         // Get current structure if any
         if (this.world) {
@@ -86,6 +105,11 @@ export class NPC {
         ctx.restore();
     }
 
+    /**
+     * Updates NPC visibility based on player's current structure
+     * @param {Structure|null} playerStructure - The structure the player is currently in
+     * @returns {void}
+     */
     updateVisibility(playerStructure) {
         // If NPC is not in a structure, always visible
         if (!this.currentStructure) {
@@ -98,6 +122,11 @@ export class NPC {
         this.isVisible = (this.currentStructure === playerStructure);
     }
 
+    /**
+     * Finds the nearest door in a given structure
+     * @param {Structure} structure - The structure to search for doors
+     * @returns {?{x: number, y: number}} Door coordinates or null if none found
+     */
     findNearestDoor(structure) {
         if (!structure) return null;
         
@@ -119,6 +148,12 @@ export class NPC {
         return null;
     }
 
+    /**
+     * Moves the NPC to target coordinates, handling structure transitions
+     * @param {number} targetX - Target X coordinate
+     * @param {number} targetY - Target Y coordinate
+     * @returns {Promise<void>}
+     */
     async moveTo(targetX, targetY) {
         const currentStructure = this.currentStructure;
         const targetTile = this.world.getTileAt(targetX, targetY);
@@ -140,6 +175,12 @@ export class NPC {
         await this.pathfindTo(targetX, targetY);
     }
 
+    /**
+     * Pathfinds to specific coordinates
+     * @param {number} x - Target X coordinate
+     * @param {number} y - Target Y coordinate
+     * @returns {Promise<void>}
+     */
     async pathfindTo(x, y) {
         if (!this.world || !this.world.pathFinder) return;
         

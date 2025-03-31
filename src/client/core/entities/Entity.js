@@ -5,12 +5,13 @@
 export class Entity {
     /**
      * Creates a new Entity
-     * @param {Object} config - Entity configuration
+     * @param {Object} config - Entity configuration object
      * @param {number} config.x - Initial X position in world coordinates
      * @param {number} config.y - Initial Y position in world coordinates
      * @param {number} [config.width=32] - Entity width in pixels
      * @param {number} [config.height=32] - Entity height in pixels
      * @param {string} [config.type='entity'] - Entity type identifier
+     * @throws {Error} If x or y coordinates are not provided
      */
     constructor(config) {
         this.x = config.x;
@@ -30,8 +31,9 @@ export class Entity {
     }
 
     /**
-     * Updates entity state
+     * Updates entity state for the current frame
      * @param {number} deltaTime - Time elapsed since last update in milliseconds
+     * @returns {void}
      */
     update(deltaTime) {
         // Convert deltaTime to seconds
@@ -43,8 +45,9 @@ export class Entity {
     }
 
     /**
-     * Renders the entity
-     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * Renders the entity on the canvas
+     * @param {CanvasRenderingContext2D} ctx - The canvas 2D rendering context
+     * @returns {void}
      */
     render(ctx) {
         // Default rendering - can be overridden by specific entity types
@@ -53,9 +56,10 @@ export class Entity {
     }
 
     /**
-     * Sets the entity's position
+     * Sets the entity's position in world coordinates
      * @param {number} x - New X coordinate
      * @param {number} y - New Y coordinate
+     * @returns {void}
      */
     setPosition(x, y) {
         this.x = x;
@@ -63,9 +67,10 @@ export class Entity {
     }
 
     /**
-     * Sets the entity's velocity
-     * @param {number} x - Velocity X component
-     * @param {number} y - Velocity Y component
+     * Sets the entity's velocity components
+     * @param {number} x - Velocity X component in pixels per second
+     * @param {number} y - Velocity Y component in pixels per second
+     * @returns {void}
      */
     setVelocity(x, y) {
         this.velocityX = x;
@@ -73,8 +78,8 @@ export class Entity {
     }
 
     /**
-     * Gets entity's current position
-     * @returns {Object} Position object with x and y coordinates
+     * Gets entity's current position in world coordinates
+     * @returns {{x: number, y: number}} Position object with x and y coordinates
      */
     getPosition() {
         return { x: this.x, y: this.y };
@@ -82,7 +87,7 @@ export class Entity {
 
     /**
      * Gets entity's bounding box for collision detection
-     * @returns {Object} Bounding box with x, y, width, and height
+     * @returns {{x: number, y: number, width: number, height: number}} Bounding box dimensions and position
      */
     getBounds() {
         return {

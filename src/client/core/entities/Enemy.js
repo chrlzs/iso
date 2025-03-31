@@ -1,7 +1,7 @@
 import { NPC } from './NPC.js';
 
 /**
- * Enemy entity class
+ * Enemy entity class - represents hostile NPCs in the game
  * @class Enemy
  * @extends NPC
  */
@@ -10,10 +10,11 @@ export class Enemy extends NPC {
      * Creates a new Enemy
      * @param {Object} config - Enemy configuration
      * @param {number} config.x - Initial X position
-     * @param {number} config.y - Initial Y position
+     * @param {number} config.y - Initial Y position 
      * @param {string} [config.name='Enemy'] - Enemy name
-     * @param {number} [config.damage=10] - Base damage
+     * @param {number} [config.damage=10] - Base damage dealt by attacks
      * @param {number} [config.attackRange=50] - Attack range in pixels
+     * @param {World} config.world - Reference to game world
      */
     constructor(config) {
         super(config);
@@ -34,9 +35,10 @@ export class Enemy extends NPC {
     }
 
     /**
-     * Updates enemy AI behavior
+     * Updates enemy AI behavior and state
      * @param {number} deltaTime - Time elapsed since last update
-     * @param {Array<Entity>} entities - All game entities for AI decisions
+     * @param {Entity[]} entities - List of entities for AI targeting
+     * @override
      */
     updateAI(deltaTime, entities) {
         super.updateAI(deltaTime, entities);
@@ -69,8 +71,9 @@ export class Enemy extends NPC {
     }
 
     /**
-     * Performs an attack on the target
-     * @param {Entity} target - The target to attack
+     * Performs an attack against the target entity
+     * @param {Entity} target - Entity to attack
+     * @returns {void}
      */
     attack(target) {
         // Reset attack cooldown
@@ -83,8 +86,9 @@ export class Enemy extends NPC {
     }
 
     /**
-     * Renders the enemy
+     * Renders the enemy and its attack range indicator when attacking
      * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @override
      */
     render(ctx) {
         super.render(ctx);

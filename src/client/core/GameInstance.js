@@ -15,7 +15,17 @@ import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
 
+/**
+ * Core game instance managing all game systems and state
+ * @class GameInstance
+ */
 export class GameInstance {
+    /**
+     * Creates a new game instance
+     * @param {HTMLCanvasElement} canvas - The game's canvas element
+     * @param {Object} [options={}] - Game initialization options
+     * @param {string} [options.assetsBaseUrl] - Base URL for loading assets
+     */
     constructor(canvas, options = {}) {
         console.log('Game: Initializing...');
         this.canvas = canvas;
@@ -285,6 +295,10 @@ export class GameInstance {
         this.showIntroSequence();
     }
 
+    /**
+     * Shows the game's introduction sequence
+     * @private
+     */
     showIntroSequence() {
         this.messageSystem.queueMessage({
             text: "Welcome to our world! You find yourself in a mysterious land filled with opportunities and adventures.",
@@ -302,6 +316,12 @@ export class GameInstance {
         });
     }
 
+    /**
+     * Creates a merchant NPC with inventory
+     * @param {{x: number, y: number}} pos - Spawn position
+     * @param {Structure} [structure=null] - Structure to place merchant in
+     * @returns {Merchant|null} Created merchant or null if creation fails
+     */
     createMerchant(pos, structure = null) {
         console.log('Starting merchant creation at position:', pos, 'in structure:', structure?.type);
         
@@ -349,6 +369,10 @@ export class GameInstance {
         }
     }
 
+    /**
+     * Finds a valid spawn point for entities
+     * @returns {{x: number, y: number}} Valid spawn coordinates
+     */
     findValidSpawnPoint() {
         const worldCenter = Math.floor(this.world.width / 2);
         const searchRadius = 10; // Increased radius to have more options
@@ -393,6 +417,11 @@ export class GameInstance {
         return { x: worldCenter, y: worldCenter };
     }
 
+    /**
+     * Initializes the game instance
+     * @async
+     * @returns {Promise<boolean>} Success status
+     */
     async init() {
         console.log('Game: Starting initialization...');
         try {
@@ -416,6 +445,10 @@ export class GameInstance {
         }
     }
 
+    /**
+     * Sets up input handlers for the game
+     * @private
+     */
     setupInput() {
         console.log('Game: Setting up input handlers');
         
@@ -548,6 +581,10 @@ export class GameInstance {
         });
     }
 
+    /**
+     * Starts the game loop
+     * @returns {void}
+     */
     start() {
         console.log('Game: Starting game loop');
         this.running = true;
@@ -555,6 +592,11 @@ export class GameInstance {
         this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
     }
 
+    /**
+     * Main game loop
+     * @private
+     * @param {number} timestamp - Current timestamp from requestAnimationFrame
+     */
     gameLoop(timestamp) {
         if (!this.running) return;
 
@@ -586,6 +628,10 @@ export class GameInstance {
         this.pathFinder = null;
     }
 
+    /**
+     * Updates game state
+     * @param {number} deltaTime - Time elapsed since last update
+     */
     update(deltaTime) {
         if (!this.player || !this.camera) {
             console.warn('Required components not initialized');
@@ -679,6 +725,10 @@ export class GameInstance {
         this.uiManager.update(deltaTime);
     }
 
+    /**
+     * Renders the game
+     * @private
+     */
     render() {
         this.renderer.clear();
         
@@ -1153,6 +1203,10 @@ export class GameInstance {
         this.ctx.restore();
     }
 
+    /**
+     * Gets current game hour (0-24)
+     * @returns {number} Current game hour
+     */
     getGameHour() {
         if (!this.running) {
             return this.gamePausedTime / (1000 * this.gameTimeScale) % 24;
@@ -1189,7 +1243,10 @@ export class GameInstance {
         }
     }
 
-    // Optional: Add method to set specific time of day
+    /**
+     * Sets specific time of day
+     * @param {number} hour - Hour to set (0-24)
+     */
     setGameHour(hour) {
         if (hour < 0 || hour >= 24) {
             console.warn('Invalid hour value. Must be between 0 and 24');
