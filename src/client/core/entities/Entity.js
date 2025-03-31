@@ -1,100 +1,181 @@
 /**
- * Base class for all game entities (players, NPCs, objects, etc.)
+ * Base class for all game entities (players, NPCs, enemies, etc.)
  * @class Entity
  */
 export class Entity {
     /**
-     * Creates a new Entity
-     * @param {Object} config - Entity configuration object
-     * @param {number} config.x - Initial X position in world coordinates
-     * @param {number} config.y - Initial Y position in world coordinates
-     * @param {number} [config.width=32] - Entity width in pixels
-     * @param {number} [config.height=32] - Entity height in pixels
-     * @param {string} [config.type='entity'] - Entity type identifier
-     * @throws {Error} If x or y coordinates are not provided
+     * Creates a new Entity instance
+     * @param {Object} config - Entity configuration
+     * @param {number} config.x - Initial X position
+     * @param {number} config.y - Initial Y position
+     * @param {World} config.world - Reference to game world
+     * @param {string} [config.id] - Unique entity identifier
+     * @param {number} [config.health=100] - Initial health points
+     * @param {number} [config.maxHealth=100] - Maximum health points
+     * @param {number} [config.speed=1] - Movement speed
      */
     constructor(config) {
-        this.x = config.x;
-        this.y = config.y;
-        this.width = config.width || 32;
-        this.height = config.height || 32;
-        this.type = config.type || 'entity';
+        if (!config.world) {
+            throw new Error('Entity requires world reference');
+        }
+
+        this.id = config.id || crypto.randomUUID();
+        this.x = config.x || 0;
+        this.y = config.y || 0;
+        this.world = config.world;
+        
+        // Health properties
+        this.health = config.health || 100;
+        this.maxHealth = config.maxHealth || 100;
         
         // Movement properties
-        this.velocityX = 0;
-        this.velocityY = 0;
-        this.speed = 200; // pixels per second
-        
+        this.speed = config.speed || 1;
+        this.path = null;
+        this.nextPathIndex = 0;
+        this.isMoving = false;
+
         // State flags
-        this.isActive = true;
         this.isVisible = true;
+        this.isActive = true;
     }
 
     /**
-     * Updates entity state for the current frame
-     * @param {number} deltaTime - Time elapsed since last update in milliseconds
-     * @returns {void}
+     * Updates entity state
+     * @param {number} deltaTime - Time elapsed since last update
      */
     update(deltaTime) {
-        // Convert deltaTime to seconds
-        const dt = deltaTime / 1000;
-        
-        // Update position based on velocity
-        this.x += this.velocityX * dt;
-        this.y += this.velocityY * dt;
+        if (!this.isActive) return;
+
+        // Update path movement
+        if (this.path && this.nextPathIndex < this.path.length) {
+            this.updatePathMovement(deltaTime);
+        }
+
+        // Update terrain info
+        this.updateTerrainInfo();
     }
 
     /**
-     * Renders the entity on the canvas
-     * @param {CanvasRenderingContext2D} ctx - The canvas 2D rendering context
-     * @returns {void}
+     * Updates entity's movement along current path
+     * @param {number} deltaTime - Time elapsed since last update
+     * @private
      */
-    render(ctx) {
-        // Default rendering - can be overridden by specific entity types
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height);
+    updatePathMovement(deltaTime) {
+        const target = this.path[this.nextPathIndex];
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 0.1) {
+            // Reached current target
+            this.x = target.x;
+            this.y = target.y;
+            this.nextPathIndex++;
+            
+            if (this.nextPathIndex >= this.path.length) {
+                this.clearPath();
+            }
+        } else {
+            // Move towards target
+            const speed = this.getModifiedSpeed();
+            const movement = speed * deltaTime;
+            const ratio = Math.min(movement / distance, 1);
+
+            this.x += dx * ratio;
+            this.y += dy * ratio;
+            this.isMoving = true;
+        }
     }
 
     /**
-     * Sets the entity's position in world coordinates
-     * @param {number} x - New X coordinate
-     * @param {number} y - New Y coordinate
-     * @returns {void}
+     * Updates entity's terrain information
+     * @private
      */
-    setPosition(x, y) {
-        this.x = x;
-        this.y = y;
+    updateTerrainInfo() {
+        const tile = this.world.getTileAt(Math.floor(this.x), Math.floor(this.y));
+        if (tile) {
+            this.currentTileType = tile.type;
+            this.currentHeight = tile.height;
+        }
     }
 
     /**
-     * Sets the entity's velocity components
-     * @param {number} x - Velocity X component in pixels per second
-     * @param {number} y - Velocity Y component in pixels per second
-     * @returns {void}
+     * Gets entity's movement speed modified by current conditions
+     * @returns {number} Modified speed value
+     * @private
      */
-    setVelocity(x, y) {
-        this.velocityX = x;
-        this.velocityY = y;
+    getModifiedSpeed() {
+        let modifiedSpeed = this.speed;
+
+        // Apply terrain effects
+        if (this.currentTileType) {
+            const surfaceType = this.world.tileManager.getSurfaceType(this.currentTileType);
+            switch (surfaceType) {
+                case TileManager.SURFACE_TYPES.ROUGH:
+                    modifiedSpeed *= 0.7;
+                    break;
+                case TileManager.SURFACE_TYPES.SLIPPERY:
+                    modifiedSpeed *= 1.3;
+                    break;
+            }
+        }
+
+        return modifiedSpeed;
     }
 
     /**
-     * Gets entity's current position in world coordinates
-     * @returns {{x: number, y: number}} Position object with x and y coordinates
+     * Sets new path for entity to follow
+     * @param {Array<{x: number, y: number}>} path - Array of path coordinates
      */
-    getPosition() {
-        return { x: this.x, y: this.y };
+    setPath(path) {
+        this.path = path;
+        this.nextPathIndex = 0;
     }
 
     /**
-     * Gets entity's bounding box for collision detection
-     * @returns {{x: number, y: number, width: number, height: number}} Bounding box dimensions and position
+     * Clears entity's current path
      */
-    getBounds() {
-        return {
-            x: this.x - this.width/2,
-            y: this.y - this.height/2,
-            width: this.width,
-            height: this.height
-        };
+    clearPath() {
+        this.path = null;
+        this.nextPathIndex = 0;
+        this.isMoving = false;
+    }
+
+    /**
+     * Takes damage and updates health
+     * @param {number} amount - Amount of damage to take
+     * @returns {number} Actual damage taken
+     */
+    takeDamage(amount) {
+        const previousHealth = this.health;
+        this.health = Math.max(0, this.health - amount);
+        const actualDamage = previousHealth - this.health;
+
+        if (this.health <= 0) {
+            this.die();
+        }
+
+        return actualDamage;
+    }
+
+    /**
+     * Heals the entity
+     * @param {number} amount - Amount of health to restore
+     * @returns {number} Actual amount healed
+     */
+    heal(amount) {
+        const previousHealth = this.health;
+        this.health = Math.min(this.maxHealth, this.health + amount);
+        return this.health - previousHealth;
+    }
+
+    /**
+     * Handles entity death
+     * @private
+     */
+    die() {
+        this.isActive = false;
+        this.clearPath();
+        // Additional death handling can be implemented by subclasses
     }
 }
