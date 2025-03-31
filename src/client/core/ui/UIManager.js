@@ -2,7 +2,15 @@ import { InventoryUI } from './components/InventoryUI.js';
 import { MessageLog } from './components/MessageLog.js';
 import { MerchantUI } from './components/MerchantUI.js';
 
+/**
+ * Manages all UI components and their interactions
+ * @class UIManager
+ */
 export class UIManager {
+    /**
+     * Creates a new UIManager instance
+     * @param {GameInstance} game - Reference to the main game instance
+     */
     constructor(game) {
         console.log('UIManager constructor started');
         
@@ -118,6 +126,11 @@ export class UIManager {
         });
     }
 
+    /**
+     * Updates all active UI components
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
     update(deltaTime) {
         this.components.forEach((component, key) => {
             if (component && typeof component.update === 'function') {
@@ -130,6 +143,11 @@ export class UIManager {
         });
     }
 
+    /**
+     * Renders all visible UI components
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @returns {void}
+     */
     render(ctx) {
         if (!ctx) {
             console.error('No context provided for UI rendering');
@@ -211,7 +229,11 @@ export class UIManager {
         });
     }
 
-    // Add a helper method to get components
+    /**
+     * Gets a UI component by name
+     * @param {string} name - Component identifier
+     * @returns {UIComponent|null} The UI component or null if not found
+     */
     getComponent(name) {
         return this.components.get(name);
     }

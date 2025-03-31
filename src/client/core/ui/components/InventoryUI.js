@@ -1,7 +1,19 @@
 import { Item } from '../../inventory/Item.js';
 
+/**
+ * Manages and renders the player's inventory interface
+ * @class InventoryUI
+ * @extends UIComponent
+ */
 export class InventoryUI {
-    constructor(game) {
+    /**
+     * Creates a new InventoryUI instance
+     * @param {GameInstance} gameInstance - Reference to the main game instance
+     * @param {Object} [options={}] - Configuration options
+     * @param {number} [options.width=400] - Width of inventory window
+     * @param {number} [options.height=300] - Height of inventory window
+     */
+    constructor(game, options = {}) {
         console.log('InventoryUI constructor started');
         
         this.game = game;
@@ -81,6 +93,10 @@ export class InventoryUI {
         });
     }
 
+    /**
+     * Toggles inventory visibility
+     * @returns {void}
+     */
     toggle() {
         const isCurrentlyVisible = this.container.classList.contains('visible');
         console.log('Toggle called, currently visible:', isCurrentlyVisible);
@@ -240,6 +256,26 @@ export class InventoryUI {
 
         // Update weight bar
         this.updateWeightBar();
+    }
+
+    /**
+     * Renders the inventory interface
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @returns {void}
+     */
+    render(ctx) {
+        // Rendering logic for inventory UI
+    }
+
+    /**
+     * Handles item drag operations
+     * @param {Item} item - The item being dragged
+     * @param {number} x - Mouse X coordinate
+     * @param {number} y - Mouse Y coordinate
+     * @private
+     */
+    handleItemDrag(item, x, y) {
+        // Logic for handling item drag
     }
 }
 

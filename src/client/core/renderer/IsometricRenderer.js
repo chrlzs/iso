@@ -2,8 +2,20 @@ import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
 
+/**
+ * Handles isometric rendering of the game world and entities
+ * @class IsometricRenderer
+ */
 export class IsometricRenderer {
-    constructor(canvas, tileManager) {
+    /**
+     * Creates a new IsometricRenderer instance
+     * @param {HTMLCanvasElement} canvas - The game's canvas element
+     * @param {TileManager} tileManager - Reference to game's tile manager
+     * @param {Object} [options={}] - Renderer configuration options
+     * @param {number} [options.tileWidth=64] - Width of tiles in pixels
+     * @param {number} [options.tileHeight=32] - Height of tiles in pixels
+     */
+    constructor(canvas, tileManager, options = {}) {
         console.log('IsometricRenderer: Initializing...', {
             canvasWidth: canvas.width,
             canvasHeight: canvas.height,
@@ -24,44 +36,20 @@ export class IsometricRenderer {
         this.structureRenderer = new StructureRenderer(this.ctx);
     }
 
-    // Convert world coordinates to screen coordinates
-    worldToScreen(x, y) {
-        return {
-            x: (x - y) * (this.tileWidth / 2),
-            y: (x + y) * (this.tileHeight / 2)
-        };
-    }
-
-    convertToIsometric(x, y) {
-        return {
-            x: (x - y) * (this.tileWidth / 2),
-            y: (x + y) * (this.tileHeight / 2)
-        };
-    }
-
-    convertToCartesian(isoX, isoY) {
-        const x = (isoX / (this.tileWidth / 2) + isoY / (this.tileHeight / 2)) / 2;
-        const y = (isoY / (this.tileHeight / 2) - isoX / (this.tileWidth / 2)) / 2;
-        return { x, y };
-    }
-
-    screenToWorld(screenX, screenY, zoom, cameraX, cameraY) {
-        const unzoomedX = screenX / zoom;
-        const unzoomedY = screenY / zoom;
-        
-        const isoX = unzoomedX / (this.tileWidth / 2);
-        const isoY = unzoomedY / (this.tileHeight / 2);
-        
-        return {
-            x: Math.floor((isoX + isoY) / 2),
-            y: Math.floor((isoY - isoX) / 2)
-        };
-    }
-
+    /**
+     * Clears the canvas for the next frame
+     * @returns {void}
+     */
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
+    /**
+     * Renders the game world and all its contents
+     * @param {World} world - The game world to render
+     * @param {Object} camera - Camera position and zoom
+     * @returns {void}
+     */
     renderWorld(world, camera) {
         if (!this.tileManager) {
             console.error('TileManager not initialized');
@@ -85,6 +73,13 @@ export class IsometricRenderer {
         });
     }
 
+    /**
+     * Renders a single tile at specified coordinates
+     * @param {Object} tile - Tile data to render
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @private
+     */
     renderTile(tile, x, y) {
         if (!tile || !tile.type) {
             console.warn('Invalid tile at', x, y, tile);
@@ -161,6 +156,54 @@ export class IsometricRenderer {
 
         // Restore the context state
         this.ctx.restore();
+    }
+
+    /**
+     * Converts world coordinates to isometric screen coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {{x: number, y: number}} Screen coordinates
+     */
+    worldToScreen(x, y) {
+        return {
+            x: (x - y) * (this.tileWidth / 2),
+            y: (x + y) * (this.tileHeight / 2)
+        };
+    }
+
+    /**
+     * Converts screen coordinates to world coordinates
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @param {number} zoom - Zoom level
+     * @param {number} cameraX - Camera X position
+     * @param {number} cameraY - Camera Y position
+     * @returns {{x: number, y: number}} World coordinates
+     */
+    screenToWorld(screenX, screenY, zoom, cameraX, cameraY) {
+        const unzoomedX = screenX / zoom;
+        const unzoomedY = screenY / zoom;
+        
+        const isoX = unzoomedX / (this.tileWidth / 2);
+        const isoY = unzoomedY / (this.tileHeight / 2);
+        
+        return {
+            x: Math.floor((isoX + isoY) / 2),
+            y: Math.floor((isoY - isoX) / 2)
+        };
+    }
+
+    /**
+     * Converts world coordinates to isometric screen coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @returns {{x: number, y: number}} Screen coordinates
+     */
+    convertToIsometric(x, y) {
+        return {
+            x: (x - y) * (this.tileWidth / 2),
+            y: (x + y) * (this.tileHeight / 2)
+        };
     }
 
     animate() {

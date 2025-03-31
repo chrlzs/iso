@@ -1,4 +1,15 @@
+/**
+ * Handles pathfinding and navigation through the game world
+ * @class PathFinder
+ */
 export class PathFinder {
+    /**
+     * Creates a new PathFinder instance
+     * @param {World} world - Reference to the game world
+     * @param {Object} [options={}] - Pathfinding options
+     * @param {boolean} [options.allowDiagonal=true] - Whether to allow diagonal movement
+     * @param {boolean} [options.avoidWater=true] - Whether to treat water as impassable
+     */
     constructor(world, options = {}) {
         this.world = world;
         this.openSet = new Set();
@@ -12,6 +23,12 @@ export class PathFinder {
         this.currentStructure = null; // Track which structure the player is in
     }
 
+    /**
+     * Checks if coordinates are inside a structure
+     * @param {number} x - X coordinate to check
+     * @param {number} y - Y coordinate to check
+     * @returns {boolean} True if coordinates are inside a structure
+     */
     isInsideStructure(x, y) {
         const structures = this.world.getAllStructures();
         for (const structure of structures) {
@@ -23,7 +40,16 @@ export class PathFinder {
         return null;
     }
 
-    findPath(startX, startY, endX, endY) {
+    /**
+     * Finds a path between two points using A* algorithm
+     * @param {number} startX - Starting X coordinate
+     * @param {number} startY - Starting Y coordinate
+     * @param {number} endX - Target X coordinate
+     * @param {number} endY - Target Y coordinate
+     * @param {boolean} [allowInterior=false] - Whether to allow paths through structures
+     * @returns {Array<{x: number, y: number}>|null} Array of path coordinates or null if no path found
+     */
+    findPath(startX, startY, endX, endY, allowInterior = false) {
         console.log(`Finding path from (${startX},${startY}) to (${endX},${endY})`);
         
         // Round coordinates to ensure integer values
@@ -313,6 +339,15 @@ export class PathFinder {
         return cost;
     }
     
+    /**
+     * Calculates heuristic distance between points
+     * @param {number} x1 - First X coordinate
+     * @param {number} y1 - First Y coordinate
+     * @param {number} x2 - Second X coordinate
+     * @param {number} y2 - Second Y coordinate
+     * @returns {number} Estimated distance between points
+     * @private
+     */
     heuristic(x1, y1, x2, y2) {
         // Manhattan distance with diagonal movement allowed
         return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
@@ -333,6 +368,12 @@ export class PathFinder {
         return lowest;
     }
 
+    /**
+     * Checks if coordinates are within world bounds
+     * @param {number} x - X coordinate to check
+     * @param {number} y - Y coordinate to check
+     * @returns {boolean} True if coordinates are valid
+     */
     isValidCoordinate(x, y) {
         return x >= 0 && x < this.world.width && 
                y >= 0 && y < this.world.height;
@@ -395,6 +436,13 @@ export class PathFinder {
         return path;
     }
 
+    /**
+     * Determines if a tile is walkable
+     * @param {number} x - X coordinate to check
+     * @param {number} y - Y coordinate to check
+     * @param {boolean} [allowInterior=false] - Whether to allow interior tiles
+     * @returns {boolean} True if tile is walkable
+     */
     isWalkable(x, y, allowInterior = false) {
         // First check if coordinates are valid
         if (!this.isValidCoordinate(x, y)) {
