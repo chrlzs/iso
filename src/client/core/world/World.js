@@ -5,20 +5,69 @@ import { StructureTemplates } from './templates/StructureTemplates.js';
 import { WorldGenerator } from './WorldGenerator.js';
 
 /**
- * Represents the game world, managing chunks, terrain, and structures
+ * Represents the game world and manages world state
  * @class World
+ * @property {number} width - World width in tiles
+ * @property {number} height - World height in tiles
+ * @property {number} chunkSize - Size of each chunk
+ * @property {Map<string, Chunk>} chunks - Map of loaded chunks
+ * @property {Set<string>} activeChunks - Set of active chunk IDs
+ * @property {Object} debug - Debug configuration
+ * @property {Map<string, Structure>} structures - Map of world structures
+ * @property {TileManager} tileManager - Tile management system
+ * @property {WorldGenerator} worldGenerator - World generation system
+ * @property {MapDefinition} [mapDefinition] - Static map definition
+ */
+
+/**
+ * @typedef {Object} Chunk
+ * @property {number} x - Chunk X coordinate
+ * @property {number} y - Chunk Y coordinate
+ * @property {Array<Tile>} tiles - Tiles in this chunk
+ * @property {Set<Entity>} entities - Entities in this chunk
+ */
+
+/**
+ * @typedef {Object} Tile
+ * @property {string} type - Tile type identifier
+ * @property {number} height - Terrain height (0-1)
+ * @property {number} moisture - Moisture level (0-1)
+ * @property {Structure} [structure] - Structure on this tile
+ * @property {string} [originalType] - Original tile type before modification
+ */
+
+/**
+ * @typedef {Object} WorldError
+ * @property {string} code - Error code
+ * @property {string} message - Error message
+ * @property {string} [details] - Additional error details
+ * @property {Object} [context] - Error context data
+ */
+
+/**
+ * @typedef {Object} WorldEvent
+ * @property {string} type - Event type (tile.changed, chunk.loaded, etc)
+ * @property {Object} data - Event data
+ * @property {number} timestamp - Event timestamp
+ */
+
+/**
+ * Represents the game world and manages world state
+ * @class World
+ * @property {number} width - World width in tiles
+ * @property {number} height - World height in tiles
+ * @property {number} chunkSize - Size of each chunk
+ * @property {Map<string, Chunk>} chunks - Map of loaded chunks
+ * @property {Set<string>} activeChunks - Set of active chunk IDs
  */
 export class World {
     /**
      * Creates a new World instance
      * @param {number} width - World width in tiles
-     * @param {number} height - World height in tiles
-     * @param {Object} [options={}] - World generation options
-     * @param {number} [options.chunkSize=16] - Size of each chunk in tiles
+     * @param {number} height - World height in tiles  
+     * @param {Object} [options={}] - World configuration options
+     * @param {number} [options.chunkSize=16] - Size of each chunk
      * @param {Object} [options.debug] - Debug configuration
-     * @param {number} [options.moistureScale=0.01] - Scale factor for moisture generation
-     * @param {number} [options.heightScale=0.01] - Scale factor for height generation
-     * @param {number} [options.seed] - Seed for world generation
      * @param {MapDefinition} [options.mapDefinition] - Static map definition
      */
     constructor(width, height, options = {}) {

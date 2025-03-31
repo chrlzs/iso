@@ -10,8 +10,35 @@ import { CanvasUI } from './components/CanvasUI.js';
 import { HUD } from './components/HUD.js';
 
 /**
+ * @typedef {Object} UIComponent
+ * @property {Function} show - Shows the component
+ * @property {Function} hide - Hides the component
+ * @property {Function} update - Updates component state
+ * @property {Function} render - Renders the component
+ * @property {HTMLElement} [container] - Component's DOM container
+ * @property {Object} [position] - Component position
+ */
+
+/**
+ * @typedef {Object} DialogConfig
+ * @property {string} npcName - Name of speaking NPC
+ * @property {string} text - Dialog text content
+ * @property {Array<DialogOption>} options - Available dialog options
+ */
+
+/**
+ * @typedef {Object} DialogOption
+ * @property {string} text - Option text
+ * @property {Function} action - Option callback function
+ */
+
+/**
  * Manages all UI components and their interactions
  * @class UIManager
+ * @property {GameInstance} game - Reference to main game instance
+ * @property {Map<string, UIComponent>} components - Map of UI components
+ * @property {Set<string>} activeWindows - Currently active window IDs
+ * @property {Set<string>} canvasComponents - Canvas-based UI components
  */
 export class UIManager {
     /**
@@ -179,6 +206,11 @@ export class UIManager {
         ctx.restore();
     }
 
+    /**
+     * Shows a dialog window with the given configuration
+     * @param {DialogConfig} dialogConfig - Dialog configuration
+     * @returns {void}
+     */
     showDialog(dialogConfig) {
         const dialogElement = document.createElement('div');
         dialogElement.className = 'game-dialog';

@@ -1,7 +1,38 @@
 /**
+ * @typedef {Object} ItemConfig
+ * @property {string} id - Unique item identifier
+ * @property {string} name - Item name
+ * @property {string} [description] - Item description
+ * @property {string} type - Item type (weapon, armor, etc)
+ * @property {number} [value=0] - Item value in currency
+ * @property {number} [weight=0] - Item weight
+ * @property {boolean} [isStackable=false] - Whether item can be stacked
+ * @property {string} icon - Item icon URL or data URI
+ * @property {Function} [effect] - Item use effect function
+ * @property {string} [slot] - Equipment slot
+ * @property {number} [damage=0] - Weapon damage
+ * @property {number} [defense=0] - Armor defense
+ * @property {number} [quantity=1] - Item quantity
+ * @property {string} [rarity='common'] - Item rarity
+ */
+
+/**
  * Represents an item in the game
+ * @class Item
+ * @property {string} id - Unique item identifier
+ * @property {string} name - Item name
+ * @property {string} description - Item description
+ * @property {string} type - Item type (weapon, armor, etc)
+ * @property {number} value - Item value in currency
+ * @property {number} weight - Item weight
+ * @property {boolean} isStackable - Whether item can be stacked
+ * @property {string} icon - Item icon URL or data URI
  */
 export class Item {
+    /**
+     * Creates a new Item instance
+     * @param {ItemConfig} config - Item configuration
+     */
     constructor(config) {
         this.id = config.id;
         this.name = config.name;
@@ -19,6 +50,10 @@ export class Item {
         this.rarity = config.rarity || 'common';
     }
 
+    /**
+     * Gets HTML tooltip content for the item
+     * @returns {string} HTML tooltip content
+     */
     getTooltip() {
         let tooltip = `<div class="tooltip-header">${this.name}</div>`;
         

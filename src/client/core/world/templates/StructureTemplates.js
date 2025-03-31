@@ -1,3 +1,46 @@
+/**
+ * @typedef {Object} RoofConfig
+ * @property {string} style - Roof style (flat, gabled, clerestory)
+ * @property {string} color - Roof color in hex or CSS color
+ * @property {number} height - Roof height in pixels
+ * @property {number} [angle] - Roof angle in degrees for sloped roofs
+ * @property {string} [baseColor] - Base color for complex roofs
+ * @property {string} [overlapColor] - Secondary color for complex roofs
+ * @property {number} [overlapHeight] - Height of secondary roof section
+ * @property {number} [overlapWidth] - Width of secondary roof section
+ * @property {number} [overlapExtend] - Overhang amount for roof sections
+ */
+
+/**
+ * @typedef {Object} ChimneyConfig
+ * @property {number} x - Relative X position (0-1)
+ * @property {number} y - Relative Y position (0-1)
+ * @property {number} height - Chimney height in pixels
+ * @property {number} width - Chimney width in pixels
+ * @property {boolean} smokeActive - Whether chimney produces smoke
+ * @property {string} smokeColor - Smoke particle color
+ * @property {number} smokeRate - Smoke emission rate
+ */
+
+/**
+ * @typedef {Object} StructureTemplate
+ * @property {string} type - Structure type identifier
+ * @property {number} width - Structure width in tiles
+ * @property {number} height - Structure height in tiles
+ * @property {number} floors - Number of floors
+ * @property {string} roofType - Type of roof
+ * @property {RoofConfig} roofConfig - Roof configuration
+ * @property {string} material - Building material
+ * @property {Object.<string, boolean>} states - Structure states
+ * @property {Array<Array<string>>} blueprint - Structure blueprint
+ * @property {Array<ChimneyConfig>} [chimneys] - Chimney configurations
+ * @property {string} [zone] - Zone type (residential, commercial, etc)
+ * @property {string} [name] - Structure display name
+ */
+
+/**
+ * @type {Object.<string, StructureTemplate>}
+ */
 export const StructureTemplates = {
     apartment: {
         type: 'apartment',
@@ -184,4 +227,16 @@ export const StructureTemplates = {
     }
 };
 
+/**
+ * Gets a structure template by type
+ * @param {string} type - Structure type identifier
+ * @returns {StructureTemplate|undefined} Structure template or undefined if not found
+ */
 export const getTemplate = (type) => StructureTemplates[type];
+
+/**
+ * Checks if a template exists
+ * @param {string} type - Structure type identifier
+ * @returns {boolean} True if template exists
+ */
+export const hasTemplate = (type) => type in StructureTemplates;

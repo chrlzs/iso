@@ -1,7 +1,56 @@
 /**
- * Manages in-game messages, dialogs, and notifications
+ * Handles in-game messages and dialog system
  * @class MessageSystem
+ * @property {HTMLElement} container - Message container element
+ * @property {boolean} isDisplaying - Whether a message is currently displayed
+ * @property {Array<Message>} messageQueue - Queue of pending messages
  */
+
+/**
+ * @typedef {Object} MessageConfig
+ * @property {string} text - Message content
+ * @property {string} [type='info'] - Message type (info, warning, error)
+ * @property {Array<MessageOption>} [options] - Dialog options
+ * @property {string} [speaker] - Name of speaking character
+ * @property {Function} [onShow] - Callback when message is shown
+ * @property {Function} [onHide] - Callback when message is hidden
+ */
+
+/**
+ * @typedef {Object} MessageOption
+ * @property {string} text - Option text
+ * @property {Function} action - Option callback function
+ */
+
+/**
+ * @typedef {Object} MessageQueue
+ * @property {Array<MessageConfig>} pending - Pending messages
+ * @property {Array<MessageConfig>} history - Message history
+ * @property {number} maxHistory - Maximum history size
+ */
+
+/**
+ * @typedef {Object} MessageEvent
+ * @property {string} type - Event type (show, hide, action)
+ * @property {MessageConfig} message - Related message
+ * @property {number} [index] - Option index if type is action
+ */
+
+/**
+ * @typedef {Object} MessageAnimation
+ * @property {string} type - Animation type (fade, slide, etc)
+ * @property {number} duration - Animation duration in ms
+ * @property {string} [easing] - Easing function name
+ * @property {Function} [onComplete] - Animation complete callback
+ */
+
+/**
+ * @typedef {Object} MessageTransition
+ * @property {MessageAnimation} enter - Enter animation
+ * @property {MessageAnimation} exit - Exit animation
+ * @property {boolean} queueNext - Whether to queue next message
+ */
+
 export class MessageSystem {
     /**
      * Creates a new MessageSystem instance
@@ -24,13 +73,7 @@ export class MessageSystem {
 
     /**
      * Queues a new message for display
-     * @param {Object} messageConfig - Message configuration
-     * @param {string} messageConfig.text - Message content
-     * @param {string} [messageConfig.type='info'] - Message type (info, warning, error)
-     * @param {Array<Object>} [messageConfig.options] - Dialog options
-     * @param {string} [messageConfig.speaker] - Name of speaking character
-     * @param {Function} [messageConfig.onShow] - Callback when message is shown
-     * @param {Function} [messageConfig.onHide] - Callback when message is hidden
+     * @param {MessageConfig} messageConfig - Message configuration
      * @returns {void}
      */
     queueMessage(messageConfig) {
@@ -97,6 +140,11 @@ export class MessageSystem {
         this.messageQueue = [];
     }
 
+    /**
+     * Displays the next message in the queue
+     * @private
+     * @returns {void}
+     */
     displayNextMessage() {
         if (this.messageQueue.length === 0) {
             this.isDisplaying = false;
@@ -152,6 +200,27 @@ export class MessageSystem {
 
         if (message.onShow) {
             message.onShow();
+        }
+    }
+
+    /**
+     * Handles message events
+     * @param {MessageEvent} event - Message event object
+     * @returns {void}
+     * @private
+     */
+    handleMessageEvent(event) {
+        switch (event.type) {
+            case 'show':
+                if (event.message.onShow) event.message.onShow();
+                break;
+            case 'hide':
+                if (event.message.onHide) event.message.onHide();
+                break;
+            case 'action':
+                const option = event.message.options[event.index];
+                if (option?.action) option.action();
+                break;
         }
     }
 

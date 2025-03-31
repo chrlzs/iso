@@ -1,4 +1,61 @@
 /**
+ * @typedef {Object} TileDefinition
+ * @property {string} type - Tile type identifier
+ * @property {Array<string>} variants - Available tile variants
+ * @property {Object} properties - Tile properties
+ * @property {boolean} properties.walkable - Whether tile can be walked on
+ * @property {boolean} properties.buildable - Whether structures can be built on
+ * @property {number} properties.movementCost - Movement cost modifier
+ */
+
+/**
+ * @typedef {Object} TileVariant
+ * @property {string} id - Variant identifier
+ * @property {string} texture - Texture path or ID
+ * @property {Object} [animation] - Animation configuration
+ */
+
+/**
+ * @typedef {Object} TextureGenerationConfig
+ * @property {string} baseColor - Base color in hex format
+ * @property {number} noiseIntensity - Intensity of noise pattern (0-1)
+ * @property {number} [roughness=0.5] - Surface roughness factor
+ * @property {boolean} [usePattern=true] - Whether to apply noise pattern
+ */
+
+/**
+ * @typedef {Object} TileMovementProperties
+ * @property {number} movementCost - Base movement cost
+ * @property {number} slipperiness - Surface slipperiness (0-1)
+ * @property {number} roughness - Surface roughness (0-1)
+ * @property {boolean} isPassable - Whether entities can pass through
+ */
+
+/**
+ * @typedef {Object} TileRenderProperties
+ * @property {number} elevation - Base elevation modifier
+ * @property {boolean} isTransparent - Whether tile is transparent
+ * @property {boolean} castsShadow - Whether tile casts shadows
+ * @property {Object} [animationProps] - Animation properties
+ */
+
+/**
+ * @typedef {Object} TileGroup
+ * @property {string} id - Group identifier
+ * @property {Array<string>} types - Tile types in this group
+ * @property {Object} [properties] - Shared group properties
+ * @property {Function} [validator] - Group validation function
+ */
+
+/**
+ * @typedef {Object} TextureGenerationResult
+ * @property {HTMLCanvasElement} canvas - Generated texture canvas
+ * @property {string} id - Texture identifier
+ * @property {boolean} success - Whether generation succeeded
+ * @property {Error} [error] - Error if generation failed
+ */
+
+/**
  * Manages tile properties, textures, and surface types for the game world
  * @class TileManager
  */
@@ -48,6 +105,8 @@ export class TileManager {
     constructor(debug = false) {
         this.debug = debug;
         this.textures = new Map();
+        this.tileDefinitions = new Map();
+        this.variants = new Map();
         
         // Define variants for each tile type
         this.variants = {
@@ -188,13 +247,22 @@ export class TileManager {
         });
     }
 
-    createNoisePattern(baseColor) {
+    /**
+     * Creates a noise pattern for tile textures
+     * @param {string} baseColor - Base color in hex format
+     * @param {Object} [options] - Pattern generation options
+     * @param {number} [options.size=4] - Pattern size in pixels
+     * @param {number} [options.intensity=5] - Color variation intensity
+     * @returns {HTMLCanvasElement} Pattern canvas element
+     * @private
+     */
+    createNoisePattern(baseColor, options = {}) {
         const patternCanvas = document.createElement('canvas');
-        patternCanvas.width = 4;
-        patternCanvas.height = 4;
+        patternCanvas.width = options.size || 4;
+        patternCanvas.height = options.size || 4;
         const patternCtx = patternCanvas.getContext('2d');
 
-        patternCtx.fillStyle = this.adjustColor(baseColor, 5);
+        patternCtx.fillStyle = this.adjustColor(baseColor, options.intensity || 5);
         patternCtx.fillRect(0, 0, 2, 2);
         patternCtx.fillRect(2, 2, 2, 2);
 
@@ -212,6 +280,13 @@ export class TileManager {
         return Math.floor(Math.random() * variantCount) + 1;
     }
 
+    /**
+     * Adjusts a color by a given amount
+     * @param {string} color - Base color in hex format
+     * @param {number} amount - Amount to adjust (-255 to 255)
+     * @returns {string} Adjusted color in hex format
+     * @private
+     */
     adjustColor(color, amount) {
         const hex = color.replace('#', '');
         const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
@@ -263,6 +338,15 @@ export class TileManager {
 
     getSurfaceType(tileType) {
         return this.surfaceProperties.get(tileType) ?? TileManager.SURFACE_TYPES.SOLID;
+    }
+
+    /**
+     * Registers a new tile type
+     * @param {string} type - Tile type identifier
+     * @param {TileDefinition} definition - Tile definition
+     */
+    registerTileType(type, definition) {
+        this.tileDefinitions.set(type, definition);
     }
 }
 
