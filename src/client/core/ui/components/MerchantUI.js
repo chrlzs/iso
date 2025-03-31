@@ -1,4 +1,16 @@
+/**
+ * Manages the merchant trading interface
+ * @class MerchantUI
+ * @extends UIComponent
+ */
 export class MerchantUI {
+    /**
+     * Creates a new MerchantUI instance
+     * @param {Object} config - Configuration object
+     * @param {GameInstance} config.game - Reference to game instance
+     * @param {number} [config.width=800] - Width of merchant window
+     * @param {number} [config.height=600] - Height of merchant window
+     */
     constructor(config) {
         this.game = config.game;
         this.merchant = null;
@@ -176,10 +188,14 @@ export class MerchantUI {
         });
     }
 
-    handleMerchantSlotClick(slotIndex) {
-        const item = this.merchant.inventory.getSlot(slotIndex);
-        if (!item) return;
-
+    /**
+     * Handles item purchase from merchant
+     * @param {Item} item - Item being purchased
+     * @param {number} quantity - Quantity to purchase
+     * @returns {boolean} Success status of purchase
+     * @private
+     */
+    handlePurchase(item, quantity) {
         const price = this.merchant.getSellPrice(item);
         const playerEth = Number(this.game.player.inventory.eth || 0);
         
@@ -190,9 +206,10 @@ export class MerchantUI {
         });
         
         if (playerEth >= price) {
-            if (this.merchant.sellToPlayer(slotIndex, 1, this.game.player)) {
+            if (this.merchant.sellToPlayer(item.slotIndex, quantity, this.game.player)) {
                 console.log('Purchase successful');
                 this.refresh();
+                return true;
             }
         } else {
             console.log('Insufficient ETH:', {
@@ -200,12 +217,17 @@ export class MerchantUI {
                 available: playerEth
             });
         }
+        return false;
     }
 
-    handlePlayerSlotClick(slotIndex) {
-        const item = this.game.player.inventory.getSlot(slotIndex);
-        if (!item) return;
-
+    /**
+     * Handles selling item to merchant
+     * @param {Item} item - Item being sold
+     * @param {number} quantity - Quantity to sell
+     * @returns {boolean} Success status of sale
+     * @private
+     */
+    handleSale(item, quantity) {
         const price = this.merchant.getBuyPrice(item);
         const merchantEth = Number(this.merchant.inventory.eth || 0);
         
@@ -218,9 +240,10 @@ export class MerchantUI {
         });
         
         if (merchantEth >= price) {
-            if (this.merchant.buyFromPlayer(slotIndex, 1, this.game.player)) {
+            if (this.merchant.buyFromPlayer(item.slotIndex, quantity, this.game.player)) {
                 console.log('Sale successful');
                 this.refresh();
+                return true;
             }
         } else {
             console.log('Merchant has insufficient ETH:', {
@@ -228,8 +251,14 @@ export class MerchantUI {
                 available: merchantEth
             });
         }
+        return false;
     }
 
+    /**
+     * Shows the merchant interface with specified merchant
+     * @param {Merchant} merchant - The merchant to trade with
+     * @returns {void}
+     */
     show(merchant) {
         if (!merchant || !merchant.inventory) {
             console.error('Invalid merchant or merchant inventory:', {
@@ -374,6 +403,15 @@ export class MerchantUI {
             }
         }
         return html;
+    }
+
+    /**
+     * Updates merchant interface elements
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
+    update(deltaTime) {
+        // Placeholder for future update logic
     }
 }
 

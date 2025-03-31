@@ -10,6 +10,7 @@ import { UIManager } from './ui/UIManager.js';
 import { MessageSystem } from './ui/MessageSystem.js';
 import { InventoryUI } from './ui/components/InventoryUI.js';
 import { MerchantUI } from './ui/components/MerchantUI.js';
+import { MinimapUI } from './ui/components/MinimapUI.js';
 import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
@@ -286,6 +287,12 @@ export class GameInstance {
         this.uiManager = new UIManager(this);
         this.messageSystem = new MessageSystem(this);
         
+        // Initialize minimap
+        this.minimap = new MinimapUI(this, {
+            size: 200,  // Size in pixels
+            scale: 0.1  // Scale factor for world to minimap conversion
+        });
+
         // Setup debug controls and input handlers
         console.log('Setting up debug controls...');
         this.setupDebugControls();
@@ -796,6 +803,11 @@ export class GameInstance {
         // Render UI on top of everything
         if (this.uiManager) {
             this.uiManager.render(this.ctx);
+        }
+
+        // Render minimap last (on top of everything)
+        if (this.minimap) {
+            this.minimap.render();
         }
     }
 

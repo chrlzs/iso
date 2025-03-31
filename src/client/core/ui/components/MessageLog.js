@@ -1,4 +1,19 @@
+/**
+ * Manages and displays in-game messages, notifications, and combat feedback
+ * @class MessageLog
+ */
 export class MessageLog {
+    /**
+     * Creates a new MessageLog instance
+     * @param {Object} config - Configuration object
+     * @param {GameInstance} config.game - Reference to game instance
+     * @param {Object} config.position - Log position
+     * @param {number} config.position.x - X coordinate
+     * @param {number} config.position.y - Y coordinate
+     * @param {number} [config.width=300] - Log width in pixels
+     * @param {number} [config.height=100] - Log height in pixels
+     * @param {number} [config.messageLifetime=5000] - Message display duration in ms
+     */
     constructor(config) {
         if (!config || !config.position) {
             throw new Error('MessageLog requires configuration with position');
@@ -15,6 +30,12 @@ export class MessageLog {
         this.font = '12px Arial';
     }
 
+    /**
+     * Adds a new message to the log
+     * @param {string} text - Message content
+     * @param {string} [type='info'] - Message type (info, warning, error, combat)
+     * @returns {void}
+     */
     addMessage(message) {
         // Split long messages into multiple lines
         const ctx = this.game.ctx;
@@ -46,6 +67,20 @@ export class MessageLog {
         }
     }
 
+    /**
+     * Updates message states and animations
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
+    update(deltaTime) {
+        // Update logic here if needed
+    }
+
+    /**
+     * Renders the message log
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+     * @returns {void}
+     */
     render(ctx) {
         if (!ctx || !this.position) return;
 
@@ -65,8 +100,12 @@ export class MessageLog {
         });
     }
 
-    update(deltaTime) {
-        // Update logic here if needed
+    /**
+     * Clears all messages from the log
+     * @returns {void}
+     */
+    clear() {
+        this.messages = [];
     }
 }
 
