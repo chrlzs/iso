@@ -53,6 +53,29 @@
  * @property {number} y - Base Y coordinate
  */
 
+/**
+ * @typedef {Object} InteractionResult
+ * @property {boolean} success - Whether interaction succeeded
+ * @property {string} [message] - Result message
+ * @property {Function} [callback] - Post-interaction callback
+ */
+
+/**
+ * @typedef {Object} StateTransition
+ * @property {string} from - Current state
+ * @property {string} to - Target state
+ * @property {boolean} instant - Whether transition is instant
+ * @property {number} [duration] - Transition duration in ms
+ */
+
+/**
+ * @typedef {Object} RenderLayer
+ * @property {number} order - Render order
+ * @property {boolean} isVisible - Layer visibility
+ * @property {Function} render - Layer render function
+ * @property {Object} [effects] - Visual effects
+ */
+
 export class Structure {
     /**
      * Creates a new Structure instance

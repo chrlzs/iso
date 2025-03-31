@@ -52,6 +52,96 @@
  */
 
 /**
+ * @typedef {Object} TerrainParams
+ * @property {number} baseHeight - Base terrain height
+ * @property {number} roughness - Terrain roughness factor
+ * @property {number} persistence - Height persistence
+ * @property {Object} biomeWeights - Biome influence weights
+ */
+
+/**
+ * @typedef {Object} BiomeDefinition
+ * @property {string} type - Biome type identifier
+ * @property {number} minHeight - Minimum height for biome
+ * @property {number} minMoisture - Minimum moisture for biome
+ * @property {number} temperatureRange - Temperature range
+ * @property {Array<string>} validTileTypes - Allowed tile types
+ */
+
+/**
+ * @typedef {Object} GenerationProgress
+ * @property {number} current - Current progress value
+ * @property {number} total - Total work units
+ * @property {string} phase - Current generation phase
+ * @property {string} status - Status message
+ */
+
+/**
+ * @typedef {Object} WeatherParams
+ * @property {number} temperature - Base temperature in Celsius
+ * @property {number} humidity - Relative humidity (0-1)
+ * @property {number} windSpeed - Wind speed in m/s
+ * @property {number} windDirection - Wind direction in radians
+ * @property {number} precipitation - Precipitation chance (0-1)
+ */
+
+/**
+ * @typedef {Object} EnvironmentEffects
+ * @property {Object} lighting - Lighting conditions
+ * @property {number} lighting.ambient - Ambient light level (0-1)
+ * @property {string} lighting.color - Light color in hex
+ * @property {Object} particles - Particle effect settings
+ * @property {Object} atmosphere - Atmospheric conditions
+ */
+
+/**
+ * @typedef {Object} ClimateZone 
+ * @property {string} type - Climate type
+ * @property {number} temperature - Base temperature
+ * @property {number} rainfall - Annual rainfall
+ * @property {Object} seasonalEffects - Effects per season
+ */
+
+/**
+ * @typedef {Object} BiomeTransition
+ * @property {string} fromBiome - Source biome type
+ * @property {string} toBiome - Target biome type
+ * @property {number} blendFactor - Transition blend factor
+ * @property {Function} transitionFunction - Blending function
+ */
+
+/**
+ * @typedef {Object} ParticleSystemConfig
+ * @property {string} type - Particle system type
+ * @property {number} rate - Particle emission rate
+ * @property {Object} behavior - Particle behavior settings
+ * @property {Function} update - Update function
+ */
+
+/**
+ * @typedef {Object} RenderingConfig
+ * @property {Object} lighting - Lighting configuration
+ * @property {Object} effects - Post-processing effects
+ * @property {Object} layers - Render layer settings
+ */
+
+/**
+ * @typedef {Object} SimulationSnapshot
+ * @property {number} timestamp - Snapshot timestamp
+ * @property {Object} state - World state data
+ * @property {Array<string>} activeEffects - Active effects
+ * @property {Map<string, Object>} entityStates - Entity states
+ */
+
+/**
+ * @typedef {Object} RegionCache
+ * @property {string} id - Region identifier
+ * @property {Object} data - Cached region data
+ * @property {number} lastAccess - Last access timestamp
+ * @property {boolean} isDirty - Whether data needs saving
+ */
+
+/**
  * Handles procedural world generation
  * @class WorldGenerator
  * @property {TileManager} tileManager - Reference to tile manager
@@ -190,6 +280,37 @@ export class WorldGenerator {
      * @returns {Array<MapStructure>} Generated structures
      */
     generateUrbanArea(centerX, centerY, radius, config) {
+        // Implementation to be added
+    }
+
+    /**
+     * Applies environmental effects to a region
+     * @param {number} x - Region center X
+     * @param {number} y - Region center Y
+     * @param {WeatherParams} weather - Weather parameters
+     * @param {EnvironmentEffects} effects - Environment effects
+     */
+    applyEnvironmentalEffects(x, y, weather, effects) {
+        // Implementation to be added
+    }
+
+    /**
+     * Generates a climate zone for a region
+     * @param {number} latitude - Latitude coordinate
+     * @param {number} elevation - Elevation in meters
+     * @param {Object} options - Generation options
+     * @returns {ClimateZone} Generated climate zone
+     */
+    generateClimateZone(latitude, elevation, options) {
+        // Implementation to be added
+    }
+
+    /**
+     * Creates a particle system for environmental effects
+     * @param {ParticleSystemConfig} config - Particle system configuration
+     * @returns {Object} Particle system instance
+     */
+    createParticleSystem(config) {
         // Implementation to be added
     }
 }

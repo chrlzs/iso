@@ -50,6 +50,28 @@
  */
 
 /**
+ * @typedef {Object} PathSystem
+ * @property {Array<RoadDefinition>} roads - Road definitions
+ * @property {Array<PathNode>} nodes - Path nodes
+ * @property {Function} findPath - Pathfinding function
+ */
+
+/**
+ * @typedef {Object} PathNode
+ * @property {Point} position - Node position
+ * @property {Array<string>} connections - Connected node IDs
+ * @property {string} type - Node type (intersection, endpoint)
+ */
+
+/**
+ * @typedef {Object} Region
+ * @property {string} id - Region identifier
+ * @property {Array<Point>} bounds - Region boundary points
+ * @property {string} type - Region type
+ * @property {Object} properties - Region properties
+ */
+
+/**
  * Map definition for static world generation
  * @class MapDefinition
  */

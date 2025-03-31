@@ -56,6 +56,71 @@
  */
 
 /**
+ * @typedef {Object} SeasonalProperties
+ * @property {Object} spring - Spring tile properties
+ * @property {Object} summer - Summer tile properties
+ * @property {Object} autumn - Autumn tile properties
+ * @property {Object} winter - Winter tile properties
+ * @property {Function} getForDate - Gets properties for specific date
+ */
+
+/**
+ * @typedef {Object} WeatherEffect
+ * @property {string} type - Effect type (rain, snow, etc)
+ * @property {number} intensity - Effect intensity (0-1)
+ * @property {Object} visualProps - Visual properties
+ * @property {Function} apply - Applies effect to tile
+ */
+
+/**
+ * @typedef {Object} TextureCache
+ * @property {Map<string, HTMLCanvasElement>} cache - Cached textures
+ * @property {number} maxSize - Maximum cache size
+ * @property {Function} cleanup - Cache cleanup function
+ */
+
+/**
+ * @typedef {Object} TileTransition
+ * @property {string} from - Starting tile type
+ * @property {string} to - Target tile type
+ * @property {number} duration - Transition duration
+ * @property {Function} update - Transition update function
+ */
+
+/**
+ * @typedef {Object} TextureAnimation
+ * @property {number} frames - Number of animation frames
+ * @property {number} speed - Animation speed
+ * @property {boolean} loop - Whether animation loops
+ * @property {Function} onComplete - Animation complete callback
+ */
+
+/**
+ * @typedef {Object} TileEffect
+ * @property {string} id - Effect identifier
+ * @property {number} duration - Effect duration
+ * @property {Function} apply - Effect application function
+ * @property {Function} remove - Effect removal function
+ */
+
+/**
+ * @typedef {Object} EnvironmentModifier
+ * @property {string} id - Modifier identifier
+ * @property {Function} apply - Apply modifier to tile
+ * @property {Function} remove - Remove modifier from tile
+ * @property {number} duration - Duration in milliseconds
+ * @property {Object} [params] - Additional parameters
+ */
+
+/**
+ * @typedef {Object} TerrainDeformation
+ * @property {string} type - Deformation type (crater, trench, etc)
+ * @property {number} scale - Size of deformation
+ * @property {number} depth - Depth of deformation
+ * @property {Function} blend - Terrain blending function
+ */
+
+/**
  * Manages tile properties, textures, and surface types for the game world
  * @class TileManager
  */
@@ -347,6 +412,24 @@ export class TileManager {
      */
     registerTileType(type, definition) {
         this.tileDefinitions.set(type, definition);
+    }
+
+    /**
+     * Applies weather effects to tiles
+     * @param {string} tileType - Tile type to affect
+     * @param {WeatherEffect} effect - Weather effect to apply
+     */
+    applyWeatherEffect(tileType, effect) {
+        // Implementation to be added
+    }
+
+    /**
+     * Applies an effect to a tile
+     * @param {string} tileId - Tile identifier
+     * @param {TileEffect} effect - Effect to apply
+     */
+    applyEffect(tileId, effect) {
+        // Implementation to be added
     }
 }
 

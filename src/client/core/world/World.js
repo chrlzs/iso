@@ -52,6 +52,21 @@ import { WorldGenerator } from './WorldGenerator.js';
  */
 
 /**
+ * @typedef {Object} WorldSimulationState
+ * @property {number} timeOfDay - Current time of day (0-24)
+ * @property {number} dayOfYear - Current day of year
+ * @property {Object} weather - Current weather state
+ * @property {Set<string>} activeEffects - Active world effects
+ */
+
+/**
+ * @typedef {Object} WorldUpdateEvent
+ * @property {string} type - Event type
+ * @property {Object} data - Event data
+ * @property {Function} handle - Event handler
+ */
+
+/**
  * Represents the game world and manages world state
  * @class World
  * @property {number} width - World width in tiles
