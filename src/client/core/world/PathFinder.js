@@ -18,7 +18,7 @@ export class PathFinder {
         this.gScore = new Map();
         this.fScore = new Map();
 
-        this.maxIterations = options.maxIterations || 1000;
+        this.maxIterations = 2000; // Increase max iterations from default to 2000
         this.maxPathLength = options.maxPathLength || 100;
         this.currentStructure = null; // Track which structure the player is in
     }

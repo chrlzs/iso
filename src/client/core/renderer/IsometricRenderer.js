@@ -236,7 +236,9 @@ export class IsometricRenderer {
             'parking': '#37474F',    // Dark blue-gray
             'tree': '#2E7D32',       // Dark green
             'bush': '#388E3C',       // Medium green
-            'door': '#FFD700'        // Gold
+            'door': '#FFD700',       // Gold
+            'road': '#333333',       // Dark gray for roads
+            'walkway': '#CCCCCC'     // Light gray for walkways
         };
 
         const color = colors[tileType];
@@ -247,6 +249,7 @@ export class IsometricRenderer {
         return color;
     }
 }
+
 
 
 

@@ -14,7 +14,8 @@ export function createRemixedMap() {
         'water', 'wetland', 'sand', 'dirt', 'grass',
         'forest', 'mountain', 'concrete', 'asphalt', 'metal',
         'tiles', 'gravel', 'solar', 'garden', 'door',
-        'helipad', 'parking', 'tree', 'bush'
+        'helipad', 'parking', 'tree', 'bush', 'road',
+        'walkway'
     ];
 
     // Create a larger display area for the palette
@@ -111,6 +112,48 @@ export function createRemixedMap() {
     // Add decorations to map
     decorations.forEach(dec => {
         mapDef.addDecoration(dec);
+    });
+
+    // Add roads connecting structures
+    const roads = [
+        // Main road
+        { start: { x: 30, y: 20 }, end: { x: 50, y: 40 }, width: 2 },
+        // Connection to tech hub
+        { start: { x: 50, y: 40 }, end: { x: 60, y: 60 }, width: 2 }
+    ];
+
+    // Add walkways in tech hub
+    const walkways = [
+        { start: { x: 60, y: 60 }, end: { x: 65, y: 60 } },
+        { start: { x: 60, y: 65 }, end: { x: 65, y: 65 } }
+    ];
+
+    // Place roads
+    roads.forEach(road => {
+        const { start, end, width = 1 } = road;
+        const dx = Math.sign(end.x - start.x);
+        const dy = Math.sign(end.y - start.y);
+        let x = start.x, y = start.y;
+
+        while (x !== end.x || y !== end.y) {
+            mapDef.setTile(x, y, { height: 0.5, moisture: 0.3, type: 'road' });
+            if (x !== end.x) x += dx;
+            if (y !== end.y) y += dy;
+        }
+    });
+
+    // Place walkways
+    walkways.forEach(walkway => {
+        const { start, end } = walkway;
+        const dx = Math.sign(end.x - start.x);
+        const dy = Math.sign(end.y - start.y);
+        let x = start.x, y = start.y;
+
+        while (x !== end.x || y !== end.y) {
+            mapDef.setTile(x, y, { height: 0.5, moisture: 0.3, type: 'walkway' });
+            if (x !== end.x) x += dx;
+            if (y !== end.y) y += dy;
+        }
     });
 
     // Set spawn points

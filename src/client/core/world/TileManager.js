@@ -163,6 +163,8 @@ export class TileManager {
         PARKING: 'parking',
         TREE: 'tree',          // Add tree type
         BUSH: 'bush',          // Add bush type for completeness
+        ROAD: 'road',          // Add road type
+        WALKWAY: 'walkway',    // Add walkway type
         STONE: 'stone'         // Add stone type
     };
 
@@ -199,6 +201,8 @@ export class TileManager {
             parking: 1,
             tree: 2,       // Add tree variants
             bush: 1,       // Add bush variant
+            road: 2,       // Add road variants
+            walkway: 2,    // Add walkway variants
             stone: 2       // Add stone with 2 variants
         };
 
@@ -223,6 +227,8 @@ export class TileManager {
             parking: '#37474F',     // Dark blue-gray
             tree: '#2E7D32',       // Dark green (same as forest)
             bush: '#388E3C',       // Medium green
+            road: '#333333',       // Darker asphalt base
+            walkway: '#CCCCCC',    // Light concrete base
             stone: '#787878'       // Gray color for stone
         };
 
@@ -247,6 +253,8 @@ export class TileManager {
             ['parking', TileManager.SURFACE_TYPES.SOLID],
             ['tree', TileManager.SURFACE_TYPES.IMPASSABLE],
             ['bush', TileManager.SURFACE_TYPES.ROUGH],
+            ['road', TileManager.SURFACE_TYPES.SOLID],
+            ['walkway', TileManager.SURFACE_TYPES.SOLID],
             ['stone', TileManager.SURFACE_TYPES.ROUGH]
         ]);
 
@@ -314,6 +322,8 @@ export class TileManager {
             'parking',
             'tree',
             'bush',
+            'road',
+            'walkway',
             'stone'
         ];
 
@@ -373,39 +383,105 @@ export class TileManager {
                 canvas.width = 64;
                 canvas.height = 64;
                 const ctx = canvas.getContext('2d');
+                const normalizedType = type.toLowerCase();
 
-                let texturePromise;
-                switch (type) {
-                    case 'door':
-                        texturePromise = this.generateDoorTexture();
+                switch (normalizedType) {
+                    case 'road':
+                        this.generateRoadTexture(ctx, canvas, color);
+                        // Store both road and variants
+                        this.textures.set('road', canvas);
+                        // Generate and store road variants if needed
+                        if (this.variants['road']) {
+                            for (let i = 1; i <= this.variants['road']; i++) {
+                                const varCanvas = document.createElement('canvas');
+                                varCanvas.width = 64;
+                                varCanvas.height = 64;
+                                this.generateRoadTexture(varCanvas.getContext('2d'), varCanvas, color);
+                                this.textures.set(`road_var${i}`, varCanvas);
+                            }
+                        }
                         break;
-                    case TileManager.TILE_TYPES.WATER:
-                        this.generateWaterTexture(ctx, canvas, color);
-                        texturePromise = Promise.resolve(canvas);
-                        break;
-                    case TileManager.TILE_TYPES.TREE:
-                    case TileManager.TILE_TYPES.BUSH:
-                        this.generateNaturalTexture(ctx, canvas, type, color);
-                        texturePromise = Promise.resolve(canvas);
-                        break;
-                    case TileManager.TILE_TYPES.HELIPAD:
-                        this.generateHelipadTexture(ctx, canvas, color);
-                        texturePromise = Promise.resolve(canvas);
+                    case 'walkway':
+                        this.generateWalkwayTexture(ctx, canvas, color);
+                        // Store both walkway and variants
+                        this.textures.set('walkway', canvas);
+                        // Generate and store walkway variants if needed
+                        if (this.variants['walkway']) {
+                            for (let i = 1; i <= this.variants['walkway']; i++) {
+                                const varCanvas = document.createElement('canvas');
+                                varCanvas.width = 64;
+                                varCanvas.height = 64;
+                                this.generateWalkwayTexture(varCanvas.getContext('2d'), varCanvas, color);
+                                this.textures.set(`walkway_var${i}`, varCanvas);
+                            }
+                        }
                         break;
                     default:
                         this.generateStandardTexture(ctx, canvas, type, color);
-                        texturePromise = Promise.resolve(canvas);
+                        this.textures.set(normalizedType, canvas);
                 }
 
-                texturePromise.then(texture => {
-                    this.textures.set(type, texture);
-                    resolve(texture);
-                }).catch(reject);
+                if (this.debug) {
+                    console.log(`Generated texture for ${normalizedType}:`, {
+                        color,
+                        hasTexture: this.textures.has(normalizedType),
+                        availableTextures: Array.from(this.textures.keys())
+                    });
+                }
 
+                resolve(canvas);
             } catch (error) {
+                console.error(`Failed to generate texture for ${type}:`, error);
                 reject(error);
             }
         });
+    }
+
+    generateRoadTexture(ctx, canvas, baseColor) {
+        // Base asphalt
+        ctx.fillStyle = baseColor || '#333333';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add noise pattern for texture
+        const noisePattern = this.createNoisePattern(baseColor);
+        ctx.fillStyle = ctx.createPattern(noisePattern, 'repeat');
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1.0;
+
+        // Add center line
+        ctx.strokeStyle = '#FFE135';  // Yellow line
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, 0);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);  // Reset dash
+    }
+
+    generateWalkwayTexture(ctx, canvas, baseColor) {
+        // Base concrete
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add grid pattern
+        ctx.strokeStyle = this.adjustColor(baseColor, -20);
+        ctx.lineWidth = 1;
+
+        // Draw grid
+        for (let i = 4; i < canvas.width; i += 8) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+        for (let i = 4; i < canvas.height; i += 8) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
     }
 
     generateDoorTexture(width = 64, height = 64) {
@@ -581,8 +657,26 @@ export class TileManager {
     }
 
     getTexture(tileType, variant) {
-        const key = variant ? `${tileType}_var${variant}` : tileType;
-        return this.textures.get(key);
+        // Normalize the type to lowercase
+        const normalizedType = tileType.toLowerCase();
+        // Build the texture key based on variant
+        const key = variant ? `${normalizedType}_var${variant}` : normalizedType;
+
+        let texture = this.textures.get(key);
+        
+        // If texture not found, try to get base texture
+        if (!texture && variant) {
+            texture = this.textures.get(normalizedType);
+        }
+
+        // If still no texture, regenerate it
+        if (!texture && this.tileColors[normalizedType]) {
+            console.warn(`Regenerating missing texture for ${normalizedType}`);
+            this.generateTexture(normalizedType, this.tileColors[normalizedType])
+                .then(() => console.log(`Generated texture for ${normalizedType}`));
+        }
+
+        return texture;
     }
 
     getRandomVariant(tileType) {
