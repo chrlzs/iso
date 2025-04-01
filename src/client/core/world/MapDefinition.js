@@ -78,54 +78,59 @@
 export class MapDefinition {
     /**
      * Creates a new map definition
-     * @param {Object} config - Map configuration
-     * @param {number} [config.width=64] - Map width
-     * @param {number} [config.height=64] - Map height
-     * @param {number} [config.seed=Math.random() * 10000] - Random seed for generation
-     * @param {Array<TerrainDefinition>} [config.terrain=[]] - Terrain definitions
-     * @param {Array<MapStructure>} [config.structures=[]] - Structure placements
-     * @param {Array<Object>} [config.zones=[]] - Zones for urban generation
-     * @param {Array<Object>} [config.roads=[]] - Roads definitions
-     * @param {Array<Object>} [config.spawnPoints=[]] - Spawn points
-     * @param {Array<Object>} [config.landmarks=[]] - Landmarks
+     * @param {number} width - Map width
+     * @param {number} height - Map height
      */
-    constructor(config) {
-        this.width = config.width || 64;
-        this.height = config.height || 64;
-        this.seed = config.seed || Math.random() * 10000;
-
-        // Static terrain features
-        this.terrain = config.terrain || []; // Array of {x, y, type, height, moisture}
-
-        // Static structures
-        this.structures = config.structures || []; // Array of {x, y, type}
-
-        // Zones for urban generation
-        this.zones = config.zones || []; // Array of {type, x, y, size}
-
-        // Roads
-        this.roads = config.roads || []; // Array of {start: {x, y}, end: {x, y}, importance}
-
-        // Special points
-        this.spawnPoints = config.spawnPoints || []; // Array of {x, y}
-        this.landmarks = config.landmarks || []; // Array of {x, y, type}
+    constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.tiles = new Array(width * height);
+        this.structures = [];
+        this.decorations = [];
+        this.spawnPoints = [];
     }
 
     /**
-     * Validates the map definition
+     * Sets tile data at specified coordinates
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {Object} data - Tile data
      */
-    validate() {
-        // Validation logic here
+    setTile(x, y, data) {
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            this.tiles[y * this.width + x] = data;
+        }
     }
 
     /**
-     * Creates an empty map definition
-     * @param {number} [width=64] - Map width
-     * @param {number} [height=64] - Map height
-     * @returns {MapDefinition} - New empty map definition
+     * Gets tile data at specified coordinates
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @returns {Object|null} - Tile data or null if out of bounds
      */
-    static createEmpty(width = 64, height = 64) {
-        return new MapDefinition({ width, height });
+    getTile(x, y) {
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            return this.tiles[y * this.width + x];
+        }
+        return null;
+    }
+
+    /**
+     * Adds a new structure to the map
+     * @param {MapStructure} structure - Structure configuration
+     * @returns {void}
+     */
+    addStructure(structure) {
+        this.structures.push(structure);
+    }
+
+    /**
+     * Adds a new decoration to the map
+     * @param {Object} decoration - Decoration configuration
+     * @returns {void}
+     */
+    addDecoration(decoration) {
+        this.decorations.push(decoration);
     }
 
     /**

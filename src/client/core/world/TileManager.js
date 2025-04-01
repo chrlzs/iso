@@ -168,9 +168,11 @@ export class TileManager {
     /**
      * Creates a new TileManager instance
      * @param {Object} [debug=false] - Debug configuration
+     * @param {AssetManager} [assetManager] - Asset manager instance
      */
-    constructor(debug = false) {
+    constructor(debug = false, assetManager = null) {
         this.debug = debug;
+        this.assetManager = assetManager;
         this.textures = new Map();
         this.tileDefinitions = new Map();
         this.variants = new Map();
@@ -287,55 +289,39 @@ export class TileManager {
      * @throws {Error} If texture loading fails
      */
     async loadTextures() {
-        console.log('TileManager: Starting texture loading...');
-        const startTime = performance.now();
-        const loadPromises = [];
-        const missingTextures = [];
-
-        // Get all possible tile types from TILE_TYPES enum
-        const allTileTypes = Object.values(TileManager.TILE_TYPES);
-        
-        for (const tileType of allTileTypes) {
-            if (!this.tileColors[tileType]) {
-                console.warn(`Missing color definition for tile type: ${tileType}`);
-                missingTextures.push(tileType);
-                // Set a default color for missing definitions
-                this.tileColors[tileType] = '#FF00FF'; // Magenta for missing textures
-            }
-
-            const baseColor = this.tileColors[tileType];
-            const variantCount = this.variants[tileType] || 1;
-
-            // Generate base texture
-            loadPromises.push(this.generateTexture(tileType, baseColor).catch(err => {
-                console.error(`Failed to generate texture for ${tileType}:`, err);
-            }));
-
-            // Generate variants
-            for (let i = 1; i <= variantCount; i++) {
-                const variantKey = `${tileType}_var${i}`;
-                const variantColor = this.adjustColor(baseColor, i * 5);
-                loadPromises.push(this.generateTexture(variantKey, variantColor).catch(err => {
-                    console.error(`Failed to generate variant texture ${variantKey}:`, err);
-                }));
-            }
-        }
+        console.time('texture-loading');
+        const textureTypes = [
+            'water',
+            'wetland',
+            'sand',
+            'dirt',
+            'grass',
+            'forest',
+            'mountain',
+            'concrete',
+            'asphalt',
+            'metal',
+            'tiles',
+            'gravel',
+            'solar',
+            'garden',
+            'door',  // Add door to texture types
+            'helipad',
+            'parking',
+            'tree',
+            'bush'
+        ];
 
         try {
-            await Promise.all(loadPromises);
+            await Promise.all(textureTypes.map(type => this.generateTexture(type, this.tileColors[type])));
             const endTime = performance.now();
             console.log('TileManager: Texture loading complete', {
-                duration: `${(endTime - startTime).toFixed(2)}ms`,
-                totalTextures: this.textures.size,
-                missingDefinitions: missingTextures
+                duration: `${(endTime - performance.now()).toFixed(2)}ms`,
+                totalTextures: this.textures.size
             });
-            
-            // Validate all textures were created
-            this.validateTextureCompleteness(allTileTypes);
-            
             this.texturesLoaded = true;
         } catch (error) {
-            console.error('TileManager: Critical error during texture loading:', error);
+            console.error('Failed to load textures:', error);
             throw error;
         }
     }
@@ -375,39 +361,81 @@ export class TileManager {
         }
     }
 
-    generateTexture(name, baseColor) {
-        return new Promise((resolve) => {
-            const texture = window.gameInstance.assetManager.createTempTexture(
-                `tile_${name}`,
-                64,
-                32,
-                (ctx, canvas) => {
-                    // Clear canvas
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    generateTexture(type, color) {
+        return new Promise((resolve, reject) => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
 
-                    switch(name) {
-                        case TileManager.TILE_TYPES.WATER:
-                            this.generateWaterTexture(ctx, canvas, baseColor);
-                            break;
-                        case TileManager.TILE_TYPES.TREE:
-                        case TileManager.TILE_TYPES.BUSH:
-                            this.generateNaturalTexture(ctx, canvas, name, baseColor);
-                            break;
-                        case TileManager.TILE_TYPES.DOOR:
-                            this.generateDoorTexture(ctx, canvas, baseColor);
-                            break;
-                        case TileManager.TILE_TYPES.HELIPAD:
-                            this.generateHelipadTexture(ctx, canvas, baseColor);
-                            break;
-                        default:
-                            this.generateStandardTexture(ctx, canvas, name, baseColor);
-                    }
+                let texturePromise;
+                switch (type) {
+                    case 'door':
+                        texturePromise = this.generateDoorTexture();
+                        break;
+                    case TileManager.TILE_TYPES.WATER:
+                        this.generateWaterTexture(ctx, canvas, color);
+                        texturePromise = Promise.resolve(canvas);
+                        break;
+                    case TileManager.TILE_TYPES.TREE:
+                    case TileManager.TILE_TYPES.BUSH:
+                        this.generateNaturalTexture(ctx, canvas, type, color);
+                        texturePromise = Promise.resolve(canvas);
+                        break;
+                    case TileManager.TILE_TYPES.HELIPAD:
+                        this.generateHelipadTexture(ctx, canvas, color);
+                        texturePromise = Promise.resolve(canvas);
+                        break;
+                    default:
+                        this.generateStandardTexture(ctx, canvas, type, color);
+                        texturePromise = Promise.resolve(canvas);
                 }
-            );
-            
-            this.textures.set(name, texture);
-            resolve();
+
+                texturePromise.then(texture => {
+                    this.textures.set(type, texture);
+                    resolve(texture);
+                }).catch(reject);
+
+            } catch (error) {
+                reject(error);
+            }
         });
+    }
+
+    generateDoorTexture(width = 64, height = 64) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        // Door frame
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Door panel
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(4, 4, width - 8, height - 8);
+        
+        // Door handle
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath();
+        ctx.arc(width - 16, height / 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Panel details
+        ctx.strokeStyle = '#6b3410';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(width / 2, 12);
+        ctx.lineTo(width / 2, height - 12);
+        ctx.moveTo(12, height / 3);
+        ctx.lineTo(width - 12, height / 3);
+        ctx.moveTo(12, height * 2/3);
+        ctx.lineTo(width - 12, height * 2/3);
+        ctx.stroke();
+
+        return Promise.resolve(canvas);
     }
 
     generateWaterTexture(ctx, canvas, baseColor) {

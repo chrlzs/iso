@@ -15,7 +15,7 @@ import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
-import { createDemoMap } from './world/templates/DemoMap.js';
+import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 
 /**
  * Core game instance managing all game systems and state
@@ -89,7 +89,11 @@ export class GameInstance {
         this.camera = {
             x: 0,
             y: 0,
-            zoom: 0.5
+            zoom: 0.5,
+            centerOn(x, y) {
+                this.x = x;
+                this.y = y;
+            }
         };
         
         // Centralize debug configuration
@@ -124,10 +128,10 @@ export class GameInstance {
         this.gamePausedTime = 0;
         this.lastPauseTime = null;
 
-        // Initialize world with demo map
+        // Initialize world with remixed demo map
         this.world = new World(128, 128, {
             debug: this.debug,
-            mapDefinition: createDemoMap()
+            mapDefinition: createRemixedMap()
         });
 
         // Set initial camera position to spawn point
@@ -146,7 +150,7 @@ export class GameInstance {
         }
 
         // Initialize core components
-        this.tileManager = this.world.tileManager;
+        this.tileManager = new TileManager(this.debug, this.assetManager);
         this.pathFinder = new PathFinder(this.world);
         this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
         this.inputManager = new InputManager();
