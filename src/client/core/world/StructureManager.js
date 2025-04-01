@@ -57,7 +57,7 @@ export class StructureManager {
 
         try {
             // Check each tile in the structure's footprint AND surrounding tiles
-            // Add a 1-tile buffer around the structure to avoid building right next to water
+            // Add a 1-tile buffer around the structure
             for (let dy = -1; dy <= template.height + 1; dy++) {
                 for (let dx = -1; dx <= template.width + 1; dx++) {
                     const worldX = x + dx;
@@ -72,6 +72,12 @@ export class StructureManager {
 
                     const tile = this.world.getTileAt(worldX, worldY);
                     if (!tile) return false;
+
+                    // Check if any existing structures overlap with this area
+                    const existingStructure = this.getStructureAt(worldX, worldY);
+                    if (existingStructure) {
+                        return false;
+                    }
 
                     // Check the actual structure footprint more strictly
                     if (dx >= 0 && dx < template.width && dy >= 0 && dy < template.height) {
@@ -315,6 +321,7 @@ export class StructureManager {
         return null;
     }
 }
+
 
 
 
