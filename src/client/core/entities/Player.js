@@ -37,6 +37,10 @@ export class Player extends Entity {
         this.experience = 0;
         this.level = 1;
 
+        // Increase base movement speed
+        this.moveSpeed = 8; // Default was likely 4 or 5
+        this.sprintMultiplier = 1.5; // Optional: Allow sprinting
+
         // Initialize equipment slots
         this.equipment = {
             head: null,

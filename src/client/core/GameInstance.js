@@ -128,11 +128,19 @@ export class GameInstance {
         this.gamePausedTime = 0;
         this.lastPauseTime = null;
 
+        // Initialize core components - NEEDS TO CHANGE ORDER
+        this.inputManager = new InputManager(); // Move this up
+        this.tileManager = new TileManager(this.debug, this.assetManager);
+        
         // Initialize world with remixed demo map
         this.world = new World(128, 128, {
             debug: this.debug,
-            mapDefinition: createRemixedMap()
+            mapDefinition: createRemixedMap(),
+            tileManager: this.tileManager
         });
+
+        this.pathFinder = new PathFinder(this.world);
+        this.renderer = new IsometricRenderer(canvas, this.tileManager);
 
         // Set initial camera position to spawn point
         const spawnPoint = this.world.mapDefinition.spawnPoints[0];
@@ -149,12 +157,6 @@ export class GameInstance {
             });
         }
 
-        // Initialize core components
-        this.tileManager = new TileManager(this.debug, this.assetManager);
-        this.pathFinder = new PathFinder(this.world);
-        this.renderer = new IsometricRenderer(canvas, this.world.tileManager);
-        this.inputManager = new InputManager();
-        
         // Initialize player with starting equipment
         const playerSpawnPoint = this.findValidSpawnPoint();
         this.player = new Player({
@@ -578,7 +580,7 @@ export class GameInstance {
         });
 
         this.canvas.addEventListener('mousemove', (e) => {
-            if (this.inputManager.isShiftPressed) {
+            if (this.inputManager && this.inputManager.isShiftPressed) {
                 const { deltaX, deltaY } = this.inputManager.getMouseDelta();
                 this.camera.x -= deltaX / this.camera.zoom;
                 this.camera.y -= deltaY / this.camera.zoom;

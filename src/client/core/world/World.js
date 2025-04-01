@@ -124,7 +124,7 @@ export class World {
         
         // Load demo map by default if no map definition is provided
         this.mapDefinition = options.mapDefinition || createDemoMap();
-        this.initializeFromMapDefinition();
+        this.initializeFromMapDefinition(this.mapDefinition);
 
         // Debug logging for map initialization
         if (this.debug?.flags?.logMapInit) {
@@ -362,30 +362,28 @@ export class World {
 
     /**
      * Initializes world from map definition
-     * @private
+     * @param {MapDefinition} mapDefinition - Map definition to initialize from
      */
-    initializeFromMapDefinition() {
-        if (!this.mapDefinition) return;
+    initializeFromMapDefinition(mapDefinition) {
+        console.log('Initializing world from map definition:', mapDefinition);
+        this.mapDefinition = mapDefinition;
 
-        // Initialize terrain
-        if (this.mapDefinition.terrain) {
-            this.mapDefinition.terrain.forEach(terrain => {
-                this.setTileAt(terrain.x, terrain.y, {
-                    type: terrain.type,
-                    height: terrain.height,
-                    moisture: terrain.moisture
-                });
-            });
+        // Load all tiles
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const tileData = mapDefinition.getTile(x, y);
+                if (tileData) {
+                    this.setTileAt(x, y, tileData);
+                    console.log(`Set tile at ${x},${y}:`, tileData);
+                }
+            }
         }
 
-        // Initialize structures
-        if (this.mapDefinition.structures) {
-            console.log('World: Processing structures:', this.mapDefinition.structures);
-            
-            this.mapDefinition.structures.forEach(structureDef => {
-                const { type, x, y, ...options } = structureDef;
-                console.log('World: Creating structure:', type, 'at', `(${x}, ${y})`, 'with options:', options);
-                this.createStructure(type, x, y, options);
+        // Load structures after tiles
+        if (mapDefinition.structures) {
+            console.log('Loading structures:', mapDefinition.structures);
+            mapDefinition.structures.forEach(struct => {
+                this.createStructure(struct.type, struct.x, struct.y, struct);
             });
         }
     }

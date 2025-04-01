@@ -162,7 +162,8 @@ export class TileManager {
         HELIPAD: 'helipad',
         PARKING: 'parking',
         TREE: 'tree',          // Add tree type
-        BUSH: 'bush'           // Add bush type for completeness
+        BUSH: 'bush',          // Add bush type for completeness
+        STONE: 'stone'         // Add stone type
     };
 
     /**
@@ -197,7 +198,8 @@ export class TileManager {
             helipad: 1,
             parking: 1,
             tree: 2,       // Add tree variants
-            bush: 1        // Add bush variant
+            bush: 1,       // Add bush variant
+            stone: 2       // Add stone with 2 variants
         };
 
         // Expanded base colors for all tile types
@@ -220,7 +222,8 @@ export class TileManager {
             helipad: '#F57F17',    // Orange
             parking: '#37474F',     // Dark blue-gray
             tree: '#2E7D32',       // Dark green (same as forest)
-            bush: '#388E3C'        // Medium green
+            bush: '#388E3C',       // Medium green
+            stone: '#787878'       // Gray color for stone
         };
 
         // Define surface properties for each tile type
@@ -243,7 +246,8 @@ export class TileManager {
             ['helipad', TileManager.SURFACE_TYPES.SOLID],
             ['parking', TileManager.SURFACE_TYPES.SOLID],
             ['tree', TileManager.SURFACE_TYPES.IMPASSABLE],
-            ['bush', TileManager.SURFACE_TYPES.ROUGH]
+            ['bush', TileManager.SURFACE_TYPES.ROUGH],
+            ['stone', TileManager.SURFACE_TYPES.ROUGH]
         ]);
 
         // Register tile types for natural objects
@@ -309,7 +313,8 @@ export class TileManager {
             'helipad',
             'parking',
             'tree',
-            'bush'
+            'bush',
+            'stone'
         ];
 
         try {
