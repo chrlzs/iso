@@ -133,7 +133,7 @@ export class GameInstance {
         this.tileManager = new TileManager(this.debug, this.assetManager);
         
         // Initialize world with remixed demo map
-        this.world = new World(128, 128, {
+        this.world = new World(32, 32, {  // Changed from 128,128
             debug: this.debug,
             mapDefinition: createRemixedMap(),
             tileManager: this.tileManager
@@ -419,11 +419,29 @@ export class GameInstance {
     async initializeTextures() {
         const texturePromises = [];
 
+        // Define base texture types that must be loaded
+        const baseTextureTypes = [
+            'water', 'wetland', 'sand', 'dirt', 'grass',
+            'forest', 'mountain', 'concrete', 'asphalt', 'metal',
+            'tiles', 'gravel', 'solar', 'garden', 'door',
+            'helipad', 'parking', 'tree', 'bush', 'road',
+            'walkway', 'stone'
+        ];
+
+        // Initialize all base textures first
+        baseTextureTypes.forEach(type => {
+            texturePromises.push(
+                this.tileManager.generateTexture(type, this.tileManager.tileColors[type])
+            );
+        });
+
         // Initialize terrain textures
         for (const [terrainType, config] of Object.entries(this.textureDefinitions.terrain)) {
-            texturePromises.push(
-                this.tileManager.generateTexture(terrainType, config.base)
-            );
+            if (!baseTextureTypes.includes(terrainType)) {
+                texturePromises.push(
+                    this.tileManager.generateTexture(terrainType, config.base)
+                );
+            }
 
             // Generate variant textures if they exist
             if (config.variants) {
@@ -440,9 +458,11 @@ export class GameInstance {
 
         // Initialize decoration textures
         for (const [decType, config] of Object.entries(this.textureDefinitions.decorations)) {
-            texturePromises.push(
-                this.tileManager.generateTexture(decType, config.base)
-            );
+            if (!baseTextureTypes.includes(decType)) {
+                texturePromises.push(
+                    this.tileManager.generateTexture(decType, config.base)
+                );
+            }
 
             // Generate variant textures if they exist
             if (config.variants) {
@@ -460,6 +480,7 @@ export class GameInstance {
         // Add debug logging for texture loading
         if (this.debug?.flags?.logTextureLoading) {
             console.log('Game: Loading textures:', {
+                baseTypes: baseTextureTypes,
                 terrain: Object.keys(this.textureDefinitions.terrain),
                 decorations: Object.keys(this.textureDefinitions.decorations)
             });
@@ -1333,6 +1354,9 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
+
+
 
 
 

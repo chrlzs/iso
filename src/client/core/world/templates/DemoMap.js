@@ -6,45 +6,42 @@ import { MapDefinition } from '../MapDefinition.js';
  */
 export function createDemoMap() {
     const map = new MapDefinition({
-        width: 128,
-        height: 128,
+        width: 32,    // Reduced from 128
+        height: 32,   // Reduced from 128
         seed: 12345,
         terrain: [
             // Central lake with pathway
-            ...generateLake(64, 64, 12),
+            ...generateLake(16, 16, 3),  // Adjusted from 64,64,12
             // Add connecting path
             ...generateCentralPath(),
             // Mountain range in north
-            ...generateMountainRange(20, 20, 40, 8),
+            ...generateMountainRange(5, 5, 10, 2),  // Adjusted from 20,20,40,8
             // Forest patches
-            ...generateForest(90, 40, 15),
-            ...generateForest(30, 90, 12)
+            ...generateForest(22, 10, 4),  // Adjusted from 90,40,15
+            ...generateForest(8, 22, 3)    // Adjusted from 30,90,12
         ],
         
-        // Urban zones
+        // Urban zones - adjusted positions
         zones: [
-            // Downtown
             {
                 type: 'commercial',
-                x: 60,
-                y: 60,
-                radius: 8,
+                x: 15,    // Was 60
+                y: 15,    // Was 60
+                radius: 2, // Was 8
                 density: 0.9
             },
-            // Industrial zone
             {
                 type: 'industrial',
-                x: 80,
-                y: 40,
-                radius: 6,
+                x: 20,    // Was 80
+                y: 10,    // Was 40
+                radius: 2, // Was 6
                 density: 0.8
             },
-            // Residential areas
             {
                 type: 'residential',
-                x: 40,
-                y: 80,
-                radius: 10,
+                x: 10,    // Was 40
+                y: 20,    // Was 80
+                radius: 3, // Was 10
                 density: 0.6
             }
         ],

@@ -2,7 +2,7 @@ import { MapDefinition } from '../MapDefinition.js';
 import { noise } from '../../utils/noise.js';
 
 export function createRemixedMap() {
-    const mapSize = 128;
+    const mapSize = 32;  // Reduced from 128 to 32
     const mapDef = new MapDefinition(mapSize, mapSize);
 
     // Initialize noise functions
@@ -19,8 +19,8 @@ export function createRemixedMap() {
     ];
 
     // Create a larger display area for the palette
-    const paletteStartX = 5;  // Far corner
-    const paletteStartY = 5;  // Far corner
+    const paletteStartX = 2;  // Adjusted from 5
+    const paletteStartY = 2;  // Adjusted from 5
     const paletteSize = 10;   // Tile size
     
     // Create a concrete platform for the palette
@@ -83,14 +83,14 @@ export function createRemixedMap() {
 
     // Add cyberpunk-themed structures
     const structures = [
-        { type: 'apartment', x: 30, y: 20, width: 4, height: 4, material: 'concrete' },  // Moved from x:20
-        { type: 'nightclub', x: 40, y: 30, width: 6, height: 6, material: 'metal' },     // Moved from x:30
-        { type: 'office', x: 50, y: 40, width: 5, height: 8, material: 'glass' },        // Moved from x:40
-        // Tech hub area - unchanged
-        { type: 'apartment', x: 60, y: 60, width: 4, height: 4, material: 'concrete' },
-        { type: 'office', x: 65, y: 60, width: 4, height: 4, material: 'glass' },
-        { type: 'apartment', x: 60, y: 65, width: 4, height: 4, material: 'concrete' },
-        { type: 'office', x: 65, y: 65, width: 4, height: 4, material: 'glass' },
+        { type: 'apartment', x: 8, y: 5, width: 4, height: 4, material: 'concrete' },   // Was 30,20
+        { type: 'nightclub', x: 10, y: 8, width: 6, height: 6, material: 'metal' },     // Was 40,30
+        { type: 'office', x: 13, y: 10, width: 5, height: 8, material: 'glass' },       // Was 50,40
+        // Tech hub area - scaled down
+        { type: 'apartment', x: 15, y: 15, width: 4, height: 4, material: 'concrete' }, // Was 60,60
+        { type: 'office', x: 16, y: 15, width: 4, height: 4, material: 'glass' },       // Was 65,60
+        { type: 'apartment', x: 15, y: 16, width: 4, height: 4, material: 'concrete' }, // Was 60,65
+        { type: 'office', x: 16, y: 16, width: 4, height: 4, material: 'glass' },       // Was 65,65
     ];
 
     // Add structures to map
@@ -100,13 +100,13 @@ export function createRemixedMap() {
 
     // Add decorative elements
     const decorations = [
-        { type: 'terminal', x: 22, y: 22 },
-        { type: 'drone', x: 32, y: 32 },
-        { type: 'camera', x: 42, y: 42 },
+        { type: 'terminal', x: 6, y: 6 },    // Was 22,22
+        { type: 'drone', x: 8, y: 8 },       // Was 32,32
+        { type: 'camera', x: 11, y: 11 },    // Was 42,42
         // Tech garden
-        { type: 'flowers', x: 62, y: 62 },
-        { type: 'flowers', x: 63, y: 62 },
-        { type: 'flowers', x: 62, y: 63 },
+        { type: 'flowers', x: 15, y: 15 },   // Was 62,62
+        { type: 'flowers', x: 16, y: 15 },   // Was 63,62
+        { type: 'flowers', x: 15, y: 16 },   // Was 62,63
     ];
 
     // Add decorations to map
@@ -116,16 +116,21 @@ export function createRemixedMap() {
 
     // Add roads connecting structures
     const roads = [
-        // Main road
-        { start: { x: 30, y: 20 }, end: { x: 50, y: 40 }, width: 2 },
-        // Connection to tech hub
-        { start: { x: 50, y: 40 }, end: { x: 60, y: 60 }, width: 2 }
+        { start: { x: 8, y: 5 }, end: { x: 13, y: 10 }, width: 2 },
+        { start: { x: 13, y: 10 }, end: { x: 15, y: 15 }, width: 2 },
+        { start: { x: 10, y: 8 }, end: { x: 13, y: 10 }, width: 2 }
     ];
 
-    // Add walkways in tech hub
+    // Add walkways in tech hub and other areas
     const walkways = [
+        // Tech hub internal connections
         { start: { x: 60, y: 60 }, end: { x: 65, y: 60 } },
-        { start: { x: 60, y: 65 }, end: { x: 65, y: 65 } }
+        { start: { x: 60, y: 65 }, end: { x: 65, y: 65 } },
+        { start: { x: 60, y: 60 }, end: { x: 60, y: 65 } },
+        { start: { x: 65, y: 60 }, end: { x: 65, y: 65 } },
+        // Additional walkways connecting to nearby structures
+        { start: { x: 40, y: 30 }, end: { x: 30, y: 20 } },
+        { start: { x: 50, y: 40 }, end: { x: 60, y: 60 } }
     ];
 
     // Place roads
@@ -158,8 +163,8 @@ export function createRemixedMap() {
 
     // Set spawn points
     mapDef.spawnPoints = [
-        { x: 35, y: 25 }, // Near the first apartment (adjusted)
-        { x: 62, y: 62 }  // In the tech hub area (unchanged)
+        { x: 9, y: 6 },     // Was 35,25
+        { x: 15, y: 15 }    // Was 62,62
     ];
 
     return mapDef;
