@@ -191,7 +191,8 @@ export const StructureTemplates = {
         },
         blueprint: [
             ['tree']
-        ]
+        ],
+        renderMethod: 'drawTree'
     },
     bush: {
         type: 'bush',

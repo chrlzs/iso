@@ -974,29 +974,41 @@ export class StructureRenderer {
     }
 
     drawTree(screenX, screenY, structure) {
-        console.log('Drawing tree at:', screenX, screenY, structure); // Debug log
-        const trunkColor = '#8B4513';  // Saddle brown for trunk
-        const foliageColor = '#228B22'; // Forest green for leaves
-        
-        // Draw trunk
-        this.ctx.fillStyle = trunkColor;
-        const trunkWidth = 12;
+        // Add debug logging to verify the method is being called
+        console.log('Tree render attempt:', {
+            screenX,
+            screenY,
+            structure,
+            treeTexture: this.tileManager?.getTexture('tree')
+        });
+
         const trunkHeight = 24;
+        const trunkWidth = 12;
+        const foliageSize = 48;
+
+        // Save context state
+        this.ctx.save();
+
+        // Draw trunk
+        this.ctx.fillStyle = '#8B4513';  // Saddle brown
         this.ctx.fillRect(
             screenX - trunkWidth/2,
             screenY - trunkHeight,
             trunkWidth,
             trunkHeight
         );
-        
+
         // Draw foliage (triangle shape)
-        this.ctx.fillStyle = foliageColor;
+        this.ctx.fillStyle = '#228B22';  // Forest green
         this.ctx.beginPath();
-        this.ctx.moveTo(screenX, screenY - trunkHeight - 48); // Top of tree
-        this.ctx.lineTo(screenX - 24, screenY - trunkHeight); // Left bottom of foliage
-        this.ctx.lineTo(screenX + 24, screenY - trunkHeight); // Right bottom of foliage
+        this.ctx.moveTo(screenX, screenY - trunkHeight - foliageSize); // Top
+        this.ctx.lineTo(screenX - foliageSize/2, screenY - trunkHeight); // Left
+        this.ctx.lineTo(screenX + foliageSize/2, screenY - trunkHeight); // Right
         this.ctx.closePath();
         this.ctx.fill();
+
+        // Restore context state
+        this.ctx.restore();
     }
 
     drawBush(screenX, screenY, structure) {
@@ -1025,6 +1037,7 @@ export class StructureRenderer {
         this.ctx.fill();
     }
 }
+
 
 
 

@@ -56,6 +56,12 @@ export class IsometricRenderer {
             return;
         }
 
+        // Debug log structures
+        console.log('Rendering structures:', {
+            count: world.structures.size,
+            types: Array.from(world.structures).map(s => s.type)
+        });
+
         // Render all tiles in the world
         for (let y = 0; y < world.height; y++) {
             for (let x = 0; x < world.width; x++) {
@@ -66,9 +72,15 @@ export class IsometricRenderer {
             }
         }
 
-        // Render structures
+        // Render structures with additional logging
         world.structures.forEach(structure => {
             const screenCoords = this.worldToScreen(structure.x, structure.y);
+            if (structure.type === 'tree') {
+                console.log('Tree structure found:', {
+                    worldPos: { x: structure.x, y: structure.y },
+                    screenPos: screenCoords
+                });
+            }
             this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
         });
     }
@@ -249,6 +261,7 @@ export class IsometricRenderer {
         return color;
     }
 }
+
 
 
 
