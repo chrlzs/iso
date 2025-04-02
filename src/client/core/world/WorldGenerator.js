@@ -194,6 +194,16 @@ export class WorldGenerator {
     }
 
     /**
+     * Checks if a tile type is suitable for tree growth
+     * @param {string} tileType - The type of tile to check
+     * @returns {boolean} Whether trees can grow on this tile type
+     */
+    isTreeSuitableTerrain(tileType) {
+        const suitableTiles = ['grass', 'dirt', 'forest'];
+        return suitableTiles.includes(tileType);
+    }
+
+    /**
      * Generates a tile based on world data
      * @param {number} x - World X coordinate
      * @param {number} y - World Y coordinate
@@ -205,79 +215,48 @@ export class WorldGenerator {
     generateTile(x, y, height, moisture, urbanDensity = 0) {
         let tileType;
         
-        // Increase probability of tree generation in suitable areas
-        if (height >= 0.4 && moisture > 0.45 && urbanDensity < 0.3) {
-            // Higher chance of trees in suitable conditions
-            const treeChance = Math.min(0.3, (moisture * 0.5) + (height * 0.2));
-            if (Math.random() < treeChance) {
-                this.world.addTree(x, y);
-                return;
-            }
-        }
-        
-        // Water bodies are unchanged
+        // First determine the base tile type
         if (height < 0.38) {
             tileType = 'water';
         } else if (height < 0.42) {
-            // Coastal areas can have ports/industrial zones
-            if (urbanDensity > 0.7) {
-                tileType = 'concrete';
-            } else {
-                tileType = moisture > 0.6 ? 'wetland' : 'sand';
-            }
-        } else if (height < 0.8) {
-            // Main urban and suburban areas
-            if (urbanDensity > 0.8) {
-                // Dense urban core
-                const urbanRoll = Math.random();
-                if (urbanRoll < 0.4) {
-                    tileType = 'concrete';
-                } else if (urbanRoll < 0.7) {
-                    tileType = 'asphalt';
-                } else if (urbanRoll < 0.8) {
-                    tileType = 'metal';
-                } else if (urbanRoll < 0.9) {
-                    tileType = 'tiles';
-                } else {
-                    tileType = 'solar';
-                }
-            } else if (urbanDensity > 0.5) {
-                // Suburban areas
-                const suburbanRoll = Math.random();
-                if (suburbanRoll < 0.4) {
-                    tileType = 'garden';
-                } else if (suburbanRoll < 0.7) {
-                    tileType = 'grass';
-                } else {
-                    tileType = 'concrete';
-                }
-            } else {
-                // Rural/natural areas
-                if (moisture < 0.2) {
-                    tileType = 'dirt';
-                } else if (moisture < 0.6) {
-                    tileType = 'grass';
-                } else {
-                    tileType = 'forest';
-                }
-            }
+            tileType = moisture > 0.6 ? 'wetland' : 'sand';
         } else {
-            // Mountain areas can have special installations
-            if (urbanDensity > 0.7) {
-                tileType = Math.random() < 0.7 ? 'metal' : 'concrete';
+            // Get existing tile type if any
+            const existingTile = this.world.getTileAt(x, y);
+            tileType = existingTile ? existingTile.type : 'grass';
+        }
+
+        // Only attempt tree generation if the terrain is suitable
+        if (this.isTreeSuitableTerrain(tileType) && 
+            height >= 0.4 && 
+            moisture > 0.45 && 
+            urbanDensity < 0.3) {
+            
+            // Higher chance of trees in suitable conditions
+            const treeChance = Math.min(0.3, (moisture * 0.5) + (height * 0.2));
+            if (Math.random() < treeChance) {
+                // Check for existing structures before adding tree
+                const existingStructure = this.world.getStructureAt(x, y);
+                if (!existingStructure) {
+                    this.world.addTree(x, y);
+                    return;
+                }
+            }
+        }
+        
+        // Continue with regular tile generation...
+        if (urbanDensity > 0.7) {
+            if (height < 0.42) {
+                tileType = 'concrete'; // Urban coastal areas
             } else {
-                tileType = 'mountain';
+                tileType = Math.random() > 0.5 ? 'concrete' : 'asphalt';
             }
         }
 
         return {
             type: tileType,
             height: height,
-            moisture: moisture,
-            variant: this.tileManager.getRandomVariant(tileType),
-            id: `tile_${x}_${y}`,
-            x: x,
-            y: y
+            moisture: moisture
         };
     }
 
@@ -324,6 +303,7 @@ export class WorldGenerator {
         // Implementation to be added
     }
 }
+
 
 
 

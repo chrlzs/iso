@@ -228,44 +228,50 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 
-    getTileColor(tileType, hasDoor = false) {
-        if (hasDoor) {
-            return '#FFD700'; // Gold color for door tiles
-        }
-
-        // Ensure this matches TileManager.TILE_TYPES exactly
+    getTileColor(tileType) {
         const colors = {
-            'water': '#1976D2',     // Blue
-            'wetland': '#558B2F',    // Dark green
-            'sand': '#FDD835',       // Sand yellow
-            'dirt': '#795548',       // Brown
-            'grass': '#4CAF50',      // Green
-            'forest': '#2E7D32',     // Dark green
-            'mountain': '#757575',   // Gray
-            'concrete': '#9E9E9E',   // Medium gray
-            'asphalt': '#424242',    // Dark gray
-            'metal': '#B0BEC5',      // Bluish gray
-            'tiles': '#78909C',      // Cool gray
-            'gravel': '#707070',     // Warm gray
-            'solar': '#1A237E',      // Deep blue
-            'garden': '#66BB6A',     // Light green
-            'helipad': '#F57F17',    // Orange
-            'parking': '#37474F',    // Dark blue-gray
-            'tree': '#2E7D32',       // Dark green
-            'bush': '#388E3C',       // Medium green
-            'door': '#FFD700',       // Gold
-            'road': '#333333',       // Dark gray for roads
-            'walkway': '#CCCCCC'     // Light gray for walkways
+            // Natural terrain
+            'grass': '#90CF50',
+            'dirt': '#8B4513',
+            'stone': '#808080',
+            'sand': '#F4A460',
+            'water': '#4169E1',
+            'wetland': '#2F4F4F',
+            'mountain': '#696969',
+            'forest': '#228B22',
+            
+            // Urban terrain
+            'concrete': '#A9A9A9',
+            'asphalt': '#404040',
+            'metal': '#B8B8B8',
+            'tiles': '#D3D3D3',
+            'gravel': '#9B9B9B',
+            
+            // Structures
+            'building': '#A9A9A9',
+            'door': '#FFD700',
+            'road': '#333333',
+            'walkway': '#CCCCCC',
+            'parking': '#696969',
+            'helipad': '#2F4F4F',
+            'solar': '#1C1C1C',
+            
+            // Flora
+            'tree': '#228B22',
+            'bush': '#3B7A57',
+            'garden': '#558B2F'
         };
 
         const color = colors[tileType];
         if (!color) {
             console.warn(`Unknown tile type: ${tileType} - using fallback color`);
-            return '#FF00FF'; // Use magenta for unknown types - more visible than red
+            return '#FF00FF'; // Use magenta for unknown types
         }
         return color;
     }
 }
+
+
 
 
 
