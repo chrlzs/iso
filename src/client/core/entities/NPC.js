@@ -67,6 +67,12 @@ export class NPC extends Entity {
                 type: this.type,
                 hasWorld: !!this.world
             });
+
+            // Try to get game reference from world if available
+            if (this.world && this.world.game) {
+                this.game = this.world.game;
+                console.log('Retrieved game reference from world for NPC:', this.id);
+            }
         }
 
         // State tracking

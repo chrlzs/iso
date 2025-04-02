@@ -148,7 +148,8 @@ export class GameInstance {
         this.world = new World(32, 32, {  // Changed from 128,128
             debug: this.debug,
             mapDefinition: createRemixedMap(),
-            tileManager: this.tileManager
+            tileManager: this.tileManager,
+            game: this // Pass reference to game instance
         });
 
         // Add debug logging
@@ -1403,6 +1404,7 @@ export class GameInstance {
                         name: npcData.name || 'Enemy',
                         color: npcData.color || '#FF0000', // Red color for enemies
                         world: this.world,
+                        game: this, // Add game reference
                         isEnemy: true,
                         damage: npcData.damage || 10,
                         health: npcData.health || 100,
@@ -1416,7 +1418,8 @@ export class GameInstance {
                         y: npcData.y,
                         name: npcData.name || 'NPC',
                         color: npcData.color || '#3498db', // Blue color for regular NPCs
-                        world: this.world
+                        world: this.world,
+                        game: this // Add game reference
                     });
                 }
 

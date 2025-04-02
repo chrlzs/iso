@@ -85,11 +85,13 @@ export class World {
      * @param {number} [options.chunkSize=16] - Size of each chunk
      * @param {Object} [options.debug] - Debug configuration
      * @param {MapDefinition} [options.mapDefinition] - Static map definition
+     * @param {GameInstance} [options.game] - Reference to the game instance
      */
     constructor(width, height, options = {}) {
         this.width = width;
         this.height = height;
         this.debug = options.debug || { flags: {} };
+        this.game = options.game; // Store reference to game instance
 
         // Initialize chunk system
         this.chunkSize = options.chunkSize || 16;
