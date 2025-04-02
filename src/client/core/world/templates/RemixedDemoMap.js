@@ -28,23 +28,24 @@ export function createRemixedMap() {
         }
     }
 
-    // Add key structures
+    // Add key structures with adjusted positions more likely to be valid
     const structures = [
-        // Downtown area
+        // Downtown area - office building with merchant
         {
             type: 'office',
-            x: Math.floor(mapSize * 0.3),
-            y: Math.floor(mapSize * 0.3),
+            x: Math.floor(mapSize * 0.5), // Center
+            y: Math.floor(mapSize * 0.5),
             options: {
                 floors: 6,
-                material: 'glass'
+                material: 'glass',
+                hasMerchant: true
             }
         },
         // Industrial zone
         {
             type: 'factory',
-            x: Math.floor(mapSize * 0.7),
-            y: Math.floor(mapSize * 0.2),
+            x: Math.floor(mapSize * 0.5) - 8, // Increased offset
+            y: Math.floor(mapSize * 0.5) - 8,
             options: {
                 chimneys: [{
                     x: 0.7,
@@ -57,8 +58,8 @@ export function createRemixedMap() {
         // Residential area
         {
             type: 'apartment',
-            x: Math.floor(mapSize * 0.4),
-            y: Math.floor(mapSize * 0.6),
+            x: Math.floor(mapSize * 0.5) + 8, // Increased offset
+            y: Math.floor(mapSize * 0.5) + 8,
             options: {
                 floors: 3,
                 material: 'concrete'
@@ -70,16 +71,47 @@ export function createRemixedMap() {
     structures.forEach(structureData => {
         const { type, x, y, options = {} } = structureData;
         
+        console.log(`Attempting to place ${type} at ${x},${y}`);
+        
+        // Check for any existing structures in a larger area
+        let hasOverlap = false;
+        for (let dy = -4; dy <= 4; dy++) {
+            for (let dx = -4; dx <= 4; dx++) {
+                const tile = mapDef.getTile(x + dx, y + dy);
+                if (tile && tile.structure) {
+                    console.log(`Found existing structure near ${x + dx},${y + dy}`);
+                    hasOverlap = true;
+                    break;
+                }
+            }
+            if (hasOverlap) break;
+        }
+
+        if (hasOverlap) {
+            console.warn(`Cannot place ${type} at ${x},${y} - too close to existing structure`);
+            return;
+        }
+
         // Ensure the area in front of where the door will be is navigable
         if (isValidStructurePlacement(mapDef, x, y)) {
-            mapDef.addStructure({
+            const structure = mapDef.addStructure({
                 type,
                 x,
                 y,
                 ...options
             });
+
+            if (structure) {
+                console.log(`Successfully placed ${type} at ${x},${y}`);
+                if (options.hasMerchant) {
+                    mapDef.merchantStructure = structure;
+                    console.log('Assigned merchant to structure:', structure);
+                }
+            } else {
+                console.warn(`Structure creation failed for ${type} at ${x},${y}`);
+            }
         } else {
-            console.warn(`Cannot place structure at ${x},${y} - door would be blocked`);
+            console.warn(`Cannot place ${type} at ${x},${y} - door would be blocked`);
         }
     });
 
@@ -122,24 +154,42 @@ function isNearStructure(mapDef, x, y) {
 
 // Helper function to check if a structure can be placed with accessible door
 function isValidStructurePlacement(mapDef, x, y) {
+    // First check if any part of the new structure would overlap with existing structures
+    for (let dy = 0; dy < 2; dy++) {  // Assuming minimum height of 2
+        for (let dx = 0; dx < 2; dx++) {  // Assuming minimum width of 2
+            const tile = mapDef.getTile(x + dx, y + dy);
+            if (tile && tile.structure) {
+                console.log(`Structure overlap detected at ${x + dx},${y + dy}`);
+                return false;
+            }
+        }
+    }
+
     // Check the tile in front of where the door will be (one tile south)
     const doorTile = mapDef.getTile(x, y + 1);
-    if (!doorTile) return false;
+    if (!doorTile) {
+        console.log('Door tile not found at', x, y + 1);
+        return false;
+    }
 
     // Door tile and adjacent tiles should be navigable
     const nonNavigableTypes = ['water', 'wetland', 'mountain'];
     
     // Check door tile and tiles to its left and right
+    let isValid = true;
     for (let dx = -1; dx <= 1; dx++) {
         const tile = mapDef.getTile(x + dx, y + 1);
         if (!tile || 
             nonNavigableTypes.includes(tile.type) || 
             tile.structure) {
-            return false;
+            console.log(`Invalid tile at ${x + dx},${y + 1}:`, 
+                tile ? `type=${tile.type}, hasStructure=${!!tile.structure}` : 'no tile');
+            isValid = false;
+            break;
         }
     }
 
-    return true;
+    return isValid;
 }
 
 function determineTileType(height, moisture) {
