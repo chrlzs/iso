@@ -8,6 +8,7 @@ import { SettingsUI } from './components/SettingsUI.js';
 import { NotificationSystem } from './components/NotificationSystem.js';
 import { CanvasUI } from './components/CanvasUI.js';
 import { HUD } from './components/HUD.js';
+import { CombatUI } from './components/CombatUI.js';
 
 /**
  * @typedef {Object} UIComponent
@@ -47,7 +48,7 @@ export class UIManager {
      */
     constructor(game) {
         console.log('UIManager constructor started');
-        
+
         if (!game) {
             console.error('UIManager initialized without game instance');
             return;
@@ -60,7 +61,7 @@ export class UIManager {
 
         try {
             console.log('Initializing UI components...');
-            
+
             // Initialize core UI components
             this.components.set('messageLog', new MessageLog({
                 position: { x: 10, y: window.innerHeight - 110 },
@@ -68,7 +69,7 @@ export class UIManager {
                 height: 100,
                 game: this.game
             }));
-            
+
             this.components.set('inventoryUI', new InventoryUI(this.game));
             this.components.set('merchantUI', new MerchantUI({ game: this.game }));
             this.components.set('dialogUI', new DialogUI(this.game));
@@ -76,22 +77,23 @@ export class UIManager {
             this.components.set('questLogUI', new QuestLogUI(this.game));
             this.components.set('settingsUI', new SettingsUI(this.game));
             this.components.set('notificationSystem', new NotificationSystem(this.game));
-            
+            this.components.set('combatUI', new CombatUI(this.game));
+
             // Initialize canvas-based UI components
             this.components.set('canvasUI', new CanvasUI(this.game));
             this.components.set('hud', new HUD(this.game));
-            
+
             // Hide window-based UIs initially
             ['inventoryUI', 'merchantUI', 'dialogUI', 'questLogUI', 'settingsUI'].forEach(ui => {
                 const component = this.components.get(ui);
                 if (component?.hide) component.hide();
             });
-            
+
             console.log('Current components:', Array.from(this.components.entries()));
 
             // Setup event listeners
             this.setupEventListeners();
-            
+
         } catch (error) {
             console.error('Error initializing UI components:', error);
             console.error('Stack:', error.stack);
@@ -101,7 +103,7 @@ export class UIManager {
 
     setupEventListeners() {
         console.log('Setting up UIManager event listeners');
-        
+
         // Handle menu button click
         this.game.canvas.addEventListener('click', (e) => {
             const mainMenu = this.components.get('mainMenu');
@@ -109,10 +111,10 @@ export class UIManager {
                 const rect = this.game.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
-                if (x >= mainMenu.position.x && 
-                    x <= mainMenu.position.x + 40 && 
-                    y >= mainMenu.position.y && 
+
+                if (x >= mainMenu.position.x &&
+                    x <= mainMenu.position.x + 40 &&
+                    y >= mainMenu.position.y &&
                     y <= mainMenu.position.y + 40) {
                     mainMenu.isOpen = !mainMenu.isOpen;
                 }
@@ -141,7 +143,7 @@ export class UIManager {
         document.addEventListener('mousedown', (e) => {
             this.activeWindows.forEach(windowId => {
                 const component = this.components.get(windowId);
-                if (component && component.container && 
+                if (component && component.container &&
                     !component.container.contains(e.target)) {
                     component.hide();
                     this.activeWindows.delete(windowId);
@@ -192,7 +194,7 @@ export class UIManager {
 
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        
+
         this.components.forEach((component, key) => {
             if (component && typeof component.render === 'function') {
                 try {
@@ -202,7 +204,7 @@ export class UIManager {
                 }
             }
         });
-        
+
         ctx.restore();
     }
 
@@ -230,7 +232,7 @@ export class UIManager {
         dialogElement.style.bottom = '20%';
         dialogElement.style.left = '50%';
         dialogElement.style.transform = 'translateX(-50%)';
-        
+
         dialogElement.querySelectorAll('.dialog-option').forEach((button, index) => {
             button.addEventListener('click', () => {
                 dialogConfig.options[index].action();

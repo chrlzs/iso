@@ -37,6 +37,14 @@ export class Player extends Entity {
         this.experience = 0;
         this.level = 1;
 
+        // Combat stats
+        this.damage = config.stats?.damage || 15;
+        this.defense = config.stats?.defense || 5;
+        this.speed = config.stats?.speed || 10;
+        this.attackRange = config.stats?.attackRange || 2;
+        this.isDefending = false;
+        this.defenseBuff = 0;
+
         // Increase base movement speed
         this.moveSpeed = 8; // Default was likely 4 or 5
         this.sprintMultiplier = 1.5; // Optional: Allow sprinting
@@ -150,7 +158,113 @@ export class Player extends Entity {
      * @param {number} amount - Amount of experience to gain
      */
     gainExperience(amount) {
-        // ...existing code...
+        this.experience += amount;
+
+        // Check for level up (simple formula: 100 * current level)
+        const nextLevelExp = this.level * 100;
+
+        if (this.experience >= nextLevelExp) {
+            this.levelUp();
+        }
+
+        // Notify UI of experience gain
+        if (this.game?.uiManager) {
+            this.game.uiManager.getComponent('statusUI')?.update();
+        }
+    }
+
+    /**
+     * Handles player level up
+     * @private
+     */
+    levelUp() {
+        this.level++;
+        this.experience = 0;
+
+        // Increase stats
+        this.maxHealth += 10;
+        this.health = this.maxHealth;
+        this.maxEnergy += 5;
+        this.energy = this.maxEnergy;
+        this.damage += 2;
+        this.defense += 1;
+
+        // Notify player of level up
+        if (this.game?.messageSystem) {
+            this.game.messageSystem.addMessage(`Level up! You are now level ${this.level}.`);
+        }
+    }
+
+    /**
+     * Damages the player
+     * @param {number} amount - Amount of damage to deal
+     * @param {Entity} [source] - Entity dealing the damage
+     * @returns {number} Actual damage dealt
+     * @override
+     */
+    takeDamage(amount, source) {
+        // Apply defense and defensive stance
+        let actualDamage = amount;
+
+        // Apply defense reduction
+        if (this.defense > 0) {
+            actualDamage = Math.max(1, actualDamage - this.defense);
+        }
+
+        // Apply defensive stance reduction
+        if (this.isDefending && this.defenseBuff > 0) {
+            actualDamage = Math.floor(actualDamage * (1 - this.defenseBuff));
+
+            // Defensive stance only lasts for one hit
+            this.isDefending = false;
+            this.defenseBuff = 0;
+        }
+
+        // Apply damage
+        const previousHealth = this.health;
+        this.health = Math.max(0, this.health - actualDamage);
+        const damageDealt = previousHealth - this.health;
+
+        // Handle death
+        if (this.health <= 0) {
+            this.die();
+        }
+
+        // Update UI
+        if (this.game?.uiManager) {
+            this.game.uiManager.getComponent('statusUI')?.update();
+        }
+
+        return damageDealt;
+    }
+
+    /**
+     * Heals the player
+     * @param {number} amount - Amount of health to restore
+     * @returns {number} Actual amount healed
+     */
+    heal(amount) {
+        const previousHealth = this.health;
+        this.health = Math.min(this.maxHealth, this.health + amount);
+        const healedAmount = this.health - previousHealth;
+
+        // Update UI
+        if (this.game?.uiManager) {
+            this.game.uiManager.getComponent('statusUI')?.update();
+        }
+
+        return healedAmount;
+    }
+
+    /**
+     * Handles player death
+     * @override
+     */
+    die() {
+        // Player doesn't actually die, but we trigger the defeat handler
+        if (this.game) {
+            this.game.handlePlayerDefeat();
+        }
     }
 
     /**
@@ -170,8 +284,24 @@ export class Player extends Entity {
             return false;
         }
 
-        console.log('Attempting interaction with:', target.type);
+        console.log('Attempting interaction with:', target.constructor.name, target.isEnemy);
+
+        // Check if target is an enemy NPC
+        if (target.isEnemy) {
+            console.log('Initiating combat with enemy:', target.name);
+            if (this.game?.combatSystem) {
+                return this.game.combatSystem.initiateCombat(this, target);
+            }
+            return false;
+        }
+
+        // Handle merchant interaction
         if (target.type === 'merchant') {
+            return target.interact(this);
+        }
+
+        // Handle regular NPC interaction
+        if (target.constructor.name === 'NPC') {
             return target.interact(this);
         }
 
@@ -190,7 +320,7 @@ export class Player extends Entity {
         if (!target) {
             this.isMoving = false;
             this.currentPath = null;
-            
+
             // Trigger path complete callback if it exists
             if (this.onPathComplete) {
                 console.log('Triggering path complete callback');
@@ -247,7 +377,7 @@ export class Player extends Entity {
         if (!this.isVisible) return;
 
         const screenPos = renderer.convertToIsometric(this.x, this.y);
-        
+
         // Draw debug path if enabled
         if (this.game?.debug?.flags?.showPath && this.currentPath) {
             this.renderPath(ctx, renderer);
@@ -255,21 +385,21 @@ export class Player extends Entity {
 
         ctx.save();
         ctx.translate(screenPos.x, screenPos.y);
-        
+
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
         ctx.ellipse(0, 8, 20, 10, 0, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Draw character
         this.drawCharacter(ctx);
-        
+
         // Draw direction indicator when moving
         if (this.isMoving && this.currentPath?.length > 0) {
             this.drawDirectionIndicator(ctx);
         }
-        
+
         ctx.restore();
     }
 
@@ -283,7 +413,7 @@ export class Player extends Entity {
         ctx.fillStyle = '#1A1A2E';  // Dark tech-suit base
         ctx.strokeStyle = '#00f2ff'; // Cyan neon trim
         ctx.lineWidth = 2;
-        
+
         // Draw tech-suit body
         ctx.beginPath();
         this.roundRect(ctx, -12, -20, 24, 32, 8);
@@ -346,7 +476,7 @@ export class Player extends Entity {
         if (!nextPoint) return;
 
         const angle = Math.atan2(nextPoint.y - this.y, nextPoint.x - this.x);
-        
+
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 2;
         ctx.beginPath();

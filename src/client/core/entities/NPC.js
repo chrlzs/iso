@@ -50,7 +50,13 @@ export class NPC extends Entity {
         this.isEnemy = config.isEnemy || false;
         this.damage = config.damage || 0;
         this.health = config.health || 100;
+        this.maxHealth = config.maxHealth || 100;
         this.attackRange = config.attackRange || 1;
+        this.defense = config.defense || 3;
+        this.speed = config.speed || 5;
+        this.isDefending = false;
+        this.defenseBuff = 0;
+        this.expValue = config.expValue || 20; // Experience awarded when defeated
 
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
@@ -358,7 +364,59 @@ export class NPC extends Entity {
      */
     getDialogOptions(player) {
         // Return dialog options based on player state or NPC behavior
-        return this.dialog.filter(option => option.condition(player));
+        return this.dialog.filter(option => !option.condition || option.condition(player));
+    }
+
+    /**
+     * Damages the NPC
+     * @param {number} amount - Amount of damage to deal
+     * @param {Entity} [source] - Entity dealing the damage
+     * @returns {number} Actual damage dealt
+     * @override
+     */
+    takeDamage(amount, source) {
+        // Apply defense and defensive stance
+        let actualDamage = amount;
+
+        // Apply defense reduction
+        if (this.defense > 0) {
+            actualDamage = Math.max(1, actualDamage - this.defense);
+        }
+
+        // Apply defensive stance reduction
+        if (this.isDefending && this.defenseBuff > 0) {
+            actualDamage = Math.floor(actualDamage * (1 - this.defenseBuff));
+
+            // Defensive stance only lasts for one hit
+            this.isDefending = false;
+            this.defenseBuff = 0;
+        }
+
+        // Apply damage
+        const previousHealth = this.health;
+        this.health = Math.max(0, this.health - actualDamage);
+        const damageDealt = previousHealth - this.health;
+
+        // Handle death
+        if (this.health <= 0) {
+            this.die();
+        }
+
+        return damageDealt;
+    }
+
+    /**
+     * Handles NPC death
+     * @override
+     */
+    die() {
+        this.isActive = false;
+        this.isVisible = false;
+
+        // If this is an enemy, notify the player
+        if (this.isEnemy && this.game) {
+            this.game.messageSystem?.addMessage(`${this.name} has been defeated!`);
+        }
     }
 
     /**

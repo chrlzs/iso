@@ -16,6 +16,8 @@ import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
+import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
+import { CombatUI } from './ui/components/CombatUI.js';
 
 /**
  * Core game instance managing all game systems and state
@@ -261,6 +263,14 @@ export class GameInstance {
         this.minimap = new MinimapUI(this, {
             size: 200,  // Size in pixels
             scale: 0.1  // Scale factor for world to minimap conversion
+        });
+
+        // Initialize combat system
+        this.combatSystem = new TurnBasedCombatSystem(this, {
+            baseHitChance: 0.85,
+            criticalChance: 0.1,
+            criticalMultiplier: 1.5,
+            fleeBaseChance: 0.5
         });
 
         // Setup debug controls and input handlers
@@ -1220,6 +1230,31 @@ export class GameInstance {
 
         console.log('Starting dialog with:', npc.constructor.name);
 
+        // Check if NPC is an enemy
+        if (npc.isEnemy) {
+            console.log('Starting combat with enemy:', npc.name);
+            this.messageSystem.queueMessage({
+                speaker: npc.name || 'Enemy',
+                text: npc.dialog?.[0]?.text || "Prepare to fight!",
+                logMessage: true,
+                options: [
+                    {
+                        text: "Fight",
+                        action: () => {
+                            this.messageSystem.hide();
+                            this.player.interact(npc);
+                        }
+                    },
+                    {
+                        text: "Run away",
+                        action: () => this.messageSystem.hide()
+                    }
+                ]
+            });
+            return;
+        }
+
+        // Handle merchant interaction
         if (npc instanceof Merchant) {
             // First try direct interaction
             const interactionResult = npc.interact(this.player);
@@ -1251,6 +1286,26 @@ export class GameInstance {
                     ]
                 });
             }
+            return;
+        }
+
+        // Handle regular NPC dialog
+        if (npc.constructor.name === 'NPC') {
+            const dialogOptions = npc.dialog || [];
+            if (dialogOptions.length > 0) {
+                const randomDialog = dialogOptions[Math.floor(Math.random() * dialogOptions.length)];
+                this.messageSystem.queueMessage({
+                    speaker: npc.name || 'NPC',
+                    text: randomDialog.text || "Hello there!",
+                    logMessage: true,
+                    options: [
+                        {
+                            text: "Goodbye",
+                            action: () => this.messageSystem.hide()
+                        }
+                    ]
+                });
+            }
         }
     }
 
@@ -1267,6 +1322,34 @@ export class GameInstance {
     handleItemPickup(item) {
         this.uiManager.components.get('messageLog')
             .addMessage(`Picked up ${item.name}`);
+    }
+
+    /**
+     * Handles player defeat in combat
+     */
+    handlePlayerDefeat() {
+        // Reset player health to 1
+        this.player.health = 1;
+
+        // Teleport player to spawn point
+        const spawnPoint = this.world.mapDefinition.spawnPoints[0];
+        if (spawnPoint) {
+            this.player.x = spawnPoint.x;
+            this.player.y = spawnPoint.y;
+        }
+
+        // Show defeat message
+        this.messageSystem.queueMessage({
+            speaker: 'System',
+            text: "You have been defeated! You've been returned to the spawn point with 1 health.",
+            logMessage: true,
+            options: [
+                {
+                    text: "Continue",
+                    action: () => this.messageSystem.hide()
+                }
+            ]
+        });
     }
 
     /**
