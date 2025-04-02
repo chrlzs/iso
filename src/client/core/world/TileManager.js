@@ -208,28 +208,28 @@ export class TileManager {
 
         // Expanded base colors for all tile types
         this.tileColors = {
-            water: '#1976D2',     // Blue
-            wetland: '#558B2F',    // Dark green
-            sand: '#FDD835',       // Sand yellow
-            dirt: '#795548',       // Brown
-            grass: '#4CAF50',      // Green
-            forest: '#2E7D32',     // Dark green
-            mountain: '#757575',   // Gray
-            concrete: '#9E9E9E',   // Medium gray
-            asphalt: '#424242',    // Dark gray
-            metal: '#B0BEC5',      // Bluish gray
-            tiles: '#78909C',      // Cool gray
-            gravel: '#707070',     // Warm gray
-            solar: '#1A237E',      // Deep blue
-            garden: '#66BB6A',     // Light green
-            door: '#FFD700',       // Gold
-            helipad: '#F57F17',    // Orange
-            parking: '#37474F',     // Dark blue-gray
-            tree: '#2E7D32',       // Dark green (same as forest)
-            bush: '#388E3C',       // Medium green
-            road: '#333333',       // Darker asphalt base
-            walkway: '#CCCCCC',    // Light concrete base
-            stone: '#787878'       // Gray color for stone
+            water: '#4B9CD3',     // Light blue
+            wetland: '#5B8731',   // Murky green
+            sand: '#E1C16E',      // Sand color
+            dirt: '#8B4513',      // Brown
+            grass: '#567D46',     // Green
+            forest: '#228B22',    // Forest green
+            mountain: '#808080',  // Gray
+            concrete: '#A9A9A9',  // Light gray
+            asphalt: '#4A4A4A',   // Dark gray
+            metal: '#B8B8B8',     // Metallic
+            tiles: '#D3D3D3',     // Light tiles
+            gravel: '#9B9B9B',    // Gravel gray
+            solar: '#1C1C1C',     // Dark panels
+            garden: '#558B2F',    // Garden green
+            door: '#8B4513',      // Door brown
+            helipad: '#2F4F4F',   // Dark slate
+            parking: '#696969',   // Dim gray
+            tree: '#228B22',      // Tree green
+            bush: '#3B7A57',      // Bush green
+            road: '#5A5A5A',      // Road gray
+            walkway: '#8B8B83',   // Path gray
+            stone: '#7A7A7A'      // Stone gray
         };
 
         // Define surface properties for each tile type
@@ -525,69 +525,214 @@ export class TileManager {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Add wave pattern
-        ctx.strokeStyle = this.adjustColor(baseColor, 15, true);
+        ctx.strokeStyle = this.adjustColor(baseColor, 10, true);
         ctx.lineWidth = 1;
-        
-        for (let i = 0; i < canvas.height; i += 4) {
+        for (let y = 0; y < canvas.height; y += 4) {
             ctx.beginPath();
-            ctx.moveTo(0, i);
+            ctx.moveTo(0, y);
             for (let x = 0; x < canvas.width; x += 10) {
-                ctx.lineTo(x, i + Math.sin(x / 20) * 2);
+                ctx.quadraticCurveTo(
+                    x + 5, y + Math.sin(x * 0.1) * 2,
+                    x + 10, y
+                );
             }
             ctx.stroke();
         }
     }
 
-    generateNaturalTexture(ctx, canvas, name, baseColor) {
-        // Base ground
+    generateWetlandTexture(ctx, canvas, baseColor) {
+        // Base wetland color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (name === TileManager.TILE_TYPES.TREE) {
-            // Tree trunk
-            ctx.fillStyle = this.treeTextures.trunk;
-            ctx.fillRect(canvas.width * 0.4, canvas.height * 0.5, 
-                        canvas.width * 0.2, canvas.height * 0.5);
-            
-            // Tree foliage
-            ctx.fillStyle = this.treeTextures.foliage;
+        // Add reed patterns
+        ctx.strokeStyle = this.adjustColor(baseColor, -20);
+        for (let i = 0; i < 20; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            this.drawReed(ctx, x, y);
+        }
+
+        // Add water spots
+        ctx.fillStyle = this.adjustColor('#4B9CD3', -30);
+        for (let i = 0; i < 15; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = 2 + Math.random() * 4;
             ctx.beginPath();
-            ctx.ellipse(canvas.width * 0.5, canvas.height * 0.3,
-                       canvas.width * 0.3, canvas.height * 0.3, 0, 0, Math.PI * 2);
+            ctx.arc(x, y, size, 0, Math.PI * 2);
             ctx.fill();
-        } else {
-            // Bush
-            ctx.fillStyle = baseColor;
-            for (let i = 0; i < 3; i++) {
-                ctx.beginPath();
-                ctx.ellipse(
-                    canvas.width * (0.3 + i * 0.2),
-                    canvas.height * 0.5,
-                    canvas.width * 0.2,
-                    canvas.height * 0.2,
-                    0, 0, Math.PI * 2
-                );
-                ctx.fill();
+        }
+    }
+
+    generateSandTexture(ctx, canvas, baseColor) {
+        // Base sand color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add grain texture
+        for (let i = 0; i < 1000; i++) {
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 20 - 10);
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+
+    generateGrassTexture(ctx, canvas, baseColor) {
+        // Base grass color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add grass blades
+        ctx.strokeStyle = this.adjustColor(baseColor, 10, true);
+        for (let i = 0; i < 100; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            this.drawGrassBlade(ctx, x, y);
+        }
+    }
+
+    generateForestTexture(ctx, canvas, baseColor) {
+        // Base forest color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add tree patterns
+        for (let i = 0; i < 8; i++) {
+            const x = 8 + (i % 4) * 16;
+            const y = 8 + Math.floor(i / 4) * 16;
+            this.drawTree(ctx, x, y, this.treeTextures.trunk, this.treeTextures.foliage);
+        }
+    }
+
+    generateMountainTexture(ctx, canvas, baseColor) {
+        // Base mountain color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add rocky texture
+        ctx.strokeStyle = this.adjustColor(baseColor, -20);
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 30; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            this.drawRockDetail(ctx, x, y);
+        }
+    }
+
+    generateConcreteTexture(ctx, canvas, baseColor) {
+        // Base concrete color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add concrete grain
+        for (let i = 0; i < 500; i++) {
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 10 - 5);
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            ctx.fillRect(x, y, 2, 2);
+        }
+    }
+
+    generateAsphaltTexture(ctx, canvas, baseColor) {
+        // Base asphalt color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add asphalt texture
+        for (let i = 0; i < 1000; i++) {
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 15 - 7);
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+
+    generateMetalTexture(ctx, canvas, baseColor) {
+        // Base metal color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add metallic sheen
+        ctx.fillStyle = this.adjustColor(baseColor, 20, true);
+        for (let y = 0; y < canvas.height; y += 4) {
+            ctx.globalAlpha = 0.1;
+            ctx.fillRect(0, y, canvas.width, 2);
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    generateTilesTexture(ctx, canvas, baseColor) {
+        // Base tiles color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add tile grid
+        ctx.strokeStyle = this.adjustColor(baseColor, -10);
+        ctx.lineWidth = 1;
+        const tileSize = 16;
+        for (let x = 0; x <= canvas.width; x += tileSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y <= canvas.height; y += tileSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+    }
+
+    generateSolarTexture(ctx, canvas, baseColor) {
+        // Base solar panel color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add panel grid
+        ctx.strokeStyle = this.adjustColor(baseColor, 30, true);
+        const panelSize = 16;
+        for (let x = 0; x < canvas.width; x += panelSize) {
+            for (let y = 0; y < canvas.height; y += panelSize) {
+                ctx.strokeRect(x, y, panelSize, panelSize);
+                // Add shine effect
+                ctx.fillStyle = this.adjustColor(baseColor, 40, true);
+                ctx.globalAlpha = 0.1;
+                ctx.fillRect(x + 2, y + 2, 4, 4);
+                ctx.globalAlpha = 1.0;
             }
         }
     }
 
-    generateStandardTexture(ctx, canvas, name, baseColor) {
-        // Base color
+    generateGardenTexture(ctx, canvas, baseColor) {
+        // Base garden color
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Add noise pattern for texture
-        const noisePattern = this.createNoisePattern(baseColor);
-        ctx.fillStyle = ctx.createPattern(noisePattern, 'repeat');
-        ctx.globalAlpha = 0.3;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1.0;
+        // Add flower patterns
+        const flowerColors = ['#FF69B4', '#FFD700', '#FF6347', '#9370DB'];
+        for (let i = 0; i < 12; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+            this.drawFlower(ctx, x, y, color);
+        }
+    }
 
-        // Add subtle edge highlighting
-        ctx.strokeStyle = this.adjustColor(baseColor, 20, true);
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    generateStoneTexture(ctx, canvas, baseColor) {
+        // Base stone color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add stone texture
+        for (let i = 0; i < 20; i++) {
+            ctx.fillStyle = this.adjustColor(baseColor, Math.random() * 20 - 10);
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            this.drawStone(ctx, x, y);
+        }
     }
 
     generateHelipadTexture(ctx, canvas, baseColor) {
@@ -770,32 +915,102 @@ export class TileManager {
             hasSurfaceProperty: this.surfaceProperties.has(type)
         };
     }
+
+    // Helper methods for texture details
+    drawReed(ctx, x, y) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(
+            x + Math.random() * 4 - 2,
+            y - 8,
+            x + Math.random() * 4 - 2,
+            y - 16
+        );
+        ctx.stroke();
+    }
+
+    drawGrassBlade(ctx, x, y) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(
+            x + Math.random() * 4 - 2,
+            y - 4,
+            x + Math.random() * 2 - 1,
+            y - 8
+        );
+        ctx.stroke();
+    }
+
+    drawTree(ctx, x, y, trunkColor, foliageColor) {
+        // Draw trunk
+        ctx.fillStyle = trunkColor;
+        ctx.fillRect(x - 1, y + 4, 2, 4);
+        
+        // Draw foliage
+        ctx.fillStyle = foliageColor;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 4, y + 4);
+        ctx.lineTo(x + 4, y + 4);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    drawRockDetail(ctx, x, y) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.random() * 4, y + Math.random() * 4);
+        ctx.stroke();
+    }
+
+    drawFlower(ctx, x, y, color) {
+        ctx.fillStyle = color;
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
+            const px = x + Math.cos(angle) * 2;
+            const py = y + Math.sin(angle) * 2;
+            ctx.beginPath();
+            ctx.arc(px, py, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawStone(ctx, x, y) {
+        const size = 3 + Math.random() * 4;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    generateStandardTexture(ctx, canvas, type, color) {
+        // Base color fill
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add some subtle texture variation
+        ctx.fillStyle = this.adjustColor(color, 10);
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = 1 + Math.random();
+            ctx.globalAlpha = 0.1;
+            ctx.fillRect(x, y, size, size);
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Add a slight gradient effect
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, this.adjustColor(color, 5, true));
+        gradient.addColorStop(1, this.adjustColor(color, -5));
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1.0;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

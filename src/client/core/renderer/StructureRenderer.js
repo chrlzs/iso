@@ -974,6 +974,7 @@ export class StructureRenderer {
     }
 
     drawTree(screenX, screenY, structure) {
+        console.log('Drawing tree at:', screenX, screenY, structure); // Debug log
         const trunkColor = '#8B4513';  // Saddle brown for trunk
         const foliageColor = '#228B22'; // Forest green for leaves
         
@@ -1024,6 +1025,7 @@ export class StructureRenderer {
         this.ctx.fill();
     }
 }
+
 
 
 

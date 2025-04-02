@@ -77,7 +77,7 @@ export const StructureTemplates = {
     office: {
         type: 'office',
         width: 5,
-        height: 5,
+        height: 5,  // Changed from 6 to match blueprint
         floors: 4,
         roofType: 'flat',
         roofConfig: {
@@ -95,25 +95,7 @@ export const StructureTemplates = {
             ['wall', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'floor', 'floor', 'floor', 'wall'],
             ['wall', 'door', 'door', 'door', 'wall']
-        ],
-        chimneys: [{
-            x: 0.3,    // Left side
-            y: 0.6,    // Moved further south
-            height: 32,
-            width: 14,
-            smokeActive: true,
-            smokeColor: '#606060',
-            smokeRate: 0.4
-        },
-        {
-            x: 0.7,    // Right side
-            y: 0.6,    // Moved further south
-            height: 32,
-            width: 14,
-            smokeActive: true,
-            smokeColor: '#606060',
-            smokeRate: 0.4
-        }]
+        ]
     },
     warehouse: {
         type: 'warehouse',
@@ -223,6 +205,56 @@ export const StructureTemplates = {
         },
         blueprint: [
             ['bush']
+        ]
+    },
+    nightclub: {
+        type: 'nightclub',
+        width: 6,
+        height: 6,
+        floors: 2,
+        roofType: 'flat',
+        roofConfig: {
+            style: 'flat',
+            color: '#404040',
+            height: 0
+        },
+        material: 'concrete',
+        states: {
+            lightOn: false,
+            musicPlaying: false
+        },
+        blueprint: [
+            ['wall', 'wall', 'wall', 'wall', 'wall', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'door', 'door', 'door', 'door', 'wall']
+        ]
+    },
+    laboratory: {
+        type: 'laboratory',
+        width: 8,
+        height: 6,
+        floors: 1,
+        roofType: 'flat',
+        roofConfig: {
+            style: 'flat',
+            color: '#FFFFFF',
+            height: 0
+        },
+        material: 'metal',
+        states: {
+            lightOn: false,
+            securityActive: true
+        },
+        blueprint: [
+            ['wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'floor', 'floor', 'floor', 'floor', 'floor', 'floor', 'wall'],
+            ['wall', 'door', 'door', 'wall', 'wall', 'door', 'door', 'wall']
         ]
     }
 };

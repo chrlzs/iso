@@ -100,9 +100,24 @@ export class World {
         this.chunksWidth = Math.ceil(width / this.chunkSize);
         this.chunksHeight = Math.ceil(height / this.chunkSize);
         
-        // Initialize structure templates
+        // Initialize structure templates with validation
+        if (!StructureTemplates) {
+            console.error('StructureTemplates is undefined!');
+            throw new Error('Failed to load structure templates');
+        }
+        
         this.structureTemplates = StructureTemplates;
         
+        // Validate structure templates
+        Object.entries(this.structureTemplates).forEach(([type, template]) => {
+            if (!template.blueprint) {
+                console.error(`Template ${type} missing blueprint:`, template);
+            }
+            if (!Array.isArray(template.blueprint)) {
+                console.error(`Template ${type} blueprint is not an array:`, template);
+            }
+        });
+
         // Initialize collections
         this.structures = new Map();
         this.tiles = new Array(width * height).fill(null).map(() => ({
@@ -397,33 +412,30 @@ export class World {
      * @returns {Structure|null} Created structure or null if failed
      */
     createStructure(type, x, y, options = {}) {
-        const template = this.structureTemplates[type];
-        if (!template) return null;
-
+        console.log('Creating structure:', { type, x, y, options });
         try {
+            const template = this.structureTemplates[type];
+            console.log('Template found:', template);
+            
             // Deep merge template with options, prioritizing options over template
             const mergedTemplate = {
                 ...template,
                 ...options,  // This ensures options override template values
                 roofConfig: {
-                    ...template.roofConfig,
+                    ...template?.roofConfig,
                     ...(options.roofConfig || {})
                 },
                 states: {
-                    ...template.states,
+                    ...template?.states,
                     ...(options.states || {})
                 }
             };
 
+            console.log('Merged template:', mergedTemplate);
+
             const structure = new Structure(mergedTemplate, x, y, this);
             const key = `${x},${y}`;
             this.structures.set(key, structure);
-            
-            console.log(`Structure created:`, {
-                type,
-                material: mergedTemplate.material,
-                originalMaterial: template.material
-            });
             
             return structure;
         } catch (error) {
@@ -522,6 +534,8 @@ export class World {
         };
     }
 }
+
+
 
 
 

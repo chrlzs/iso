@@ -33,6 +33,16 @@ export class GameInstance {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         
+        // Set up canvas to prevent scrolling
+        this.canvas.style.position = 'fixed';
+        this.canvas.style.top = '0';
+        this.canvas.style.left = '0';
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        document.body.style.overflow = 'hidden';
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+        
         // Initialize asset manager with texture configuration
         this.assetManager = new AssetManager({
             textureConfig: {
@@ -138,6 +148,13 @@ export class GameInstance {
             mapDefinition: createRemixedMap(),
             tileManager: this.tileManager
         });
+
+        // Add debug logging
+        if (this.debug.enabled) {
+            console.log('World structures:', this.world.structures);
+            const trees = Array.from(this.world.structures).filter(s => s.type === 'tree');
+            console.log('Number of trees:', trees.length);
+        }
 
         this.pathFinder = new PathFinder(this.world);
         this.renderer = new IsometricRenderer(canvas, this.tileManager);
@@ -291,7 +308,8 @@ export class GameInstance {
                 y: pos.y,
                 name: structure ? 'Shop Owner' : 'Wandering Merchant',
                 eth: 1000,
-                world: this.world  // Pass world reference
+                world: this.world,
+                game: this  // Add explicit game reference
             });
 
             // Verify merchant creation
@@ -556,6 +574,27 @@ export class GameInstance {
         let lastToggleTime = 0;
         const TOGGLE_COOLDOWN = 200;
 
+        // Create a separate wheel handler function
+        const handleWheel = (e) => {
+            const zoomSpeed = 0.1;
+            const newZoom = Math.max(0.5, Math.min(2,
+                this.camera.zoom + (e.deltaY > 0 ? -zoomSpeed : zoomSpeed)
+            ));
+            
+            // Only update if zoom actually changed
+            if (newZoom !== this.camera.zoom) {
+                this.camera.zoom = newZoom;
+                if (this.debug.flags.logZoomChanges) {
+                    console.log('Zoom updated:', this.camera.zoom);
+                }
+            }
+        };
+
+        // Add wheel listener with passive option
+        this.canvas.addEventListener('wheel', handleWheel, { 
+            passive: true 
+        });
+
         // Handle keydown
         const handleKeyDown = (e) => {
             if (e.key.toLowerCase() === 'i' && !keyStates.has('i')) {
@@ -591,14 +630,6 @@ export class GameInstance {
         // Add listeners with capture
         document.addEventListener('keydown', handleKeyDown, { capture: true });
         document.addEventListener('keyup', handleKeyUp, { capture: true });
-
-        this.canvas.addEventListener('wheel', (e) => {
-            const zoomSpeed = 0.1;
-            this.camera.zoom = Math.max(0.5, Math.min(2,
-                this.camera.zoom + (e.deltaY > 0 ? -zoomSpeed : zoomSpeed)
-            ));
-            e.preventDefault();
-        });
 
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.inputManager && this.inputManager.isShiftPressed) {
@@ -1354,6 +1385,13 @@ export class GameInstance {
         this.gameStartTime -= timeAdjustment;
     }
 }
+
+
+
+
+
+
+
 
 
 

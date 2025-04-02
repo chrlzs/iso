@@ -85,10 +85,22 @@ export class Structure {
      * @param {World} world - Reference to world instance
      */
     constructor(template, x, y, world) {
-        // Merge template with any overrides
+        // Validate and normalize blueprint dimensions first
+        if (!template.blueprint) {
+            throw new Error('Structure template must include a blueprint array');
+        }
+
+        const actualHeight = template.blueprint.length;
+        const actualWidth = template.blueprint[0]?.length || 0;
+
+        // Always use actual dimensions from blueprint
+        template.width = actualWidth;
+        template.height = actualHeight;
+
+        // Store template and basic properties
         this.template = {
             ...template,
-            material: template.material || 'concrete', // Default material
+            material: template.material || 'concrete',
             states: {
                 ...template.states
             }
@@ -101,34 +113,41 @@ export class Structure {
         this.height = template.height;
         this.world = world;
 
-        // Special handling for dumpster
-        if (this.type === 'dumpster') {
-            this.height = 1;
-            this.elevation = 0.3; // Makes it appear slightly raised
-            this.states = {
-                ...template.states,
-                isOpen: false
-            };
-        }
-
         // Components mapping for multi-tile structures
         this.components = [];
-        for (let dy = 0; dy < this.height; dy++) {
-            for (let dx = 0; dx < this.width; dx++) {
-                const worldX = x + dx;
-                const worldY = y + dy;
-                const componentType = template.blueprint[dy][dx];
-                const terrainHeight = world.getTileAt(worldX, worldY).height;
+        try {
+            for (let dy = 0; dy < this.height; dy++) {
+                const row = template.blueprint[dy];
+                if (!row) {
+                    throw new Error(`Missing blueprint row at index ${dy}`);
+                }
                 
-                this.components.push({
-                    x: worldX,
-                    y: worldY,
-                    type: componentType,
-                    isDecorative: this.isDecorativeComponent(componentType),
-                    tileIndex: dy * this.width + dx,
-                    terrainHeight: terrainHeight
-                });
+                for (let dx = 0; dx < this.width; dx++) {
+                    const cell = row[dx];
+                    if (!cell) {
+                        console.warn(`Missing blueprint cell at ${dx},${dy}, using default wall`);
+                    }
+                    
+                    const worldX = x + dx;
+                    const worldY = y + dy;
+                    const componentType = cell || 'wall'; // Default to wall if undefined
+                    
+                    const tile = world?.getTileAt?.(worldX, worldY);
+                    const terrainHeight = tile ? tile.height : 0;
+                    
+                    this.components.push({
+                        x: worldX,
+                        y: worldY,
+                        type: componentType,
+                        isDecorative: this.isDecorativeComponent(componentType),
+                        tileIndex: dy * this.width + dx,
+                        terrainHeight: terrainHeight
+                    });
+                }
             }
+        } catch (error) {
+            console.error('Error creating structure components:', error);
+            throw error;
         }
 
         // Base position (center-bottom of structure)
@@ -358,6 +377,12 @@ export class Structure {
         }
     }
 }
+
+
+
+
+
+
 
 
 
