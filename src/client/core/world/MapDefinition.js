@@ -93,7 +93,7 @@ export class MapDefinition {
     addStructure(structureData) {
         const { x, y, width = 1, height = 1, type, options = {} } = structureData;
         const key = `${x},${y}`;
-        
+
         // Create structure object with all necessary properties
         const structure = {
             ...structureData,
@@ -124,6 +124,13 @@ export class MapDefinition {
     }
 
     addTree(x, y) {
+        // CRITICAL: Check if the tile is already a building before adding a tree
+        const existingTile = this.getTile(x, y);
+        if (existingTile && (existingTile.type === 'building' || existingTile.structure)) {
+            console.warn(`Cannot add tree at ${x},${y} - tile is already a building or has a structure`);
+            return null;
+        }
+
         const treeStructure = {
             type: 'tree',
             template: {
@@ -145,13 +152,17 @@ export class MapDefinition {
         const key = `${x},${y}`;
         this.structures.set(key, treeStructure);
 
-        // Set tile type
-        this.setTile(x, y, {
+        // Set tile type - preserve existing tile properties if they exist
+        const newTileData = {
+            ...existingTile,
             type: 'tree',
-            height: 1,
-            moisture: 0.5,
+            height: existingTile?.height || 1,
+            moisture: existingTile?.moisture || 0.5,
             structure: treeStructure
-        });
+        };
+
+        this.setTile(x, y, newTileData);
+        console.log(`Added tree at ${x},${y}`);
 
         return treeStructure;
     }

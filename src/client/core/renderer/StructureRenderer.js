@@ -5,7 +5,7 @@ export class StructureRenderer {
         this.tileHeight = 32;
         this.floorHeight = 32;
         this.patterns = new Map();
-        
+
         // Add time of day properties
         this.timeOfDay = 0; // 0-24 hour format
         this.isNight = false;
@@ -14,16 +14,89 @@ export class StructureRenderer {
         // Add tracking for building lights
         this.buildingLights = new Map();
         this.lightTransitionSpeed = 0.0005; // Much slower transitions
-        
+
         this.initializeMaterialPatterns();
         this.world = null;
+    }
+
+    /**
+     * Checks if a tree is inside or behind a building
+     * @param {Object} treeStructure - The tree structure to check
+     * @returns {Object} - Result with isInside and isBehind flags
+     */
+    isTreeInsideOrBehindBuilding(treeStructure) {
+        if (!treeStructure || treeStructure.type !== 'tree' || !this.world) {
+            return { isInside: false, isBehind: false };
+        }
+
+        const x = treeStructure.x;
+        const y = treeStructure.y;
+
+        // Check if the tile at this position is a building type
+        const tile = this.world.getTileAt?.(x, y);
+        if (tile && tile.type === 'building') {
+            return { isInside: true, isBehind: false };
+        }
+
+        // Check all structures to see if this tree is inside or behind any building's footprint
+        const allStructures = this.world.getAllStructures?.() || [];
+        let isBehindBuilding = false;
+
+        for (const structure of allStructures) {
+            // Skip trees and the current structure
+            if (structure.type === 'tree' || structure === treeStructure) {
+                continue;
+            }
+
+            // Check if the tree is inside this structure's footprint
+            const structX = structure.x;
+            const structY = structure.y;
+            const structWidth = structure.width || 1;
+            const structHeight = structure.height || 1;
+
+            // Check if tree is inside building
+            if (x >= structX && x < structX + structWidth &&
+                y >= structY && y < structY + structHeight) {
+                return { isInside: true, isBehind: false };
+            }
+
+            // Check if tree is behind building in isometric space
+            // In isometric view, objects with higher x+y values are "closer" to the viewer
+            const treeDepth = x + y;
+            const buildingFarCornerDepth = structX + structWidth + structY + structHeight;
+
+            // If the tree's depth is less than the building's far corner depth,
+            // and the tree is within the building's x/y range (but not inside it),
+            // then the tree is behind the building
+            if (treeDepth < buildingFarCornerDepth) {
+                // Check if tree is in the same general area as the building
+                const isNearBuilding =
+                    x >= structX - 2 && x <= structX + structWidth + 2 &&
+                    y >= structY - 2 && y <= structY + structHeight + 2;
+
+                if (isNearBuilding) {
+                    isBehindBuilding = true;
+                }
+            }
+        }
+
+        return { isInside: false, isBehind: isBehindBuilding };
+    }
+
+    /**
+     * Checks if a tree is inside a building
+     * @param {Object} treeStructure - The tree structure to check
+     * @returns {boolean} - True if the tree is inside a building
+     */
+    isTreeInsideBuilding(treeStructure) {
+        return this.isTreeInsideOrBehindBuilding(treeStructure).isInside;
     }
 
     // Add method to update time
     updateTimeOfDay(hour) {
         this.timeOfDay = hour;
         this.isNight = (hour >= 18 || hour < 6);
-        
+
         // Update each building's light state
         const now = Date.now();
         this.buildingLights.forEach((light, structure) => {
@@ -75,14 +148,14 @@ export class StructureRenderer {
 
         // Glass pattern with isometric window panes
         patternCtx.clearRect(0, 0, 64, 64);
-        
+
         // Base color
         patternCtx.fillStyle = '#b8d6e6';
         patternCtx.fillRect(0, 0, 64, 64);
-        
+
         // Save context for rotation
         patternCtx.save();
-        
+
         // Translate to center for rotation
         patternCtx.translate(32, 32);
         // Rotate 30 degrees (isometric angle)
@@ -146,25 +219,25 @@ export class StructureRenderer {
             patternCtx.clearRect(0, 0, 64, 64);
             patternCtx.fillStyle = '#963a2f';
             patternCtx.fillRect(0, 0, 64, 64);
-            
+
             patternCtx.save();
             patternCtx.translate(32, 32);
             // For isometric walls, use atan2(0.5, 1) ≈ 26.57 degrees for proper alignment
             patternCtx.rotate(Math.atan2(0.5, 1) * (angle > 0 ? 1 : -1));
             patternCtx.translate(-32, -32);
-            
+
             patternCtx.fillStyle = '#732219';
             // Adjust brick dimensions to match isometric perspective
             const brickWidth = 40;  // Increased for better coverage
             const brickHeight = 12;
-            
+
             for (let y = -32; y < 96; y += brickHeight) {
                 let offset = (y % (brickHeight * 2)) === 0 ? 0 : brickWidth / 2;
                 for (let x = offset - 32; x < 96; x += brickWidth) {
                     patternCtx.fillRect(x, y, brickWidth - 2, brickHeight - 1);
                     patternCtx.strokeStyle = 'rgba(0,0,0,0.2)';
                     patternCtx.strokeRect(x, y, brickWidth - 2, brickHeight - 1);
-                    
+
                     // Add highlights
                     patternCtx.fillStyle = 'rgba(255,255,255,0.1)';
                     patternCtx.fillRect(x, y, brickWidth - 2, 2);
@@ -202,6 +275,15 @@ export class StructureRenderer {
             screenPos: { x: screenX, y: screenY }
         });
 
+        // CRITICAL FIX: Skip rendering trees that are inside buildings
+        if (structure.type === 'tree') {
+            const { isInside } = this.isTreeInsideOrBehindBuilding(structure);
+            if (isInside) {
+                console.warn(`Skipping tree render at ${structure.x},${structure.y} - tree is inside a building`);
+                return;
+            }
+        }
+
         // Initialize or update light state for this building
         if (!this.buildingLights.has(structure)) {
             this.buildingLights.set(structure, {
@@ -214,7 +296,7 @@ export class StructureRenderer {
         }
 
         this.ctx.save();
-        
+
         if (structure.type === 'tree') {
             this.drawTree(screenX, screenY, structure);
         } else if (structure.type === 'dumpster') {
@@ -228,7 +310,7 @@ export class StructureRenderer {
                 frontLeft: this.patterns.get(material === 'brick' ? 'brick_right' : material) || '#808080',
                 top: '#c0c0c0'
             };
-            
+
             const basePoints = {
                 bottomLeft: { x: worldX, y: worldY + structure.height },
                 bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
@@ -244,7 +326,7 @@ export class StructureRenderer {
             };
 
             const totalHeight = (structure.template.floors || 1) * this.floorHeight;
-            
+
             this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
         }
 
@@ -268,13 +350,13 @@ export class StructureRenderer {
         }
 
         const floors = Math.floor(height / this.floorHeight);
-        
+
         // Draw back walls first (always visible)
         if (structure.visibility.backRightWall) {
             this.ctx.globalAlpha = structure.transparency.backRightWall;
             this.drawWall(points.topRight, points.topLeft, height, colors.frontRight, 'right');
         }
-        
+
         if (structure.visibility.backLeftWall) {
             this.ctx.globalAlpha = structure.transparency.backLeftWall;
             this.drawWall(points.topLeft, points.bottomLeft, height, colors.frontLeft, 'left');
@@ -290,7 +372,7 @@ export class StructureRenderer {
         if (structure.visibility.frontRightWall) {
             this.ctx.globalAlpha = structure.transparency.frontRightWall;
             this.drawWall(points.bottomRight, points.topRight, height, colors.frontRight, 'right');
-            this.drawWindows(points.topRight.x, points.topRight.y, 
+            this.drawWindows(points.topRight.x, points.topRight.y,
                 points.bottomRight.x - points.topRight.x, height, floors, 'right', structure);
         }
 
@@ -379,11 +461,11 @@ export class StructureRenderer {
     drawGabledRoof(points, height, config) {
         // Calculate ridge line (peak of the roof)
         const ridgeHeight = height + config.height;
-        
+
         // Calculate back and front ridge points
         const backRidgeX = (points.topLeft.x + points.topRight.x) / 2;
         const backRidgeY = ((points.topLeft.y + points.topRight.y) / 2) - ridgeHeight;
-        
+
         const frontRidgeX = (points.bottomLeft.x + points.bottomRight.x) / 2;
         const frontRidgeY = ((points.bottomLeft.y + points.bottomRight.y) / 2) - ridgeHeight;
 
@@ -436,31 +518,31 @@ export class StructureRenderer {
         const halfWidth = (points.bottomRight.x - points.bottomLeft.x) / 2;
         const halfDepth = (points.bottomRight.y - points.topRight.y) / 2;
         const overlap = halfWidth * 0.5; // 50% overlap (increased from 20%)
-        
+
         // Calculate points for left gabled roof (extends further past center)
         const leftPoints = {
             topLeft: points.topLeft,
-            topRight: { 
-                x: points.topLeft.x + halfWidth + overlap, 
-                y: points.topLeft.y + halfDepth + (overlap * 0.5) 
+            topRight: {
+                x: points.topLeft.x + halfWidth + overlap,
+                y: points.topLeft.y + halfDepth + (overlap * 0.5)
             },
             bottomLeft: points.bottomLeft,
-            bottomRight: { 
-                x: points.bottomLeft.x + halfWidth + overlap, 
-                y: points.bottomLeft.y - halfDepth - (overlap * 0.5) 
+            bottomRight: {
+                x: points.bottomLeft.x + halfWidth + overlap,
+                y: points.bottomLeft.y - halfDepth - (overlap * 0.5)
             }
         };
 
         // Calculate points for right gabled roof (extends further past center)
         const rightPoints = {
-            topLeft: { 
-                x: points.topRight.x - halfWidth - overlap, 
-                y: points.topRight.y + halfDepth + (overlap * 0.5) 
+            topLeft: {
+                x: points.topRight.x - halfWidth - overlap,
+                y: points.topRight.y + halfDepth + (overlap * 0.5)
             },
             topRight: points.topRight,
-            bottomLeft: { 
-                x: points.bottomRight.x - halfWidth - overlap, 
-                y: points.bottomRight.y - halfDepth - (overlap * 0.5) 
+            bottomLeft: {
+                x: points.bottomRight.x - halfWidth - overlap,
+                y: points.bottomRight.y - halfDepth - (overlap * 0.5)
             },
             bottomRight: points.bottomRight
         };
@@ -490,7 +572,7 @@ export class StructureRenderer {
         const overlapHeight = config.overlapHeight || 32;
         const overlapWidth = config.overlapWidth || 0.7;
         const sideMargin = 0.15;
-        
+
         // Isometric angles (30 degrees)
         const isoAngle = Math.PI / 6;
         const isoSkewX = Math.cos(isoAngle);
@@ -501,7 +583,7 @@ export class StructureRenderer {
             x: points.topRight.x - (points.topRight.x - points.topLeft.x) * (overlapWidth + sideMargin),
             y: points.topRight.y - height
         };
-        
+
         const raisedEnd = {
             x: points.bottomRight.x - (points.bottomRight.x - points.bottomLeft.x) * (overlapWidth + sideMargin),
             y: points.bottomRight.y - height
@@ -530,10 +612,10 @@ export class StructureRenderer {
         for (let i = 0; i < windowCount; i++) {
             const wx = raisedStart.x + (windowSpacing * i) + (windowSpacing * 0.15);
             const wy = raisedStart.y - overlapHeight + (overlapHeight * 0.15);
-            
+
             // Draw isometric window frame
             this.ctx.fillStyle = '#2a2a2a';
-            
+
             // Calculate isometric window points
             const windowPoints = [
                 { x: wx, y: wy },
@@ -560,7 +642,7 @@ export class StructureRenderer {
             gradient.addColorStop(0, 'rgba(173, 216, 230, 0.9)');
             gradient.addColorStop(0.5, 'rgba(173, 216, 230, 0.7)');
             gradient.addColorStop(1, 'rgba(173, 216, 230, 0.8)');
-            
+
             this.ctx.fillStyle = gradient;
             this.ctx.fill();
 
@@ -582,7 +664,7 @@ export class StructureRenderer {
         const r = (num >> 16) + percent;
         const g = ((num >> 8) & 0x00FF) + percent;
         const b = (num & 0x0000FF) + percent;
-        
+
         return '#' + (0x1000000 +
             (r < 255 ? (r < 0 ? 0 : r) : 255) * 0x10000 +
             (g < 255 ? (g < 0 ? 0 : g) : 255) * 0x100 +
@@ -594,22 +676,22 @@ export class StructureRenderer {
         const windowPadding = 8;
         const windowWidth = Math.floor(this.tileWidth * 0.5);
         const windowsPerFloor = Math.max(1, Math.floor(Math.abs(faceWidth) / this.tileWidth));
-        
+
         const availableHeightPerFloor = (totalHeight - this.floorHeight) / (floors - 1);
         const windowHeight = Math.min(
             availableHeightPerFloor - (windowPadding * 2),
             this.floorHeight - (windowPadding * 3)
         );
-        
+
         const isoSkew = (windowWidth * this.tileHeight) / this.tileWidth;
 
         this.ctx.save();
 
         for (let f = 1; f < floors; f++) {
             const floorY = startY - (f * this.floorHeight);
-            
+
             for (let w = 0; w < windowsPerFloor; w++) {
-                const windowX = startX + (face === 'left' ? 1 : -1) * 
+                const windowX = startX + (face === 'left' ? 1 : -1) *
                     (windowPadding + (w * (this.tileWidth)));
                 const windowY = floorY;
 
@@ -628,10 +710,10 @@ export class StructureRenderer {
                     );
                     gradient.addColorStop(0, `rgba(255, 255, 200, ${0.2 * buildingLight.currentIntensity})`);
                     gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
-                    
+
                     this.ctx.fillStyle = gradient;
                     this.ctx.fillRect(
-                        windowX - glowRadius, 
+                        windowX - glowRadius,
                         windowY - glowRadius/2,
                         glowRadius * 2,
                         glowRadius * 2
@@ -672,7 +754,7 @@ export class StructureRenderer {
                     gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
                     gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
                 }
-                
+
                 this.ctx.fillStyle = gradient;
                 this.ctx.fill();
 
@@ -687,13 +769,13 @@ export class StructureRenderer {
 
     drawWindowPanes(windowX, windowY, windowWidth, windowHeight, isoSkew, face) {
         const paneCount = 3;
-        
+
         // Vertical panes
         for (let i = 1; i < paneCount; i++) {
             const ratio = i / paneCount;
             const x1 = windowX + (face === 'left' ? windowWidth * ratio : -windowWidth * ratio);
             const y1 = windowY + (isoSkew * ratio);
-            
+
             this.ctx.beginPath();
             this.ctx.moveTo(x1, y1);
             this.ctx.lineTo(x1, y1 + windowHeight);
@@ -707,7 +789,7 @@ export class StructureRenderer {
             const y = windowY + (windowHeight * ratio);
             const x1 = windowX;
             const x2 = windowX + (face === 'left' ? windowWidth : -windowWidth);
-            
+
             this.ctx.beginPath();
             this.ctx.moveTo(x1, y);
             this.ctx.lineTo(x2, y + isoSkew);
@@ -753,7 +835,7 @@ export class StructureRenderer {
         for (let w = 0; w < windowsPerFloor; w++) {
             const windowX = startX + (windowPadding + (w * (windowWidth + windowPadding)));
             const windowRight = windowX + windowWidth;
-            
+
             // If door overlaps with window, mark that we need to shift
             if (doorX >= windowX - doorWidth && doorX <= windowRight + doorWidth) {
                 doorShifted = true;
@@ -871,7 +953,7 @@ export class StructureRenderer {
         // Draw main body
         this.ctx.beginPath();
         this.ctx.fillStyle = colors.base;
-        
+
         // Front face
         this.ctx.moveTo(screenX, screenY);
         this.ctx.lineTo(screenX + width, screenY);
@@ -914,13 +996,13 @@ export class StructureRenderer {
             // Calculate relative position (0-1) in building space
             const relX = chimney.x / structure.width;
             const relY = chimney.y / structure.height;
-            
+
             // Interpolate points along the roof surface
             const leftEdgeX = points.topLeft.x + (points.bottomLeft.x - points.topLeft.x) * relY;
             const leftEdgeY = points.topLeft.y + (points.bottomLeft.y - points.topLeft.y) * relY;
             const rightEdgeX = points.topRight.x + (points.bottomRight.x - points.topRight.x) * relY;
             const rightEdgeY = points.topRight.y + (points.bottomRight.y - points.topRight.y) * relY;
-            
+
             // Final chimney base position
             const baseX = leftEdgeX + (rightEdgeX - leftEdgeX) * relX;
             const baseY = leftEdgeY + (rightEdgeY - leftEdgeY) * relY - height;
@@ -954,7 +1036,7 @@ export class StructureRenderer {
         const smokeColor = chimney.smokeColor || '#8a8a8a';
         const smokeRate = chimney.smokeRate || 0.5;
         const time = Date.now() * 0.001 * smokeRate;
-        
+
         // Create multiple smoke particles
         for (let i = 0; i < 5; i++) {
             const offset = i * 0.8;
@@ -979,12 +1061,28 @@ export class StructureRenderer {
             this.ctx.arc(x + spread, particleY, size, 0, Math.PI * 2);
             this.ctx.fill();
         }
-        
+
         this.ctx.globalAlpha = 1;
     }
 
     drawTree(screenX, screenY, structure) {
         console.log('Drawing tree at:', screenX, screenY);
+
+        // Check if this tree is inside or behind a building
+        const { isInside, isBehind } = this.isTreeInsideOrBehindBuilding(structure);
+
+        // Don't render trees inside buildings
+        if (isInside) {
+            console.warn(`Skipping tree render at ${structure.x},${structure.y} - tree is inside a building`);
+            return;
+        }
+
+        // If tree is behind a building, adjust its appearance
+        if (isBehind) {
+            console.log(`Tree at ${structure.x},${structure.y} is behind a building - adjusting appearance`);
+            // We'll make the tree semi-transparent when it's behind a building
+            this.ctx.globalAlpha = 0.6;
+        }
 
         const trunkHeight = 24;
         const trunkWidth = 12;
@@ -1017,11 +1115,11 @@ export class StructureRenderer {
 
     drawBush(screenX, screenY, structure) {
         const bushColor = '#2E8B57';  // Sea green for the bush
-        
+
         // Draw main bush shape (circular)
         this.ctx.fillStyle = bushColor;
         this.ctx.beginPath();
-        
+
         // Draw three overlapping circles for fuller appearance
         const radius = 16;
         // Bottom circle
@@ -1030,9 +1128,9 @@ export class StructureRenderer {
         this.ctx.arc(screenX - radius/2, screenY - radius * 1.2, radius * 0.8, 0, Math.PI * 2);
         // Right circle
         this.ctx.arc(screenX + radius/2, screenY - radius * 1.2, radius * 0.8, 0, Math.PI * 2);
-        
+
         this.ctx.fill();
-        
+
         // Add some darker details for depth
         this.ctx.fillStyle = '#1C6E3C';  // Darker green
         this.ctx.beginPath();

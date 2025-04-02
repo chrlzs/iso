@@ -1,11 +1,9 @@
 import { MapDefinition } from '../MapDefinition.js';
-import { DecorationPlacer } from '../DecorationPlacer.js';
 import { createNoise2D } from '/node_modules/simplex-noise/dist/esm/simplex-noise.js';
 
 export function createRemixedMap() {
     const mapSize = 32;
     const mapDef = new MapDefinition(mapSize, mapSize);
-    const decorationPlacer = new DecorationPlacer(mapDef);
 
     // Use fixed seeds for consistent generation
     const FIXED_SEED = 12345;
@@ -64,15 +62,61 @@ export function createRemixedMap() {
                 floors: 3,
                 material: 'concrete'
             }
+        },
+        // Entertainment district - nightclub
+        {
+            type: 'nightclub',
+            x: Math.floor(mapSize * 0.5) - 8, // West side
+            y: Math.floor(mapSize * 0.5) + 8, // South side
+            options: {
+                floors: 2,
+                material: 'concrete',
+                states: {
+                    lightOn: true,
+                    musicPlaying: true
+                }
+            }
+        },
+        // Research district - laboratory
+        {
+            type: 'laboratory',
+            x: Math.floor(mapSize * 0.5) + 8, // East side
+            y: Math.floor(mapSize * 0.5) - 8, // North side
+            options: {
+                floors: 1,
+                material: 'metal',
+                states: {
+                    lightOn: true,
+                    securityActive: true
+                }
+            }
+        },
+        // Storage district - warehouse
+        {
+            type: 'warehouse',
+            x: Math.floor(mapSize * 0.25), // Far west
+            y: Math.floor(mapSize * 0.25), // Far north
+            options: {
+                floors: 1,
+                material: 'metal',
+                roofConfig: {
+                    style: 'gabled',
+                    color: '#8B0000',
+                    height: 48
+                },
+                states: {
+                    doorOpen: true
+                }
+            }
         }
     ];
 
     // Add structures to map, ensuring door accessibility
     structures.forEach(structureData => {
         const { type, x, y, options = {} } = structureData;
-        
+
         console.log(`Attempting to place ${type} at ${x},${y}`);
-        
+
         // Check for any existing structures in a larger area
         let hasOverlap = false;
         for (let dy = -4; dy <= 4; dy++) {
@@ -115,40 +159,162 @@ export function createRemixedMap() {
         }
     });
 
-    // Add some trees around the edges, avoiding structures
-    for (let i = 0; i < 20; i++) {
+    // IMPORTANT: Make sure all structures are fully registered before placing trees
+    console.log('Structures placed:', mapDef.getAllStructures().filter(s => s.type !== 'tree').length);
+
+    // Add trees throughout the map, avoiding structures
+    console.log('Starting tree placement...');
+    const treeCount = 50; // Increased from 20 to better test our solution
+    let treesPlaced = 0;
+    let attempts = 0;
+    const maxAttempts = treeCount * 5; // Increased attempts to find valid spots
+
+    // Create a safety map of all structure positions for a final verification
+    const structurePositions = new Set();
+    mapDef.getAllStructures().forEach(structure => {
+        if (structure.type === 'tree') return;
+
+        const width = structure.width || 1;
+        const height = structure.height || 1;
+        const bufferSize = 1; // Buffer zone around structures
+
+        // Mark all tiles covered by this structure AND a buffer zone around it
+        for (let dy = -bufferSize; dy < height + bufferSize; dy++) {
+            for (let dx = -bufferSize; dx < width + bufferSize; dx++) {
+                structurePositions.add(`${structure.x + dx},${structure.y + dy}`);
+            }
+        }
+    });
+
+    console.log(`Created safety map with ${structurePositions.size} structure positions`);
+
+    while (treesPlaced < treeCount && attempts < maxAttempts) {
+        attempts++;
         const x = Math.floor(Math.random() * mapSize);
         const y = Math.floor(Math.random() * mapSize);
         const tile = mapDef.getTile(x, y);
-        
-        if (tile && 
-            tile.type === 'grass' && 
-            !tile.structure && 
-            !isNearStructure(mapDef, x, y)) {
-            mapDef.addStructure({
-                type: 'tree',
-                x,
-                y,
-                options: {
-                    height: 1 + Math.random() * 0.5
+
+        // Skip if this position is in our structure safety map
+        if (structurePositions.has(`${x},${y}`)) {
+            continue;
+        }
+
+        // CRITICAL: Never place trees on building tiles
+        if (tile && tile.type === 'building') {
+            console.log(`Skipping tree placement at ${x},${y} - tile is a building`);
+            continue;
+        }
+
+        // Only place trees on natural terrain types
+        if (tile &&
+            (tile.type === 'grass' || tile.type === 'dirt') &&
+            !tile.structure) {
+
+            // Triple-check if the position is near or inside any structure
+            if (!isNearStructure(mapDef, x, y)) {
+                console.log(`Placing tree at ${x},${y}`);
+
+                // Final verification before placement
+                const finalCheck = mapDef.getTile(x, y);
+                if (finalCheck && !finalCheck.structure && finalCheck.type !== 'building') {
+                    // Use addTree method which has additional safety checks
+                    const tree = mapDef.addTree(x, y);
+                    if (tree) {
+                        treesPlaced++;
+                        console.log(`Successfully placed tree at ${x},${y}`);
+                    } else {
+                        console.warn(`Tree placement failed at ${x},${y}`);
+                    }
+                } else {
+                    console.warn(`Final check failed: Position ${x},${y} already has a structure or is a building`);
                 }
-            });
+            }
         }
     }
+
+    console.log(`Placed ${treesPlaced} trees after ${attempts} attempts`);
 
     return mapDef;
 }
 
-// Helper function to check if a position is near any structure
+// Helper function to check if a position is near or inside any structure
 function isNearStructure(mapDef, x, y) {
-    for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-            const tile = mapDef.getTile(x + dx, y + dy);
-            if (tile && tile.structure) {
-                return true;
+    // CRITICAL CHECK: First check if the exact position has a structure (direct overlap)
+    const currentTile = mapDef.getTile(x, y);
+
+    // Check if the tile is a building type - NEVER place trees on building tiles
+    if (currentTile && currentTile.type === 'building') {
+        console.log(`Tree placement rejected: Position ${x},${y} is a building tile`);
+        return true;
+    }
+
+    // Check if the tile already has a structure
+    if (currentTile && currentTile.structure) {
+        console.log(`Tree placement rejected: Position ${x},${y} already has a structure`);
+        return true;
+    }
+
+    // DOUBLE CHECK: Scan all tiles in the map to find structures and building tiles
+    // This is a more thorough approach that doesn't rely on the structures collection
+    for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+            const checkX = x + dx;
+            const checkY = y + dy;
+            const tile = mapDef.getTile(checkX, checkY);
+
+            // Check for building tiles in the scan area
+            if (tile && tile.type === 'building') {
+                // If we're directly on a building tile or within 1 tile of it, reject
+                if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+                    console.log(`Tree placement rejected: Position ${x},${y} is too close to building tile at ${checkX},${checkY}`);
+                    return true;
+                }
+            }
+
+            // Check for structures in the scan area
+            if (tile && tile.structure && tile.structure.type !== 'tree') {
+                // If we found a non-tree structure, check if our position is within its bounds
+                const structure = tile.structure;
+                const structX = structure.x;
+                const structY = structure.y;
+                const structWidth = structure.width || 1;
+                const structHeight = structure.height || 1;
+
+                // If our position is inside this structure's footprint, reject it
+                if (x >= structX && x < structX + structWidth &&
+                    y >= structY && y < structY + structHeight) {
+                    console.log(`Tree placement rejected: Position ${x},${y} is inside building at ${structX},${structY} with size ${structWidth}x${structHeight}`);
+                    return true;
+                }
+
+                // Also maintain a buffer zone around structures
+                const bufferSize = 1;
+                if (x >= structX - bufferSize && x < structX + structWidth + bufferSize &&
+                    y >= structY - bufferSize && y < structY + structHeight + bufferSize) {
+                    console.log(`Tree placement rejected: Position ${x},${y} is too close to building at ${structX},${structY}`);
+                    return true;
+                }
             }
         }
     }
+
+    // TRIPLE CHECK: Also use the structures collection as a backup
+    const structures = mapDef.getAllStructures();
+    for (const structure of structures) {
+        if (structure.type === 'tree') continue;
+
+        const structX = structure.x;
+        const structY = structure.y;
+        const structWidth = structure.width || 1;
+        const structHeight = structure.height || 1;
+
+        if (x >= structX && x < structX + structWidth &&
+            y >= structY && y < structY + structHeight) {
+            console.log(`Tree placement rejected (from structures collection): Position ${x},${y} is inside building at ${structX},${structY}`);
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -174,15 +340,15 @@ function isValidStructurePlacement(mapDef, x, y) {
 
     // Door tile and adjacent tiles should be navigable
     const nonNavigableTypes = ['water', 'wetland', 'mountain'];
-    
+
     // Check door tile and tiles to its left and right
     let isValid = true;
     for (let dx = -1; dx <= 1; dx++) {
         const tile = mapDef.getTile(x + dx, y + 1);
-        if (!tile || 
-            nonNavigableTypes.includes(tile.type) || 
+        if (!tile ||
+            nonNavigableTypes.includes(tile.type) ||
             tile.structure) {
-            console.log(`Invalid tile at ${x + dx},${y + 1}:`, 
+            console.log(`Invalid tile at ${x + dx},${y + 1}:`,
                 tile ? `type=${tile.type}, hasStructure=${!!tile.structure}` : 'no tile');
             isValid = false;
             break;

@@ -24,12 +24,12 @@ export class IsometricRenderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.tileManager = tileManager;
-        
+
         // Define tile dimensions
         this.tileWidth = 64;
         this.tileHeight = 32;
         this.heightScale = 32; // Height scale for elevation
-        
+
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();
         this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
@@ -56,6 +56,10 @@ export class IsometricRenderer {
             return;
         }
 
+        // CRITICAL FIX: Set the world reference in the structure renderer
+        // This allows the structure renderer to check if trees are inside buildings
+        this.structureRenderer.world = world;
+
         // First render tiles
         for (let y = 0; y < world.height; y++) {
             for (let x = 0; x < world.width; x++) {
@@ -66,7 +70,7 @@ export class IsometricRenderer {
             }
         }
 
-        // Debug log structures
+        // Get all structures
         const structures = world.getAllStructures();
         console.log('Structures to render:', {
             count: structures.length,
@@ -77,15 +81,19 @@ export class IsometricRenderer {
             }))
         });
 
-        // Render structures
-        structures.forEach(structure => {
+        // IMPORTANT: Sort structures by their position in the isometric world
+        // This ensures proper z-ordering (structures in the back are rendered first)
+        const sortedStructures = this.sortStructuresByDepth(structures);
+
+        // Render structures in sorted order
+        sortedStructures.forEach(structure => {
             const screenCoords = this.worldToScreen(structure.x, structure.y);
             console.log('Rendering structure:', {
                 type: structure.type,
                 worldPos: `${structure.x},${structure.y}`,
                 screenPos: screenCoords
             });
-            
+
             this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
         });
     }
@@ -153,7 +161,7 @@ export class IsometricRenderer {
             if (texture && texture.complete && !hasDoor) {  // Don't use texture for door tiles
                 // Draw the image slightly larger to ensure it fills the diamond
                 this.ctx.drawImage(
-                    texture, 
+                    texture,
                     isoX - this.tileWidth/2,  // Adjust position to account for clipping
                     finalY,
                     this.tileWidth,
@@ -200,10 +208,10 @@ export class IsometricRenderer {
     screenToWorld(screenX, screenY, zoom, cameraX, cameraY) {
         const unzoomedX = screenX / zoom;
         const unzoomedY = screenY / zoom;
-        
+
         const isoX = unzoomedX / (this.tileWidth / 2);
         const isoY = unzoomedY / (this.tileHeight / 2);
-        
+
         return {
             x: Math.floor((isoX + isoY) / 2),
             y: Math.floor((isoY - isoX) / 2)
@@ -228,6 +236,42 @@ export class IsometricRenderer {
         requestAnimationFrame(() => this.animate());
     }
 
+    /**
+     * Sorts structures by their depth in the isometric world
+     * This ensures proper z-ordering (structures in the back are rendered first)
+     * @param {Array} structures - Array of structures to sort
+     * @returns {Array} - Sorted array of structures
+     */
+    sortStructuresByDepth(structures) {
+        // In isometric view, objects with higher x+y values are "closer" to the viewer
+        // and should be rendered later (on top)
+        return [...structures].sort((a, b) => {
+            // Calculate the "depth" of each structure
+            // For buildings, use the far corner (x+width, y+height)
+            // For trees, use their position plus a small offset to ensure they render behind buildings
+            const aIsTree = a.type === 'tree';
+            const bIsTree = b.type === 'tree';
+
+            // Calculate the depth value for structure A
+            const aDepth = aIsTree
+                ? (a.x + a.y) // Trees use their position
+                : (a.x + a.width + a.y + a.height); // Buildings use their far corner
+
+            // Calculate the depth value for structure B
+            const bDepth = bIsTree
+                ? (b.x + b.y) // Trees use their position
+                : (b.x + b.width + b.y + b.height); // Buildings use their far corner
+
+            // If depths are equal, prioritize buildings over trees
+            if (aDepth === bDepth) {
+                return aIsTree && !bIsTree ? -1 : (!aIsTree && bIsTree ? 1 : 0);
+            }
+
+            // Sort by depth (lower values first - they're further away)
+            return aDepth - bDepth;
+        });
+    }
+
     getTileColor(tileType) {
         const colors = {
             // Natural terrain
@@ -239,14 +283,14 @@ export class IsometricRenderer {
             'wetland': '#2F4F4F',
             'mountain': '#696969',
             'forest': '#228B22',
-            
+
             // Urban terrain
             'concrete': '#A9A9A9',
             'asphalt': '#404040',
             'metal': '#B8B8B8',
             'tiles': '#D3D3D3',
             'gravel': '#9B9B9B',
-            
+
             // Structures
             'building': '#A9A9A9',
             'door': '#FFD700',
@@ -255,7 +299,7 @@ export class IsometricRenderer {
             'parking': '#696969',
             'helipad': '#2F4F4F',
             'solar': '#1C1C1C',
-            
+
             // Flora
             'tree': '#228B22',
             'bush': '#3B7A57',
