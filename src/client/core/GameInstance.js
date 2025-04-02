@@ -1228,7 +1228,7 @@ export class GameInstance {
             return [];
         }
 
-        console.log(`Creating ${this.world.npcs.length} NPCs from map definition`);
+        console.log(`Creating ${this.world.npcs.length} NPCs from map definition:`, this.world.npcs);
         const createdNPCs = [];
 
         // Process each NPC definition

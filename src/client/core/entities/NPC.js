@@ -47,6 +47,10 @@ export class NPC extends Entity {
         this.inventory = new InventorySystem(config.inventory);
         this.schedule = config.schedule || {};
         this.behavior = config.behavior || {};
+        this.isEnemy = config.isEnemy || false;
+        this.damage = config.damage || 0;
+        this.health = config.health || 100;
+        this.attackRange = config.attackRange || 1;
 
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
@@ -102,6 +106,12 @@ export class NPC extends Entity {
         // Draw NPC using canvas primitives
         ctx.save();
 
+        // Draw shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(isoX, isoY + 5, this.size/2, this.size/4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         // Draw body
         ctx.beginPath();
         ctx.fillStyle = this.color;
@@ -118,7 +128,7 @@ export class NPC extends Entity {
 
         // Draw head
         ctx.beginPath();
-        ctx.fillStyle = '#FFE0BD';  // Skin tone
+        ctx.fillStyle = this.isEnemy ? '#FFD0D0' : '#FFE0BD';  // Different skin tone for enemies
         ctx.arc(
             isoX,
             isoY - this.size,
@@ -128,12 +138,45 @@ export class NPC extends Entity {
         );
         ctx.fill();
 
+        // For enemies, draw additional details
+        if (this.isEnemy) {
+            // Draw weapon
+            ctx.beginPath();
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 2;
+            ctx.moveTo(isoX + this.size/2, isoY - this.size/2);
+            ctx.lineTo(isoX + this.size, isoY - this.size/4);
+            ctx.stroke();
+
+            // Draw angry eyes
+            ctx.beginPath();
+            ctx.fillStyle = '#000000';
+            ctx.arc(isoX - this.size/8, isoY - this.size - this.size/8, this.size/12, 0, Math.PI * 2);
+            ctx.arc(isoX + this.size/8, isoY - this.size - this.size/8, this.size/12, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Draw normal eyes
+            ctx.beginPath();
+            ctx.fillStyle = '#000000';
+            ctx.arc(isoX - this.size/8, isoY - this.size, this.size/12, 0, Math.PI * 2);
+            ctx.arc(isoX + this.size/8, isoY - this.size, this.size/12, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw name with background for better visibility
+        const nameText = this.isEnemy ? `${this.name} (Enemy)` : this.name;
+        const textWidth = ctx.measureText(nameText).width;
+
+        // Draw text background
+        ctx.fillStyle = this.isEnemy ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(isoX - textWidth/2 - 2, isoY - this.size - 22, textWidth + 4, 16);
+
         // Draw name
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(
-            this.name,
+            nameText,
             isoX,
             isoY - this.size - 10
         );
@@ -147,6 +190,12 @@ export class NPC extends Entity {
      * @returns {void}
      */
     updateVisibility(playerStructure) {
+        // Enemy NPCs are always visible
+        if (this.isEnemy) {
+            this.isVisible = true;
+            return;
+        }
+
         // If NPC is not in a structure, always visible
         if (!this.currentStructure) {
             this.isVisible = true;
