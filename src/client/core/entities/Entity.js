@@ -41,16 +41,20 @@ export class Entity {
         this.x = config.x || 0;
         this.y = config.y || 0;
         this.world = config.world;
-        
+
         // Health properties
         this.health = config.health || 100;
         this.maxHealth = config.maxHealth || 100;
-        
+
         // Movement properties
         this.speed = config.speed || 1;
         this.path = null;
         this.nextPathIndex = 0;
         this.isMoving = false;
+
+        // Visual properties
+        this.size = config.size || 24; // Default entity size
+        this.color = config.color || '#3498db'; // Default blue color
 
         // State flags
         this.isVisible = true;
@@ -89,7 +93,7 @@ export class Entity {
             this.x = target.x;
             this.y = target.y;
             this.nextPathIndex++;
-            
+
             if (this.nextPathIndex >= this.path.length) {
                 this.clearPath();
             }

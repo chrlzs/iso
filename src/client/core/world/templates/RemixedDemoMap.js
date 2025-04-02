@@ -346,22 +346,43 @@ export function createRemixedMap() {
     });
     console.log('Added patrolling enemy at', Math.floor(mapSize * 0.25), Math.floor(mapSize * 0.75));
 
-    // Add an enemy near the center of the map (very visible location)
+    // Add MULTIPLE enemies at the spawn point (where player starts)
+    // This should guarantee they are visible
+    const spawnPoint = mapDef.spawnPoints[0];
+
+    // Add enemy right at spawn point
     mapDef.addNPC({
         type: 'enemy',
-        name: 'Central Guard',
-        x: Math.floor(mapSize * 0.5) - 3, // Near center, slightly offset
-        y: Math.floor(mapSize * 0.5) - 3,
+        name: 'SPAWN GUARD',
+        x: spawnPoint.x + 1, // Right next to spawn point
+        y: spawnPoint.y + 1,
         color: '#FF0000', // Bright red color
         damage: 20,
         attackRange: 3,
         health: 120,
         dialog: [
-            { text: "This area is under surveillance!" },
-            { text: "Move along, citizen!" }
+            { text: "THIS IS A TEST ENEMY!" },
+            { text: "CAN YOU SEE ME?" }
         ]
     });
-    console.log('Added central guard at', Math.floor(mapSize * 0.5) - 3, Math.floor(mapSize * 0.5) - 3);
+    console.log('Added SPAWN GUARD at', spawnPoint.x + 1, spawnPoint.y + 1);
+
+    // Add another enemy at exact center
+    mapDef.addNPC({
+        type: 'enemy',
+        name: 'CENTER GUARD',
+        x: Math.floor(mapSize * 0.5), // Exact center
+        y: Math.floor(mapSize * 0.5),
+        color: '#FF00FF', // Magenta color
+        damage: 30,
+        attackRange: 4,
+        health: 150,
+        dialog: [
+            { text: "I AM AT THE CENTER!" },
+            { text: "CAN YOU SEE ME?" }
+        ]
+    });
+    console.log('Added CENTER GUARD at exact center:', Math.floor(mapSize * 0.5), Math.floor(mapSize * 0.5));
 
     console.log(`Added ${mapDef.npcs.length} NPCs to the map`);
 
