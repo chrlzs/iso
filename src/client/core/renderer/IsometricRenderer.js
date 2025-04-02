@@ -56,13 +56,7 @@ export class IsometricRenderer {
             return;
         }
 
-        // Debug log structures
-        console.log('Rendering structures:', {
-            count: world.structures.size,
-            types: Array.from(world.structures).map(s => s.type)
-        });
-
-        // Render all tiles in the world
+        // First render tiles
         for (let y = 0; y < world.height; y++) {
             for (let x = 0; x < world.width; x++) {
                 const tile = world.getTileAt(x, y);
@@ -72,15 +66,26 @@ export class IsometricRenderer {
             }
         }
 
-        // Render structures with additional logging
-        world.structures.forEach(structure => {
+        // Debug log structures
+        const structures = world.getAllStructures();
+        console.log('Structures to render:', {
+            count: structures.length,
+            structures: structures.map(s => ({
+                type: s.type,
+                pos: `${s.x},${s.y}`,
+                template: s.template
+            }))
+        });
+
+        // Render structures
+        structures.forEach(structure => {
             const screenCoords = this.worldToScreen(structure.x, structure.y);
-            if (structure.type === 'tree') {
-                console.log('Tree structure found:', {
-                    worldPos: { x: structure.x, y: structure.y },
-                    screenPos: screenCoords
-                });
-            }
+            console.log('Rendering structure:', {
+                type: structure.type,
+                worldPos: `${structure.x},${structure.y}`,
+                screenPos: screenCoords
+            });
+            
             this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
         });
     }
@@ -176,10 +181,10 @@ export class IsometricRenderer {
      * @param {number} y - World Y coordinate
      * @returns {{x: number, y: number}} Screen coordinates
      */
-    worldToScreen(x, y) {
+    worldToScreen(worldX, worldY) {
         return {
-            x: (x - y) * (this.tileWidth / 2),
-            y: (x + y) * (this.tileHeight / 2)
+            x: (worldX - worldY) * this.tileWidth / 2,
+            y: (worldX + worldY) * this.tileHeight / 2
         };
     }
 
@@ -261,6 +266,8 @@ export class IsometricRenderer {
         return color;
     }
 }
+
+
 
 
 

@@ -533,7 +533,65 @@ export class World {
             structure: this.getStructureAt(x, y)
         };
     }
+
+    addTree(x, y) {
+        console.log('Adding tree at:', x, y);
+        
+        const treeStructure = {
+            type: 'tree',
+            template: {
+                type: 'tree',
+                width: 1,
+                height: 1,
+                floors: 1,
+                material: 'organic'
+            },
+            x: x,
+            y: y,
+            width: 1,
+            height: 1,
+            rotation: 0,
+            id: `tree_${x}_${y}`
+        };
+
+        // Add to structures Map using coordinates as key
+        const key = `${x},${y}`;
+        this.structures.set(key, treeStructure);
+        
+        console.log('Added tree structure:', treeStructure);
+        console.log('Current structures:', Array.from(this.structures.entries()));
+        
+        // Set tile type
+        this.setTileAt(x, y, {
+            type: 'tree',
+            height: 1,
+            moisture: 0.5,
+            structure: treeStructure // Reference the structure in the tile
+        });
+
+        return treeStructure;
+    }
+
+    setTileAt(x, y, tileData) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            console.warn('Attempted to set tile outside world bounds:', x, y);
+            return;
+        }
+
+        const index = y * this.width + x;
+        this.tiles[index] = {
+            ...this.tiles[index],
+            ...tileData
+        };
+
+        console.log(`Set tile at ${x},${y}:`, this.tiles[index]);
+    }
 }
+
+
+
+
+
 
 
 

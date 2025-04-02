@@ -192,7 +192,15 @@ export class StructureRenderer {
     }
 
     render(structure, worldX, worldY, screenX, screenY) {
-        if (!structure?.template) return;
+        if (!structure) {
+            console.warn('Attempted to render undefined structure');
+            return;
+        }
+
+        console.log('Structure render called:', {
+            type: structure.type,
+            screenPos: { x: screenX, y: screenY }
+        });
 
         // Initialize or update light state for this building
         if (!this.buildingLights.has(structure)) {
@@ -207,7 +215,9 @@ export class StructureRenderer {
 
         this.ctx.save();
         
-        if (structure.type === 'dumpster') {
+        if (structure.type === 'tree') {
+            this.drawTree(screenX, screenY, structure);
+        } else if (structure.type === 'dumpster') {
             this.drawDumpster(screenX, screenY, structure);
         } else {
             // Regular structure rendering
@@ -974,13 +984,7 @@ export class StructureRenderer {
     }
 
     drawTree(screenX, screenY, structure) {
-        // Add debug logging to verify the method is being called
-        console.log('Tree render attempt:', {
-            screenX,
-            screenY,
-            structure,
-            treeTexture: this.tileManager?.getTexture('tree')
-        });
+        console.log('Drawing tree at:', screenX, screenY);
 
         const trunkHeight = 24;
         const trunkWidth = 12;
@@ -1037,12 +1041,6 @@ export class StructureRenderer {
         this.ctx.fill();
     }
 }
-
-
-
-
-
-
 
 
 

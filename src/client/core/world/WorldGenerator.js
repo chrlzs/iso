@@ -205,6 +205,13 @@ export class WorldGenerator {
     generateTile(x, y, height, moisture, urbanDensity = 0) {
         let tileType;
         
+        // If this is meant to be a tree tile
+        if (height >= 0.42 && moisture > 0.5 && Math.random() > 0.8) {
+            // Create a tree structure instead of just setting the tile type
+            this.world.addTree(x, y);
+            return;
+        }
+        
         // Water bodies are unchanged
         if (height < 0.38) {
             tileType = 'water';
@@ -314,6 +321,7 @@ export class WorldGenerator {
         // Implementation to be added
     }
 }
+
 
 
 
