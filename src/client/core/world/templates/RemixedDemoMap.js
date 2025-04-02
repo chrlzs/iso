@@ -65,24 +65,33 @@ export function createRemixedMap() {
         }
     ];
 
-    // Add structures to map
+    // Add structures to map, ensuring door accessibility
     structures.forEach(structureData => {
         const { type, x, y, options = {} } = structureData;
-        mapDef.addStructure({
-            type,
-            x,
-            y,
-            ...options
-        });
+        
+        // Ensure the area in front of where the door will be is navigable
+        if (isValidStructurePlacement(mapDef, x, y)) {
+            mapDef.addStructure({
+                type,
+                x,
+                y,
+                ...options
+            });
+        } else {
+            console.warn(`Cannot place structure at ${x},${y} - door would be blocked`);
+        }
     });
 
-    // Add some trees around the edges
+    // Add some trees around the edges, avoiding structures
     for (let i = 0; i < 20; i++) {
         const x = Math.floor(Math.random() * mapSize);
         const y = Math.floor(Math.random() * mapSize);
         const tile = mapDef.getTile(x, y);
         
-        if (tile && tile.type === 'grass' && !tile.structure) {
+        if (tile && 
+            tile.type === 'grass' && 
+            !tile.structure && 
+            !isNearStructure(mapDef, x, y)) {
             mapDef.addStructure({
                 type: 'tree',
                 x,
@@ -95,6 +104,41 @@ export function createRemixedMap() {
     }
 
     return mapDef;
+}
+
+// Helper function to check if a position is near any structure
+function isNearStructure(mapDef, x, y) {
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const tile = mapDef.getTile(x + dx, y + dy);
+            if (tile && tile.structure) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Helper function to check if a structure can be placed with accessible door
+function isValidStructurePlacement(mapDef, x, y) {
+    // Check the tile in front of where the door will be (one tile south)
+    const doorTile = mapDef.getTile(x, y + 1);
+    if (!doorTile) return false;
+
+    // Door tile and adjacent tiles should be navigable
+    const nonNavigableTypes = ['water', 'wetland', 'mountain'];
+    
+    // Check door tile and tiles to its left and right
+    for (let dx = -1; dx <= 1; dx++) {
+        const tile = mapDef.getTile(x + dx, y + 1);
+        if (!tile || 
+            nonNavigableTypes.includes(tile.type) || 
+            tile.structure) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function determineTileType(height, moisture) {
