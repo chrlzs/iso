@@ -304,14 +304,15 @@ export function createRemixedMap() {
         console.log('Added scientist to laboratory');
     }
 
-    // Add an enemy in the warehouse
+    // Add an enemy OUTSIDE the warehouse (guarding it)
     const warehouse = mapDef.getAllStructures().find(s => s.type === 'warehouse');
     if (warehouse) {
+        // Place the guard in front of the warehouse door (south side)
         mapDef.addNPC({
             type: 'enemy',
-            name: 'Guard',
+            name: 'Warehouse Guard',
             x: warehouse.x + Math.floor(warehouse.width / 2),
-            y: warehouse.y + Math.floor(warehouse.height / 2),
+            y: warehouse.y + warehouse.height + 1, // Place OUTSIDE the warehouse
             color: '#e74c3c', // Red color
             damage: 15,
             attackRange: 3,
@@ -321,7 +322,7 @@ export function createRemixedMap() {
                 { text: "This area is restricted!" }
             ]
         });
-        console.log('Added enemy guard to warehouse');
+        console.log('Added enemy guard outside warehouse at', warehouse.x + Math.floor(warehouse.width / 2), warehouse.y + warehouse.height + 1);
     }
 
     // Add a wandering enemy outside
@@ -343,7 +344,24 @@ export function createRemixedMap() {
             { text: "You're trespassing!" }
         ]
     });
-    console.log('Added patrolling enemy');
+    console.log('Added patrolling enemy at', Math.floor(mapSize * 0.25), Math.floor(mapSize * 0.75));
+
+    // Add an enemy near the center of the map (very visible location)
+    mapDef.addNPC({
+        type: 'enemy',
+        name: 'Central Guard',
+        x: Math.floor(mapSize * 0.5) - 3, // Near center, slightly offset
+        y: Math.floor(mapSize * 0.5) - 3,
+        color: '#FF0000', // Bright red color
+        damage: 20,
+        attackRange: 3,
+        health: 120,
+        dialog: [
+            { text: "This area is under surveillance!" },
+            { text: "Move along, citizen!" }
+        ]
+    });
+    console.log('Added central guard at', Math.floor(mapSize * 0.5) - 3, Math.floor(mapSize * 0.5) - 3);
 
     console.log(`Added ${mapDef.npcs.length} NPCs to the map`);
 

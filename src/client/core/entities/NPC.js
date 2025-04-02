@@ -68,6 +68,16 @@ export class NPC extends Entity {
         this.isInteracting = false;
         this.currentDialog = null;
         this.lastInteractionTime = 0;
+
+        // Set initial visibility - enemies are always visible
+        this.isVisible = this.isEnemy ? true : true; // Make all NPCs visible by default for debugging
+
+        console.log(`NPC ${this.name} created:`, {
+            isEnemy: this.isEnemy,
+            isVisible: this.isVisible,
+            position: `${this.x},${this.y}`,
+            color: this.color
+        });
     }
 
     /**
@@ -75,6 +85,15 @@ export class NPC extends Entity {
      * @param {number} deltaTime - Time elapsed since last update
      */
     update(deltaTime) {
+        // Debug log for enemy NPCs
+        if (this.isEnemy) {
+            console.log(`Updating enemy NPC ${this.name} at ${this.x},${this.y}`, {
+                isVisible: this.isVisible,
+                isEnemy: this.isEnemy,
+                inStructure: !!this.currentStructure
+            });
+        }
+
         // Get current structure if any
         if (this.world) {
             const structures = this.world.getAllStructures();
@@ -84,6 +103,14 @@ export class NPC extends Entity {
                 this.y >= structure.y &&
                 this.y < structure.y + structure.height
             );
+
+            // Debug log for enemy NPCs after structure check
+            if (this.isEnemy) {
+                console.log(`After structure check for enemy NPC ${this.name}:`, {
+                    inStructure: !!this.currentStructure,
+                    structureType: this.currentStructure?.type
+                });
+            }
         }
     }
 
@@ -98,7 +125,21 @@ export class NPC extends Entity {
     }
 
     render(ctx, renderer) {
-        if (!this.isVisible) return;
+        // Debug log for enemy NPCs
+        if (this.isEnemy) {
+            console.log(`Rendering enemy NPC ${this.name} at ${this.x},${this.y}`, {
+                isVisible: this.isVisible,
+                isEnemy: this.isEnemy,
+                color: this.color
+            });
+        }
+
+        if (!this.isVisible) {
+            if (this.isEnemy) {
+                console.warn(`Enemy NPC ${this.name} is not visible!`);
+            }
+            return;
+        }
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);
         const isoY = (this.x + this.y) * (renderer.tileHeight / 2);

@@ -896,6 +896,19 @@ export class GameInstance {
         // Draw tile coordinates if enabled
         this.drawTileCoordinates();
 
+        // Debug log for entities
+        console.log('Entities before sorting:', {
+            total: this.entities.size,
+            entities: Array.from(this.entities).map(e => ({
+                type: e.constructor.name,
+                name: e.name,
+                isEnemy: e.isEnemy,
+                isVisible: e.isVisible,
+                position: `${e.x},${e.y}`,
+                inStructure: !!e.currentStructure
+            }))
+        });
+
         // Split entities into inside/outside groups
         const entitiesOutside = [];
         const entitiesInside = [];
@@ -912,17 +925,55 @@ export class GameInstance {
         entitiesOutside.sort((a, b) => a.y - b.y);
         entitiesInside.sort((a, b) => a.y - b.y);
 
+        // Debug log for sorted entities
+        console.log('Entities after sorting:', {
+            outside: entitiesOutside.map(e => ({
+                type: e.constructor.name,
+                name: e.name,
+                isEnemy: e.isEnemy,
+                isVisible: e.isVisible,
+                position: `${e.x},${e.y}`
+            })),
+            inside: entitiesInside.map(e => ({
+                type: e.constructor.name,
+                name: e.name,
+                isEnemy: e.isEnemy,
+                isVisible: e.isVisible,
+                position: `${e.x},${e.y}`
+            }))
+        });
+
         // Render outside entities first
         entitiesOutside.forEach(entity => {
             if (entity.render && entity.isVisible) {
+                console.log(`Rendering outside entity: ${entity.name}`, {
+                    type: entity.constructor.name,
+                    isEnemy: entity.isEnemy,
+                    position: `${entity.x},${entity.y}`
+                });
                 entity.render(this.ctx, this.renderer);
+            } else if (entity.isEnemy) {
+                console.warn(`Enemy entity ${entity.name} not rendered:`, {
+                    hasRender: !!entity.render,
+                    isVisible: entity.isVisible
+                });
             }
         });
 
         // Render inside entities after structure transparency
         entitiesInside.forEach(entity => {
             if (entity.render && entity.isVisible) {
+                console.log(`Rendering inside entity: ${entity.name}`, {
+                    type: entity.constructor.name,
+                    isEnemy: entity.isEnemy,
+                    position: `${entity.x},${entity.y}`
+                });
                 entity.render(this.ctx, this.renderer);
+            } else if (entity.isEnemy) {
+                console.warn(`Enemy entity ${entity.name} not rendered:`, {
+                    hasRender: !!entity.render,
+                    isVisible: entity.isVisible
+                });
             }
         });
 
@@ -1295,7 +1346,13 @@ export class GameInstance {
                 if (npc) {
                     this.entities.add(npc);
                     createdNPCs.push(npc);
-                    console.log(`Created ${npcData.type} NPC '${npc.name}' at ${npc.x},${npc.y}`);
+                    console.log(`Created ${npcData.type} NPC '${npc.name}' at ${npc.x},${npc.y}`, {
+                        isEnemy: npc.isEnemy,
+                        isVisible: npc.isVisible,
+                        color: npc.color,
+                        entityCount: this.entities.size,
+                        inEntities: Array.from(this.entities).includes(npc)
+                    });
                 }
             } catch (error) {
                 console.error(`Failed to create NPC ${npcData.name || 'unknown'}:`, error);
