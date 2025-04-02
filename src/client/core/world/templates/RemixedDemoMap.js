@@ -7,9 +7,10 @@ export function createRemixedMap() {
     const mapDef = new MapDefinition(mapSize, mapSize);
     const decorationPlacer = new DecorationPlacer(mapDef);
 
-    // Initialize noise functions
-    const heightNoise = createNoise2D();
-    const moistureNoise = createNoise2D();
+    // Use fixed seeds for consistent generation
+    const FIXED_SEED = 12345;
+    const heightNoise = createNoise2D(() => FIXED_SEED);
+    const moistureNoise = createNoise2D(() => FIXED_SEED + 1);
 
     // Generate base terrain first
     for (let y = 0; y < mapSize; y++) {
