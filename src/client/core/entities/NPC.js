@@ -72,11 +72,6 @@ export class NPC extends Entity {
         // Set initial visibility - enemies are always visible
         this.isVisible = true; // Make all NPCs visible by default
 
-        // Make enemies larger and more distinctive
-        if (this.isEnemy) {
-            this.size = 48; // Double the normal size
-        }
-
         console.log(`NPC ${this.name} created:`, {
             isEnemy: this.isEnemy,
             isVisible: this.isVisible,
@@ -186,33 +181,20 @@ export class NPC extends Entity {
 
         // For enemies, draw additional details
         if (this.isEnemy) {
-            // Draw a large red circle around the enemy
-            ctx.beginPath();
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = 4;
-            ctx.arc(isoX, isoY - this.size/2, this.size * 0.8, 0, Math.PI * 2);
-            ctx.stroke();
-
             // Draw weapon
             ctx.beginPath();
             ctx.strokeStyle = '#333333';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.moveTo(isoX + this.size/2, isoY - this.size/2);
             ctx.lineTo(isoX + this.size, isoY - this.size/4);
             ctx.stroke();
 
-            // Draw angry eyes (larger)
+            // Draw angry eyes
             ctx.beginPath();
-            ctx.fillStyle = '#FF0000'; // Red eyes
-            ctx.arc(isoX - this.size/8, isoY - this.size - this.size/8, this.size/8, 0, Math.PI * 2);
-            ctx.arc(isoX + this.size/8, isoY - this.size - this.size/8, this.size/8, 0, Math.PI * 2);
+            ctx.fillStyle = '#000000';
+            ctx.arc(isoX - this.size/8, isoY - this.size - this.size/8, this.size/12, 0, Math.PI * 2);
+            ctx.arc(isoX + this.size/8, isoY - this.size - this.size/8, this.size/12, 0, Math.PI * 2);
             ctx.fill();
-
-            // Draw "ENEMY" text above the name
-            ctx.fillStyle = '#FF0000';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('ENEMY', isoX, isoY - this.size - 30);
         } else {
             // Draw normal eyes
             ctx.beginPath();
@@ -227,7 +209,7 @@ export class NPC extends Entity {
         const textWidth = ctx.measureText(nameText).width;
 
         // Draw text background
-        ctx.fillStyle = this.isEnemy ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(isoX - textWidth/2 - 2, isoY - this.size - 22, textWidth + 4, 16);
 
         // Draw name

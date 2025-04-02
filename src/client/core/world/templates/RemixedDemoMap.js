@@ -346,43 +346,42 @@ export function createRemixedMap() {
     });
     console.log('Added patrolling enemy at', Math.floor(mapSize * 0.25), Math.floor(mapSize * 0.75));
 
-    // Add MULTIPLE enemies at the spawn point (where player starts)
-    // This should guarantee they are visible
+    // Add enemies at strategic locations
     const spawnPoint = mapDef.spawnPoints[0];
 
-    // Add enemy right at spawn point
+    // Add enemy near spawn point
     mapDef.addNPC({
         type: 'enemy',
-        name: 'SPAWN GUARD',
-        x: spawnPoint.x + 1, // Right next to spawn point
-        y: spawnPoint.y + 1,
-        color: '#FF0000', // Bright red color
+        name: 'City Guard',
+        x: spawnPoint.x + 2, // Near spawn point
+        y: spawnPoint.y + 2,
+        color: '#c0392b', // Red color
+        damage: 15,
+        attackRange: 2,
+        health: 100,
+        dialog: [
+            { text: "Halt! State your business." },
+            { text: "This area is under surveillance." }
+        ]
+    });
+    console.log('Added City Guard near spawn at', spawnPoint.x + 2, spawnPoint.y + 2);
+
+    // Add another enemy near center
+    mapDef.addNPC({
+        type: 'enemy',
+        name: 'Security Officer',
+        x: Math.floor(mapSize * 0.5) - 2, // Near center
+        y: Math.floor(mapSize * 0.5) - 2,
+        color: '#7f8c8d', // Gray color
         damage: 20,
         attackRange: 3,
         health: 120,
         dialog: [
-            { text: "THIS IS A TEST ENEMY!" },
-            { text: "CAN YOU SEE ME?" }
+            { text: "This is a restricted area." },
+            { text: "Move along, citizen." }
         ]
     });
-    console.log('Added SPAWN GUARD at', spawnPoint.x + 1, spawnPoint.y + 1);
-
-    // Add another enemy at exact center
-    mapDef.addNPC({
-        type: 'enemy',
-        name: 'CENTER GUARD',
-        x: Math.floor(mapSize * 0.5), // Exact center
-        y: Math.floor(mapSize * 0.5),
-        color: '#FF00FF', // Magenta color
-        damage: 30,
-        attackRange: 4,
-        health: 150,
-        dialog: [
-            { text: "I AM AT THE CENTER!" },
-            { text: "CAN YOU SEE ME?" }
-        ]
-    });
-    console.log('Added CENTER GUARD at exact center:', Math.floor(mapSize * 0.5), Math.floor(mapSize * 0.5));
+    console.log('Added Security Officer near center:', Math.floor(mapSize * 0.5) - 2, Math.floor(mapSize * 0.5) - 2);
 
     console.log(`Added ${mapDef.npcs.length} NPCs to the map`);
 
