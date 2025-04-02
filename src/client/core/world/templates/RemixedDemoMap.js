@@ -5,6 +5,71 @@ export function createRemixedMap() {
     const mapSize = 32;  // Reduced from 128 to 32
     const mapDef = new MapDefinition(mapSize, mapSize);
 
+    // Add forest clusters
+    addForestCluster(4, 4, 3);  // Northwest forest
+    addForestCluster(25, 6, 4); // Northeast forest
+    addForestCluster(6, 25, 4); // Southwest forest
+    addForestCluster(23, 23, 3); // Southeast forest
+    
+    // Add decorative tree lines along paths
+    addTreeLine(10, 10, 15, 10, 2); // Horizontal tree line
+    addTreeLine(20, 15, 20, 20, 2); // Vertical tree line
+
+    // Add scattered individual trees
+    const scatteredTrees = [
+        {x: 12, y: 12},
+        {x: 18, y: 8},
+        {x: 8, y: 18},
+        {x: 15, y: 15},
+        {x: 25, y: 12},
+        {x: 12, y: 25},
+        {x: 20, y: 20}
+    ];
+
+    scatteredTrees.forEach(pos => {
+        if (!isOccupied(pos.x, pos.y)) {
+            mapDef.addTree(pos.x, pos.y);
+        }
+    });
+
+    // Helper function to create forest clusters
+    function addForestCluster(centerX, centerY, radius) {
+        for (let y = centerY - radius; y <= centerY + radius; y++) {
+            for (let x = centerX - radius; x <= centerX + radius; x++) {
+                // Create a natural-looking distribution
+                const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                if (distance <= radius && Math.random() < 0.7 && !isOccupied(x, y)) {
+                    mapDef.addTree(x, y);
+                }
+            }
+        }
+    }
+
+    // Helper function to create tree lines
+    function addTreeLine(x1, y1, x2, y2, spacing) {
+        const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        const steps = Math.floor(length / spacing);
+        
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const x = Math.round(x1 + (x2 - x1) * t);
+            const y = Math.round(y1 + (y2 - y1) * t);
+            
+            if (!isOccupied(x, y)) {
+                mapDef.addTree(x, y);
+            }
+        }
+    }
+
+    // Helper function to check if a position is occupied
+    function isOccupied(x, y) {
+        if (x < 0 || x >= mapSize || y < 0 || y >= mapSize) {
+            return true;
+        }
+        const tile = mapDef.getTile(x, y);
+        return tile && (tile.structure || tile.type === 'water');
+    }
+
     // Initialize noise functions
     const heightNoise = noise.createNoise2D();
     const moistureNoise = noise.createNoise2D();

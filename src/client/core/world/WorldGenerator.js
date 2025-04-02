@@ -205,11 +205,14 @@ export class WorldGenerator {
     generateTile(x, y, height, moisture, urbanDensity = 0) {
         let tileType;
         
-        // If this is meant to be a tree tile
-        if (height >= 0.42 && moisture > 0.5 && Math.random() > 0.8) {
-            // Create a tree structure instead of just setting the tile type
-            this.world.addTree(x, y);
-            return;
+        // Increase probability of tree generation in suitable areas
+        if (height >= 0.4 && moisture > 0.45 && urbanDensity < 0.3) {
+            // Higher chance of trees in suitable conditions
+            const treeChance = Math.min(0.3, (moisture * 0.5) + (height * 0.2));
+            if (Math.random() < treeChance) {
+                this.world.addTree(x, y);
+                return;
+            }
         }
         
         // Water bodies are unchanged
@@ -321,6 +324,7 @@ export class WorldGenerator {
         // Implementation to be added
     }
 }
+
 
 
 

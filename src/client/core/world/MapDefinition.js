@@ -85,9 +85,72 @@ export class MapDefinition {
         this.width = width;
         this.height = height;
         this.tiles = new Array(width * height);
-        this.structures = [];
+        this.structures = new Map();
         this.decorations = [];
         this.spawnPoints = [];
+    }
+
+    addStructure(structureData) {
+        const { x, y, width = 1, height = 1, type } = structureData;
+        const key = `${x},${y}`;
+        
+        // Create structure object
+        const structure = {
+            ...structureData,
+            id: `${type}_${x}_${y}`,
+            width: width,
+            height: height
+        };
+
+        // Add to structures Map
+        this.structures.set(key, structure);
+
+        // Update tiles covered by the structure
+        for (let dy = 0; dy < height; dy++) {
+            for (let dx = 0; dx < width; dx++) {
+                this.setTile(x + dx, y + dy, {
+                    type: 'building',
+                    height: 1,
+                    moisture: 0.5,
+                    structure: structure
+                });
+            }
+        }
+
+        return structure;
+    }
+
+    addTree(x, y) {
+        const treeStructure = {
+            type: 'tree',
+            template: {
+                type: 'tree',
+                width: 1,
+                height: 1,
+                floors: 1,
+                material: 'organic'
+            },
+            x: x,
+            y: y,
+            width: 1,
+            height: 1,
+            rotation: 0,
+            id: `tree_${x}_${y}`
+        };
+
+        // Add to structures Map using coordinates as key
+        const key = `${x},${y}`;
+        this.structures.set(key, treeStructure);
+
+        // Set tile type
+        this.setTile(x, y, {
+            type: 'tree',
+            height: 1,
+            moisture: 0.5,
+            structure: treeStructure
+        });
+
+        return treeStructure;
     }
 
     /**
@@ -96,9 +159,9 @@ export class MapDefinition {
      * @param {number} y - Y coordinate
      * @param {Object} data - Tile data
      */
-    setTile(x, y, data) {
+    setTile(x, y, tileData) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            this.tiles[y * this.width + x] = data;
+            this.tiles[y * this.width + x] = tileData;
         }
     }
 
@@ -115,48 +178,14 @@ export class MapDefinition {
         return null;
     }
 
-    /**
-     * Adds a new structure to the map
-     * @param {MapStructure} structure - Structure configuration
-     * @returns {void}
-     */
-    addStructure(structure) {
-        this.structures.push(structure);
+    getAllStructures() {
+        return Array.from(this.structures.values());
     }
 
-    /**
-     * Adds a new decoration to the map
-     * @param {Object} decoration - Decoration configuration
-     * @returns {void}
-     */
-    addDecoration(decoration) {
-        this.decorations.push(decoration);
-    }
-
-    /**
-     * Adds a new zone to the map
-     * @param {ZoneDefinition} zone - Zone configuration
-     * @returns {void}
-     */
-    addZone(zone) {
-        this.zones.push(zone);
-    }
-
-    /**
-     * Adds a new landmark to the map
-     * @param {LandmarkDefinition} landmark - Landmark configuration
-     * @returns {void}
-     */
-    addLandmark(landmark) {
-        this.landmarks.push(landmark);
-    }
-
-    /**
-     * Adds a road to the map
-     * @param {RoadDefinition} road - Road configuration
-     * @returns {void}
-     */
-    addRoad(road) {
-        this.roads.push(road);
+    getStructureAt(x, y) {
+        const key = `${x},${y}`;
+        return this.structures.get(key) || null;
     }
 }
+
+
