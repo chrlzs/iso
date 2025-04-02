@@ -40,17 +40,17 @@ export class NPC extends Entity {
      */
     constructor(config) {
         super(config);
-        
+
         this.name = config.name;
         this.type = config.type;
         this.dialog = config.dialog || [];
         this.inventory = new InventorySystem(config.inventory);
         this.schedule = config.schedule || {};
         this.behavior = config.behavior || {};
-        
+
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
-        
+
         if (!this.game) {
             console.warn('NPC created without game reference:', {
                 id: this.id,
@@ -58,7 +58,7 @@ export class NPC extends Entity {
                 hasWorld: !!this.world
             });
         }
-        
+
         // State tracking
         this.interactionRange = 2;
         this.isInteracting = false;
@@ -74,12 +74,22 @@ export class NPC extends Entity {
         // Get current structure if any
         if (this.world) {
             const structures = this.world.getAllStructures();
-            this.currentStructure = structures.find(structure => 
-                this.x >= structure.x && 
+            this.currentStructure = structures.find(structure =>
+                this.x >= structure.x &&
                 this.x < structure.x + structure.width &&
-                this.y >= structure.y && 
+                this.y >= structure.y &&
                 this.y < structure.y + structure.height
             );
+        }
+    }
+
+    /**
+     * Sets the dialog options for this NPC
+     * @param {Array<Object>} dialogOptions - Array of dialog options
+     */
+    setDialog(dialogOptions) {
+        if (Array.isArray(dialogOptions)) {
+            this.dialog = dialogOptions;
         }
     }
 
@@ -88,46 +98,46 @@ export class NPC extends Entity {
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);
         const isoY = (this.x + this.y) * (renderer.tileHeight / 2);
-        
+
         // Draw NPC using canvas primitives
         ctx.save();
-        
+
         // Draw body
         ctx.beginPath();
         ctx.fillStyle = this.color;
         ctx.ellipse(
-            isoX, 
-            isoY - this.size/2, 
-            this.size/3, 
-            this.size/2, 
-            0, 
-            0, 
+            isoX,
+            isoY - this.size/2,
+            this.size/3,
+            this.size/2,
+            0,
+            0,
             Math.PI * 2
         );
         ctx.fill();
-        
+
         // Draw head
         ctx.beginPath();
         ctx.fillStyle = '#FFE0BD';  // Skin tone
         ctx.arc(
-            isoX, 
-            isoY - this.size, 
-            this.size/4, 
-            0, 
+            isoX,
+            isoY - this.size,
+            this.size/4,
+            0,
             Math.PI * 2
         );
         ctx.fill();
-        
+
         // Draw name
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(
-            this.name, 
-            isoX, 
+            this.name,
+            isoX,
             isoY - this.size - 10
         );
-        
+
         ctx.restore();
     }
 
@@ -155,7 +165,7 @@ export class NPC extends Entity {
      */
     findNearestDoor(structure) {
         if (!structure) return null;
-        
+
         // Search the structure's perimeter for door tiles
         for (let y = structure.y; y < structure.y + structure.height; y++) {
             for (let x = structure.x; x < structure.x + structure.width; x++) {
@@ -164,7 +174,7 @@ export class NPC extends Entity {
                     y > structure.y && y < structure.y + structure.height - 1) {
                     continue;
                 }
-                
+
                 const tile = this.world.getTileAt(x, y);
                 if (tile && tile.type === 'door') {
                     return { x, y };
@@ -209,7 +219,7 @@ export class NPC extends Entity {
      */
     async pathfindTo(x, y) {
         if (!this.world || !this.world.pathFinder) return;
-        
+
         const path = this.world.pathFinder.findPath(
             Math.round(this.x),
             Math.round(this.y),

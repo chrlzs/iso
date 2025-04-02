@@ -234,6 +234,119 @@ export function createRemixedMap() {
 
     console.log(`Placed ${treesPlaced} trees after ${attempts} attempts`);
 
+    // Add NPCs to the map
+    console.log('Adding NPCs to the map...');
+
+    // Add a merchant in the office building
+    const officeBuilding = mapDef.getAllStructures().find(s => s.type === 'office');
+    if (officeBuilding) {
+        mapDef.addNPC({
+            type: 'merchant',
+            name: 'Office Merchant',
+            x: officeBuilding.x + Math.floor(officeBuilding.width / 2),
+            y: officeBuilding.y + Math.floor(officeBuilding.height / 2),
+            dialog: [
+                { text: "Welcome to my shop! I have the best tech in town." },
+                { text: "Looking for something specific?" }
+            ]
+        });
+        console.log('Added merchant to office building');
+    }
+
+    // Add a regular NPC in the apartment building
+    const apartmentBuilding = mapDef.getAllStructures().find(s => s.type === 'apartment');
+    if (apartmentBuilding) {
+        mapDef.addNPC({
+            type: 'npc',
+            name: 'Resident',
+            x: apartmentBuilding.x + Math.floor(apartmentBuilding.width / 2),
+            y: apartmentBuilding.y + Math.floor(apartmentBuilding.height / 2),
+            color: '#3498db', // Blue color
+            dialog: [
+                { text: "I've lived in this apartment for years." },
+                { text: "The city has changed so much..." }
+            ]
+        });
+        console.log('Added resident to apartment building');
+    }
+
+    // Add an NPC in the nightclub
+    const nightclub = mapDef.getAllStructures().find(s => s.type === 'nightclub');
+    if (nightclub) {
+        mapDef.addNPC({
+            type: 'npc',
+            name: 'DJ',
+            x: nightclub.x + Math.floor(nightclub.width / 2),
+            y: nightclub.y + Math.floor(nightclub.height / 2),
+            color: '#9b59b6', // Purple color
+            dialog: [
+                { text: "Welcome to the hottest club in town!" },
+                { text: "The music never stops here." }
+            ]
+        });
+        console.log('Added DJ to nightclub');
+    }
+
+    // Add a scientist in the laboratory
+    const laboratory = mapDef.getAllStructures().find(s => s.type === 'laboratory');
+    if (laboratory) {
+        mapDef.addNPC({
+            type: 'npc',
+            name: 'Scientist',
+            x: laboratory.x + Math.floor(laboratory.width / 2),
+            y: laboratory.y + Math.floor(laboratory.height / 2),
+            color: '#2ecc71', // Green color
+            dialog: [
+                { text: "I'm working on a breakthrough technology." },
+                { text: "Please don't touch anything in the lab." }
+            ]
+        });
+        console.log('Added scientist to laboratory');
+    }
+
+    // Add an enemy in the warehouse
+    const warehouse = mapDef.getAllStructures().find(s => s.type === 'warehouse');
+    if (warehouse) {
+        mapDef.addNPC({
+            type: 'enemy',
+            name: 'Guard',
+            x: warehouse.x + Math.floor(warehouse.width / 2),
+            y: warehouse.y + Math.floor(warehouse.height / 2),
+            color: '#e74c3c', // Red color
+            damage: 15,
+            attackRange: 3,
+            health: 100,
+            dialog: [
+                { text: "Hey! You're not supposed to be here!" },
+                { text: "This area is restricted!" }
+            ]
+        });
+        console.log('Added enemy guard to warehouse');
+    }
+
+    // Add a wandering enemy outside
+    mapDef.addNPC({
+        type: 'enemy',
+        name: 'Patrol',
+        x: Math.floor(mapSize * 0.25),
+        y: Math.floor(mapSize * 0.75),
+        color: '#c0392b', // Dark red color
+        damage: 10,
+        attackRange: 2,
+        health: 80,
+        behavior: {
+            patrolRadius: 5,
+            isPatrolling: true
+        },
+        dialog: [
+            { text: "Stop right there!" },
+            { text: "You're trespassing!" }
+        ]
+    });
+    console.log('Added patrolling enemy');
+
+    console.log(`Added ${mapDef.npcs.length} NPCs to the map`);
+
     return mapDef;
 }
 

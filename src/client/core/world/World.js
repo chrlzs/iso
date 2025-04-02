@@ -80,7 +80,7 @@ export class World {
     /**
      * Creates a new World instance
      * @param {number} width - World width in tiles
-     * @param {number} height - World height in tiles  
+     * @param {number} height - World height in tiles
      * @param {Object} [options={}] - World configuration options
      * @param {number} [options.chunkSize=16] - Size of each chunk
      * @param {Object} [options.debug] - Debug configuration
@@ -90,24 +90,24 @@ export class World {
         this.width = width;
         this.height = height;
         this.debug = options.debug || { flags: {} };
-        
+
         // Initialize chunk system
         this.chunkSize = options.chunkSize || 16;
         this.activeChunks = new Set();
         this.chunks = new Map();
-        
+
         // Calculate chunk dimensions
         this.chunksWidth = Math.ceil(width / this.chunkSize);
         this.chunksHeight = Math.ceil(height / this.chunkSize);
-        
+
         // Initialize structure templates with validation
         if (!StructureTemplates) {
             console.error('StructureTemplates is undefined!');
             throw new Error('Failed to load structure templates');
         }
-        
+
         this.structureTemplates = StructureTemplates;
-        
+
         // Validate structure templates
         Object.entries(this.structureTemplates).forEach(([type, template]) => {
             if (!template.blueprint) {
@@ -125,18 +125,19 @@ export class World {
             height: 0.5,
             moisture: 0.5
         }));
-        
+        this.npcs = []; // Array to store NPC definitions
+
         // Initialize managers
         this.tileManager = new TileManager(this.debug);
-        
+
         // Initialize world generator
         this.worldGenerator = new WorldGenerator(this.tileManager);
-        
+
         // Set world generation parameters
         this.moistureScale = options.moistureScale || 0.01;
         this.heightScale = options.heightScale || 0.01;
         this.seed = options.seed || Math.random() * 10000;
-        
+
         // Load demo map by default if no map definition is provided
         this.mapDefinition = options.mapDefinition || createDemoMap();
         this.initializeFromMapDefinition(this.mapDefinition);
@@ -199,11 +200,11 @@ export class World {
      */
     generateChunk(chunkX, chunkY) {
         const chunkKey = `${chunkX},${chunkY}`;
-        
+
         // Calculate world coordinates for this chunk
         const worldX = chunkX * this.chunkSize;
         const worldY = chunkY * this.chunkSize;
-        
+
         // Create chunk data structure
         const chunk = {
             x: chunkX,
@@ -217,12 +218,12 @@ export class World {
             for (let x = 0; x < this.chunkSize; x++) {
                 const worldTileX = worldX + x;
                 const worldTileY = worldY + y;
-                
+
                 // Skip if outside world bounds
                 if (worldTileX >= this.width || worldTileY >= this.height) {
                     continue;
                 }
-                
+
                 // Generate or get existing tile
                 const tile = this.generateTile(worldTileX, worldTileY);
                 chunk.tiles.push(tile);
@@ -332,14 +333,14 @@ export class World {
 
         // Generate moisture based on distance from water bodies and height
         const height = this.generateHeight(x, y);
-        
+
         // Base moisture decreases with height
         let moisture = 1 - (height * 0.5);
-        
+
         // Add some variation based on position
         moisture += Math.sin(x * this.moistureScale + this.seed) * 0.1;
         moisture += Math.cos(y * this.moistureScale + this.seed) * 0.1;
-        
+
         // Ensure moisture stays within valid range
         return Math.max(0, Math.min(1, moisture));
     }
@@ -360,17 +361,17 @@ export class World {
         // Generate height using multiple noise functions for more natural terrain
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        
+
         // Base height decreases from center
         const distanceFromCenter = Math.sqrt(
             Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
         );
         let height = Math.max(0.1, 1 - (distanceFromCenter / (this.width / 2)));
-        
+
         // Add some variation based on position
         height += Math.sin(x * this.heightScale + this.seed) * 0.1;
         height += Math.cos(y * this.heightScale + this.seed) * 0.1;
-        
+
         // Ensure height stays within valid range
         return Math.max(0, Math.min(1, height));
     }
@@ -401,6 +402,14 @@ export class World {
                 this.createStructure(struct.type, struct.x, struct.y, struct);
             });
         }
+
+        // Store NPCs from map definition for later instantiation by the game instance
+        if (mapDefinition.npcs && mapDefinition.npcs.length > 0) {
+            console.log(`Map contains ${mapDefinition.npcs.length} NPCs:`, mapDefinition.npcs);
+            this.npcs = mapDefinition.npcs;
+        } else {
+            this.npcs = [];
+        }
     }
 
     /**
@@ -416,7 +425,7 @@ export class World {
         try {
             const template = this.structureTemplates[type];
             console.log('Template found:', template);
-            
+
             // Deep merge template with options, prioritizing options over template
             const mergedTemplate = {
                 ...template,
@@ -436,7 +445,7 @@ export class World {
             const structure = new Structure(mergedTemplate, x, y, this);
             const key = `${x},${y}`;
             this.structures.set(key, structure);
-            
+
             return structure;
         } catch (error) {
             console.error(`World: Failed to create structure ${type} at (${x}, ${y}):`, error);
@@ -536,7 +545,7 @@ export class World {
 
     addTree(x, y) {
         console.log('Adding tree at:', x, y);
-        
+
         const treeStructure = {
             type: 'tree',
             template: {
@@ -557,10 +566,10 @@ export class World {
         // Add to structures Map using coordinates as key
         const key = `${x},${y}`;
         this.structures.set(key, treeStructure);
-        
+
         console.log('Added tree structure:', treeStructure);
         console.log('Current structures:', Array.from(this.structures.entries()));
-        
+
         // Set tile type
         this.setTileAt(x, y, {
             type: 'tree',

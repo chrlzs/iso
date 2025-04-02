@@ -88,6 +88,7 @@ export class MapDefinition {
         this.structures = new Map();
         this.decorations = [];
         this.spawnPoints = [{x: Math.floor(width/2), y: Math.floor(height/2)}];
+        this.npcs = []; // Array to store NPC definitions
     }
 
     addStructure(structureData) {
@@ -196,6 +197,23 @@ export class MapDefinition {
     getStructureAt(x, y) {
         const key = `${x},${y}`;
         return this.structures.get(key) || null;
+    }
+
+    /**
+     * Adds an NPC definition to the map
+     * @param {Object} npcData - NPC configuration data
+     * @returns {Object} The added NPC definition
+     */
+    addNPC(npcData) {
+        // Add a unique ID if not provided
+        if (!npcData.id) {
+            npcData.id = `npc_${this.npcs.length}`;
+        }
+
+        // Add the NPC to the array
+        this.npcs.push(npcData);
+
+        return npcData;
     }
 }
 

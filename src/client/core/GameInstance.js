@@ -32,7 +32,7 @@ export class GameInstance {
         console.log('Game: Initializing...');
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        
+
         // Set up canvas to prevent scrolling
         this.canvas.style.position = 'fixed';
         this.canvas.style.top = '0';
@@ -42,7 +42,7 @@ export class GameInstance {
         document.body.style.overflow = 'hidden';
         document.body.style.margin = '0';
         document.body.style.padding = '0';
-        
+
         // Initialize asset manager with texture configuration
         this.assetManager = new AssetManager({
             textureConfig: {
@@ -94,7 +94,7 @@ export class GameInstance {
 
         // Initialize entities collection
         this.entities = new Set();
-        
+
         // Initialize camera with minimum zoom
         this.camera = {
             x: 0,
@@ -105,7 +105,7 @@ export class GameInstance {
                 this.y = y;
             }
         };
-        
+
         // Centralize debug configuration
         this.debug = {
             enabled: true,
@@ -141,7 +141,7 @@ export class GameInstance {
         // Initialize core components - NEEDS TO CHANGE ORDER
         this.inputManager = new InputManager(); // Move this up
         this.tileManager = new TileManager(this.debug, this.assetManager);
-        
+
         // Initialize world with remixed demo map
         this.world = new World(32, 32, {  // Changed from 128,128
             debug: this.debug,
@@ -256,7 +256,7 @@ export class GameInstance {
         // Initialize UI components
         this.uiManager = new UIManager(this);
         this.messageSystem = new MessageSystem(this);
-        
+
         // Initialize minimap
         this.minimap = new MinimapUI(this, {
             size: 200,  // Size in pixels
@@ -301,7 +301,7 @@ export class GameInstance {
      */
     createMerchant(pos, structure = null) {
         console.log('Starting merchant creation at position:', pos, 'in structure:', structure?.type);
-        
+
         try {
             const merchant = new Merchant({
                 x: pos.x,
@@ -329,9 +329,9 @@ export class GameInstance {
                 slot: 'mainHand',
                 icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMgmEJ/////z/QbmAkJCT8P9D+GOgQGAWjYBSMglGADUYtMApGwSgYBaNgsAAAAt1FJzHm9f8AAAAASUVORK5CYII='
             });
-            
+
             merchant.inventory.addItem(tacticalPistol);
-            
+
             console.log('Merchant creation complete:', {
                 eth: merchant.inventory.eth,
                 ethType: typeof merchant.inventory.eth,
@@ -339,7 +339,7 @@ export class GameInstance {
                 hasInventory: !!merchant.inventory,
                 inventorySlots: merchant.inventory?.slots?.length
             });
-            
+
             return merchant;
         } catch (error) {
             console.error('Error in createMerchant:', error);
@@ -354,21 +354,21 @@ export class GameInstance {
     findValidSpawnPoint() {
         const worldCenter = Math.floor(this.world.width / 2);
         const searchRadius = 10; // Increased radius to have more options
-        
+
         for (let dy = -searchRadius; dy <= searchRadius; dy++) {
             for (let dx = -searchRadius; dx <= searchRadius; dx++) {
                 const x = worldCenter + dx;
                 const y = worldCenter + dy;
-                
+
                 const height = this.world.generateHeight(x, y);
                 const moisture = this.world.generateMoisture(x, y);
                 const tile = this.world.generateTile(x, y, height, moisture);
-                
+
                 // Check if tile is valid (not water/wetland and no structure)
-                if (tile.type !== 'water' && 
-                    tile.type !== 'wetland' && 
+                if (tile.type !== 'water' &&
+                    tile.type !== 'wetland' &&
                     !tile.structure) {
-                    
+
                     // Additional check: make sure none of the surrounding tiles have structures
                     let hasNearbyStructure = false;
                     for (let ny = -1; ny <= 1; ny++) {
@@ -381,7 +381,7 @@ export class GameInstance {
                         }
                         if (hasNearbyStructure) break;
                     }
-                    
+
                     if (!hasNearbyStructure) {
                         console.log('Found valid spawn point at:', x, y);
                         return { x, y };
@@ -389,7 +389,7 @@ export class GameInstance {
                 }
             }
         }
-        
+
         // Fallback to center if no suitable spot found
         console.warn('No suitable spawn point found, using world center');
         return { x: worldCenter, y: worldCenter };
@@ -410,18 +410,21 @@ export class GameInstance {
 
             // Initialize texture loading
             await this.initializeTextures();
-            
+
             // Initialize world after textures are loaded
             await this.world.tileManager.loadTextures();
-            
+
             console.log('Game: Textures loaded successfully');
-            
+
             this.setupInput();
             this.setupDebugControls();
-            
+
             // Add merchant after initialization
             this.addMerchantNearPlayer();
-            
+
+            // Create NPCs from map definition
+            this.createNPCsFromMapDefinition();
+
             return true;
         } catch (error) {
             console.error('Game: Failed to initialize:', error);
@@ -506,7 +509,7 @@ export class GameInstance {
 
         try {
             await Promise.all(texturePromises);
-            
+
             if (this.debug?.flags?.logTextureLoading) {
                 console.log('Game: All textures loaded successfully');
             }
@@ -529,7 +532,7 @@ export class GameInstance {
             if (!this.tileManager.hasTexture(terrainType)) {
                 missingTextures.push(terrainType);
             }
-            
+
             if (config.variants) {
                 config.variants.forEach(variant => {
                     if (!this.tileManager.hasTexture(variant)) {
@@ -544,7 +547,7 @@ export class GameInstance {
             if (!this.tileManager.hasTexture(decType)) {
                 missingTextures.push(decType);
             }
-            
+
             if (config.variants) {
                 config.variants.forEach(variant => {
                     if (!this.tileManager.hasTexture(variant)) {
@@ -568,7 +571,7 @@ export class GameInstance {
      */
     setupInput() {
         console.log('Game: Setting up input handlers');
-        
+
         // Track key states
         const keyStates = new Set();
         let lastToggleTime = 0;
@@ -580,7 +583,7 @@ export class GameInstance {
             const newZoom = Math.max(0.5, Math.min(2,
                 this.camera.zoom + (e.deltaY > 0 ? -zoomSpeed : zoomSpeed)
             ));
-            
+
             // Only update if zoom actually changed
             if (newZoom !== this.camera.zoom) {
                 this.camera.zoom = newZoom;
@@ -591,8 +594,8 @@ export class GameInstance {
         };
 
         // Add wheel listener with passive option
-        this.canvas.addEventListener('wheel', handleWheel, { 
-            passive: true 
+        this.canvas.addEventListener('wheel', handleWheel, {
+            passive: true
         });
 
         // Handle keydown
@@ -600,12 +603,12 @@ export class GameInstance {
             if (e.key.toLowerCase() === 'i' && !keyStates.has('i')) {
                 const now = Date.now();
                 if (now - lastToggleTime < TOGGLE_COOLDOWN) return;
-                
+
                 e.preventDefault();
                 e.stopPropagation();
                 keyStates.add('i');
                 lastToggleTime = now;
-                
+
                 const inventoryUI = this.uiManager.getComponent('inventoryUI');
                 if (inventoryUI) {
                     console.log('Processing inventory toggle...');
@@ -641,14 +644,14 @@ export class GameInstance {
 
         this.canvas.addEventListener('click', (e) => {
             console.log('Canvas clicked');
-            
+
             const rect = this.canvas.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
-            
+
             // Check if clicked on an NPC first
             const clickedNPC = this.findClickedNPC(screenX, screenY);
-            
+
             if (clickedNPC) {
                 console.log('NPC clicked:', clickedNPC);
                 // Find adjacent tile to NPC
@@ -656,14 +659,14 @@ export class GameInstance {
                 if (adjacentTile) {
                     const startX = Math.round(this.player.x);
                     const startY = Math.round(this.player.y);
-                    
+
                     // Check if player is already at the adjacent tile
                     if (startX === adjacentTile.x && startY === adjacentTile.y) {
                         console.log('Player already at interaction position, starting dialog');
                         this.startDialog(clickedNPC);
                     } else {
                         const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
-                        
+
                         if (path) {
                             console.log('Path found, moving player');
                             this.player.setPath(path);
@@ -681,19 +684,19 @@ export class GameInstance {
                 }
                 return;
             }
-            
+
             // Get the center offset where (0,0) should be
             const centerX = this.canvas.width / 2;
             const centerY = this.canvas.height / 2;
-            
+
             // Calculate the player's isometric position
             const playerIsoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
             const playerIsoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-            
+
             // Adjust click coordinates relative to player position and camera zoom
             const adjustedX = (screenX - centerX) / this.camera.zoom + playerIsoX;
             const adjustedY = (screenY - centerY) / this.camera.zoom + playerIsoY;
-            
+
             // Convert isometric coordinates back to world coordinates
             const worldX = Math.round(
                 (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
@@ -701,12 +704,12 @@ export class GameInstance {
             const worldY = Math.round(
                 (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
             );
-            
+
             if (this.pathFinder.isValidCoordinate(worldX, worldY)) {
                 const startX = Math.round(this.player.x);
                 const startY = Math.round(this.player.y);
                 const path = this.pathFinder.findPath(startX, startY, worldX, worldY);
-                
+
                 if (path) {
                     this.player.setPath(path);
                 } else {
@@ -782,10 +785,10 @@ export class GameInstance {
         // Get terrain information at player's position
         const terrainHeight = this.getTerrainHeightAt(this.player.x, this.player.y);
         const terrainAngle = this.getTerrainAngleAt(this.player.x, this.player.y);
-        
+
         // Update player's terrain info
         this.player.updateTerrainInfo(terrainHeight, terrainAngle);
-        
+
         // Update active chunks based on camera position
         this.world.updateActiveChunks(
             Math.floor(this.camera.x / this.world.chunkSize),
@@ -810,9 +813,9 @@ export class GameInstance {
 
         // Check each structure to see if player is inside
         this.world.getAllStructures().forEach(structure => {
-            if (playerX >= structure.x && 
+            if (playerX >= structure.x &&
                 playerX < structure.x + structure.width &&
-                playerY >= structure.y && 
+                playerY >= structure.y &&
                 playerY < structure.y + structure.height) {
                 playerStructure = structure;
             }
@@ -840,7 +843,7 @@ export class GameInstance {
                     roof: true,
                     floor: true
                 };
-                
+
                 // Always update transparency based on player position
                 const cameraAngle = Math.atan2(
                     this.camera.y - this.player.y,
@@ -868,18 +871,18 @@ export class GameInstance {
      */
     render() {
         this.renderer.clear();
-        
+
         // Apply camera transform
         this.ctx.save();
-        
+
         // Center the view
         const offsetX = this.canvas.width / 2;
         const offsetY = this.canvas.height / 2;
-        
+
         // Convert world coordinates to isometric coordinates
         const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
         const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-        
+
         // Center camera on player
         this.ctx.translate(
             offsetX - isoX * this.camera.zoom,
@@ -889,14 +892,14 @@ export class GameInstance {
 
         // Render world first (includes structures with transparency)
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);
-        
+
         // Draw tile coordinates if enabled
         this.drawTileCoordinates();
-        
+
         // Split entities into inside/outside groups
         const entitiesOutside = [];
         const entitiesInside = [];
-        
+
         this.entities.forEach(entity => {
             if (entity.currentStructure) {
                 entitiesInside.push(entity);
@@ -945,10 +948,10 @@ export class GameInstance {
         const viewDistance = 16;
         const tileWidth = this.renderer.tileWidth;
         const tileHeight = this.renderer.tileHeight;
-        
+
         this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         this.ctx.lineWidth = 1;
-        
+
         // Draw diamond-shaped grid
         for (let i = -viewDistance; i <= viewDistance; i++) {
             // Draw lines parallel to x-axis in isometric space
@@ -956,18 +959,18 @@ export class GameInstance {
             const startY1 = i * (tileHeight / 2);
             const endX1 = (i + viewDistance) * (tileWidth / 2);
             const endY1 = i * (tileHeight / 2);
-            
+
             this.ctx.beginPath();
             this.ctx.moveTo(startX1, startY1);
             this.ctx.lineTo(endX1, endY1);
             this.ctx.stroke();
-            
+
             // Draw lines parallel to y-axis in isometric space
             const startX2 = i * (tileWidth / 2);
             const startY2 = (-viewDistance + i) * (tileHeight / 2);
             const endX2 = i * (tileWidth / 2);
             const endY2 = (viewDistance + i) * (tileHeight / 2);
-            
+
             this.ctx.beginPath();
             this.ctx.moveTo(startX2, startY2);
             this.ctx.lineTo(endX2, endY2);
@@ -977,10 +980,10 @@ export class GameInstance {
 
     setupDebugControls() {
         console.log('Debug controls setup started...');
-        
+
         window.addEventListener('keydown', (e) => {
             console.log('Key pressed:', e.key, 'Alt:', e.altKey);
-            
+
             // Layout mode toggle
             if (e.altKey && e.key.toLowerCase() === 'l') {
                 console.log('Layout mode toggle triggered');
@@ -990,7 +993,7 @@ export class GameInstance {
                     this.updateLayoutMode();
                 }
             }
-            
+
             // Other debug controls
             if (e.ctrlKey) {
                 switch(e.key.toLowerCase()) {
@@ -1032,13 +1035,13 @@ export class GameInstance {
     getTerrainAngleAt(x, y) {
         // Calculate terrain angle based on neighboring heights
         if (!this.world) return 0;
-        
+
         const x1 = Math.floor(x);
         const y1 = Math.floor(y);
         const h1 = this.world.generateHeight(x1, y1);
         const h2 = this.world.generateHeight(x1 + 1, y1);
         const h3 = this.world.generateHeight(x1, y1 + 1);
-        
+
         // Calculate approximate angle based on height differences
         const dx = h2 - h1;
         const dy = h3 - h1;
@@ -1057,15 +1060,15 @@ export class GameInstance {
         // Get the center offset where (0,0) should be
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
-        
+
         // Calculate the player's isometric position
         const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
         const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-        
+
         // Adjust click coordinates relative to player position and camera zoom
         const adjustedX = (screenX - centerX) / this.camera.zoom + isoX;
         const adjustedY = (screenY - centerY) / this.camera.zoom + isoY;
-        
+
         // Convert isometric coordinates back to world coordinates
         const worldX = Math.round(
             (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
@@ -1073,13 +1076,13 @@ export class GameInstance {
         const worldY = Math.round(
             (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
         );
-        
+
         return { x: worldX, y: worldY };
     }
 
     findClickedNPC(screenX, screenY) {
         const worldPos = this.screenToWorld(screenX, screenY);
-        
+
         console.log('Click detected:', {
             screen: { x: screenX, y: screenY },
             world: worldPos,
@@ -1093,10 +1096,10 @@ export class GameInstance {
         for (const entity of this.entities) {
             if (entity instanceof Merchant) {
                 const distance = Math.sqrt(
-                    Math.pow(entity.x - worldPos.x, 2) + 
+                    Math.pow(entity.x - worldPos.x, 2) +
                     Math.pow(entity.y - worldPos.y, 2)
                 );
-                
+
                 console.log('Checking merchant:', {
                     merchantPos: { x: entity.x, y: entity.y },
                     distance: distance,
@@ -1109,13 +1112,13 @@ export class GameInstance {
                 }
             }
         }
-        
+
         return null;
     }
 
     findAdjacentTile(npc) {
         console.log('Finding adjacent tile for:', npc);
-        
+
         // Check if NPC is inside a structure
         const isInStructure = this.pathFinder.isInsideStructure(npc.x, npc.y);
         console.log('NPC structure check:', { isInStructure, npcPos: { x: npc.x, y: npc.y } });
@@ -1131,7 +1134,7 @@ export class GameInstance {
         for (const pos of adjacentPositions) {
             const checkX = Math.round(npc.x + pos.x);
             const checkY = Math.round(npc.y + pos.y);
-            
+
             // Allow interior movement if NPC is inside a structure
             if (this.pathFinder.isWalkable(checkX, checkY, isInStructure)) {
                 console.log('Found adjacent tile:', { x: checkX, y: checkY });
@@ -1150,7 +1153,7 @@ export class GameInstance {
         for (const pos of diagonalPositions) {
             const checkX = Math.round(npc.x + pos.x);
             const checkY = Math.round(npc.y + pos.y);
-            
+
             if (this.pathFinder.isWalkable(checkX, checkY, isInStructure)) {
                 console.log('Found diagonal adjacent tile:', { x: checkX, y: checkY });
                 return { x: checkX, y: checkY };
@@ -1163,7 +1166,7 @@ export class GameInstance {
 
     startDialog(npc) {
         if (!npc) return;
-        
+
         console.log('Starting dialog with:', npc.constructor.name);
 
         if (npc instanceof Merchant) {
@@ -1179,7 +1182,7 @@ export class GameInstance {
                     text: "Welcome to my shop! Would you like to see my wares?",
                     logMessage: true,
                     options: [
-                        { 
+                        {
                             text: "Show me what you have",
                             action: () => {
                                 const merchantUI = this.uiManager.components.get('merchantUI');
@@ -1215,18 +1218,106 @@ export class GameInstance {
             .addMessage(`Picked up ${item.name}`);
     }
 
+    /**
+     * Creates NPCs from the map definition
+     * @returns {Array} Array of created NPCs
+     */
+    createNPCsFromMapDefinition() {
+        if (!this.world || !this.world.npcs || this.world.npcs.length === 0) {
+            console.log('No NPCs defined in map');
+            return [];
+        }
+
+        console.log(`Creating ${this.world.npcs.length} NPCs from map definition`);
+        const createdNPCs = [];
+
+        // Process each NPC definition
+        this.world.npcs.forEach(npcData => {
+            try {
+                let npc;
+
+                // Create the appropriate NPC type
+                if (npcData.type === 'merchant') {
+                    npc = new Merchant({
+                        x: npcData.x,
+                        y: npcData.y,
+                        name: npcData.name || 'Merchant',
+                        eth: npcData.eth || 500,
+                        color: npcData.color || '#FFD700', // Gold color for merchants
+                        world: this.world,
+                        game: this
+                    });
+
+                    // Add some items to the merchant's inventory
+                    if (npc.inventory) {
+                        const randomItem = new Item({
+                            id: 'random_item_' + Math.floor(Math.random() * 1000),
+                            name: 'Random Item',
+                            description: 'A mysterious item',
+                            type: 'misc',
+                            value: Math.floor(Math.random() * 100) + 10,
+                            weight: Math.random() * 2,
+                            icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPklEQVR42mNkGAWjYBSMglEwCkbBKBgFo2AUjIJRMAqGIWBkZGQEis0DzQdjxkH3AuQS6wNtAQN/GIyCUTAKBjMAALl5C/V1fHh4AAAAAElFTkSuQmCC'
+                        });
+                        npc.inventory.addItem(randomItem);
+                    }
+                } else if (npcData.type === 'enemy') {
+                    // Create an enemy NPC with combat properties
+                    npc = new NPC({
+                        x: npcData.x,
+                        y: npcData.y,
+                        name: npcData.name || 'Enemy',
+                        color: npcData.color || '#FF0000', // Red color for enemies
+                        world: this.world,
+                        isEnemy: true,
+                        damage: npcData.damage || 10,
+                        health: npcData.health || 100,
+                        attackRange: npcData.attackRange || 2,
+                        behavior: npcData.behavior || { isPatrolling: false }
+                    });
+                } else {
+                    // Create a regular NPC
+                    npc = new NPC({
+                        x: npcData.x,
+                        y: npcData.y,
+                        name: npcData.name || 'NPC',
+                        color: npcData.color || '#3498db', // Blue color for regular NPCs
+                        world: this.world
+                    });
+                }
+
+                // Add dialog if provided
+                if (npcData.dialog && npc.setDialog) {
+                    npc.setDialog(npcData.dialog);
+                }
+
+                // Add the NPC to the game
+                if (npc) {
+                    this.entities.add(npc);
+                    createdNPCs.push(npc);
+                    console.log(`Created ${npcData.type} NPC '${npc.name}' at ${npc.x},${npc.y}`);
+                }
+            } catch (error) {
+                console.error(`Failed to create NPC ${npcData.name || 'unknown'}:`, error);
+            }
+        });
+
+        console.log(`Successfully created ${createdNPCs.length} NPCs`);
+        return createdNPCs;
+    }
+
     addMerchantNearPlayer() {
         // Try to find a nearby structure first
-        const nearbyStructures = this.world.getAllStructures().filter(structure => 
+        const nearbyStructures = this.world.getAllStructures().filter(structure =>
             structure.type !== 'dumpster' &&  // Skip certain structure types
-            Math.abs(structure.x - this.player.x) < 10 && 
+            Math.abs(structure.x - this.player.x) < 10 &&
             Math.abs(structure.y - this.player.y) < 10
         );
 
         if (nearbyStructures.length > 0) {
             // Pick a random structure
             const structure = nearbyStructures[Math.floor(Math.random() * nearbyStructures.length)];
-            
+
             // Place merchant inside the structure
             const merchantPosition = {
                 x: structure.x + Math.floor(structure.width / 2),
@@ -1247,7 +1338,7 @@ export class GameInstance {
         };
 
         console.log('Creating merchant at position:', merchantPosition);
-        
+
         try {
             const merchant = this.createMerchant(merchantPosition);
             if (merchant) {
@@ -1269,26 +1360,26 @@ export class GameInstance {
 
     updateLayoutMode() {
         console.log('Updating layout mode state...');
-        
+
         if (this.layoutMode.enabled) {
             // Enable layout mode specific features
             this.canvas.style.cursor = 'crosshair';
-            
+
             // Update UI if LayoutToolsUI exists
             if (this.layoutToolsUI) {
                 this.layoutToolsUI.update();
             }
-            
+
             // Enable grid by default in layout mode
             this.debug.flags.showGrid = true;
         } else {
             // Disable layout mode features
             this.canvas.style.cursor = 'default';
-            
+
             // Reset grid to previous state
             this.debug.flags.showGrid = false;
         }
-        
+
         // Trigger a re-render
         if (this.renderer) {
             this.renderer.clear();
@@ -1302,7 +1393,7 @@ export class GameInstance {
         if (!this.debug.flags.showCoordinates) return;
 
         this.ctx.save();
-        
+
         // More visible text styling
         this.ctx.font = 'bold 12px Arial';
         this.ctx.fillStyle = 'yellow';
@@ -1317,15 +1408,15 @@ export class GameInstance {
                 // Convert world coordinates to screen coordinates
                 const isoX = (x - y) * (this.renderer.tileWidth / 2);
                 const isoY = (x + y) * (this.renderer.tileHeight / 2);
-                
+
                 const text = `${x},${y}`;
-                
+
                 // Draw text with outline for better visibility
                 this.ctx.strokeText(text, isoX, isoY);
                 this.ctx.fillText(text, isoX, isoY);
             }
         }
-        
+
         this.ctx.restore();
     }
 
@@ -1341,7 +1432,7 @@ export class GameInstance {
         const currentTime = Date.now();
         const elapsedRealTime = currentTime - this.gameStartTime;
         const gameTime = elapsedRealTime * (this.gameTimeScale / 60); // Convert to game minutes
-        
+
         // Convert to hours (0-24)
         return (gameTime / 60) % 24;
     }
@@ -1378,7 +1469,7 @@ export class GameInstance {
             console.warn('Invalid hour value. Must be between 0 and 24');
             return;
         }
-        
+
         const currentHour = this.getGameHour();
         const hourDiff = hour - currentHour;
         const timeAdjustment = (hourDiff * 60 * 60 * 1000) / this.gameTimeScale;
