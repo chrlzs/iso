@@ -84,22 +84,26 @@ export class MapDefinition {
     constructor(width, height) {
         this.width = width;
         this.height = height;
-        this.tiles = new Array(width * height);
+        this.tiles = new Array(width * height).fill(null).map(() => ({}));
         this.structures = new Map();
         this.decorations = [];
-        this.spawnPoints = [];
+        this.spawnPoints = [{x: Math.floor(width/2), y: Math.floor(height/2)}];
     }
 
     addStructure(structureData) {
-        const { x, y, width = 1, height = 1, type } = structureData;
+        const { x, y, width = 1, height = 1, type, options = {} } = structureData;
         const key = `${x},${y}`;
         
-        // Create structure object
+        // Create structure object with all necessary properties
         const structure = {
             ...structureData,
             id: `${type}_${x}_${y}`,
             width: width,
-            height: height
+            height: height,
+            template: {
+                type,
+                ...options
+            }
         };
 
         // Add to structures Map
@@ -108,12 +112,11 @@ export class MapDefinition {
         // Update tiles covered by the structure
         for (let dy = 0; dy < height; dy++) {
             for (let dx = 0; dx < width; dx++) {
-                this.setTile(x + dx, y + dy, {
-                    type: 'building',
-                    height: 1,
-                    moisture: 0.5,
-                    structure: structure
-                });
+                const tile = this.getTile(x + dx, y + dy);
+                if (tile) {
+                    tile.structure = structure;
+                    tile.type = 'building';
+                }
             }
         }
 
@@ -159,10 +162,9 @@ export class MapDefinition {
      * @param {number} y - Y coordinate
      * @param {Object} data - Tile data
      */
-    setTile(x, y, tileData) {
-        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            this.tiles[y * this.width + x] = tileData;
-        }
+    setTile(x, y, data) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+        this.tiles[y * this.width + x] = data;
     }
 
     /**
@@ -172,10 +174,8 @@ export class MapDefinition {
      * @returns {Object|null} - Tile data or null if out of bounds
      */
     getTile(x, y) {
-        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            return this.tiles[y * this.width + x];
-        }
-        return null;
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return null;
+        return this.tiles[y * this.width + x];
     }
 
     getAllStructures() {
@@ -187,5 +187,6 @@ export class MapDefinition {
         return this.structures.get(key) || null;
     }
 }
+
 
 
