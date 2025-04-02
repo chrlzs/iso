@@ -61,18 +61,23 @@ export class NPC extends Entity {
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
 
-        if (!this.game) {
+        // Try to get game reference from world if not available
+        if (!this.game && this.world && this.world.game) {
+            this.game = this.world.game;
+
+            // Only log if debug flag is enabled
+            if (this.world.game?.debug?.flags?.logWarnings) {
+                console.log('Retrieved game reference from world for NPC:', this.id);
+            }
+        }
+
+        // Log warning if still no game reference
+        if (!this.game && this.world?.game?.debug?.flags?.logWarnings) {
             console.warn('NPC created without game reference:', {
                 id: this.id,
                 type: this.type,
                 hasWorld: !!this.world
             });
-
-            // Try to get game reference from world if available
-            if (this.world && this.world.game) {
-                this.game = this.world.game;
-                console.log('Retrieved game reference from world for NPC:', this.id);
-            }
         }
 
         // State tracking
@@ -84,12 +89,15 @@ export class NPC extends Entity {
         // Set initial visibility - enemies are always visible
         this.isVisible = true; // Make all NPCs visible by default
 
-        console.log(`NPC ${this.name} created:`, {
-            isEnemy: this.isEnemy,
-            isVisible: this.isVisible,
-            position: `${this.x},${this.y}`,
-            color: this.color
-        });
+        // Only log if debug flag is enabled
+        if (this.game?.debug?.flags?.logNPCs) {
+            console.log(`NPC ${this.name} created:`, {
+                isEnemy: this.isEnemy,
+                isVisible: this.isVisible,
+                position: `${this.x},${this.y}`,
+                color: this.color
+            });
+        }
     }
 
     /**
@@ -97,15 +105,6 @@ export class NPC extends Entity {
      * @param {number} deltaTime - Time elapsed since last update
      */
     update(deltaTime) {
-        // Debug log for enemy NPCs
-        if (this.isEnemy) {
-            console.log(`Updating enemy NPC ${this.name} at ${this.x},${this.y}`, {
-                isVisible: this.isVisible,
-                isEnemy: this.isEnemy,
-                inStructure: !!this.currentStructure
-            });
-        }
-
         // Get current structure if any
         if (this.world) {
             const structures = this.world.getAllStructures();
@@ -116,9 +115,11 @@ export class NPC extends Entity {
                 this.y < structure.y + structure.height
             );
 
-            // Debug log for enemy NPCs after structure check
-            if (this.isEnemy) {
-                console.log(`After structure check for enemy NPC ${this.name}:`, {
+            // Debug log for enemy NPCs - only if debug flag is enabled
+            if (this.isEnemy && this.game?.debug?.flags?.logNPCs) {
+                console.log(`Updated enemy NPC ${this.name}:`, {
+                    position: `${this.x},${this.y}`,
+                    isVisible: this.isVisible,
                     inStructure: !!this.currentStructure,
                     structureType: this.currentStructure?.type
                 });
@@ -137,20 +138,18 @@ export class NPC extends Entity {
     }
 
     render(ctx, renderer) {
-        // Debug log for enemy NPCs
-        if (this.isEnemy) {
-            console.log(`Rendering enemy NPC ${this.name} at ${this.x},${this.y}`, {
-                isVisible: this.isVisible,
-                isEnemy: this.isEnemy,
-                color: this.color
-            });
-        }
-
+        // Skip rendering if not visible
         if (!this.isVisible) {
-            if (this.isEnemy) {
+            // Only log warning if debug flag is enabled
+            if (this.isEnemy && this.game?.debug?.flags?.logWarnings) {
                 console.warn(`Enemy NPC ${this.name} is not visible!`);
             }
             return;
+        }
+
+        // Debug log for enemy NPCs - only if debug flag is enabled
+        if (this.isEnemy && this.game?.debug?.flags?.logNPCRendering) {
+            console.log(`Rendering enemy NPC ${this.name} at ${this.x},${this.y}`);
         }
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);

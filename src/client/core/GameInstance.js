@@ -112,13 +112,27 @@ export class GameInstance {
         this.debug = {
             enabled: true,
             flags: {
+                // Display flags
                 showPath: false,
                 //showGrid: false,
                 //showCoordinates: true,  // Set to true by default
+                showStructureBounds: false,
+                showFPS: true,
+
+                // Logging flags - most disabled by default for performance
                 logTextureLoading: false,
-                logDecorations: true,  // Make sure this is true
+                logDecorations: false,  // Disable for performance
                 logZoomChanges: false,
-                logStructures: true,
+                logStructures: false,   // Disable for performance
+                logEntities: false,     // Disable entity logging
+                logEntityRendering: false, // Disable entity render logging
+                logNPCs: false,         // Disable NPC logging
+                logNPCRendering: false, // Disable NPC render logging
+                logWarnings: false,     // Disable warnings
+                logErrors: true,        // Keep errors enabled
+                logInit: false,         // Disable init logging
+
+                // Feature flags
                 enableLayoutMode: true
             }
         };
@@ -907,18 +921,20 @@ export class GameInstance {
         // Draw tile coordinates if enabled
         this.drawTileCoordinates();
 
-        // Debug log for entities
-        console.log('Entities before sorting:', {
-            total: this.entities.size,
-            entities: Array.from(this.entities).map(e => ({
-                type: e.constructor.name,
-                name: e.name,
-                isEnemy: e.isEnemy,
-                isVisible: e.isVisible,
-                position: `${e.x},${e.y}`,
-                inStructure: !!e.currentStructure
-            }))
-        });
+        // Debug log for entities - only log if debug flag is enabled
+        if (this.debug?.flags?.logEntities) {
+            console.log('Entities before sorting:', {
+                total: this.entities.size,
+                entities: Array.from(this.entities).map(e => ({
+                    type: e.constructor.name,
+                    name: e.name,
+                    isEnemy: e.isEnemy,
+                    isVisible: e.isVisible,
+                    position: `${e.x},${e.y}`,
+                    inStructure: !!e.currentStructure
+                }))
+            });
+        }
 
         // Split entities into inside/outside groups
         const entitiesOutside = [];
@@ -936,34 +952,39 @@ export class GameInstance {
         entitiesOutside.sort((a, b) => a.y - b.y);
         entitiesInside.sort((a, b) => a.y - b.y);
 
-        // Debug log for sorted entities
-        console.log('Entities after sorting:', {
-            outside: entitiesOutside.map(e => ({
-                type: e.constructor.name,
-                name: e.name,
-                isEnemy: e.isEnemy,
-                isVisible: e.isVisible,
-                position: `${e.x},${e.y}`
-            })),
-            inside: entitiesInside.map(e => ({
-                type: e.constructor.name,
-                name: e.name,
-                isEnemy: e.isEnemy,
-                isVisible: e.isVisible,
-                position: `${e.x},${e.y}`
-            }))
-        });
+        // Debug log for sorted entities - only log if debug flag is enabled
+        if (this.debug?.flags?.logEntities) {
+            console.log('Entities after sorting:', {
+                outside: entitiesOutside.map(e => ({
+                    type: e.constructor.name,
+                    name: e.name,
+                    isEnemy: e.isEnemy,
+                    isVisible: e.isVisible,
+                    position: `${e.x},${e.y}`
+                })),
+                inside: entitiesInside.map(e => ({
+                    type: e.constructor.name,
+                    name: e.name,
+                    isEnemy: e.isEnemy,
+                    isVisible: e.isVisible,
+                    position: `${e.x},${e.y}`
+                }))
+            });
+        }
 
         // Render outside entities first
         entitiesOutside.forEach(entity => {
             if (entity.render && entity.isVisible) {
-                console.log(`Rendering outside entity: ${entity.name}`, {
-                    type: entity.constructor.name,
-                    isEnemy: entity.isEnemy,
-                    position: `${entity.x},${entity.y}`
-                });
+                // Only log if debug flag is enabled
+                if (this.debug?.flags?.logEntityRendering) {
+                    console.log(`Rendering outside entity: ${entity.name}`, {
+                        type: entity.constructor.name,
+                        isEnemy: entity.isEnemy,
+                        position: `${entity.x},${entity.y}`
+                    });
+                }
                 entity.render(this.ctx, this.renderer);
-            } else if (entity.isEnemy) {
+            } else if (entity.isEnemy && this.debug?.flags?.logErrors) {
                 console.warn(`Enemy entity ${entity.name} not rendered:`, {
                     hasRender: !!entity.render,
                     isVisible: entity.isVisible
@@ -974,13 +995,16 @@ export class GameInstance {
         // Render inside entities after structure transparency
         entitiesInside.forEach(entity => {
             if (entity.render && entity.isVisible) {
-                console.log(`Rendering inside entity: ${entity.name}`, {
-                    type: entity.constructor.name,
-                    isEnemy: entity.isEnemy,
-                    position: `${entity.x},${entity.y}`
-                });
+                // Only log if debug flag is enabled
+                if (this.debug?.flags?.logEntityRendering) {
+                    console.log(`Rendering inside entity: ${entity.name}`, {
+                        type: entity.constructor.name,
+                        isEnemy: entity.isEnemy,
+                        position: `${entity.x},${entity.y}`
+                    });
+                }
                 entity.render(this.ctx, this.renderer);
-            } else if (entity.isEnemy) {
+            } else if (entity.isEnemy && this.debug?.flags?.logErrors) {
                 console.warn(`Enemy entity ${entity.name} not rendered:`, {
                     hasRender: !!entity.render,
                     isVisible: entity.isVisible
