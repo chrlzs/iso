@@ -179,7 +179,7 @@ export class TileManager {
         this.textures = new Map();
         this.tileDefinitions = new Map();
         this.variants = new Map();
-        
+
         // Define variants for each tile type
         this.variants = {
             water: 1,
@@ -300,24 +300,48 @@ export class TileManager {
      * @returns {Promise<void>}
      * @throws {Error} If texture loading fails
      */
+    /**
+     * Loads only essential textures needed for initial rendering
+     * @async
+     * @returns {Promise<void>}
+     * @throws {Error} If texture loading fails
+     */
+    async loadEssentialTextures() {
+        const essentialTextures = [
+            'grass',
+            'dirt',
+            'concrete',
+            'water'
+        ];
+
+        try {
+            await Promise.all(essentialTextures.map(type => this.generateTexture(type, this.tileColors[type])));
+
+            if (this.debug?.flags?.logTextureLoading) {
+                console.log('TileManager: Essential textures loaded');
+            }
+
+            this.essentialTexturesLoaded = true;
+        } catch (error) {
+            console.error('Failed to load essential textures:', error);
+            throw error;
+        }
+    }
+
     async loadTextures() {
-        console.time('texture-loading');
-        const textureTypes = [
-            'water',
+        // Skip if essential textures are already loaded
+        const remainingTextures = [
             'wetland',
             'sand',
-            'dirt',
-            'grass',
             'forest',
             'mountain',
-            'concrete',
             'asphalt',
             'metal',
             'tiles',
             'gravel',
             'solar',
             'garden',
-            'door',  // Add door to texture types
+            'door',
             'helipad',
             'parking',
             'tree',
@@ -328,12 +352,24 @@ export class TileManager {
         ];
 
         try {
-            await Promise.all(textureTypes.map(type => this.generateTexture(type, this.tileColors[type])));
-            const endTime = performance.now();
-            console.log('TileManager: Texture loading complete', {
-                duration: `${(endTime - performance.now()).toFixed(2)}ms`,
-                totalTextures: this.textures.size
-            });
+            // Only load textures that haven't been loaded yet
+            const texturesToLoad = remainingTextures.filter(type => !this.textures.has(type));
+
+            if (texturesToLoad.length > 0) {
+                if (this.debug?.flags?.logTextureLoading) {
+                    console.time('texture-loading');
+                }
+
+                await Promise.all(texturesToLoad.map(type => this.generateTexture(type, this.tileColors[type])));
+
+                if (this.debug?.flags?.logTextureLoading) {
+                    console.timeEnd('texture-loading');
+                    console.log('TileManager: Remaining textures loaded', {
+                        totalTextures: this.textures.size
+                    });
+                }
+            }
+
             this.texturesLoaded = true;
         } catch (error) {
             console.error('Failed to load textures:', error);
@@ -348,13 +384,13 @@ export class TileManager {
      */
     validateTextureCompleteness(tileTypes) {
         const missingTextures = [];
-        
+
         for (const type of tileTypes) {
             if (!this.textures.has(type)) {
                 missingTextures.push(type);
                 console.error(`Missing texture for tile type: ${type}`);
             }
-            
+
             // Check variants
             const variantCount = this.variants[type] || 1;
             for (let i = 1; i <= variantCount; i++) {
@@ -493,17 +529,17 @@ export class TileManager {
         // Door frame
         ctx.fillStyle = '#4a4a4a';
         ctx.fillRect(0, 0, width, height);
-        
+
         // Door panel
         ctx.fillStyle = '#8b4513';
         ctx.fillRect(4, 4, width - 8, height - 8);
-        
+
         // Door handle
         ctx.fillStyle = '#d4af37';
         ctx.beginPath();
         ctx.arc(width - 16, height / 2, 4, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Panel details
         ctx.strokeStyle = '#6b3410';
         ctx.lineWidth = 2;
@@ -743,21 +779,21 @@ export class TileManager {
         // Helipad marking
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.arc(canvas.width/2, canvas.height/2, 
+        ctx.arc(canvas.width/2, canvas.height/2,
                 Math.min(canvas.width, canvas.height) * 0.4, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = baseColor;
         ctx.beginPath();
-        ctx.arc(canvas.width/2, canvas.height/2, 
+        ctx.arc(canvas.width/2, canvas.height/2,
                 Math.min(canvas.width, canvas.height) * 0.3, 0, Math.PI * 2);
         ctx.fill();
 
         // H marking
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(canvas.width * 0.4, canvas.height * 0.3, 
+        ctx.fillRect(canvas.width * 0.4, canvas.height * 0.3,
                     canvas.width * 0.2, canvas.height * 0.4);
-        ctx.fillRect(canvas.width * 0.35, canvas.height * 0.45, 
+        ctx.fillRect(canvas.width * 0.35, canvas.height * 0.45,
                     canvas.width * 0.3, canvas.height * 0.1);
     }
 
@@ -773,13 +809,13 @@ export class TileManager {
         const r = parseInt(hex.substr(0, 2), 16);
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
-        
+
         const adjust = lighter ? amount : -amount;
-        
+
         const newR = Math.max(0, Math.min(255, r + adjust));
         const newG = Math.max(0, Math.min(255, g + adjust));
         const newB = Math.max(0, Math.min(255, b + adjust));
-        
+
         return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
     }
 
@@ -788,7 +824,7 @@ export class TileManager {
         patternCanvas.width = 4;
         patternCanvas.height = 4;
         const patternCtx = patternCanvas.getContext('2d');
-        
+
         patternCtx.fillStyle = this.adjustColor(baseColor, 10);
         for (let x = 0; x < 4; x++) {
             for (let y = 0; y < 4; y++) {
@@ -797,7 +833,7 @@ export class TileManager {
                 }
             }
         }
-        
+
         return patternCanvas;
     }
 
@@ -808,7 +844,7 @@ export class TileManager {
         const key = variant ? `${normalizedType}_var${variant}` : normalizedType;
 
         let texture = this.textures.get(key);
-        
+
         // If texture not found, try to get base texture
         if (!texture && variant) {
             texture = this.textures.get(normalizedType);
@@ -945,7 +981,7 @@ export class TileManager {
         // Draw trunk
         ctx.fillStyle = trunkColor;
         ctx.fillRect(x - 1, y + 4, 2, 4);
-        
+
         // Draw foliage
         ctx.fillStyle = foliageColor;
         ctx.beginPath();

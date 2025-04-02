@@ -60,9 +60,10 @@ export class UIManager {
         this.canvasComponents = new Set();
 
         try {
-            console.log('Initializing UI components...');
+            // Only initialize essential UI components immediately
+            // Others will be lazy-loaded when needed
 
-            // Initialize core UI components
+            // Initialize essential UI components
             this.components.set('messageLog', new MessageLog({
                 position: { x: 10, y: window.innerHeight - 110 },
                 width: 300,
@@ -70,26 +71,25 @@ export class UIManager {
                 game: this.game
             }));
 
-            this.components.set('inventoryUI', new InventoryUI(this.game));
-            this.components.set('merchantUI', new MerchantUI({ game: this.game }));
-            this.components.set('dialogUI', new DialogUI(this.game));
             this.components.set('statusUI', new StatusUI(this.game));
-            this.components.set('questLogUI', new QuestLogUI(this.game));
-            this.components.set('settingsUI', new SettingsUI(this.game));
-            this.components.set('notificationSystem', new NotificationSystem(this.game));
-            this.components.set('combatUI', new CombatUI(this.game));
-
-            // Initialize canvas-based UI components
-            this.components.set('canvasUI', new CanvasUI(this.game));
             this.components.set('hud', new HUD(this.game));
 
-            // Hide window-based UIs initially
-            ['inventoryUI', 'merchantUI', 'dialogUI', 'questLogUI', 'settingsUI'].forEach(ui => {
-                const component = this.components.get(ui);
-                if (component?.hide) component.hide();
-            });
+            // Schedule non-essential UI components to load after a delay
+            setTimeout(() => {
+                this.initializeNonEssentialComponents();
+            }, 100);
 
-            console.log('Current components:', Array.from(this.components.entries()));
+            // Setup component definitions for lazy loading
+            this.componentDefinitions = {
+                'inventoryUI': () => new InventoryUI(this.game),
+                'merchantUI': () => new MerchantUI({ game: this.game }),
+                'dialogUI': () => new DialogUI(this.game),
+                'questLogUI': () => new QuestLogUI(this.game),
+                'settingsUI': () => new SettingsUI(this.game),
+                'notificationSystem': () => new NotificationSystem(this.game),
+                'combatUI': () => new CombatUI(this.game),
+                'canvasUI': () => new CanvasUI(this.game)
+            };
 
             // Setup event listeners
             this.setupEventListeners();
@@ -101,12 +101,72 @@ export class UIManager {
         }
     }
 
-    setupEventListeners() {
-        console.log('Setting up UIManager event listeners');
+    /**
+     * Initializes non-essential UI components
+     * @private
+     */
+    initializeNonEssentialComponents() {
+        try {
+            // Initialize remaining UI components
+            this.components.set('inventoryUI', this.componentDefinitions.inventoryUI());
+            this.components.set('merchantUI', this.componentDefinitions.merchantUI());
+            this.components.set('dialogUI', this.componentDefinitions.dialogUI());
+            this.components.set('questLogUI', this.componentDefinitions.questLogUI());
+            this.components.set('settingsUI', this.componentDefinitions.settingsUI());
+            this.components.set('notificationSystem', this.componentDefinitions.notificationSystem());
+            this.components.set('combatUI', this.componentDefinitions.combatUI());
+            this.components.set('canvasUI', this.componentDefinitions.canvasUI());
 
+            // Hide window-based UIs initially
+            ['inventoryUI', 'merchantUI', 'dialogUI', 'questLogUI', 'settingsUI'].forEach(ui => {
+                const component = this.components.get(ui);
+                if (component?.hide) component.hide();
+            });
+
+            if (this.game?.debug?.flags?.logInit) {
+                console.log('Non-essential UI components initialized');
+            }
+        } catch (error) {
+            console.error('Error initializing non-essential UI components:', error);
+        }
+    }
+
+    /**
+     * Gets a UI component, initializing it if needed
+     * @param {string} componentId - ID of the component to get
+     * @returns {UIComponent|null} The requested component or null if not found
+     */
+    getComponent(componentId) {
+        // Check if component already exists
+        let component = this.components.get(componentId);
+
+        // If component doesn't exist but we have a definition for it, create it
+        if (!component && this.componentDefinitions[componentId]) {
+            try {
+                component = this.componentDefinitions[componentId]();
+                this.components.set(componentId, component);
+
+                // Hide window-based UIs by default
+                if (['inventoryUI', 'merchantUI', 'dialogUI', 'questLogUI', 'settingsUI'].includes(componentId)) {
+                    if (component?.hide) component.hide();
+                }
+
+                if (this.game?.debug?.flags?.logInit) {
+                    console.log(`Lazy-loaded UI component: ${componentId}`);
+                }
+            } catch (error) {
+                console.error(`Error lazy-loading component ${componentId}:`, error);
+                return null;
+            }
+        }
+
+        return component || null;
+    }
+
+    setupEventListeners() {
         // Handle menu button click
         this.game.canvas.addEventListener('click', (e) => {
-            const mainMenu = this.components.get('mainMenu');
+            const mainMenu = this.getComponent('mainMenu');
             if (mainMenu) {
                 const rect = this.game.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;

@@ -426,23 +426,71 @@ export class GameInstance {
      * @returns {Promise<boolean>} Success status
      */
     async init() {
-        console.log('Game: Starting initialization...');
         try {
+            // Only log if debug is enabled
+            if (this.debug?.flags?.logInit) {
+                console.log('Game: Starting initialization...');
+            }
+
             // Set base URL for assets if provided in options
             if (this.options?.assetsBaseUrl) {
                 this.assetManager.setBaseUrl(this.options.assetsBaseUrl);
             }
 
-            // Initialize texture loading
-            await this.initializeTextures();
+            // Initialize essential textures first
+            await this.initializeEssentialTextures();
 
-            // Initialize world after textures are loaded
-            await this.world.tileManager.loadTextures();
-
-            console.log('Game: Textures loaded successfully');
-
+            // Setup input and debug controls
             this.setupInput();
             this.setupDebugControls();
+
+            // Schedule non-essential initialization for after the game starts
+            setTimeout(() => {
+                this.initializeNonEssentialComponents();
+            }, 500);
+
+            return true;
+        } catch (error) {
+            console.error('Game: Failed to initialize:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Initializes essential textures needed for initial rendering
+     * @private
+     * @returns {Promise<void>}
+     */
+    async initializeEssentialTextures() {
+        // Load only the most essential textures first
+        const essentialTextures = ['grass', 'dirt', 'concrete', 'water'];
+
+        try {
+            // Load essential textures
+            for (const textureType of essentialTextures) {
+                await this.tileManager.generateTexture(textureType, this.tileManager.tileColors[textureType]);
+            }
+
+            // Initialize world with essential textures
+            await this.world.tileManager.loadEssentialTextures();
+
+            if (this.debug?.flags?.logInit) {
+                console.log('Game: Essential textures loaded successfully');
+            }
+        } catch (error) {
+            console.error('Game: Failed to load essential textures:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Initializes non-essential components after the game has started
+     * @private
+     */
+    async initializeNonEssentialComponents() {
+        try {
+            // Load remaining textures
+            await this.initializeTextures();
 
             // Add merchant after initialization
             this.addMerchantNearPlayer();
@@ -450,10 +498,11 @@ export class GameInstance {
             // Create NPCs from map definition
             this.createNPCsFromMapDefinition();
 
-            return true;
+            if (this.debug?.flags?.logInit) {
+                console.log('Game: Non-essential components initialized');
+            }
         } catch (error) {
-            console.error('Game: Failed to initialize:', error);
-            return false;
+            console.error('Game: Failed to initialize non-essential components:', error);
         }
     }
 

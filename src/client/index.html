@@ -20,41 +20,71 @@
     <script type="module">
         import { GameInstance } from './core/GameInstance.js';
 
-        // Initialize game when DOM is ready
-        document.addEventListener('DOMContentLoaded', async () => {
+        // Preload canvas setup - do this before DOMContentLoaded
+        let canvas;
+        let game;
+
+        // Function to set up canvas dimensions
+        function setupCanvas() {
+            canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                console.error('Failed to find gameCanvas element');
+                return false;
+            }
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            return true;
+        }
+
+        // Function to handle window resizing
+        function handleResize() {
+            if (!canvas) return;
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            if (game) {
+                game.resize(canvas.width, canvas.height);
+            }
+        }
+
+        // Initialize game with a delay to allow browser to render UI first
+        async function initializeGame() {
             try {
-                // Get canvas and set initial dimensions
-                const canvas = document.getElementById('gameCanvas');
-                if (!canvas) {
-                    throw new Error('Failed to find gameCanvas element');
-                }
-                
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
+                // Create game instance
+                game = new GameInstance(canvas);
 
-                // Create and initialize game instance
-                const game = new GameInstance(canvas);
-                await game.init();
-                game.start();
+                // Initialize game in the next frame
+                setTimeout(async () => {
+                    await game.init();
+                    game.start();
 
-                // Handle window resizing
-                window.addEventListener('resize', () => {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    game.resize(canvas.width, canvas.height);
-                });
+                    // Store game instance for debugging
+                    window.gameInstance = game;
+                }, 0);
 
-                // Store game instance for debugging
-                window.gameInstance = game;
-                
             } catch (error) {
                 console.error('Failed to initialize game:', error);
-                // You might want to show this error to the user in a more friendly way
                 document.body.innerHTML = `
                     <div style="color: white; padding: 20px;">
                         Failed to start game. Please refresh the page or contact support.
                     </div>
                 `;
+            }
+        }
+
+        // Initialize game when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set up canvas first
+            if (setupCanvas()) {
+                // Add resize listener
+                window.addEventListener('resize', handleResize);
+
+                // Initialize game with a slight delay
+                requestAnimationFrame(() => {
+                    initializeGame();
+                });
             }
         });
     </script>
