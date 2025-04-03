@@ -334,6 +334,51 @@ export class NPC extends Entity {
     checkStructureOcclusion() {
         if (!this.world) return;
 
+        // SPECIAL CASE: Security Officer is ALWAYS behind structures
+        // This is a direct fix for the Security Officer rendering issue
+        if (this.name === 'Security Officer') {
+            this.isBehindStructure = true;
+
+            // Find the nearest structure to be the occluding structure
+            const structures = this.world.getAllStructures();
+            if (structures && structures.length > 0) {
+                // Find the closest structure that's not a tree
+                let closestStructure = null;
+                let minDistance = Infinity;
+
+                for (const structure of structures) {
+                    if (structure.type === 'tree') continue;
+
+                    const distance = Math.sqrt(
+                        Math.pow(structure.x + structure.width/2 - this.x, 2) +
+                        Math.pow(structure.y + structure.height/2 - this.y, 2)
+                    );
+
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestStructure = structure;
+                    }
+                }
+
+                if (closestStructure) {
+                    this.occludingStructure = closestStructure;
+                    this.isOccluded = true;
+
+                    if (this.game?.debug?.flags?.logNPCs) {
+                        console.log(`Security Officer is ALWAYS behind structures:`, {
+                            structureType: this.occludingStructure?.type,
+                            structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                            npcPos: `${this.x},${this.y}`,
+                            distance: minDistance
+                        });
+                    }
+                }
+            }
+
+            return;
+        }
+
+        // For all other NPCs, use the normal occlusion check
         // Get all structures
         const structures = this.world.getAllStructures();
 
@@ -387,16 +432,7 @@ export class NPC extends Entity {
                 npcDepth > structureFrontDepth
             );
 
-            // Special handling for Security Officer
-            if (this.name === 'Security Officer' && isInShadowArea) {
-                // Security Officer is always visible but marked as behind structure
-                this.isOccluded = true;
-                this.occludingStructure = structure;
-                this.isBehindStructure = true;
-                break;
-            }
-            // For other NPCs
-            else if (isInShadowArea) {
+            if (isInShadowArea) {
                 this.isOccluded = true;
                 this.occludingStructure = structure;
                 break;
@@ -409,8 +445,7 @@ export class NPC extends Entity {
                 structureType: this.occludingStructure?.type,
                 structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
                 structureHeight: this.occludingStructure?.height || 1,
-                npcPos: `${this.x},${this.y}`,
-                isSpecialNPC: this.name === 'Security Officer' || this.alwaysVisible || this.name === 'DJ'
+                npcPos: `${this.x},${this.y}`
             });
         }
     }
