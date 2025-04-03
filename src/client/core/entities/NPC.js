@@ -281,6 +281,11 @@ export class NPC extends Entity {
             console.log(`NPC ${this.name} update called with deltaTime: ${deltaTime}`);
         }
 
+        // Store previous state for comparison
+        const wasVisible = this.isVisible;
+        const wasBehindStructure = this.isBehindStructure;
+        const wasOccluded = this.isOccluded;
+
         // Handle movement based on pattern
         this.updateMovement(deltaTime);
 
@@ -288,6 +293,19 @@ export class NPC extends Entity {
         if (this.game && this.game.player) {
             const playerStructure = this.game.player.currentStructure;
             this.updateVisibility(playerStructure);
+        }
+
+        // Log state changes if debug is enabled
+        if (this.game?.debug?.flags?.debugNPCUpdate &&
+            (wasVisible !== this.isVisible ||
+             wasBehindStructure !== this.isBehindStructure ||
+             wasOccluded !== this.isOccluded)) {
+            console.log(`NPC ${this.name} state changed after update:`, {
+                visibility: { was: wasVisible, now: this.isVisible },
+                behindStructure: { was: wasBehindStructure, now: this.isBehindStructure },
+                occluded: { was: wasOccluded, now: this.isOccluded },
+                position: { x: this.x, y: this.y }
+            });
         }
     }
 
@@ -527,12 +545,18 @@ export class NPC extends Entity {
             this.x = newX;
             this.y = newY;
 
+            // Check for structure occlusion after movement
+            // This ensures the z-index is updated when the NPC moves
+            this.checkStructureOcclusion();
+
             // Log movement if debug is enabled
             if (this.game?.debug?.flags?.logNPCMovement) {
                 console.log(`NPC ${this.name} moving:`, {
                     from: { x: this.x - dirX * moveSpeed, y: this.y - dirY * moveSpeed },
                     to: { x: this.x, y: this.y },
-                    moveAmount: moveSpeed
+                    moveAmount: moveSpeed,
+                    isBehindStructure: this.isBehindStructure,
+                    isOccluded: this.isOccluded
                 });
             }
         } else {

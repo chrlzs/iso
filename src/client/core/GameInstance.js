@@ -1085,14 +1085,34 @@ export class GameInstance {
             visibleEntities.push(entity);
 
             // Split into different groups based on position and visibility
+            // IMPORTANT: Check isBehindStructure first to ensure proper z-ordering
             if (entity.isBehindStructure) {
                 // Entities that are behind structures but still visible
                 entitiesBehindStructures.push(entity);
+
+                // Debug logging for entities behind structures
+                if (this.debug?.flags?.logEntities) {
+                    console.log(`Entity ${entity.name} is behind a structure:`, {
+                        position: { x: entity.x, y: entity.y },
+                        depth: entity.x + entity.y,
+                        isOccluded: entity.isOccluded,
+                        isBehindStructure: entity.isBehindStructure
+                    });
+                }
             } else if (entity.currentStructure) {
                 // Entities inside structures - these should be rendered AFTER the structure
                 // but only if the player is in the same structure
                 if (this.player && this.player.currentStructure === entity.currentStructure) {
                     entitiesInside.push(entity);
+
+                    // Debug logging for entities inside structures
+                    if (this.debug?.flags?.logEntities) {
+                        console.log(`Entity ${entity.name} is inside structure:`, {
+                            structure: entity.currentStructure.type,
+                            position: { x: entity.x, y: entity.y },
+                            depth: entity.x + entity.y
+                        });
+                    }
                 } else {
                     // If player is not in the same structure, don't render the entity
                     // This prevents NPCs from being visible through walls
@@ -1101,6 +1121,14 @@ export class GameInstance {
             } else {
                 // Entities outside structures
                 entitiesOutside.push(entity);
+
+                // Debug logging for entities outside
+                if (this.debug?.flags?.logEntities) {
+                    console.log(`Entity ${entity.name} is outside:`, {
+                        position: { x: entity.x, y: entity.y },
+                        depth: entity.x + entity.y
+                    });
+                }
             }
         }
 
