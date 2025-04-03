@@ -96,6 +96,9 @@ export class ShadowRenderer {
             console.log(`Rendering shadows for ${structures.length} structures`);
         }
 
+        // DIRECT DEBUG: Draw a test shadow to verify the shadow renderer is working
+        this.drawTestShadow(tileWidth, tileHeight);
+
         // Sort structures by their position for proper shadow layering
         const sortedStructures = [...structures].sort((a, b) => {
             // Sort by depth (x + y) for proper layering
@@ -111,5 +114,53 @@ export class ShadowRenderer {
             // Render the shadow
             this.renderShadow(structure, screenX, screenY, tileWidth, tileHeight, world);
         }
+    }
+
+    /**
+     * Draws a test shadow to verify the shadow renderer is working
+     * @param {number} tileWidth - Width of a tile in pixels
+     * @param {number} tileHeight - Height of a tile in pixels
+     */
+    drawTestShadow(tileWidth, tileHeight) {
+        // Save context state
+        this.ctx.save();
+
+        // Draw a large, obvious test shadow in the center of the screen
+        const canvasWidth = this.ctx.canvas.width;
+        const canvasHeight = this.ctx.canvas.height;
+
+        // Position in the center of the screen
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
+
+        // Draw a very obvious shadow
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Red semi-transparent
+        this.ctx.beginPath();
+        this.ctx.ellipse(
+            centerX,
+            centerY,
+            tileWidth * 3, // Large shadow
+            tileHeight * 1.5,
+            0,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+
+        // Add a border to make it more visible
+        this.ctx.strokeStyle = 'red';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+
+        // Add text
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('TEST SHADOW', centerX, centerY);
+
+        console.log('Drew test shadow at', { x: centerX, y: centerY });
+
+        // Restore context state
+        this.ctx.restore();
     }
 }

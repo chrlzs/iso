@@ -114,6 +114,16 @@ export class IsometricRenderer {
             });
         }
 
+        // Render only visible tiles
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const tile = world.getTileAt(x, y);
+                if (tile) {
+                    this.renderTile(tile, x, y);
+                }
+            }
+        }
+
         // Get all structures for shadow rendering
         const structures = world.getAllStructures();
 
@@ -136,18 +146,9 @@ export class IsometricRenderer {
             });
         }
 
-        // Render shadows first (before tiles)
+        // Render shadows AFTER tiles but BEFORE structures
+        // This ensures shadows are visible on top of tiles but below structures
         this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world);
-
-        // Render only visible tiles
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                const tile = world.getTileAt(x, y);
-                if (tile) {
-                    this.renderTile(tile, x, y);
-                }
-            }
-        }
     }
 
     /**
