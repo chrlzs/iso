@@ -528,6 +528,23 @@ export class World {
     }
 
     /**
+     * Checks if a chunk is active (loaded and visible)
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {boolean} True if the chunk is active
+     */
+    isChunkActive(chunkX, chunkY) {
+        // If we don't have chunk management yet, consider all chunks active
+        if (!this.chunks) {
+            return true;
+        }
+
+        // Check if the chunk exists in our chunks map
+        const chunkKey = `${chunkX},${chunkY}`;
+        return this.chunks.has(chunkKey);
+    }
+
+    /**
      * Debug method to inspect tile at position
      * @param {number} x - World X coordinate
      * @param {number} y - World Y coordinate
@@ -546,7 +563,31 @@ export class World {
     }
 
     addTree(x, y) {
-        console.log('Adding tree at:', x, y);
+        // Check if the chunk containing this tree is active
+        const chunkX = Math.floor(x / this.chunkSize);
+        const chunkY = Math.floor(y / this.chunkSize);
+
+        // Only log if debug flag is enabled
+        if (this.game?.debug?.flags?.logStructures) {
+            console.log('Adding tree at:', x, y, 'in chunk:', chunkX, chunkY);
+        }
+
+        // Check if the tree is in an active chunk
+        if (!this.isChunkActive(chunkX, chunkY)) {
+            if (this.game?.debug?.flags?.logStructures) {
+                console.log(`Skipping tree at ${x},${y} - chunk ${chunkX},${chunkY} is not active`);
+            }
+            return null;
+        }
+
+        // Check for existing structures at this location
+        const existingStructure = this.getStructureAt(x, y);
+        if (existingStructure) {
+            if (this.game?.debug?.flags?.logWarnings) {
+                console.warn(`Cannot add tree at ${x},${y} - location already has a structure`);
+            }
+            return null;
+        }
 
         const treeStructure = {
             type: 'tree',
@@ -569,8 +610,10 @@ export class World {
         const key = `${x},${y}`;
         this.structures.set(key, treeStructure);
 
-        console.log('Added tree structure:', treeStructure);
-        console.log('Current structures:', Array.from(this.structures.entries()));
+        // Only log if debug flag is enabled
+        if (this.game?.debug?.flags?.logStructures) {
+            console.log('Added tree structure at:', x, y);
+        }
 
         // Set tile type
         this.setTileAt(x, y, {

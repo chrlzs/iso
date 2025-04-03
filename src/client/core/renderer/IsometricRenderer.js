@@ -96,13 +96,24 @@ export class IsometricRenderer {
         // Filter structures to only those in the visible area (with a buffer)
         const visibleStructures = structures.filter(structure => {
             // Check if any part of the structure is within the visible range
-            return (
+            const isVisible = (
                 structure.x + structure.width >= minX &&
                 structure.x <= maxX &&
                 structure.y + structure.height >= minY &&
                 structure.y <= maxY
             );
+
+            // Log if debug is enabled and structure is a tree
+            if (!isVisible && structure.type === 'tree' && world?.game?.debug?.flags?.logStructures) {
+                console.log(`Tree at ${structure.x},${structure.y} is outside visible range: ${minX},${minY} to ${maxX},${maxY}`);
+            }
+
+            return isVisible;
         });
+
+        if (world?.game?.debug?.flags?.logStructures) {
+            console.log(`Filtered structures: ${structures.length} total, ${visibleStructures.length} visible`);
+        }
 
         // Sort structures by their position in the isometric world
         const sortedStructures = this.sortStructuresByDepth(visibleStructures);

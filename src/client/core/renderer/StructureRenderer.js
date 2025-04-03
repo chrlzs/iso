@@ -270,16 +270,19 @@ export class StructureRenderer {
             return;
         }
 
-        console.log('Structure render called:', {
-            type: structure.type,
-            screenPos: { x: screenX, y: screenY }
-        });
+        // Only log if debug flag is enabled
+        if (this.world?.game?.debug?.flags?.logStructures) {
+            console.log('Structure render called:', {
+                type: structure.type,
+                worldPos: { x: worldX, y: worldY },
+                screenPos: { x: screenX, y: screenY }
+            });
+        }
 
-        // CRITICAL FIX: Skip rendering trees that are inside buildings
+        // Skip rendering trees that are inside buildings
         if (structure.type === 'tree') {
             const { isInside } = this.isTreeInsideOrBehindBuilding(structure);
             if (isInside) {
-                console.warn(`Skipping tree render at ${structure.x},${structure.y} - tree is inside a building`);
                 return;
             }
         }
@@ -1066,20 +1069,24 @@ export class StructureRenderer {
     }
 
     drawTree(screenX, screenY, structure) {
-        console.log('Drawing tree at:', screenX, screenY);
+        // Only log if debug flag is enabled
+        if (this.world?.game?.debug?.flags?.logStructures) {
+            console.log('Drawing tree at:', screenX, screenY, 'World pos:', structure.x, structure.y);
+        }
 
         // Check if this tree is inside or behind a building
         const { isInside, isBehind } = this.isTreeInsideOrBehindBuilding(structure);
 
         // Don't render trees inside buildings
         if (isInside) {
-            console.warn(`Skipping tree render at ${structure.x},${structure.y} - tree is inside a building`);
             return;
         }
 
         // If tree is behind a building, adjust its appearance
         if (isBehind) {
-            console.log(`Tree at ${structure.x},${structure.y} is behind a building - adjusting appearance`);
+            if (this.world?.game?.debug?.flags?.logStructures) {
+                console.log(`Tree at ${structure.x},${structure.y} is behind a building - adjusting appearance`);
+            }
             // We'll make the tree semi-transparent when it's behind a building
             this.ctx.globalAlpha = 0.6;
         }
