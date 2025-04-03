@@ -153,26 +153,12 @@ export class NPC extends Entity {
             console.log(`Rendering enemy NPC ${this.name} at ${this.x},${this.y}`);
         }
 
-        // Check if enemy is occluded by a structure
-        if (this.isEnemy) {
-            this.checkStructureOcclusion();
-        }
-
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);
         const isoY = (this.x + this.y) * (renderer.tileHeight / 2);
 
         // Draw NPC using canvas primitives
         ctx.save();
-
-        // If enemy is occluded by a structure, make it semi-transparent
-        if (this.isEnemy && this.isOccluded) {
-            ctx.globalAlpha = 0.4;
-
-            if (this.game?.debug?.flags?.logNPCRendering) {
-                console.log(`Enemy NPC ${this.name} is occluded by structure, rendering with reduced opacity`);
-            }
-        }
 
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -250,11 +236,6 @@ export class NPC extends Entity {
             isoY - this.size - 10
         );
 
-        // Reset globalAlpha if it was changed
-        if (this.isEnemy && this.isOccluded) {
-            ctx.globalAlpha = 1.0;
-        }
-
         ctx.restore();
     }
 
@@ -281,11 +262,20 @@ export class NPC extends Entity {
             return;
         }
 
-        // For enemies, we need to check if they're behind a structure
-        if (this.isEnemy) {
-            // We'll handle their visibility in the render method
-            // based on whether they're occluded by structures
-            this.checkStructureOcclusion();
+        // Check if NPC is behind a structure
+        this.checkStructureOcclusion();
+
+        // If NPC is occluded by a structure, hide it completely
+        if (this.isOccluded) {
+            this.isVisible = false;
+
+            if (this.game?.debug?.flags?.logNPCs) {
+                console.log(`NPC ${this.name} hidden because it's behind a structure:`, {
+                    structureType: this.occludingStructure?.type,
+                    structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                    npcPos: `${this.x},${this.y}`
+                });
+            }
         }
 
         // Log visibility changes if debug is enabled
@@ -296,7 +286,8 @@ export class NPC extends Entity {
                 structureType: this.currentStructure?.type,
                 playerInSameStructure: (this.currentStructure === playerStructure),
                 alwaysVisible: this.alwaysVisible,
-                isEnemy: this.isEnemy
+                isEnemy: this.isEnemy,
+                isOccluded: this.isOccluded
             });
         }
     }
