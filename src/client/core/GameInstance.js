@@ -134,6 +134,7 @@ export class GameInstance {
                 logInput: true,         // Enable input logging
                 logDialog: true,        // Enable dialog logging
                 logCombat: true,        // Enable combat logging
+                logRenderer: false,     // Disable renderer logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -658,16 +659,29 @@ export class GameInstance {
 
         // Create a separate wheel handler function
         const handleWheel = (e) => {
-            const zoomSpeed = 0.1;
-            const newZoom = Math.max(0.5, Math.min(2,
+            // Adjust zoom speed based on current zoom level
+            // Slower zooming when already zoomed in a lot
+            const zoomSpeed = this.camera.zoom > 1.5 ? 0.05 : 0.1;
+
+            // Set stricter limits on zoom to prevent visibility issues
+            const minZoom = 0.5;
+            const maxZoom = 1.8; // Reduced from 2.0 to prevent rendering issues
+
+            const newZoom = Math.max(minZoom, Math.min(maxZoom,
                 this.camera.zoom + (e.deltaY > 0 ? -zoomSpeed : zoomSpeed)
             ));
 
             // Only update if zoom actually changed
             if (newZoom !== this.camera.zoom) {
                 this.camera.zoom = newZoom;
-                if (this.debug.flags.logZoomChanges) {
-                    console.log('Zoom updated:', this.camera.zoom);
+
+                // Log zoom changes if debug flag is enabled
+                if (this.debug?.flags?.logZoomChanges || this.debug?.flags?.logRenderer) {
+                    console.log('Zoom updated:', {
+                        zoom: this.camera.zoom,
+                        min: minZoom,
+                        max: maxZoom
+                    });
                 }
             }
         };
@@ -1004,12 +1018,27 @@ export class GameInstance {
         const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
         const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
 
-        // Center camera on player
-        this.ctx.translate(
-            offsetX - isoX * this.camera.zoom,
-            offsetY - isoY * this.camera.zoom
-        );
+        // Center camera on player with proper zoom handling
+        // Apply zoom scaling first
         this.ctx.scale(this.camera.zoom, this.camera.zoom);
+
+        // Then translate to center the view on the player
+        // Divide by zoom because we've already scaled the context
+        this.ctx.translate(
+            offsetX / this.camera.zoom - isoX,
+            offsetY / this.camera.zoom - isoY
+        );
+
+        // Log camera transform if debug is enabled
+        if (this.debug?.flags?.logRenderer) {
+            console.log('Camera transform:', {
+                zoom: this.camera.zoom,
+                offsetX: offsetX / this.camera.zoom - isoX,
+                offsetY: offsetY / this.camera.zoom - isoY,
+                playerPos: `(${this.player.x},${this.player.y})`,
+                isoPos: `(${isoX},${isoY})`
+            });
+        }
 
         // Render world first (includes structures with transparency)
         this.renderer.renderWorld(this.world, this.camera, this.tileManager);

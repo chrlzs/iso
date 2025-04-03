@@ -65,23 +65,38 @@ export class IsometricRenderer {
 
         // Calculate the visible tile range in world coordinates
         // Add a buffer of tiles around the visible area to ensure smooth scrolling
-        // Use a larger buffer when zoomed in to prevent edge visibility issues
-        const zoomFactor = 1 / camera.zoom; // Inverse of zoom (higher when zoomed in)
-        const buffer = Math.max(5, Math.ceil(10 * zoomFactor)); // Increase buffer when zoomed in
+        // Use a much larger buffer when zoomed in to prevent edge visibility issues
+        const zoomFactor = Math.pow(2, 1 / camera.zoom); // Exponential scaling for zoom factor
+        const minBuffer = 20; // Minimum buffer size
+        const buffer = Math.max(minBuffer, Math.ceil(30 * zoomFactor)); // Much larger buffer when zoomed in
 
         // Convert screen center to world coordinates
         const centerWorldX = camera.x;
         const centerWorldY = camera.y;
 
         // Calculate visible range in world coordinates
-        // Adjust the divisor to account for zoom level properly
-        const visibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / (this.tileWidth * 0.5)) + buffer;
+        // Use a fixed base value plus the zoom-adjusted buffer
+        const baseVisibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / this.tileWidth);
+        const visibleRange = baseVisibleRange + buffer;
 
         // Calculate bounds with extra padding when zoomed in
-        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange * zoomFactor));
-        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange * zoomFactor));
-        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange * zoomFactor));
-        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange * zoomFactor));
+        // Use a much wider area when zoomed in to ensure tiles remain visible
+        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange));
+        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange));
+        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
+        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
+
+        // Log the calculated visible area if debug is enabled
+        if (world?.game?.debug?.flags?.logRenderer) {
+            console.log('Visible area:', {
+                zoom: camera.zoom,
+                zoomFactor,
+                buffer,
+                visibleRange,
+                bounds: `(${minX},${minY}) to (${maxX},${maxY})`,
+                center: `(${centerWorldX},${centerWorldY})`
+            });
+        }
 
         // Render only visible tiles
         for (let y = minY; y <= maxY; y++) {
