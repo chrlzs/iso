@@ -1040,8 +1040,8 @@ export class GameInstance {
             });
         }
 
-        // Render world first (includes structures with transparency)
-        this.renderer.renderWorld(this.world, this.camera, this.tileManager);
+        // Render world tiles first (without structures)
+        this.renderer.renderWorldTiles(this.world, this.camera, this.tileManager);
 
         // Draw tile coordinates if enabled
         this.drawTileCoordinates();
@@ -1117,6 +1117,9 @@ export class GameInstance {
                 entity.render(this.ctx, this.renderer);
             }
         }
+
+        // Render structures after entities that are behind them
+        this.renderer.renderWorldStructures(this.world, this.camera, this.tileManager);
 
         // Render outside entities next using for loop for better performance
         for (let i = 0; i < entitiesOutside.length; i++) {

@@ -51,6 +51,20 @@ export class IsometricRenderer {
      * @returns {void}
      */
     renderWorld(world, camera) {
+        // Render tiles first
+        this.renderWorldTiles(world, camera);
+
+        // Then render structures
+        this.renderWorldStructures(world, camera);
+    }
+
+    /**
+     * Renders only the tiles of the game world (no structures)
+     * @param {World} world - The game world to render
+     * @param {Object} camera - Camera position and zoom
+     * @returns {void}
+     */
+    renderWorldTiles(world, camera) {
         if (!this.tileManager) {
             console.error('TileManager not initialized');
             return;
@@ -107,6 +121,43 @@ export class IsometricRenderer {
                 }
             }
         }
+    }
+
+    /**
+     * Renders only the structures of the game world
+     * @param {World} world - The game world to render
+     * @param {Object} camera - Camera position and zoom
+     * @returns {void}
+     */
+    renderWorldStructures(world, camera) {
+        if (!this.structureRenderer) {
+            console.error('StructureRenderer not initialized');
+            return;
+        }
+
+        // Set the world reference in the structure renderer
+        this.structureRenderer.world = world;
+
+        // Calculate visible area based on camera position and zoom
+        const viewportWidth = this.canvas.width / camera.zoom;
+        const viewportHeight = this.canvas.height / camera.zoom;
+
+        // Use the same buffer calculation as renderWorldTiles
+        const zoomFactor = Math.pow(2, 1 / camera.zoom);
+        const minBuffer = 20;
+        const buffer = Math.max(minBuffer, Math.ceil(30 * zoomFactor));
+
+        // Calculate visible range
+        const baseVisibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / this.tileWidth);
+        const visibleRange = baseVisibleRange + buffer;
+
+        // Calculate bounds
+        const centerWorldX = camera.x;
+        const centerWorldY = camera.y;
+        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange));
+        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange));
+        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
+        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
 
         // Get all structures
         const structures = world.getAllStructures();
