@@ -1132,11 +1132,30 @@ export class GameInstance {
             }
         }
 
-        // Sort each group by position for proper z-ordering in isometric view
-        // In isometric view, depth is determined by x + y (higher values = further back)
-        entitiesOutside.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-        entitiesInside.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-        entitiesBehindStructures.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        // DIRECT FIX: Sort entities by their explicit zIndex property if available
+        // Otherwise fall back to position-based sorting
+        const sortByZIndex = (a, b) => {
+            // If both entities have a zIndex property, use it
+            if (a.zIndex !== undefined && b.zIndex !== undefined) {
+                return a.zIndex - b.zIndex;
+            }
+            // Otherwise fall back to position-based sorting
+            return (a.x + a.y) - (b.x + b.y);
+        };
+
+        // Sort each group using the zIndex sorter
+        entitiesOutside.sort(sortByZIndex);
+        entitiesInside.sort(sortByZIndex);
+        entitiesBehindStructures.sort(sortByZIndex);
+
+        // Log sorting results if debug is enabled
+        if (this.debug?.flags?.logEntities) {
+            console.log('Sorted entities by zIndex:', {
+                behindStructures: entitiesBehindStructures.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) })),
+                outside: entitiesOutside.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) })),
+                inside: entitiesInside.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) }))
+            });
+        }
 
         // Debug log sorting
         if (this.debug?.flags?.logEntities) {

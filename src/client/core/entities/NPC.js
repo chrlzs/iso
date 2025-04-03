@@ -60,6 +60,15 @@ export class NPC extends Entity {
         this.alwaysVisible = config.alwaysVisible || false; // Flag for NPCs that should always be visible
         this.isBehindStructure = false; // Flag for NPCs that are behind structures
 
+        // DIRECT FIX: Add explicit z-index property
+        this.zIndex = 0; // Default z-index
+
+        // DIRECT FIX: Force Security Officer to always be behind structures
+        if (this.name === 'Security Officer') {
+            this.isBehindStructure = true;
+            this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+        }
+
         // Movement properties
         this.isMoving = false;
         this.movementPattern = config.movementPattern || 'random'; // stationary, random, patrol, follow
@@ -281,6 +290,12 @@ export class NPC extends Entity {
             console.log(`NPC ${this.name} update called with deltaTime: ${deltaTime}`);
         }
 
+        // DIRECT FIX: Force Security Officer to always be behind structures
+        if (this.name === 'Security Officer') {
+            this.isBehindStructure = true;
+            this.isVisible = true;
+        }
+
         // Store previous state for comparison
         const wasVisible = this.isVisible;
         const wasBehindStructure = this.isBehindStructure;
@@ -293,6 +308,12 @@ export class NPC extends Entity {
         if (this.game && this.game.player) {
             const playerStructure = this.game.player.currentStructure;
             this.updateVisibility(playerStructure);
+        }
+
+        // DIRECT FIX: Force Security Officer to always be behind structures (again after visibility update)
+        if (this.name === 'Security Officer') {
+            this.isBehindStructure = true;
+            this.isVisible = true;
         }
 
         // Log state changes if debug is enabled
@@ -549,6 +570,15 @@ export class NPC extends Entity {
             // This ensures the z-index is updated when the NPC moves
             this.checkStructureOcclusion();
 
+            // DIRECT FIX: Update z-index based on position and occlusion
+            this.updateZIndex();
+
+            // DIRECT FIX: Force Security Officer to always be behind structures
+            if (this.name === 'Security Officer') {
+                this.isBehindStructure = true;
+                this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+            }
+
             // Log movement if debug is enabled
             if (this.game?.debug?.flags?.logNPCMovement) {
                 console.log(`NPC ${this.name} moving:`, {
@@ -628,6 +658,43 @@ export class NPC extends Entity {
     }
 
     /**
+     * Updates the NPC's z-index based on position and occlusion
+     * @returns {void}
+     */
+    updateZIndex() {
+        // Calculate base z-index from position (isometric depth)
+        const baseZIndex = this.x + this.y;
+
+        // Adjust z-index based on occlusion and structure
+        if (this.isBehindStructure) {
+            // Entities behind structures have the lowest z-index
+            this.zIndex = baseZIndex - 1000;
+        } else if (this.currentStructure) {
+            // Entities inside structures have a higher z-index
+            this.zIndex = baseZIndex + 1000;
+        } else {
+            // Entities outside have a normal z-index
+            this.zIndex = baseZIndex;
+        }
+
+        // Special case for Security Officer
+        if (this.name === 'Security Officer') {
+            this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+        }
+
+        // Log z-index update if debug is enabled
+        if (this.game?.debug?.flags?.logNPCs) {
+            console.log(`NPC ${this.name} z-index updated:`, {
+                zIndex: this.zIndex,
+                position: { x: this.x, y: this.y },
+                baseZIndex,
+                isBehindStructure: this.isBehindStructure,
+                inStructure: !!this.currentStructure
+            });
+        }
+    }
+
+    /**
      * Updates NPC visibility based on player's current structure
      * @param {Structure|null} playerStructure - The structure the player is currently in
      * @returns {void}
@@ -685,6 +752,15 @@ export class NPC extends Entity {
             this.isVisible = true;
         }
 
+        // DIRECT FIX: Update z-index after visibility changes
+        this.updateZIndex();
+
+        // DIRECT FIX: Force Security Officer to always be behind structures
+        if (this.name === 'Security Officer') {
+            this.isBehindStructure = true;
+            this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+        }
+
         // Log visibility changes if debug is enabled
         if (this.game?.debug?.flags?.logNPCs && (wasVisible !== this.isVisible || this.isBehindStructure)) {
             console.log(`NPC ${this.name} visibility updated:`, {
@@ -695,7 +771,8 @@ export class NPC extends Entity {
                 playerInSameStructure: (this.currentStructure === playerStructure),
                 alwaysVisible: this.alwaysVisible,
                 isEnemy: this.isEnemy,
-                isOccluded: this.isOccluded
+                isOccluded: this.isOccluded,
+                zIndex: this.zIndex
             });
         }
     }
