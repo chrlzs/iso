@@ -1,6 +1,7 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
+import { ShadowRenderer } from './ShadowRenderer.js';
 
 /**
  * Handles isometric rendering of the game world and entities
@@ -34,6 +35,7 @@ export class IsometricRenderer {
         this.waterRenderer = new WaterRenderer();
         this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
         this.structureRenderer = new StructureRenderer(this.ctx);
+        this.shadowRenderer = new ShadowRenderer(this.ctx);
     }
 
     /**
@@ -111,6 +113,22 @@ export class IsometricRenderer {
                 center: `(${centerWorldX},${centerWorldY})`
             });
         }
+
+        // Get all structures for shadow rendering
+        const structures = world.getAllStructures();
+
+        // Filter structures to only those in the visible area
+        const visibleStructures = structures.filter(structure => {
+            return (
+                structure.x + structure.width >= minX &&
+                structure.x <= maxX &&
+                structure.y + structure.height >= minY &&
+                structure.y <= maxY
+            );
+        });
+
+        // Render shadows first (before tiles)
+        this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world);
 
         // Render only visible tiles
         for (let y = minY; y <= maxY; y++) {

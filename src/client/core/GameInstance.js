@@ -135,6 +135,7 @@ export class GameInstance {
                 logDialog: true,        // Enable dialog logging
                 logCombat: true,        // Enable combat logging
                 logRenderer: false,     // Disable renderer logging
+                logShadows: false,      // Disable shadow logging
 
                 // Feature flags
                 enableLayoutMode: true
