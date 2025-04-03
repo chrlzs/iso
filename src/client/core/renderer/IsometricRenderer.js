@@ -148,7 +148,8 @@ export class IsometricRenderer {
 
         // Render shadows AFTER tiles but BEFORE structures
         // This ensures shadows are visible on top of tiles but below structures
-        this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world);
+        // Pass true to show a test shadow for debugging
+        this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world, true);
     }
 
     /**

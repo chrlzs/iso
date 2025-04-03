@@ -49,15 +49,17 @@ export class ShadowRenderer {
         // This is more likely to be visible and easier to debug
 
         // Calculate shadow size based on structure dimensions
+        // Make shadows much larger to ensure they're visible
         const shadowWidth = (width + height) * tileWidth * 0.75;
         const shadowHeight = (width + height) * tileHeight * 0.3;
 
         // Position the shadow at the bottom of the structure
+        // Adjust the position to ensure it's visible
         const shadowX = screenX + (width * tileWidth / 4);
         const shadowY = screenY + (height * tileHeight / 2) + (width * tileHeight / 4);
 
-        // Draw a simple elliptical shadow
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        // Draw a simple elliptical shadow with higher opacity
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         this.ctx.beginPath();
         this.ctx.ellipse(
             shadowX,
@@ -70,6 +72,19 @@ export class ShadowRenderer {
         );
         this.ctx.fill();
 
+        // Add a debug outline to make shadows more visible during development
+        if (world?.game?.debug?.flags?.logShadows) {
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+
+            // Add structure coordinates as text
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.font = '10px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`${structure.x},${structure.y}`, shadowX, shadowY);
+        }
+
         // Restore context state
         this.ctx.restore();
     }
@@ -80,8 +95,9 @@ export class ShadowRenderer {
      * @param {number} tileWidth - Width of a tile in pixels
      * @param {number} tileHeight - Height of a tile in pixels
      * @param {Object} world - The game world
+     * @param {boolean} showTestShadow - Whether to show the test shadow (default: false)
      */
-    renderShadows(structures, tileWidth, tileHeight, world) {
+    renderShadows(structures, tileWidth, tileHeight, world, showTestShadow = false) {
         if (!structures || structures.length === 0) return;
 
         // Enable shadow logging for debugging
@@ -96,8 +112,10 @@ export class ShadowRenderer {
             console.log(`Rendering shadows for ${structures.length} structures`);
         }
 
-        // DIRECT DEBUG: Draw a test shadow to verify the shadow renderer is working
-        this.drawTestShadow(tileWidth, tileHeight);
+        // Draw a test shadow to verify the shadow renderer is working (if enabled)
+        if (showTestShadow) {
+            this.drawTestShadow(tileWidth, tileHeight);
+        }
 
         // Sort structures by their position for proper shadow layering
         const sortedStructures = [...structures].sort((a, b) => {
@@ -106,13 +124,23 @@ export class ShadowRenderer {
         });
 
         // Render shadows for each structure
+        let shadowsRendered = 0;
         for (const structure of sortedStructures) {
+            // Skip trees and small structures
+            if (structure.type === 'tree') continue;
+
             // Calculate screen coordinates
             const screenX = (structure.x - structure.y) * (tileWidth / 2);
             const screenY = (structure.x + structure.y) * (tileHeight / 2);
 
             // Render the shadow
             this.renderShadow(structure, screenX, screenY, tileWidth, tileHeight, world);
+            shadowsRendered++;
+        }
+
+        // Log how many shadows were actually rendered
+        if (world?.game?.debug?.flags?.logShadows) {
+            console.log(`Rendered ${shadowsRendered} shadows out of ${structures.length} structures`);
         }
     }
 
