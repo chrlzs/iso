@@ -216,13 +216,17 @@ export class TurnBasedCombatSystem {
         const hitRoll = Math.random();
         const hitChance = this.options.baseHitChance;
 
+        // Get attacker and defender names with fallbacks
+        const attackerName = attacker.name || (attacker === this.currentCombat.player ? 'Player' : 'Enemy');
+        const defenderName = defender.name || (defender === this.currentCombat.player ? 'Player' : 'Enemy');
+
         // Check if attack hits
         if (hitRoll > hitChance) {
             return {
                 hit: false,
                 damage: 0,
                 isCritical: false,
-                message: `${attacker.name} attacks ${defender.name} but misses!`
+                message: `${attackerName} attacks ${defenderName} but misses!`
             };
         }
 
@@ -241,7 +245,7 @@ export class TurnBasedCombatSystem {
         defender.takeDamage(damage, attacker);
 
         // Create result message
-        let message = `${attacker.name} attacks ${defender.name} for ${damage} damage`;
+        let message = `${attackerName} attacks ${defenderName} for ${damage} damage`;
         if (isCritical) {
             message += " (Critical Hit!)";
         }

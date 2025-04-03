@@ -197,10 +197,12 @@ export class GameInstance {
         // Initialize player with starting equipment
         const playerSpawnPoint = this.findValidSpawnPoint();
         this.player = new Player({
+            name: 'Player',  // Set player name
             x: playerSpawnPoint.x,
             y: playerSpawnPoint.y,
             world: this.world,
-            pathFinder: this.pathFinder
+            pathFinder: this.pathFinder,
+            game: this  // Add game reference
         });
 
         // Give player starting ETH

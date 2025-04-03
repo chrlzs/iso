@@ -29,6 +29,9 @@ export class Player extends Entity {
             startingEth: 0
         });
 
+        // Set player name
+        this.name = config.name || 'Player';
+
         // Initialize stats
         this.maxHealth = config.stats?.maxHealth || 100;
         this.maxEnergy = config.stats?.maxEnergy || 100;
@@ -64,6 +67,14 @@ export class Player extends Entity {
         this.isMoving = false;
         this.currentPath = null;
         this.pathIndex = 0;
+
+        // Store game reference
+        this.game = config.game || config.world?.game;
+
+        // Log warning if game reference is missing
+        if (!this.game && config.world?.game?.debug?.flags?.logWarnings) {
+            console.warn('Player created without game reference');
+        }
 
         // Initialize interaction state
         this.interactionRange = 2;
