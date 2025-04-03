@@ -251,21 +251,17 @@ export class NPC extends Entity {
         // Default to visible
         this.isVisible = true;
 
-        // Special NPCs like DJ are always visible
-        if (this.alwaysVisible || this.name === 'DJ') {
-            return;
-        }
-
         // If NPC is in a structure and player is not in the same structure, hide the NPC
         if (this.currentStructure && this.currentStructure !== playerStructure) {
             this.isVisible = false;
             return;
         }
 
-        // Check if NPC is behind a structure
+        // Check if NPC is behind a structure - ALL NPCs must respect this
         this.checkStructureOcclusion();
 
         // If NPC is occluded by a structure, hide it completely
+        // Even special NPCs like DJ should be hidden when behind buildings
         if (this.isOccluded) {
             this.isVisible = false;
 
@@ -273,9 +269,17 @@ export class NPC extends Entity {
                 console.log(`NPC ${this.name} hidden because it's behind a structure:`, {
                     structureType: this.occludingStructure?.type,
                     structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
-                    npcPos: `${this.x},${this.y}`
+                    npcPos: `${this.x},${this.y}`,
+                    isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
                 });
             }
+            return;
+        }
+
+        // Special NPCs like DJ are always visible in all other cases
+        // (but still respect occlusion)
+        if (this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer') {
+            this.isVisible = true;
         }
 
         // Log visibility changes if debug is enabled
@@ -287,7 +291,8 @@ export class NPC extends Entity {
                 playerInSameStructure: (this.currentStructure === playerStructure),
                 alwaysVisible: this.alwaysVisible,
                 isEnemy: this.isEnemy,
-                isOccluded: this.isOccluded
+                isOccluded: this.isOccluded,
+                isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
             });
         }
     }
@@ -332,20 +337,45 @@ export class NPC extends Entity {
 
             // Check if NPC is behind the structure relative to player
             const isNPCBehind = (
-                // NPC is within the X bounds of the structure
-                this.x >= structure.x - 1 &&
-                this.x <= structure.x + structure.width + 1 &&
-                // NPC is within the Y bounds of the structure
-                this.y >= structure.y - 1 &&
-                this.y <= structure.y + structure.height + 1 &&
+                // NPC is within the X bounds of the structure (with a small buffer)
+                this.x >= structure.x - 0.5 &&
+                this.x <= structure.x + structure.width + 0.5 &&
+                // NPC is within the Y bounds of the structure (with a small buffer)
+                this.y >= structure.y - 0.5 &&
+                this.y <= structure.y + structure.height + 0.5 &&
                 // NPC is behind the structure in isometric depth
-                npcDepth < structureBackDepth
+                npcDepth > structureFrontDepth
             );
 
+            // More precise check for special NPCs like DJ and Security Officer
+            // These need stricter occlusion checks
+            const isSpecialNPC = this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer';
+
             if (isNPCBehind) {
-                this.isOccluded = true;
-                this.occludingStructure = structure;
-                break;
+                // For special NPCs, do an additional check to make sure they're really behind
+                if (isSpecialNPC) {
+                    // Check if the NPC is truly behind the structure (stricter check)
+                    const isTrulyBehind = (
+                        // NPC is well within the structure bounds
+                        this.x > structure.x &&
+                        this.x < structure.x + structure.width &&
+                        this.y > structure.y &&
+                        this.y < structure.y + structure.height &&
+                        // NPC is definitely behind in depth
+                        npcDepth > structureFrontDepth + 1
+                    );
+
+                    if (isTrulyBehind) {
+                        this.isOccluded = true;
+                        this.occludingStructure = structure;
+                        break;
+                    }
+                } else {
+                    // Regular NPCs use the standard check
+                    this.isOccluded = true;
+                    this.occludingStructure = structure;
+                    break;
+                }
             }
         }
 
@@ -354,7 +384,8 @@ export class NPC extends Entity {
             console.log(`NPC ${this.name} is occluded by structure:`, {
                 structureType: this.occludingStructure?.type,
                 structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
-                npcPos: `${this.x},${this.y}`
+                npcPos: `${this.x},${this.y}`,
+                isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
             });
         }
     }
