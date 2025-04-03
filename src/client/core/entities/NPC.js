@@ -62,8 +62,8 @@ export class NPC extends Entity {
 
         // Movement properties
         this.isMoving = false;
-        this.movementPattern = config.movementPattern || 'stationary'; // stationary, random, patrol, follow
-        this.movementSpeed = config.movementSpeed || 0.05; // Tiles per frame
+        this.movementPattern = config.movementPattern || 'random'; // stationary, random, patrol, follow
+        this.movementSpeed = config.movementSpeed || 0.1; // Tiles per frame - increased for visibility
         this.movementRange = config.movementRange || 5; // Maximum distance from starting position
         this.patrolPoints = config.patrolPoints || []; // Points to patrol between
         this.currentPatrolIndex = 0; // Current index in patrol points
@@ -72,8 +72,9 @@ export class NPC extends Entity {
         this.startX = this.x; // Starting X position
         this.startY = this.y; // Starting Y position
         this.movementCooldown = 0; // Cooldown between movements
-        this.movementCooldownMax = config.movementCooldownMax || 60; // Maximum cooldown between movements (in frames)
+        this.movementCooldownMax = config.movementCooldownMax || 30; // Reduced cooldown for testing
         this.path = []; // Current path being followed
+        this.lastMoveTime = 0; // Last time the NPC moved
 
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
@@ -275,6 +276,11 @@ export class NPC extends Entity {
      * @returns {void}
      */
     update(deltaTime) {
+        // Debug logging
+        if (this.game?.debug?.flags?.debugNPCUpdate) {
+            console.log(`NPC ${this.name} update called with deltaTime: ${deltaTime}`);
+        }
+
         // Handle movement based on pattern
         this.updateMovement(deltaTime);
 
@@ -294,32 +300,45 @@ export class NPC extends Entity {
         // Skip movement for stationary NPCs
         if (this.movementPattern === 'stationary') return;
 
+        // Debug logging
+        if (this.game?.debug?.flags?.logNPCMovement) {
+            console.log(`NPC ${this.name} updateMovement called:`, {
+                pattern: this.movementPattern,
+                isMoving: this.isMoving,
+                cooldown: this.movementCooldown,
+                position: { x: this.x, y: this.y },
+                target: { x: this.targetX, y: this.targetY }
+            });
+        }
+
         // Force movement for debugging
         const forceMovement = this.game?.debug?.flags?.forceNPCMovement;
 
-        // Decrement movement cooldown
-        if (this.movementCooldown > 0 && !forceMovement) {
-            // Normalize deltaTime to ensure consistent cooldown regardless of frame rate
-            this.movementCooldown -= (deltaTime / 1000) * 60;
-            return;
-        }
+        // Track time between moves for debugging
+        const now = performance.now();
+        const timeSinceLastMove = now - this.lastMoveTime;
 
-        // Reset cooldown if it's below zero
-        if (this.movementCooldown <= 0) {
-            this.movementCooldown = 0;
-        }
+        // Always move for testing
+        if (forceMovement || !this.isMoving) {
+            // Simple random movement for testing
+            const randomX = Math.random() * 2 - 1; // -1 to 1
+            const randomY = Math.random() * 2 - 1; // -1 to 1
 
-        // Handle different movement patterns
-        switch (this.movementPattern) {
-            case 'random':
-                this.updateRandomMovement();
-                break;
-            case 'patrol':
-                this.updatePatrolMovement();
-                break;
-            case 'follow':
-                this.updateFollowMovement();
-                break;
+            // Set target position
+            this.targetX = Math.max(0, Math.min(this.world.width - 1, this.x + randomX));
+            this.targetY = Math.max(0, Math.min(this.world.height - 1, this.y + randomY));
+
+            this.isMoving = true;
+            this.lastMoveTime = now;
+
+            // Log forced movement
+            if (this.game?.debug?.flags?.logNPCMovement) {
+                console.log(`NPC ${this.name} FORCED movement:`, {
+                    from: { x: this.x, y: this.y },
+                    to: { x: this.targetX, y: this.targetY },
+                    timeSinceLastMove
+                });
+            }
         }
 
         // Move towards target if we're moving
@@ -442,23 +461,20 @@ export class NPC extends Entity {
      * @returns {void}
      */
     moveTowardsTarget(deltaTime) {
-        // Normalize deltaTime to seconds and apply a scaling factor
-        // This ensures consistent movement speed regardless of frame rate
-        const normalizedDelta = (deltaTime / 1000) * 60;
+        // Simple direct movement for testing - ignore deltaTime
+        // Just move a fixed amount each frame
+        const moveSpeed = 0.05; // Fixed movement amount per frame
 
-        // Calculate distance to target
+        // Calculate direction to target
         const distX = this.targetX - this.x;
         const distY = this.targetY - this.y;
         const distance = Math.sqrt(distX * distX + distY * distY);
 
         // If we've reached the target, stop moving
-        if (distance < this.movementSpeed) {
+        if (distance < moveSpeed) {
             this.x = this.targetX;
             this.y = this.targetY;
             this.isMoving = false;
-
-            // Set cooldown before next movement
-            this.movementCooldown = this.movementCooldownMax;
 
             // Log arrival if debug is enabled
             if (this.game?.debug?.flags?.logNPCMovement) {
@@ -470,21 +486,20 @@ export class NPC extends Entity {
             return;
         }
 
-        // Move towards target with normalized delta time
-        const moveX = (distX / distance) * this.movementSpeed * normalizedDelta;
-        const moveY = (distY / distance) * this.movementSpeed * normalizedDelta;
+        // Calculate movement direction
+        const dirX = distX / distance;
+        const dirY = distY / distance;
 
-        // Update position
-        this.x += moveX;
-        this.y += moveY;
+        // Move in the direction of the target
+        this.x += dirX * moveSpeed;
+        this.y += dirY * moveSpeed;
 
         // Log movement if debug is enabled
         if (this.game?.debug?.flags?.logNPCMovement) {
             console.log(`NPC ${this.name} moving:`, {
-                from: { x: this.x - moveX, y: this.y - moveY },
+                from: { x: this.x - dirX * moveSpeed, y: this.y - dirY * moveSpeed },
                 to: { x: this.x, y: this.y },
-                delta: normalizedDelta,
-                speed: this.movementSpeed
+                moveAmount: moveSpeed
             });
         }
     }
