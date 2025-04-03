@@ -1104,11 +1104,20 @@ export class GameInstance {
             }
         }
 
-        // Sort each group by position for proper z-ordering
-        // Use a more efficient sorting method that considers both x and y
-        entitiesOutside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
-        entitiesInside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
-        entitiesBehindStructures.sort((a, b) => (a.y + a.x) - (b.y + b.x));
+        // Sort each group by position for proper z-ordering in isometric view
+        // In isometric view, depth is determined by x + y (higher values = further back)
+        entitiesOutside.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        entitiesInside.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        entitiesBehindStructures.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+
+        // Debug log sorting
+        if (this.debug?.flags?.logEntities) {
+            console.log('Entity sorting:', {
+                outside: entitiesOutside.map(e => ({ name: e.name, depth: e.x + e.y })),
+                inside: entitiesInside.map(e => ({ name: e.name, depth: e.x + e.y })),
+                behindStructures: entitiesBehindStructures.map(e => ({ name: e.name, depth: e.x + e.y }))
+            });
+        }
 
         // Debug log for entities - only log if debug flag is enabled
         if (this.debug?.flags?.logEntities) {
@@ -1121,30 +1130,53 @@ export class GameInstance {
             });
         }
 
-        // Render entities behind structures first (lowest z-index)
+        // RENDERING ORDER:
+        // 1. Entities behind structures (lowest z-index)
+        // 2. Structures
+        // 3. Entities outside structures
+        // 4. Entities inside structures (only visible when player is in the same structure)
+        // 5. Player (highest z-index)
+
+        // 1. Render entities behind structures first (lowest z-index)
         for (let i = 0; i < entitiesBehindStructures.length; i++) {
             const entity = entitiesBehindStructures[i];
             if (entity.render && entity.isVisible) {
+                // Apply semi-transparency for entities behind structures
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.6; // 60% opacity
                 entity.render(this.ctx, this.renderer);
+                this.ctx.restore();
+
+                if (this.debug?.flags?.logEntities) {
+                    console.log(`Rendered entity behind structure: ${entity.name} at depth ${entity.x + entity.y}`);
+                }
             }
         }
 
-        // Render structures after entities that are behind them
+        // 2. Render structures
         this.renderer.renderWorldStructures(this.world, this.camera, this.tileManager);
 
-        // Render outside entities next using for loop for better performance
+        // 3. Render outside entities
         for (let i = 0; i < entitiesOutside.length; i++) {
             const entity = entitiesOutside[i];
             if (entity.render && entity.isVisible) {
                 entity.render(this.ctx, this.renderer);
+
+                if (this.debug?.flags?.logEntities) {
+                    console.log(`Rendered outside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                }
             }
         }
 
-        // Render inside entities after structure transparency
+        // 4. Render inside entities (only visible when player is in the same structure)
         for (let i = 0; i < entitiesInside.length; i++) {
             const entity = entitiesInside[i];
             if (entity.render && entity.isVisible) {
                 entity.render(this.ctx, this.renderer);
+
+                if (this.debug?.flags?.logEntities) {
+                    console.log(`Rendered inside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                }
             }
         }
 

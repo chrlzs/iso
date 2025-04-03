@@ -606,6 +606,11 @@ export class NPC extends Entity {
     checkStructureOcclusion() {
         if (!this.world) return;
 
+        // Reset occlusion flags
+        this.isOccluded = false;
+        this.isBehindStructure = false;
+        this.occludingStructure = null;
+
         // SPECIAL CASE: Security Officer is ALWAYS behind structures
         // This is a direct fix for the Security Officer rendering issue
         if (this.name === 'Security Officer') {
