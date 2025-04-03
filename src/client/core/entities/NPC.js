@@ -58,6 +58,7 @@ export class NPC extends Entity {
         this.defenseBuff = 0;
         this.expValue = config.expValue || 20; // Experience awarded when defeated
         this.alwaysVisible = config.alwaysVisible || false; // Flag for NPCs that should always be visible
+        this.isBehindStructure = false; // Flag for NPCs that are behind structures
 
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
@@ -160,6 +161,15 @@ export class NPC extends Entity {
         // Draw NPC using canvas primitives
         ctx.save();
 
+        // If NPC is behind a structure, make it semi-transparent
+        if (this.isBehindStructure) {
+            ctx.globalAlpha = 0.6;
+
+            if (this.game?.debug?.flags?.logNPCRendering) {
+                console.log(`NPC ${this.name} is behind a structure, rendering with reduced opacity`);
+            }
+        }
+
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.beginPath();
@@ -236,6 +246,11 @@ export class NPC extends Entity {
             isoY - this.size - 10
         );
 
+        // Reset globalAlpha if it was changed
+        if (this.isBehindStructure) {
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.restore();
     }
 
@@ -248,8 +263,9 @@ export class NPC extends Entity {
         // Store previous visibility state for comparison
         const wasVisible = this.isVisible;
 
-        // Default to visible
+        // Default to visible and not behind anything
         this.isVisible = true;
+        this.isBehindStructure = false;
 
         // If NPC is in a structure and player is not in the same structure, hide the NPC
         if (this.currentStructure && this.currentStructure !== playerStructure) {
@@ -260,39 +276,53 @@ export class NPC extends Entity {
         // Check if NPC is behind a structure - ALL NPCs must respect this
         this.checkStructureOcclusion();
 
-        // If NPC is occluded by a structure, hide it completely
-        // Even special NPCs like DJ should be hidden when behind buildings
+        // If NPC is occluded by a structure, mark it as behind
         if (this.isOccluded) {
-            this.isVisible = false;
+            // For Security Officer and other NPCs that should be visible behind buildings,
+            // we'll keep them visible but mark them as behind a structure
+            if (this.name === 'Security Officer') {
+                this.isVisible = true;
+                this.isBehindStructure = true;
 
-            if (this.game?.debug?.flags?.logNPCs) {
-                console.log(`NPC ${this.name} hidden because it's behind a structure:`, {
-                    structureType: this.occludingStructure?.type,
-                    structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
-                    npcPos: `${this.x},${this.y}`,
-                    isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
-                });
+                if (this.game?.debug?.flags?.logNPCs) {
+                    console.log(`NPC ${this.name} is behind a structure but still visible:`, {
+                        structureType: this.occludingStructure?.type,
+                        structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                        npcPos: `${this.x},${this.y}`
+                    });
+                }
+            } else {
+                // Other NPCs are hidden when behind structures
+                this.isVisible = false;
+
+                if (this.game?.debug?.flags?.logNPCs) {
+                    console.log(`NPC ${this.name} hidden because it's behind a structure:`, {
+                        structureType: this.occludingStructure?.type,
+                        structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                        npcPos: `${this.x},${this.y}`,
+                        isSpecialNPC: this.alwaysVisible || this.name === 'DJ'
+                    });
+                }
+                return;
             }
-            return;
         }
 
         // Special NPCs like DJ are always visible in all other cases
-        // (but still respect occlusion)
-        if (this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer') {
+        if (this.alwaysVisible || this.name === 'DJ') {
             this.isVisible = true;
         }
 
         // Log visibility changes if debug is enabled
-        if (this.game?.debug?.flags?.logNPCs && wasVisible !== this.isVisible) {
+        if (this.game?.debug?.flags?.logNPCs && (wasVisible !== this.isVisible || this.isBehindStructure)) {
             console.log(`NPC ${this.name} visibility updated:`, {
                 isVisible: this.isVisible,
+                isBehindStructure: this.isBehindStructure,
                 inStructure: !!this.currentStructure,
                 structureType: this.currentStructure?.type,
                 playerInSameStructure: (this.currentStructure === playerStructure),
                 alwaysVisible: this.alwaysVisible,
                 isEnemy: this.isEnemy,
-                isOccluded: this.isOccluded,
-                isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
+                isOccluded: this.isOccluded
             });
         }
     }

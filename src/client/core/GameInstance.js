@@ -1066,6 +1066,7 @@ export class GameInstance {
         const visibleEntities = [];
         const entitiesOutside = [];
         const entitiesInside = [];
+        const entitiesBehindStructures = []; // New array for entities behind structures
 
         // Use for loop instead of forEach for better performance
         const entities = Array.from(this.entities);
@@ -1079,10 +1080,15 @@ export class GameInstance {
 
             visibleEntities.push(entity);
 
-            // Split into inside/outside groups
-            if (entity.currentStructure) {
+            // Split into different groups based on position and visibility
+            if (entity.isBehindStructure) {
+                // Entities that are behind structures but still visible
+                entitiesBehindStructures.push(entity);
+            } else if (entity.currentStructure) {
+                // Entities inside structures
                 entitiesInside.push(entity);
             } else {
+                // Entities outside structures
                 entitiesOutside.push(entity);
             }
         }
@@ -1091,6 +1097,7 @@ export class GameInstance {
         // Use a more efficient sorting method that considers both x and y
         entitiesOutside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
         entitiesInside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
+        entitiesBehindStructures.sort((a, b) => (a.y + a.x) - (b.y + b.x));
 
         // Debug log for entities - only log if debug flag is enabled
         if (this.debug?.flags?.logEntities) {
@@ -1098,11 +1105,20 @@ export class GameInstance {
                 total: visibleEntities.length,
                 outside: entitiesOutside.length,
                 inside: entitiesInside.length,
+                behindStructures: entitiesBehindStructures.length,
                 bounds: `(${minX},${minY}) to (${maxX},${maxY})`
             });
         }
 
-        // Render outside entities first using for loop for better performance
+        // Render entities behind structures first (lowest z-index)
+        for (let i = 0; i < entitiesBehindStructures.length; i++) {
+            const entity = entitiesBehindStructures[i];
+            if (entity.render && entity.isVisible) {
+                entity.render(this.ctx, this.renderer);
+            }
+        }
+
+        // Render outside entities next using for loop for better performance
         for (let i = 0; i < entitiesOutside.length; i++) {
             const entity = entitiesOutside[i];
             if (entity.render && entity.isVisible) {
