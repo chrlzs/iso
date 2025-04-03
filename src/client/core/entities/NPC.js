@@ -320,24 +320,51 @@ export class NPC extends Entity {
 
         // Always move for testing
         if (forceMovement || !this.isMoving) {
-            // Simple random movement for testing
-            const randomX = Math.random() * 2 - 1; // -1 to 1
-            const randomY = Math.random() * 2 - 1; // -1 to 1
+            // Try to find a valid target position
+            let foundValidTarget = false;
+            let attempts = 0;
+            const maxAttempts = 10; // Limit attempts to find valid position
 
-            // Set target position
-            this.targetX = Math.max(0, Math.min(this.world.width - 1, this.x + randomX));
-            this.targetY = Math.max(0, Math.min(this.world.height - 1, this.y + randomY));
+            while (!foundValidTarget && attempts < maxAttempts) {
+                attempts++;
 
-            this.isMoving = true;
-            this.lastMoveTime = now;
+                // Simple random movement for testing
+                const randomX = Math.random() * 2 - 1; // -1 to 1
+                const randomY = Math.random() * 2 - 1; // -1 to 1
 
-            // Log forced movement
-            if (this.game?.debug?.flags?.logNPCMovement) {
-                console.log(`NPC ${this.name} FORCED movement:`, {
-                    from: { x: this.x, y: this.y },
-                    to: { x: this.targetX, y: this.targetY },
-                    timeSinceLastMove
-                });
+                // Calculate potential target position
+                const potentialX = Math.max(0, Math.min(this.world.width - 1, this.x + randomX));
+                const potentialY = Math.max(0, Math.min(this.world.height - 1, this.y + randomY));
+
+                // Check if the target position is walkable
+                if (this.isWalkable(potentialX, potentialY)) {
+                    // Set target position
+                    this.targetX = potentialX;
+                    this.targetY = potentialY;
+                    foundValidTarget = true;
+
+                    this.isMoving = true;
+                    this.lastMoveTime = now;
+
+                    // Log movement
+                    if (this.game?.debug?.flags?.logNPCMovement) {
+                        console.log(`NPC ${this.name} found valid movement target:`, {
+                            from: { x: this.x, y: this.y },
+                            to: { x: this.targetX, y: this.targetY },
+                            attempts,
+                            timeSinceLastMove
+                        });
+                    }
+                }
+            }
+
+            // If we couldn't find a valid target after max attempts, log and skip movement
+            if (!foundValidTarget) {
+                if (this.game?.debug?.flags?.logNPCMovement) {
+                    console.log(`NPC ${this.name} couldn't find valid movement target after ${maxAttempts} attempts`);
+                }
+                this.isMoving = false;
+                return;
             }
         }
 
@@ -490,17 +517,35 @@ export class NPC extends Entity {
         const dirX = distX / distance;
         const dirY = distY / distance;
 
-        // Move in the direction of the target
-        this.x += dirX * moveSpeed;
-        this.y += dirY * moveSpeed;
+        // Calculate new position
+        const newX = this.x + dirX * moveSpeed;
+        const newY = this.y + dirY * moveSpeed;
 
-        // Log movement if debug is enabled
-        if (this.game?.debug?.flags?.logNPCMovement) {
-            console.log(`NPC ${this.name} moving:`, {
-                from: { x: this.x - dirX * moveSpeed, y: this.y - dirY * moveSpeed },
-                to: { x: this.x, y: this.y },
-                moveAmount: moveSpeed
-            });
+        // Check if the new position is walkable
+        if (this.isWalkable(newX, newY)) {
+            // Move to the new position
+            this.x = newX;
+            this.y = newY;
+
+            // Log movement if debug is enabled
+            if (this.game?.debug?.flags?.logNPCMovement) {
+                console.log(`NPC ${this.name} moving:`, {
+                    from: { x: this.x - dirX * moveSpeed, y: this.y - dirY * moveSpeed },
+                    to: { x: this.x, y: this.y },
+                    moveAmount: moveSpeed
+                });
+            }
+        } else {
+            // New position is not walkable, stop moving and find a new target
+            this.isMoving = false;
+
+            // Log collision if debug is enabled
+            if (this.game?.debug?.flags?.logNPCMovement) {
+                console.log(`NPC ${this.name} encountered obstacle:`, {
+                    attemptedPosition: { x: newX, y: newY },
+                    currentPosition: { x: this.x, y: this.y }
+                });
+            }
         }
     }
 
@@ -523,7 +568,39 @@ export class NPC extends Entity {
         if (!tile) return false;
 
         // Check if tile is walkable
-        return tile.walkable !== false;
+        if (tile.walkable === false) return false;
+
+        // Check for structures at this position
+        if (this.world.getAllStructures) {
+            const structures = this.world.getAllStructures();
+
+            // Check if any structure occupies this position
+            for (const structure of structures) {
+                // Skip the structure the NPC is currently in
+                if (structure === this.currentStructure) continue;
+
+                // Check if position is inside structure bounds
+                if (tileX >= structure.x && tileX < structure.x + structure.width &&
+                    tileY >= structure.y && tileY < structure.y + structure.height) {
+
+                    // Check if structure has doors
+                    if (structure.doors && structure.doors.length > 0) {
+                        // Check if position is at a door
+                        for (const door of structure.doors) {
+                            if (tileX === door.x && tileY === door.y) {
+                                return true; // Can walk through doors
+                            }
+                        }
+                    }
+
+                    // Position is inside structure but not at a door
+                    return false;
+                }
+            }
+        }
+
+        // No structures blocking, position is walkable
+        return true;
     }
 
     /**
