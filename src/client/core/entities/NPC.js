@@ -355,57 +355,51 @@ export class NPC extends Entity {
             // Skip the structure the NPC is in
             if (structure === this.currentStructure) continue;
 
-            // Check if structure is between player and NPC
-            // In isometric view, we need to check if the structure's depth range
-            // overlaps with the line between player and NPC
+            // Get structure height (default to 1 if not specified)
+            const structureHeight = structure.height || 1;
 
-            // Calculate depths
+            // Calculate the shadow area behind the structure based on its height
+            // The taller the structure, the larger the shadow area
+            const shadowExtension = structureHeight * 1.5;
+
+            // Calculate the extended bounds of the structure's shadow
+            const shadowMinX = structure.x - 0.5;
+            const shadowMaxX = structure.x + structure.width + 0.5;
+            const shadowMinY = structure.y - 0.5;
+            // Extend the shadow area based on structure height
+            const shadowMaxY = structure.y + structure.height + shadowExtension;
+
+            // Calculate depths for isometric view
             const playerDepth = player.x + player.y;
             const npcDepth = this.x + this.y;
             const structureFrontDepth = structure.x + structure.y;
             const structureBackDepth = structure.x + structure.width + structure.y + structure.height;
 
-            // Check if NPC is behind the structure relative to player
-            const isNPCBehind = (
-                // NPC is within the X bounds of the structure (with a small buffer)
-                this.x >= structure.x - 0.5 &&
-                this.x <= structure.x + structure.width + 0.5 &&
-                // NPC is within the Y bounds of the structure (with a small buffer)
-                this.y >= structure.y - 0.5 &&
-                this.y <= structure.y + structure.height + 0.5 &&
+            // Check if NPC is in the shadow area behind the structure
+            const isInShadowArea = (
+                // NPC is within the X bounds of the shadow
+                this.x >= shadowMinX &&
+                this.x <= shadowMaxX &&
+                // NPC is within the Y bounds of the shadow (extended based on height)
+                this.y >= shadowMinY &&
+                this.y <= shadowMaxY &&
                 // NPC is behind the structure in isometric depth
                 npcDepth > structureFrontDepth
             );
 
-            // More precise check for special NPCs like DJ and Security Officer
-            // These need stricter occlusion checks
-            const isSpecialNPC = this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer';
-
-            if (isNPCBehind) {
-                // For special NPCs, do an additional check to make sure they're really behind
-                if (isSpecialNPC) {
-                    // Check if the NPC is truly behind the structure (stricter check)
-                    const isTrulyBehind = (
-                        // NPC is well within the structure bounds
-                        this.x > structure.x &&
-                        this.x < structure.x + structure.width &&
-                        this.y > structure.y &&
-                        this.y < structure.y + structure.height &&
-                        // NPC is definitely behind in depth
-                        npcDepth > structureFrontDepth + 1
-                    );
-
-                    if (isTrulyBehind) {
-                        this.isOccluded = true;
-                        this.occludingStructure = structure;
-                        break;
-                    }
-                } else {
-                    // Regular NPCs use the standard check
-                    this.isOccluded = true;
-                    this.occludingStructure = structure;
-                    break;
-                }
+            // Special handling for Security Officer
+            if (this.name === 'Security Officer' && isInShadowArea) {
+                // Security Officer is always visible but marked as behind structure
+                this.isOccluded = true;
+                this.occludingStructure = structure;
+                this.isBehindStructure = true;
+                break;
+            }
+            // For other NPCs
+            else if (isInShadowArea) {
+                this.isOccluded = true;
+                this.occludingStructure = structure;
+                break;
             }
         }
 
@@ -414,8 +408,9 @@ export class NPC extends Entity {
             console.log(`NPC ${this.name} is occluded by structure:`, {
                 structureType: this.occludingStructure?.type,
                 structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                structureHeight: this.occludingStructure?.height || 1,
                 npcPos: `${this.x},${this.y}`,
-                isSpecialNPC: this.alwaysVisible || this.name === 'DJ' || this.name === 'Security Officer'
+                isSpecialNPC: this.name === 'Security Officer' || this.alwaysVisible || this.name === 'DJ'
             });
         }
     }
