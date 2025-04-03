@@ -60,6 +60,21 @@ export class NPC extends Entity {
         this.alwaysVisible = config.alwaysVisible || false; // Flag for NPCs that should always be visible
         this.isBehindStructure = false; // Flag for NPCs that are behind structures
 
+        // Movement properties
+        this.isMoving = false;
+        this.movementPattern = config.movementPattern || 'stationary'; // stationary, random, patrol, follow
+        this.movementSpeed = config.movementSpeed || 0.05; // Tiles per frame
+        this.movementRange = config.movementRange || 5; // Maximum distance from starting position
+        this.patrolPoints = config.patrolPoints || []; // Points to patrol between
+        this.currentPatrolIndex = 0; // Current index in patrol points
+        this.targetX = this.x; // Target X position
+        this.targetY = this.y; // Target Y position
+        this.startX = this.x; // Starting X position
+        this.startY = this.y; // Starting Y position
+        this.movementCooldown = 0; // Cooldown between movements
+        this.movementCooldownMax = config.movementCooldownMax || 60; // Maximum cooldown between movements (in frames)
+        this.path = []; // Current path being followed
+
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
 
@@ -252,6 +267,225 @@ export class NPC extends Entity {
         }
 
         ctx.restore();
+    }
+
+    /**
+     * Updates the NPC's state
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
+    update(deltaTime) {
+        // Handle movement based on pattern
+        this.updateMovement(deltaTime);
+
+        // Update visibility based on player's current structure
+        if (this.game && this.game.player) {
+            const playerStructure = this.game.player.currentStructure;
+            this.updateVisibility(playerStructure);
+        }
+    }
+
+    /**
+     * Updates NPC movement based on its movement pattern
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
+    updateMovement(deltaTime) {
+        // Skip movement for stationary NPCs
+        if (this.movementPattern === 'stationary') return;
+
+        // Decrement movement cooldown
+        if (this.movementCooldown > 0) {
+            this.movementCooldown -= deltaTime;
+            return;
+        }
+
+        // Handle different movement patterns
+        switch (this.movementPattern) {
+            case 'random':
+                this.updateRandomMovement();
+                break;
+            case 'patrol':
+                this.updatePatrolMovement();
+                break;
+            case 'follow':
+                this.updateFollowMovement();
+                break;
+        }
+
+        // Move towards target if we're moving
+        if (this.isMoving) {
+            this.moveTowardsTarget(deltaTime);
+        }
+    }
+
+    /**
+     * Updates random movement pattern
+     * @returns {void}
+     */
+    updateRandomMovement() {
+        // If not moving, pick a new random target
+        if (!this.isMoving) {
+            // Random movement within range of starting position
+            const rangeX = Math.random() * this.movementRange * 2 - this.movementRange;
+            const rangeY = Math.random() * this.movementRange * 2 - this.movementRange;
+
+            // Set target position
+            this.targetX = Math.max(0, Math.min(this.world.width - 1, this.startX + rangeX));
+            this.targetY = Math.max(0, Math.min(this.world.height - 1, this.startY + rangeY));
+
+            // Check if target is walkable
+            if (this.isWalkable(this.targetX, this.targetY)) {
+                this.isMoving = true;
+
+                // Log movement if debug is enabled
+                if (this.game?.debug?.flags?.logNPCMovement) {
+                    console.log(`NPC ${this.name} moving to random position:`, {
+                        from: { x: this.x, y: this.y },
+                        to: { x: this.targetX, y: this.targetY }
+                    });
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates patrol movement pattern
+     * @returns {void}
+     */
+    updatePatrolMovement() {
+        // Skip if no patrol points
+        if (!this.patrolPoints || this.patrolPoints.length === 0) return;
+
+        // If not moving, move to next patrol point
+        if (!this.isMoving) {
+            // Get next patrol point
+            const patrolPoint = this.patrolPoints[this.currentPatrolIndex];
+
+            // Set target position
+            this.targetX = patrolPoint.x;
+            this.targetY = patrolPoint.y;
+
+            // Check if target is walkable
+            if (this.isWalkable(this.targetX, this.targetY)) {
+                this.isMoving = true;
+
+                // Log movement if debug is enabled
+                if (this.game?.debug?.flags?.logNPCMovement) {
+                    console.log(`NPC ${this.name} moving to patrol point ${this.currentPatrolIndex}:`, {
+                        from: { x: this.x, y: this.y },
+                        to: { x: this.targetX, y: this.targetY }
+                    });
+                }
+            }
+
+            // Increment patrol index
+            this.currentPatrolIndex = (this.currentPatrolIndex + 1) % this.patrolPoints.length;
+        }
+    }
+
+    /**
+     * Updates follow movement pattern
+     * @returns {void}
+     */
+    updateFollowMovement() {
+        // Skip if no game or player
+        if (!this.game || !this.game.player) return;
+
+        // Only update target periodically
+        if (!this.isMoving) {
+            // Get player position
+            const player = this.game.player;
+
+            // Calculate distance to player
+            const distX = player.x - this.x;
+            const distY = player.y - this.y;
+            const distance = Math.sqrt(distX * distX + distY * distY);
+
+            // Only follow if player is within range
+            if (distance <= this.movementRange && distance > 1.5) {
+                // Set target position (don't get too close)
+                const angle = Math.atan2(distY, distX);
+                const targetDistance = Math.max(1.5, distance - 1);
+                this.targetX = this.x + Math.cos(angle) * targetDistance;
+                this.targetY = this.y + Math.sin(angle) * targetDistance;
+
+                // Check if target is walkable
+                if (this.isWalkable(this.targetX, this.targetY)) {
+                    this.isMoving = true;
+
+                    // Log movement if debug is enabled
+                    if (this.game?.debug?.flags?.logNPCMovement) {
+                        console.log(`NPC ${this.name} following player:`, {
+                            from: { x: this.x, y: this.y },
+                            to: { x: this.targetX, y: this.targetY },
+                            playerPos: { x: player.x, y: player.y }
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Moves towards the target position
+     * @param {number} deltaTime - Time elapsed since last update
+     * @returns {void}
+     */
+    moveTowardsTarget(deltaTime) {
+        // Calculate distance to target
+        const distX = this.targetX - this.x;
+        const distY = this.targetY - this.y;
+        const distance = Math.sqrt(distX * distX + distY * distY);
+
+        // If we've reached the target, stop moving
+        if (distance < this.movementSpeed) {
+            this.x = this.targetX;
+            this.y = this.targetY;
+            this.isMoving = false;
+
+            // Set cooldown before next movement
+            this.movementCooldown = this.movementCooldownMax;
+
+            // Log arrival if debug is enabled
+            if (this.game?.debug?.flags?.logNPCMovement) {
+                console.log(`NPC ${this.name} reached target:`, {
+                    position: { x: this.x, y: this.y }
+                });
+            }
+
+            return;
+        }
+
+        // Move towards target
+        const moveX = (distX / distance) * this.movementSpeed * deltaTime;
+        const moveY = (distY / distance) * this.movementSpeed * deltaTime;
+
+        // Update position
+        this.x += moveX;
+        this.y += moveY;
+    }
+
+    /**
+     * Checks if a position is walkable
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @returns {boolean} Whether the position is walkable
+     */
+    isWalkable(x, y) {
+        // Round to nearest tile
+        const tileX = Math.floor(x);
+        const tileY = Math.floor(y);
+
+        // Check if tile exists
+        if (!this.world || !this.world.getTileAt) return false;
+
+        // Get tile at position
+        const tile = this.world.getTileAt(tileX, tileY);
+        if (!tile) return false;
+
+        // Check if tile is walkable
+        return tile.walkable !== false;
     }
 
     /**

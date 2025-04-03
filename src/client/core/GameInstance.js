@@ -136,6 +136,7 @@ export class GameInstance {
                 logCombat: true,        // Enable combat logging
                 logRenderer: false,     // Disable renderer logging
                 logShadows: false,      // Disable shadow logging
+                logNPCMovement: false,  // Disable NPC movement logging
 
                 // Feature flags
                 enableLayoutMode: true

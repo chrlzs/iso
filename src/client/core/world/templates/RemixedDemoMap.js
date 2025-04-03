@@ -262,9 +262,14 @@ export function createRemixedMap() {
             x: apartmentBuilding.x + Math.floor(apartmentBuilding.width / 2),
             y: apartmentBuilding.y + Math.floor(apartmentBuilding.height / 2),
             color: '#3498db', // Blue color
+            movementPattern: 'random', // Random movement within apartment
+            movementSpeed: 0.015, // Very slow movement
+            movementRange: 2, // Small range to stay within apartment
+            movementCooldownMax: 240, // Long pause between movements
             dialog: [
                 { text: "I've lived in this apartment for years." },
-                { text: "The city has changed so much..." }
+                { text: "The city has changed so much..." },
+                { text: "I like to wander around my apartment." }
             ]
         });
         console.log('Added resident to apartment building');
@@ -279,9 +284,14 @@ export function createRemixedMap() {
             x: nightclub.x + Math.floor(nightclub.width / 2),
             y: nightclub.y + Math.floor(nightclub.height / 2),
             color: '#9b59b6', // Purple color
+            movementPattern: 'follow', // DJ follows the player when they enter the club
+            movementSpeed: 0.04, // Medium speed
+            movementRange: 8, // Larger range to follow player around the club
+            movementCooldownMax: 30, // Short pause between movements
             dialog: [
                 { text: "Welcome to the hottest club in town!" },
-                { text: "The music never stops here." }
+                { text: "The music never stops here." },
+                { text: "Follow me to the dance floor!" }
             ]
         });
         console.log('Added DJ to nightclub');
@@ -317,6 +327,10 @@ export function createRemixedMap() {
             damage: 15,
             attackRange: 3,
             health: 100,
+            movementPattern: 'random', // Use random movement pattern
+            movementSpeed: 0.02, // Slower movement
+            movementRange: 3, // Small range around starting position
+            movementCooldownMax: 180, // Longer pause between movements
             dialog: [
                 { text: "Hey! You're not supposed to be here!" },
                 { text: "This area is restricted!" }
@@ -335,10 +349,15 @@ export function createRemixedMap() {
         damage: 10,
         attackRange: 2,
         health: 80,
-        behavior: {
-            patrolRadius: 5,
-            isPatrolling: true
-        },
+        movementPattern: 'patrol', // Use patrol movement pattern
+        movementSpeed: 0.03, // Slower movement
+        patrolPoints: [
+            { x: Math.floor(mapSize * 0.25), y: Math.floor(mapSize * 0.75) },
+            { x: Math.floor(mapSize * 0.35), y: Math.floor(mapSize * 0.75) },
+            { x: Math.floor(mapSize * 0.35), y: Math.floor(mapSize * 0.65) },
+            { x: Math.floor(mapSize * 0.25), y: Math.floor(mapSize * 0.65) }
+        ],
+        movementCooldownMax: 120, // Longer pause between movements
         dialog: [
             { text: "Stop right there!" },
             { text: "You're trespassing!" }
