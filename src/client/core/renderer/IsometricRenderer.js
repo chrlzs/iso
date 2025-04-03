@@ -127,6 +127,15 @@ export class IsometricRenderer {
             );
         });
 
+        // Log structures for debugging
+        if (world?.game?.debug?.flags?.logRenderer) {
+            console.log('Structures for shadow rendering:', {
+                total: structures.length,
+                visible: visibleStructures.length,
+                bounds: `(${minX},${minY}) to (${maxX},${maxY})`
+            });
+        }
+
         // Render shadows first (before tiles)
         this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world);
 
