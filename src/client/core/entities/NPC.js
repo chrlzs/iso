@@ -216,7 +216,8 @@ export class NPC extends Entity {
         }
 
         // Draw name with background for better visibility
-        const nameText = this.isEnemy ? `${this.name} (Enemy)` : this.name;
+        // Only add (Enemy) suffix for actual enemies, not for NPCs with specific roles
+        const nameText = this.isEnemy && this.type === 'enemy' ? `${this.name} (Enemy)` : this.name;
         const textWidth = ctx.measureText(nameText).width;
 
         // Draw text background

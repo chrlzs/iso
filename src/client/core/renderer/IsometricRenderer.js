@@ -65,20 +65,23 @@ export class IsometricRenderer {
 
         // Calculate the visible tile range in world coordinates
         // Add a buffer of tiles around the visible area to ensure smooth scrolling
-        const buffer = 5;
+        // Use a larger buffer when zoomed in to prevent edge visibility issues
+        const zoomFactor = 1 / camera.zoom; // Inverse of zoom (higher when zoomed in)
+        const buffer = Math.max(5, Math.ceil(10 * zoomFactor)); // Increase buffer when zoomed in
 
         // Convert screen center to world coordinates
         const centerWorldX = camera.x;
         const centerWorldY = camera.y;
 
         // Calculate visible range in world coordinates
-        const visibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / (this.tileWidth * camera.zoom)) + buffer;
+        // Adjust the divisor to account for zoom level properly
+        const visibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / (this.tileWidth * 0.5)) + buffer;
 
-        // Calculate bounds
-        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange));
-        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange));
-        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
-        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
+        // Calculate bounds with extra padding when zoomed in
+        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange * zoomFactor));
+        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange * zoomFactor));
+        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange * zoomFactor));
+        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange * zoomFactor));
 
         // Render only visible tiles
         for (let y = minY; y <= maxY; y++) {
