@@ -152,12 +152,27 @@ export class NPC extends Entity {
         if (this.isEnemy && this.game?.debug?.flags?.logNPCRendering) {
             console.log(`Rendering enemy NPC ${this.name} at ${this.x},${this.y}`);
         }
+
+        // Check if enemy is occluded by a structure
+        if (this.isEnemy) {
+            this.checkStructureOcclusion();
+        }
+
         // Convert world coordinates to isometric coordinates
         const isoX = (this.x - this.y) * (renderer.tileWidth / 2);
         const isoY = (this.x + this.y) * (renderer.tileHeight / 2);
 
         // Draw NPC using canvas primitives
         ctx.save();
+
+        // If enemy is occluded by a structure, make it semi-transparent
+        if (this.isEnemy && this.isOccluded) {
+            ctx.globalAlpha = 0.4;
+
+            if (this.game?.debug?.flags?.logNPCRendering) {
+                console.log(`Enemy NPC ${this.name} is occluded by structure, rendering with reduced opacity`);
+            }
+        }
 
         // Draw shadow
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -235,6 +250,11 @@ export class NPC extends Entity {
             isoY - this.size - 10
         );
 
+        // Reset globalAlpha if it was changed
+        if (this.isEnemy && this.isOccluded) {
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.restore();
     }
 
@@ -244,24 +264,32 @@ export class NPC extends Entity {
      * @returns {void}
      */
     updateVisibility(playerStructure) {
-        // NPCs that are always visible (enemies or special NPCs like DJ)
-        if (this.isEnemy || this.alwaysVisible || this.name === 'DJ') {
-            this.isVisible = true;
+        // Store previous visibility state for comparison
+        const wasVisible = this.isVisible;
+
+        // Default to visible
+        this.isVisible = true;
+
+        // Special NPCs like DJ are always visible
+        if (this.alwaysVisible || this.name === 'DJ') {
             return;
         }
 
-        // If NPC is not in a structure, always visible
-        if (!this.currentStructure) {
-            this.isVisible = true;
+        // If NPC is in a structure and player is not in the same structure, hide the NPC
+        if (this.currentStructure && this.currentStructure !== playerStructure) {
+            this.isVisible = false;
             return;
         }
 
-        // If player is in the same structure as NPC, visible
-        // Otherwise, NPC should be hidden
-        this.isVisible = (this.currentStructure === playerStructure);
+        // For enemies, we need to check if they're behind a structure
+        if (this.isEnemy) {
+            // We'll handle their visibility in the render method
+            // based on whether they're occluded by structures
+            this.checkStructureOcclusion();
+        }
 
         // Log visibility changes if debug is enabled
-        if (this.game?.debug?.flags?.logNPCs) {
+        if (this.game?.debug?.flags?.logNPCs && wasVisible !== this.isVisible) {
             console.log(`NPC ${this.name} visibility updated:`, {
                 isVisible: this.isVisible,
                 inStructure: !!this.currentStructure,
@@ -269,6 +297,73 @@ export class NPC extends Entity {
                 playerInSameStructure: (this.currentStructure === playerStructure),
                 alwaysVisible: this.alwaysVisible,
                 isEnemy: this.isEnemy
+            });
+        }
+    }
+
+    /**
+     * Checks if this NPC is occluded by any structures
+     * @returns {void}
+     */
+    checkStructureOcclusion() {
+        if (!this.world) return;
+
+        // Get all structures
+        const structures = this.world.getAllStructures();
+
+        // Skip if no structures
+        if (!structures || structures.length === 0) return;
+
+        // Get player position from game
+        const player = this.game?.player;
+        if (!player) return;
+
+        // Check if any structure is between the player and this NPC
+        this.isOccluded = false;
+        this.occludingStructure = null;
+
+        for (const structure of structures) {
+            // Skip trees and small structures
+            if (structure.type === 'tree' || structure.height < 1) continue;
+
+            // Skip the structure the NPC is in
+            if (structure === this.currentStructure) continue;
+
+            // Check if structure is between player and NPC
+            // In isometric view, we need to check if the structure's depth range
+            // overlaps with the line between player and NPC
+
+            // Calculate depths
+            const playerDepth = player.x + player.y;
+            const npcDepth = this.x + this.y;
+            const structureFrontDepth = structure.x + structure.y;
+            const structureBackDepth = structure.x + structure.width + structure.y + structure.height;
+
+            // Check if NPC is behind the structure relative to player
+            const isNPCBehind = (
+                // NPC is within the X bounds of the structure
+                this.x >= structure.x - 1 &&
+                this.x <= structure.x + structure.width + 1 &&
+                // NPC is within the Y bounds of the structure
+                this.y >= structure.y - 1 &&
+                this.y <= structure.y + structure.height + 1 &&
+                // NPC is behind the structure in isometric depth
+                npcDepth < structureBackDepth
+            );
+
+            if (isNPCBehind) {
+                this.isOccluded = true;
+                this.occludingStructure = structure;
+                break;
+            }
+        }
+
+        // Log occlusion if debug is enabled
+        if (this.game?.debug?.flags?.logNPCs && this.isOccluded) {
+            console.log(`NPC ${this.name} is occluded by structure:`, {
+                structureType: this.occludingStructure?.type,
+                structurePos: `${this.occludingStructure?.x},${this.occludingStructure?.y}`,
+                npcPos: `${this.x},${this.y}`
             });
         }
     }
