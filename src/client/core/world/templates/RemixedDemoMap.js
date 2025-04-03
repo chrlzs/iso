@@ -358,6 +358,7 @@ export function createRemixedMap() {
             { x: Math.floor(mapSize * 0.25), y: Math.floor(mapSize * 0.65) }
         ],
         movementCooldownMax: 120, // Longer pause between movements
+        alwaysBehindStructures: true, // This NPC will always be behind structures
         dialog: [
             { text: "Stop right there!" },
             { text: "You're trespassing!" }

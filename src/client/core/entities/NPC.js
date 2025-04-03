@@ -63,10 +63,11 @@ export class NPC extends Entity {
         // DIRECT FIX: Add explicit z-index property
         this.zIndex = 0; // Default z-index
 
-        // DIRECT FIX: Force Security Officer to always be behind structures
-        if (this.name === 'Security Officer') {
+        // DIRECT FIX: Force certain NPCs to always be behind structures
+        if (this.name === 'Security Officer' || config.alwaysBehindStructures) {
             this.isBehindStructure = true;
             this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+            this.alwaysBehindStructures = true; // Flag for NPCs that should always be behind structures
         }
 
         // Movement properties
@@ -290,10 +291,11 @@ export class NPC extends Entity {
             console.log(`NPC ${this.name} update called with deltaTime: ${deltaTime}`);
         }
 
-        // DIRECT FIX: Force Security Officer to always be behind structures
-        if (this.name === 'Security Officer') {
+        // DIRECT FIX: Force certain NPCs to always be behind structures
+        if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
             this.isBehindStructure = true;
             this.isVisible = true;
+            this.zIndex = -100; // Very low z-index to ensure it's always behind structures
         }
 
         // Store previous state for comparison
@@ -310,10 +312,11 @@ export class NPC extends Entity {
             this.updateVisibility(playerStructure);
         }
 
-        // DIRECT FIX: Force Security Officer to always be behind structures (again after visibility update)
-        if (this.name === 'Security Officer') {
+        // DIRECT FIX: Force certain NPCs to always be behind structures (again after visibility update)
+        if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
             this.isBehindStructure = true;
             this.isVisible = true;
+            this.zIndex = -100; // Very low z-index to ensure it's always behind structures
         }
 
         // Log state changes if debug is enabled
@@ -573,8 +576,8 @@ export class NPC extends Entity {
             // DIRECT FIX: Update z-index based on position and occlusion
             this.updateZIndex();
 
-            // DIRECT FIX: Force Security Officer to always be behind structures
-            if (this.name === 'Security Officer') {
+            // DIRECT FIX: Force certain NPCs to always be behind structures
+            if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
                 this.isBehindStructure = true;
                 this.zIndex = -100; // Very low z-index to ensure it's always behind structures
             }
@@ -677,9 +680,10 @@ export class NPC extends Entity {
             this.zIndex = baseZIndex;
         }
 
-        // Special case for Security Officer
-        if (this.name === 'Security Officer') {
+        // Special case for NPCs that should always be behind structures
+        if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
             this.zIndex = -100; // Very low z-index to ensure it's always behind structures
+            this.isBehindStructure = true; // Ensure the flag is set
         }
 
         // Log z-index update if debug is enabled
@@ -755,8 +759,8 @@ export class NPC extends Entity {
         // DIRECT FIX: Update z-index after visibility changes
         this.updateZIndex();
 
-        // DIRECT FIX: Force Security Officer to always be behind structures
-        if (this.name === 'Security Officer') {
+        // DIRECT FIX: Force certain NPCs to always be behind structures
+        if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
             this.isBehindStructure = true;
             this.zIndex = -100; // Very low z-index to ensure it's always behind structures
         }
@@ -789,9 +793,9 @@ export class NPC extends Entity {
         this.isBehindStructure = false;
         this.occludingStructure = null;
 
-        // SPECIAL CASE: Security Officer is ALWAYS behind structures
-        // This is a direct fix for the Security Officer rendering issue
-        if (this.name === 'Security Officer') {
+        // SPECIAL CASE: Some NPCs are ALWAYS behind structures
+        // This is a direct fix for the rendering issue
+        if (this.name === 'Security Officer' || this.alwaysBehindStructures) {
             this.isBehindStructure = true;
 
             // Find the nearest structure to be the occluding structure
