@@ -15,8 +15,64 @@ export class StructureRenderer {
         this.buildingLights = new Map();
         this.lightTransitionSpeed = 0.0005; // Much slower transitions
 
+        // Add tracking for structure transparency
+        this.structureTransparency = new Map();
+        this.transparencyTransitionSpeed = 0.05; // Faster transitions for transparency
+
         this.initializeMaterialPatterns();
         this.world = null;
+        this.game = null; // Reference to the game instance
+    }
+
+    /**
+     * Checks if a structure has NPCs behind it that should be visible
+     * @param {Object} structure - The structure to check
+     * @returns {boolean} - True if there are NPCs behind this structure
+     */
+    hasNPCsBehind(structure) {
+        if (!structure || !this.world || !this.game) {
+            return false;
+        }
+
+        // Skip trees and small structures
+        if (structure.type === 'tree' || structure.height < 1) {
+            return false;
+        }
+
+        // Get all entities from the game
+        const entities = Array.from(this.game.entities || []);
+
+        // Check if any NPC is behind this structure
+        for (const entity of entities) {
+            // Skip non-NPC entities
+            if (!entity.isNPC) continue;
+
+            // Skip entities that are not visible
+            if (!entity.isVisible) continue;
+
+            // Check if entity is behind this structure in isometric view
+            const entityDepth = entity.x + entity.y;
+            const structureFrontDepth = structure.x + structure.y;
+            const structureBackDepth = structure.x + structure.width + structure.y + structure.height;
+
+            // Calculate if the entity is within the structure's shadow area
+            const isInShadowArea = (
+                // Entity is within the X bounds of the structure (with a small buffer)
+                entity.x >= structure.x - 0.5 &&
+                entity.x <= structure.x + structure.width + 0.5 &&
+                // Entity is within the Y bounds of the structure (with a small buffer)
+                entity.y >= structure.y - 0.5 &&
+                entity.y <= structure.y + structure.height + 0.5 &&
+                // Entity is behind the structure in isometric depth
+                entityDepth > structureFrontDepth
+            );
+
+            if (isInShadowArea) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -123,6 +179,53 @@ export class StructureRenderer {
 
             light.lastUpdate = now;
         });
+    }
+
+    /**
+     * Updates the transparency of structures with NPCs behind them
+     * @param {Object} structure - The structure to update
+     * @returns {number} - The current transparency value (0-1)
+     */
+    updateStructureTransparency(structure) {
+        if (!structure || !this.world) {
+            return 1; // Fully opaque by default
+        }
+
+        // Get or initialize transparency data for this structure
+        if (!this.structureTransparency.has(structure)) {
+            this.structureTransparency.set(structure, {
+                currentTransparency: 1, // Start fully opaque
+                targetTransparency: 1,
+                lastUpdate: Date.now(),
+                transitionSpeed: this.transparencyTransitionSpeed
+            });
+        }
+
+        const transparencyData = this.structureTransparency.get(structure);
+        const now = Date.now();
+
+        // Check if there are NPCs behind this structure
+        const hasNPCsBehind = this.hasNPCsBehind(structure);
+
+        // Set target transparency based on whether there are NPCs behind
+        transparencyData.targetTransparency = hasNPCsBehind ? 0.4 : 1; // 40% opacity when NPCs behind
+
+        // Gradually adjust current transparency
+        const delta = (now - transparencyData.lastUpdate) * transparencyData.transitionSpeed;
+        if (transparencyData.currentTransparency < transparencyData.targetTransparency) {
+            transparencyData.currentTransparency = Math.min(
+                transparencyData.targetTransparency,
+                transparencyData.currentTransparency + delta
+            );
+        } else if (transparencyData.currentTransparency > transparencyData.targetTransparency) {
+            transparencyData.currentTransparency = Math.max(
+                transparencyData.targetTransparency,
+                transparencyData.currentTransparency - delta
+            );
+        }
+
+        transparencyData.lastUpdate = now;
+        return transparencyData.currentTransparency;
     }
 
     initializeMaterialPatterns() {
@@ -299,6 +402,12 @@ export class StructureRenderer {
         }
 
         this.ctx.save();
+
+        // Update structure transparency based on NPCs behind it
+        const transparency = this.updateStructureTransparency(structure);
+
+        // Apply transparency to the entire structure
+        this.ctx.globalAlpha = transparency;
 
         if (structure.type === 'tree') {
             this.drawTree(screenX, screenY, structure);

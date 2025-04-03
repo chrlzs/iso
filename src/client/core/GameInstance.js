@@ -1201,7 +1201,7 @@ export class GameInstance {
         }
 
         // 2. Render structures
-        this.renderer.renderWorldStructures(this.world, this.camera, this.tileManager);
+        this.renderer.renderWorldStructures(this.world, this.camera, this);
 
         // 3. Render outside entities
         for (let i = 0; i < entitiesOutside.length; i++) {

@@ -156,9 +156,10 @@ export class IsometricRenderer {
      * Renders only the structures of the game world
      * @param {World} world - The game world to render
      * @param {Object} camera - Camera position and zoom
+     * @param {GameInstance} [game=null] - Reference to the game instance
      * @returns {void}
      */
-    renderWorldStructures(world, camera) {
+    renderWorldStructures(world, camera, game = null) {
         if (!this.structureRenderer) {
             console.error('StructureRenderer not initialized');
             return;
@@ -166,6 +167,11 @@ export class IsometricRenderer {
 
         // Set the world reference in the structure renderer
         this.structureRenderer.world = world;
+
+        // Set the game reference for NPC detection
+        if (game) {
+            this.structureRenderer.game = game;
+        }
 
         // Calculate visible area based on camera position and zoom
         const viewportWidth = this.canvas.width / camera.zoom;
