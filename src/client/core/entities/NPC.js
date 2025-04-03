@@ -294,10 +294,19 @@ export class NPC extends Entity {
         // Skip movement for stationary NPCs
         if (this.movementPattern === 'stationary') return;
 
+        // Force movement for debugging
+        const forceMovement = this.game?.debug?.flags?.forceNPCMovement;
+
         // Decrement movement cooldown
-        if (this.movementCooldown > 0) {
-            this.movementCooldown -= deltaTime;
+        if (this.movementCooldown > 0 && !forceMovement) {
+            // Normalize deltaTime to ensure consistent cooldown regardless of frame rate
+            this.movementCooldown -= (deltaTime / 1000) * 60;
             return;
+        }
+
+        // Reset cooldown if it's below zero
+        if (this.movementCooldown <= 0) {
+            this.movementCooldown = 0;
         }
 
         // Handle different movement patterns
@@ -433,6 +442,10 @@ export class NPC extends Entity {
      * @returns {void}
      */
     moveTowardsTarget(deltaTime) {
+        // Normalize deltaTime to seconds and apply a scaling factor
+        // This ensures consistent movement speed regardless of frame rate
+        const normalizedDelta = (deltaTime / 1000) * 60;
+
         // Calculate distance to target
         const distX = this.targetX - this.x;
         const distY = this.targetY - this.y;
@@ -457,13 +470,23 @@ export class NPC extends Entity {
             return;
         }
 
-        // Move towards target
-        const moveX = (distX / distance) * this.movementSpeed * deltaTime;
-        const moveY = (distY / distance) * this.movementSpeed * deltaTime;
+        // Move towards target with normalized delta time
+        const moveX = (distX / distance) * this.movementSpeed * normalizedDelta;
+        const moveY = (distY / distance) * this.movementSpeed * normalizedDelta;
 
         // Update position
         this.x += moveX;
         this.y += moveY;
+
+        // Log movement if debug is enabled
+        if (this.game?.debug?.flags?.logNPCMovement) {
+            console.log(`NPC ${this.name} moving:`, {
+                from: { x: this.x - moveX, y: this.y - moveY },
+                to: { x: this.x, y: this.y },
+                delta: normalizedDelta,
+                speed: this.movementSpeed
+            });
+        }
     }
 
     /**

@@ -137,6 +137,7 @@ export class GameInstance {
                 logRenderer: false,     // Disable renderer logging
                 logShadows: false,      // Disable shadow logging
                 logNPCMovement: false,  // Disable NPC movement logging
+                forceNPCMovement: true, // Force NPCs to move (for debugging)
 
                 // Feature flags
                 enableLayoutMode: true
@@ -1087,8 +1088,15 @@ export class GameInstance {
                 // Entities that are behind structures but still visible
                 entitiesBehindStructures.push(entity);
             } else if (entity.currentStructure) {
-                // Entities inside structures
-                entitiesInside.push(entity);
+                // Entities inside structures - these should be rendered AFTER the structure
+                // but only if the player is in the same structure
+                if (this.player && this.player.currentStructure === entity.currentStructure) {
+                    entitiesInside.push(entity);
+                } else {
+                    // If player is not in the same structure, don't render the entity
+                    // This prevents NPCs from being visible through walls
+                    continue;
+                }
             } else {
                 // Entities outside structures
                 entitiesOutside.push(entity);
