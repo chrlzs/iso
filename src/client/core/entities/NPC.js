@@ -42,7 +42,7 @@ export class NPC extends Entity {
         super(config);
 
         this.name = config.name;
-        this.type = config.type;
+        this.type = config.type || 'npc';
         this.dialog = config.dialog || [];
         this.inventory = new InventorySystem(config.inventory);
         this.schedule = config.schedule || {};
@@ -57,6 +57,7 @@ export class NPC extends Entity {
         this.isDefending = false;
         this.defenseBuff = 0;
         this.expValue = config.expValue || 20; // Experience awarded when defeated
+        this.alwaysVisible = config.alwaysVisible || false; // Flag for NPCs that should always be visible
 
         // Ensure game reference is available
         this.game = config.game || config.world?.game;
@@ -243,8 +244,8 @@ export class NPC extends Entity {
      * @returns {void}
      */
     updateVisibility(playerStructure) {
-        // Enemy NPCs are always visible
-        if (this.isEnemy) {
+        // NPCs that are always visible (enemies or special NPCs like DJ)
+        if (this.isEnemy || this.alwaysVisible || this.name === 'DJ') {
             this.isVisible = true;
             return;
         }
@@ -258,6 +259,18 @@ export class NPC extends Entity {
         // If player is in the same structure as NPC, visible
         // Otherwise, NPC should be hidden
         this.isVisible = (this.currentStructure === playerStructure);
+
+        // Log visibility changes if debug is enabled
+        if (this.game?.debug?.flags?.logNPCs) {
+            console.log(`NPC ${this.name} visibility updated:`, {
+                isVisible: this.isVisible,
+                inStructure: !!this.currentStructure,
+                structureType: this.currentStructure?.type,
+                playerInSameStructure: (this.currentStructure === playerStructure),
+                alwaysVisible: this.alwaysVisible,
+                isEnemy: this.isEnemy
+            });
+        }
     }
 
     /**

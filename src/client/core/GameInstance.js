@@ -1590,8 +1590,14 @@ export class GameInstance {
                         name: npcData.name || 'NPC',
                         color: npcData.color || '#3498db', // Blue color for regular NPCs
                         world: this.world,
-                        game: this // Add game reference
+                        game: this, // Add game reference
+                        type: npcData.type // Ensure type is set correctly
                     });
+
+                    // Special case for DJ - ensure it's always visible
+                    if (npcData.name === 'DJ') {
+                        npc.alwaysVisible = true;
+                    }
                 }
 
                 // Add dialog if provided
