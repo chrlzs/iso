@@ -31,11 +31,6 @@ export class ShadowRenderer {
         const height = structure.height || 1;
         const structureHeight = structure.template?.floors || 1;
 
-        // Calculate shadow properties based on structure size and height
-        // Increase shadow length and opacity for better visibility
-        const shadowLength = Math.max(width, height) * 1.0 + structureHeight * 0.5;
-        const shadowOpacity = Math.min(0.5, 0.3 + structureHeight * 0.1);
-
         // Debug log
         if (world?.game?.debug?.flags?.logShadows) {
             console.log(`Rendering shadow for structure at ${structure.x},${structure.y}:`, {
@@ -43,8 +38,6 @@ export class ShadowRenderer {
                 width,
                 height,
                 structureHeight,
-                shadowLength,
-                shadowOpacity,
                 screenPos: { x: screenX, y: screenY }
             });
         }
@@ -52,36 +45,29 @@ export class ShadowRenderer {
         // Save context state
         this.ctx.save();
 
-        // Set shadow style
-        this.ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+        // Use a simpler shadow approach - just draw a semi-transparent ellipse
+        // This is more likely to be visible and easier to debug
 
-        // Draw shadow as a polygon
+        // Calculate shadow size based on structure dimensions
+        const shadowWidth = (width + height) * tileWidth * 0.75;
+        const shadowHeight = (width + height) * tileHeight * 0.3;
+
+        // Position the shadow at the bottom of the structure
+        const shadowX = screenX + (width * tileWidth / 4);
+        const shadowY = screenY + (height * tileHeight / 2) + (width * tileHeight / 4);
+
+        // Draw a simple elliptical shadow
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         this.ctx.beginPath();
-
-        // Shadow is drawn as a polygon offset from the structure
-        // The shadow extends to the bottom-right in isometric view
-        const shadowOffsetX = shadowLength * (tileWidth / 2);
-        const shadowOffsetY = shadowLength * (tileHeight / 4);
-
-        // Calculate shadow points - make shadow larger and more visible
-        const points = [
-            // Structure bottom-left corner
-            { x: screenX, y: screenY + (height * tileHeight / 2) },
-            // Structure bottom-right corner
-            { x: screenX + (width * tileWidth / 2), y: screenY + (height * tileHeight / 2) + (width * tileHeight / 2) },
-            // Shadow bottom-right corner
-            { x: screenX + (width * tileWidth / 2) + shadowOffsetX,
-              y: screenY + (height * tileHeight / 2) + (width * tileHeight / 2) + shadowOffsetY },
-            // Shadow bottom-left corner
-            { x: screenX + shadowOffsetX, y: screenY + (height * tileHeight / 2) + shadowOffsetY }
-        ];
-
-        // Draw the shadow polygon
-        this.ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            this.ctx.lineTo(points[i].x, points[i].y);
-        }
-        this.ctx.closePath();
+        this.ctx.ellipse(
+            shadowX,
+            shadowY,
+            shadowWidth,
+            shadowHeight,
+            0,
+            0,
+            Math.PI * 2
+        );
         this.ctx.fill();
 
         // Restore context state
