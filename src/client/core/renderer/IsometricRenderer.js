@@ -56,13 +56,33 @@ export class IsometricRenderer {
             return;
         }
 
-        // CRITICAL FIX: Set the world reference in the structure renderer
-        // This allows the structure renderer to check if trees are inside buildings
+        // Set the world reference in the structure renderer
         this.structureRenderer.world = world;
 
-        // First render tiles
-        for (let y = 0; y < world.height; y++) {
-            for (let x = 0; x < world.width; x++) {
+        // Calculate visible area based on camera position and zoom
+        const viewportWidth = this.canvas.width / camera.zoom;
+        const viewportHeight = this.canvas.height / camera.zoom;
+
+        // Calculate the visible tile range in world coordinates
+        // Add a buffer of tiles around the visible area to ensure smooth scrolling
+        const buffer = 5;
+
+        // Convert screen center to world coordinates
+        const centerWorldX = camera.x;
+        const centerWorldY = camera.y;
+
+        // Calculate visible range in world coordinates
+        const visibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / (this.tileWidth * camera.zoom)) + buffer;
+
+        // Calculate bounds
+        const minX = Math.max(0, Math.floor(centerWorldX - visibleRange));
+        const minY = Math.max(0, Math.floor(centerWorldY - visibleRange));
+        const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
+        const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
+
+        // Render only visible tiles
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
                 const tile = world.getTileAt(x, y);
                 if (tile) {
                     this.renderTile(tile, x, y);
@@ -72,28 +92,24 @@ export class IsometricRenderer {
 
         // Get all structures
         const structures = world.getAllStructures();
-        console.log('Structures to render:', {
-            count: structures.length,
-            structures: structures.map(s => ({
-                type: s.type,
-                pos: `${s.x},${s.y}`,
-                template: s.template
-            }))
+
+        // Filter structures to only those in the visible area (with a buffer)
+        const visibleStructures = structures.filter(structure => {
+            // Check if any part of the structure is within the visible range
+            return (
+                structure.x + structure.width >= minX &&
+                structure.x <= maxX &&
+                structure.y + structure.height >= minY &&
+                structure.y <= maxY
+            );
         });
 
-        // IMPORTANT: Sort structures by their position in the isometric world
-        // This ensures proper z-ordering (structures in the back are rendered first)
-        const sortedStructures = this.sortStructuresByDepth(structures);
+        // Sort structures by their position in the isometric world
+        const sortedStructures = this.sortStructuresByDepth(visibleStructures);
 
         // Render structures in sorted order
         sortedStructures.forEach(structure => {
             const screenCoords = this.worldToScreen(structure.x, structure.y);
-            console.log('Rendering structure:', {
-                type: structure.type,
-                worldPos: `${structure.x},${structure.y}`,
-                screenPos: screenCoords
-            });
-
             this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
         });
     }
@@ -120,12 +136,14 @@ export class IsometricRenderer {
 
         // Add debug logging for structure tiles
         if (tile.structure) {
+            /*
             console.log(`Rendering tile with structure:`, {
                 x, y,
                 tileType: tile.type,
                 structureType: tile.structure.type,
                 isoX, isoY
             });
+            */
         }
 
         const heightOffset = tile.type === 'water' ? 0 : (tile.height * this.heightScale);

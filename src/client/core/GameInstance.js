@@ -800,26 +800,68 @@ export class GameInstance {
      * @returns {void}
      */
     start() {
-        console.log('Game: Starting game loop');
+        if (this.debug?.flags?.logInit) {
+            console.log('Game: Starting game loop');
+        }
+
         this.running = true;
         this.lastTime = performance.now();
+        this.frameCount = 0;
+        this.lastFpsUpdate = this.lastTime;
+        this.fps = 0;
+        this.targetFps = 60;
+        this.frameInterval = 1000 / this.targetFps;
+        this.frameTime = 0;
+
+        // Start the game loop
         this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     /**
-     * Main game loop
+     * Main game loop with frame rate limiting
      * @private
      * @param {number} timestamp - Current timestamp from requestAnimationFrame
      */
     gameLoop(timestamp) {
         if (!this.running) return;
 
-        const deltaTime = timestamp - this.lastTime;
-        this.lastTime = timestamp;
+        // Calculate time since last frame
+        const elapsed = timestamp - this.lastTime;
 
-        this.update(deltaTime);
-        this.render();
+        // Only update if enough time has passed for the target frame rate
+        if (elapsed >= this.frameInterval) {
+            // Calculate actual delta time (capped to prevent large jumps)
+            const deltaTime = Math.min(elapsed, 100); // Cap at 100ms to prevent huge jumps
 
+            // Update last time, accounting for any extra time beyond the frame interval
+            this.lastTime = timestamp - (elapsed % this.frameInterval);
+
+            // Update game state
+            this.update(deltaTime);
+
+            // Render the frame
+            this.render();
+
+            // Update FPS counter
+            this.frameCount++;
+            this.frameTime += deltaTime;
+
+            if (timestamp - this.lastFpsUpdate >= 1000) {
+                this.fps = Math.round((this.frameCount * 1000) / (timestamp - this.lastFpsUpdate));
+                this.lastFpsUpdate = timestamp;
+                this.frameCount = 0;
+
+                // Update FPS display if enabled
+                if (this.debug?.flags?.showFPS) {
+                    const fpsElement = document.getElementById('fpsCounter');
+                    if (fpsElement) {
+                        fpsElement.textContent = `FPS: ${this.fps}`;
+                    }
+                }
+            }
+        }
+
+        // Schedule next frame
         this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
     }
 
@@ -970,96 +1012,77 @@ export class GameInstance {
         // Draw tile coordinates if enabled
         this.drawTileCoordinates();
 
-        // Debug log for entities - only log if debug flag is enabled
-        if (this.debug?.flags?.logEntities) {
-            console.log('Entities before sorting:', {
-                total: this.entities.size,
-                entities: Array.from(this.entities).map(e => ({
-                    type: e.constructor.name,
-                    name: e.name,
-                    isEnemy: e.isEnemy,
-                    isVisible: e.isVisible,
-                    position: `${e.x},${e.y}`,
-                    inStructure: !!e.currentStructure
-                }))
-            });
-        }
+        // Calculate visible area based on camera position and zoom
+        const viewportWidth = this.canvas.width / this.camera.zoom;
+        const viewportHeight = this.canvas.height / this.camera.zoom;
 
-        // Split entities into inside/outside groups
+        // Add a buffer around the visible area
+        const buffer = 5;
+
+        // Calculate visible range in world coordinates
+        const visibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / (this.renderer.tileWidth * this.camera.zoom)) + buffer;
+
+        // Calculate bounds
+        const minX = Math.max(0, Math.floor(this.camera.x - visibleRange));
+        const minY = Math.max(0, Math.floor(this.camera.y - visibleRange));
+        const maxX = Math.min(this.world.width - 1, Math.ceil(this.camera.x + visibleRange));
+        const maxY = Math.min(this.world.height - 1, Math.ceil(this.camera.y + visibleRange));
+
+        // Filter entities to only those in the visible area
+        const visibleEntities = [];
         const entitiesOutside = [];
         const entitiesInside = [];
 
-        this.entities.forEach(entity => {
+        // Use for loop instead of forEach for better performance
+        const entities = Array.from(this.entities);
+        for (let i = 0; i < entities.length; i++) {
+            const entity = entities[i];
+
+            // Skip entities outside the visible area
+            if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
+                continue;
+            }
+
+            visibleEntities.push(entity);
+
+            // Split into inside/outside groups
             if (entity.currentStructure) {
                 entitiesInside.push(entity);
             } else {
                 entitiesOutside.push(entity);
             }
-        });
+        }
 
-        // Sort each group by Y position
-        entitiesOutside.sort((a, b) => a.y - b.y);
-        entitiesInside.sort((a, b) => a.y - b.y);
+        // Sort each group by position for proper z-ordering
+        // Use a more efficient sorting method that considers both x and y
+        entitiesOutside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
+        entitiesInside.sort((a, b) => (a.y + a.x) - (b.y + b.x));
 
-        // Debug log for sorted entities - only log if debug flag is enabled
+        // Debug log for entities - only log if debug flag is enabled
         if (this.debug?.flags?.logEntities) {
-            console.log('Entities after sorting:', {
-                outside: entitiesOutside.map(e => ({
-                    type: e.constructor.name,
-                    name: e.name,
-                    isEnemy: e.isEnemy,
-                    isVisible: e.isVisible,
-                    position: `${e.x},${e.y}`
-                })),
-                inside: entitiesInside.map(e => ({
-                    type: e.constructor.name,
-                    name: e.name,
-                    isEnemy: e.isEnemy,
-                    isVisible: e.isVisible,
-                    position: `${e.x},${e.y}`
-                }))
+            console.log('Visible entities:', {
+                total: visibleEntities.length,
+                outside: entitiesOutside.length,
+                inside: entitiesInside.length,
+                bounds: `(${minX},${minY}) to (${maxX},${maxY})`
             });
         }
 
-        // Render outside entities first
-        entitiesOutside.forEach(entity => {
+        // Render outside entities first using for loop for better performance
+        for (let i = 0; i < entitiesOutside.length; i++) {
+            const entity = entitiesOutside[i];
             if (entity.render && entity.isVisible) {
-                // Only log if debug flag is enabled
-                if (this.debug?.flags?.logEntityRendering) {
-                    console.log(`Rendering outside entity: ${entity.name}`, {
-                        type: entity.constructor.name,
-                        isEnemy: entity.isEnemy,
-                        position: `${entity.x},${entity.y}`
-                    });
-                }
                 entity.render(this.ctx, this.renderer);
-            } else if (entity.isEnemy && this.debug?.flags?.logErrors) {
-                console.warn(`Enemy entity ${entity.name} not rendered:`, {
-                    hasRender: !!entity.render,
-                    isVisible: entity.isVisible
-                });
             }
-        });
+        }
 
         // Render inside entities after structure transparency
-        entitiesInside.forEach(entity => {
+        for (let i = 0; i < entitiesInside.length; i++) {
+            const entity = entitiesInside[i];
             if (entity.render && entity.isVisible) {
-                // Only log if debug flag is enabled
-                if (this.debug?.flags?.logEntityRendering) {
-                    console.log(`Rendering inside entity: ${entity.name}`, {
-                        type: entity.constructor.name,
-                        isEnemy: entity.isEnemy,
-                        position: `${entity.x},${entity.y}`
-                    });
-                }
                 entity.render(this.ctx, this.renderer);
-            } else if (entity.isEnemy && this.debug?.flags?.logErrors) {
-                console.warn(`Enemy entity ${entity.name} not rendered:`, {
-                    hasRender: !!entity.render,
-                    isVisible: entity.isVisible
-                });
             }
-        });
+        }
 
         // Render player last
         if (this.player) {
