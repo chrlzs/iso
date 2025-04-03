@@ -49,17 +49,18 @@ export class ShadowRenderer {
         // This is more likely to be visible and easier to debug
 
         // Calculate shadow size based on structure dimensions
-        // Make shadows much larger to ensure they're visible
-        const shadowWidth = (width + height) * tileWidth * 0.75;
-        const shadowHeight = (width + height) * tileHeight * 0.3;
+        // Make shadows proportional to the structure size
+        const shadowWidth = (width + height) * tileWidth * 0.6;
+        const shadowHeight = (width + height) * tileHeight * 0.25;
 
         // Position the shadow at the bottom of the structure
-        // Adjust the position to ensure it's visible
         const shadowX = screenX + (width * tileWidth / 4);
         const shadowY = screenY + (height * tileHeight / 2) + (width * tileHeight / 4);
 
-        // Draw a simple elliptical shadow with higher opacity
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        // Draw a simple elliptical shadow with subtle opacity
+        // Lower opacity for more subtle shadows
+        const shadowOpacity = Math.min(0.3, 0.15 + structureHeight * 0.05);
+        this.ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
         this.ctx.beginPath();
         this.ctx.ellipse(
             shadowX,
@@ -72,14 +73,15 @@ export class ShadowRenderer {
         );
         this.ctx.fill();
 
-        // Add a debug outline to make shadows more visible during development
-        if (world?.game?.debug?.flags?.logShadows) {
-            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        // Only add debug elements if explicitly enabled
+        if (world?.game?.debug?.flags?.logShadows === true) {
+            // Add a debug outline
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
             this.ctx.lineWidth = 1;
             this.ctx.stroke();
 
             // Add structure coordinates as text
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             this.ctx.font = '10px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillText(`${structure.x},${structure.y}`, shadowX, shadowY);
@@ -100,11 +102,11 @@ export class ShadowRenderer {
     renderShadows(structures, tileWidth, tileHeight, world, showTestShadow = false) {
         if (!structures || structures.length === 0) return;
 
-        // Enable shadow logging for debugging
+        // Disable shadow logging for production
         if (world?.game) {
             if (!world.game.debug) world.game.debug = {};
             if (!world.game.debug.flags) world.game.debug.flags = {};
-            world.game.debug.flags.logShadows = true; // Temporarily enable shadow logging
+            world.game.debug.flags.logShadows = false; // Disable shadow logging
         }
 
         // Log shadow rendering if debug flag is enabled
