@@ -131,6 +131,9 @@ export class GameInstance {
                 logWarnings: false,     // Disable warnings
                 logErrors: true,        // Keep errors enabled
                 logInit: false,         // Disable init logging
+                logInput: true,         // Enable input logging
+                logDialog: true,        // Enable dialog logging
+                logCombat: true,        // Enable combat logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -1241,34 +1244,58 @@ export class GameInstance {
     findClickedNPC(screenX, screenY) {
         const worldPos = this.screenToWorld(screenX, screenY);
 
-        console.log('Click detected:', {
-            screen: { x: screenX, y: screenY },
-            world: worldPos,
-            entities: Array.from(this.entities).map(e => ({
-                type: e.constructor.name,
-                pos: { x: e.x, y: e.y }
-            }))
-        });
+        if (this.debug?.flags?.logInput) {
+            console.log('Click detected:', {
+                screen: { x: screenX, y: screenY },
+                world: worldPos,
+                entities: Array.from(this.entities).map(e => ({
+                    type: e.constructor.name,
+                    pos: { x: e.x, y: e.y },
+                    isEnemy: e.isEnemy
+                }))
+            });
+        }
 
         // Check all entities with a larger threshold
+        const clickThreshold = 1.5; // Increased from 1.0 to 1.5
+        let closestEntity = null;
+        let closestDistance = Infinity;
+
         for (const entity of this.entities) {
-            if (entity instanceof Merchant) {
+            // Check if entity is an NPC (including Merchant and Enemy)
+            if (entity instanceof NPC || entity instanceof Merchant) {
                 const distance = Math.sqrt(
                     Math.pow(entity.x - worldPos.x, 2) +
                     Math.pow(entity.y - worldPos.y, 2)
                 );
 
-                console.log('Checking merchant:', {
-                    merchantPos: { x: entity.x, y: entity.y },
-                    distance: distance,
-                    clickThreshold: 1.5  // Increased from 1.0 to 1.5
-                });
+                if (this.debug?.flags?.logInput) {
+                    console.log(`Checking ${entity.isEnemy ? 'enemy' : 'NPC'}:`, {
+                        name: entity.name,
+                        pos: { x: entity.x, y: entity.y },
+                        distance: distance,
+                        clickThreshold: clickThreshold,
+                        isEnemy: entity.isEnemy
+                    });
+                }
 
-                if (distance < 1.5) {  // Increased threshold
-                    console.log('Merchant clicked:', entity);
-                    return entity;
+                // If within threshold and closer than any previous entity
+                if (distance < clickThreshold && distance < closestDistance) {
+                    closestEntity = entity;
+                    closestDistance = distance;
                 }
             }
+        }
+
+        if (closestEntity) {
+            if (this.debug?.flags?.logInput) {
+                console.log(`${closestEntity.isEnemy ? 'Enemy' : 'NPC'} clicked:`, {
+                    name: closestEntity.name,
+                    type: closestEntity.constructor.name,
+                    isEnemy: closestEntity.isEnemy
+                });
+            }
+            return closestEntity;
         }
 
         return null;
@@ -1325,21 +1352,38 @@ export class GameInstance {
     startDialog(npc) {
         if (!npc) return;
 
-        console.log('Starting dialog with:', npc.constructor.name);
+        if (this.debug?.flags?.logDialog) {
+            console.log('Starting dialog with:', {
+                type: npc.constructor.name,
+                name: npc.name,
+                isEnemy: npc.isEnemy
+            });
+        }
 
         // Check if NPC is an enemy
         if (npc.isEnemy) {
-            console.log('Starting combat with enemy:', npc.name);
+            if (this.debug?.flags?.logDialog) {
+                console.log('Starting combat dialog with enemy:', npc.name);
+            }
+
+            // Get enemy dialog text or use default
+            const enemyText = npc.dialog?.[0]?.text || "Prepare to fight!";
+
             this.messageSystem.queueMessage({
                 speaker: npc.name || 'Enemy',
-                text: npc.dialog?.[0]?.text || "Prepare to fight!",
+                text: enemyText,
                 logMessage: true,
                 options: [
                     {
                         text: "Fight",
                         action: () => {
                             this.messageSystem.hide();
-                            this.player.interact(npc);
+                            // Initiate combat directly
+                            if (this.combatSystem) {
+                                this.combatSystem.initiateCombat(this.player, npc);
+                            } else {
+                                console.error('Combat system not initialized');
+                            }
                         }
                     },
                     {
