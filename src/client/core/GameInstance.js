@@ -1137,16 +1137,16 @@ export class GameInstance {
         }
 
         // Find the structure at player's position
-        let playerX = Math.floor(this.player.x);
-        let playerY = Math.floor(this.player.y);
+        let playerTileX = Math.floor(this.player.x);
+        let playerTileY = Math.floor(this.player.y);
         let playerStructure = null;
 
         // Check each structure to see if player is inside
         this.world.getAllStructures().forEach(structure => {
-            if (playerX >= structure.x &&
-                playerX < structure.x + structure.width &&
-                playerY >= structure.y &&
-                playerY < structure.y + structure.height) {
+            if (playerTileX >= structure.x &&
+                playerTileX < structure.x + structure.width &&
+                playerTileY >= structure.y &&
+                playerTileY < structure.y + structure.height) {
                 playerStructure = structure;
             }
         });
