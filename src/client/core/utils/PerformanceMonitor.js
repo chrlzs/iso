@@ -65,6 +65,8 @@ export class PerformanceMonitor {
      */
     update(gameInstance) {
         try {
+            // Store reference to game instance for logging
+            this._gameInstance = gameInstance;
             if (!this.isRunning) return;
             if (!gameInstance) return;
 
@@ -88,7 +90,7 @@ export class PerformanceMonitor {
                     }
                 } catch (e) {
                     // Memory API might not be available in all browsers
-                    console.debug('Memory API not available:', e);
+                    // Silent fail - memory API not available in all browsers
                 }
 
                 // Get entity count with proper null checks
@@ -98,7 +100,7 @@ export class PerformanceMonitor {
                         entityCount = gameInstance.world.entities.length;
                     }
                 } catch (e) {
-                    console.debug('Error getting entity count:', e);
+                    // Silent fail - entity count error
                 }
 
                 // Get draw calls with proper null checks
@@ -108,7 +110,7 @@ export class PerformanceMonitor {
                         drawCalls = gameInstance.renderer.stats.drawCalls || 0;
                     }
                 } catch (e) {
-                    console.debug('Error getting draw calls:', e);
+                    // Silent fail - draw calls error
                 }
 
                 // Get texture count with proper null checks
@@ -118,7 +120,7 @@ export class PerformanceMonitor {
                         textureCount = gameInstance.tileManager.textures.size || 0;
                     }
                 } catch (e) {
-                    console.debug('Error getting texture count:', e);
+                    // Silent fail - texture count error
                 }
 
                 // Add metrics to history
@@ -136,16 +138,19 @@ export class PerformanceMonitor {
                     });
                 }
 
-                // Log metrics
-                if (this.options.logToConsole) {
-                    console.log('Performance metrics:', {
-                        fps,
-                        memory: memory ? `${memory.usedJSHeapSize.toFixed(2)}MB / ${memory.totalJSHeapSize.toFixed(2)}MB` : 'N/A',
-                        entities: entityCount,
-                        drawCalls,
-                        textures: textureCount,
-                        elapsedTime: Math.floor((now - (this.metrics.timestamp[0] || now)) / 1000) + 's'
-                    });
+                // Log metrics (only every 5 samples to reduce console spam)
+                if (this.options.logToConsole && this.metrics.fps.length % 5 === 0) {
+                    // If game instance has a logger, use it
+                    if (gameInstance && gameInstance.logger) {
+                        gameInstance.logger.performance('Performance metrics', {
+                            fps,
+                            memory: memory ? `${memory.usedJSHeapSize.toFixed(2)}MB / ${memory.totalJSHeapSize.toFixed(2)}MB` : 'N/A',
+                            entities: entityCount,
+                            drawCalls,
+                            textures: textureCount,
+                            elapsedTime: Math.floor((now - (this.metrics.timestamp[0] || now)) / 1000) + 's'
+                        });
+                    }
 
                     // Check for memory leaks
                     this.checkForMemoryLeaks();
@@ -156,7 +161,13 @@ export class PerformanceMonitor {
                 this.frameCount = 0;
             }
         } catch (error) {
-            console.error('Error in performance monitoring:', error);
+            // Use logger if available, otherwise fall back to console
+            if (this._gameInstance && this._gameInstance.logger) {
+                this._gameInstance.logger.error('Error in performance monitoring:', error);
+            } else {
+                console.error('Error in performance monitoring:', error);
+            }
+
             // Don't let performance monitoring crash the game
             this.lastSampleTime = performance.now();
             this.frameCount = 0;
@@ -181,40 +192,64 @@ export class PerformanceMonitor {
             }
         }
 
+        // Get game instance for logging
+        const gameInstance = this._gameInstance;
+
         if (consistentGrowth) {
             const startMemory = memoryHistory[0].usedJSHeapSize;
             const endMemory = memoryHistory[memoryHistory.length - 1].usedJSHeapSize;
             const growthRate = (endMemory - startMemory) / (this.metrics.timestamp[this.metrics.timestamp.length - 1] - this.metrics.timestamp[0]) * 1000;
 
-            console.warn('Potential memory leak detected!', {
+            const leakInfo = {
                 startMemory: `${startMemory.toFixed(2)}MB`,
                 currentMemory: `${endMemory.toFixed(2)}MB`,
                 growth: `${(endMemory - startMemory).toFixed(2)}MB`,
                 growthRate: `${growthRate.toFixed(2)}MB/s`,
                 timeElapsed: `${((this.metrics.timestamp[this.metrics.timestamp.length - 1] - this.metrics.timestamp[0]) / 1000).toFixed(0)}s`
-            });
+            };
+
+            // Use logger if available, otherwise fall back to console
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.warn('Potential memory leak detected!', leakInfo);
+            } else {
+                console.warn('Potential memory leak detected!', leakInfo);
+            }
         }
 
         // Check for entity growth
         const entityStart = this.metrics.entities[0];
         const entityEnd = this.metrics.entities[this.metrics.entities.length - 1];
         if (entityEnd > entityStart * 1.5) {
-            console.warn('Entity count growing rapidly!', {
+            const entityInfo = {
                 startCount: entityStart,
                 currentCount: entityEnd,
                 growth: entityEnd - entityStart
-            });
+            };
+
+            // Use logger if available
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.warn('Entity count growing rapidly!', entityInfo);
+            } else {
+                console.warn('Entity count growing rapidly!', entityInfo);
+            }
         }
 
         // Check for texture growth
         const textureStart = this.metrics.textures[0];
         const textureEnd = this.metrics.textures[this.metrics.textures.length - 1];
         if (textureEnd > textureStart * 1.5) {
-            console.warn('Texture count growing rapidly!', {
+            const textureInfo = {
                 startCount: textureStart,
                 currentCount: textureEnd,
                 growth: textureEnd - textureStart
-            });
+            };
+
+            // Use logger if available
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.warn('Texture count growing rapidly!', textureInfo);
+            } else {
+                console.warn('Texture count growing rapidly!', textureInfo);
+            }
         }
     }
 

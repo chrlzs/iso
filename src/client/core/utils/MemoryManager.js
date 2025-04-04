@@ -31,6 +31,9 @@ export class MemoryManager {
         try {
             if (!gameInstance) return;
 
+            // Store reference to game instance for logging
+            this._gameInstance = gameInstance;
+
             const now = performance.now();
 
             // Track texture usage
@@ -43,7 +46,7 @@ export class MemoryManager {
                     }
                 }
             } catch (e) {
-                console.debug('Error tracking texture usage:', e);
+                // Silent fail - texture tracking error
             }
 
             // Perform cleanup at regular intervals
@@ -52,7 +55,13 @@ export class MemoryManager {
                 this.lastCleanupTime = now;
             }
         } catch (error) {
-            console.error('Error in memory manager update:', error);
+            // Use logger if available, otherwise fall back to console
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.error('Error in memory manager update:', error);
+            } else {
+                console.error('Error in memory manager update:', error);
+            }
+
             // Don't let memory management crash the game
             this.lastCleanupTime = performance.now();
         }
@@ -66,39 +75,58 @@ export class MemoryManager {
         try {
             if (!gameInstance) return;
 
-            console.log('Performing memory cleanup...');
+            // Log cleanup start
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.info('Performing memory cleanup...');
+            }
 
             // Clean up unused textures
             try {
                 this.cleanupTextures(gameInstance);
             } catch (e) {
-                console.error('Error cleaning up textures:', e);
+                if (gameInstance && gameInstance.logger) {
+                    gameInstance.logger.error('Error cleaning up textures:', e);
+                }
             }
 
             // Clean up distant entities
             try {
                 this.cleanupEntities(gameInstance);
             } catch (e) {
-                console.error('Error cleaning up entities:', e);
+                if (gameInstance && gameInstance.logger) {
+                    gameInstance.logger.error('Error cleaning up entities:', e);
+                }
             }
 
             // Clean up cached data
             try {
                 this.cleanupCaches(gameInstance);
             } catch (e) {
-                console.error('Error cleaning up caches:', e);
+                if (gameInstance && gameInstance.logger) {
+                    gameInstance.logger.error('Error cleaning up caches:', e);
+                }
             }
 
             // Force garbage collection if possible
             try {
                 this.forceGarbageCollection();
             } catch (e) {
-                console.error('Error forcing garbage collection:', e);
+                if (gameInstance && gameInstance.logger) {
+                    gameInstance.logger.error('Error forcing garbage collection:', e);
+                }
             }
 
-            console.log('Memory cleanup complete');
+            // Log cleanup complete
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.info('Memory cleanup complete');
+            }
         } catch (error) {
-            console.error('Error in memory cleanup:', error);
+            // Use logger if available, otherwise fall back to console
+            if (gameInstance && gameInstance.logger) {
+                gameInstance.logger.error('Error in memory cleanup:', error);
+            } else {
+                console.error('Error in memory cleanup:', error);
+            }
         }
     }
 
@@ -135,8 +163,8 @@ export class MemoryManager {
             }
         }
 
-        if (texturesRemoved > 0) {
-            console.log(`Removed ${texturesRemoved} unused textures`);
+        if (texturesRemoved > 0 && gameInstance && gameInstance.logger) {
+            gameInstance.logger.info(`Removed ${texturesRemoved} unused textures`);
         }
     }
 
@@ -174,8 +202,8 @@ export class MemoryManager {
             return true;
         });
 
-        if (entitiesRemoved > 0) {
-            console.log(`Removed ${entitiesRemoved} distant entities`);
+        if (entitiesRemoved > 0 && gameInstance && gameInstance.logger) {
+            gameInstance.logger.info(`Removed ${entitiesRemoved} distant entities`);
         }
     }
 
@@ -187,14 +215,16 @@ export class MemoryManager {
         // Clean up path cache
         if (gameInstance.pathCache) {
             gameInstance.pathCache.clear();
-            console.log('Cleared path cache');
+            if (gameInstance.logger) {
+                gameInstance.logger.debug('Cleared path cache');
+            }
         }
 
         // Clean up asset cache
         if (gameInstance.assetCache) {
             const removed = gameInstance.assetCache.cleanup();
-            if (removed > 0) {
-                console.log(`Removed ${removed} expired assets from cache`);
+            if (removed > 0 && gameInstance.logger) {
+                gameInstance.logger.info(`Removed ${removed} expired assets from cache`);
             }
         }
     }
@@ -207,9 +237,14 @@ export class MemoryManager {
         if (window.gc) {
             try {
                 window.gc();
-                console.log('Forced garbage collection');
+                // This is a debug-only message, so use debug level
+                if (this._gameInstance && this._gameInstance.logger) {
+                    this._gameInstance.logger.debug('Forced garbage collection');
+                }
             } catch (e) {
-                console.warn('Failed to force garbage collection:', e);
+                if (this._gameInstance && this._gameInstance.logger) {
+                    this._gameInstance.logger.warn('Failed to force garbage collection:', e);
+                }
             }
         }
     }

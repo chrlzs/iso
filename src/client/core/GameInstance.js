@@ -28,6 +28,7 @@ import { RectPool } from './utils/RectPool.js';
 import { SpatialGrid } from './utils/SpatialGrid.js';
 import { OcclusionCulling } from './renderer/OcclusionCulling.js';
 import { RenderBatch } from './renderer/RenderBatch.js';
+import { Logger } from './utils/Logger.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -44,7 +45,15 @@ export class GameInstance {
      * @param {string} [options.assetsBaseUrl] - Base URL for loading assets
      */
     constructor(canvas, options = {}) {
-        console.log('Game: Initializing...');
+        this.logger = new Logger({
+            enabled: true,
+            level: 'info',
+            productionMode: false, // Set to true in production
+            throttleMs: 1000, // Throttle similar messages within 1 second
+            maxHistory: 100
+        });
+
+        this.logger.info('Game: Initializing...');
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
@@ -1179,7 +1188,7 @@ export class GameInstance {
                 this.performanceMode.consecutiveSlowFrames++;
 
                 if (this.debug?.flags?.logPerformance) {
-                    console.warn(`Slow frame detected: ${frameTime.toFixed(2)}ms`, {
+                    this.logger.warn(`Slow frame detected: ${frameTime.toFixed(2)}ms`, {
                         updateTime: updateTime.toFixed(2),
                         renderTime: renderTime.toFixed(2),
                         skipped: skipRender,
@@ -1189,17 +1198,17 @@ export class GameInstance {
 
                 // Force memory cleanup on very slow frames or consecutive slow frames
                 if (frameTime > 100 || this.performanceMode.consecutiveSlowFrames >= 10) {
-                    console.warn(`Performance issue detected - forcing memory cleanup`);
+                    this.logger.warn(`Performance issue detected - forcing memory cleanup`);
                     try {
                         this.memoryManager.cleanupMemory(this);
 
                         // Increase frame skipping if we're having severe performance issues
                         if (frameTime > 200 || this.performanceMode.consecutiveSlowFrames >= 20) {
                             this.performanceMode.frameSkip = Math.min(5, this.performanceMode.frameSkip + 1);
-                            console.warn(`Severe performance issues - increasing frame skip to ${this.performanceMode.frameSkip}`);
+                            this.logger.warn(`Severe performance issues - increasing frame skip to ${this.performanceMode.frameSkip}`);
                         }
                     } catch (e) {
-                        console.error('Error during emergency memory cleanup:', e);
+                        this.logger.error('Error during emergency memory cleanup:', e);
                     }
                 }
             } else {
@@ -1314,14 +1323,14 @@ export class GameInstance {
         this.assetCache = null;
         this.workerManager = null;
 
-        console.log('Game: Destroyed');
+        this.logger.info('Game: Destroyed');
     }
 
     /**
      * Cleans up resources to prevent memory leaks
      */
     cleanup() {
-        console.log('Game: Cleaning up resources...');
+        this.logger.info('Game: Cleaning up resources...');
 
         // Dispose of WebGL renderer if it exists
         if (this.webglRenderer) {
@@ -1395,11 +1404,11 @@ export class GameInstance {
             try {
                 window.gc();
             } catch (e) {
-                console.warn('Failed to force garbage collection');
+                this.logger.warn('Failed to force garbage collection');
             }
         }
 
-        console.log('Game: Cleanup complete');
+        this.logger.info('Game: Cleanup complete');
     }
 
     /**
