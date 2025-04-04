@@ -28,23 +28,33 @@ export class MemoryManager {
      * @param {Object} gameInstance - Game instance
      */
     update(gameInstance) {
-        if (!gameInstance) return;
+        try {
+            if (!gameInstance) return;
 
-        const now = performance.now();
+            const now = performance.now();
 
-        // Track texture usage
-        if (gameInstance.tileManager && gameInstance.tileManager.textures) {
-            for (const [key, texture] of gameInstance.tileManager.textures.entries()) {
-                if (texture && texture.isVisible) {
-                    this.textureLastUsed.set(key, now);
+            // Track texture usage
+            try {
+                if (gameInstance.tileManager && gameInstance.tileManager.textures) {
+                    for (const [key, texture] of gameInstance.tileManager.textures.entries()) {
+                        if (texture && texture.isVisible) {
+                            this.textureLastUsed.set(key, now);
+                        }
+                    }
                 }
+            } catch (e) {
+                console.debug('Error tracking texture usage:', e);
             }
-        }
 
-        // Perform cleanup at regular intervals
-        if (now - this.lastCleanupTime > this.options.cleanupInterval) {
-            this.cleanupMemory(gameInstance);
-            this.lastCleanupTime = now;
+            // Perform cleanup at regular intervals
+            if (now - this.lastCleanupTime > this.options.cleanupInterval) {
+                this.cleanupMemory(gameInstance);
+                this.lastCleanupTime = now;
+            }
+        } catch (error) {
+            console.error('Error in memory manager update:', error);
+            // Don't let memory management crash the game
+            this.lastCleanupTime = performance.now();
         }
     }
 
@@ -53,21 +63,43 @@ export class MemoryManager {
      * @param {Object} gameInstance - Game instance
      */
     cleanupMemory(gameInstance) {
-        console.log('Performing memory cleanup...');
+        try {
+            if (!gameInstance) return;
 
-        // Clean up unused textures
-        this.cleanupTextures(gameInstance);
+            console.log('Performing memory cleanup...');
 
-        // Clean up distant entities
-        this.cleanupEntities(gameInstance);
+            // Clean up unused textures
+            try {
+                this.cleanupTextures(gameInstance);
+            } catch (e) {
+                console.error('Error cleaning up textures:', e);
+            }
 
-        // Clean up cached data
-        this.cleanupCaches(gameInstance);
+            // Clean up distant entities
+            try {
+                this.cleanupEntities(gameInstance);
+            } catch (e) {
+                console.error('Error cleaning up entities:', e);
+            }
 
-        // Force garbage collection if possible
-        this.forceGarbageCollection();
+            // Clean up cached data
+            try {
+                this.cleanupCaches(gameInstance);
+            } catch (e) {
+                console.error('Error cleaning up caches:', e);
+            }
 
-        console.log('Memory cleanup complete');
+            // Force garbage collection if possible
+            try {
+                this.forceGarbageCollection();
+            } catch (e) {
+                console.error('Error forcing garbage collection:', e);
+            }
+
+            console.log('Memory cleanup complete');
+        } catch (error) {
+            console.error('Error in memory cleanup:', error);
+        }
     }
 
     /**

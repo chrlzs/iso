@@ -64,67 +64,101 @@ export class PerformanceMonitor {
      * @param {Object} gameInstance - Game instance
      */
     update(gameInstance) {
-        if (!this.isRunning) return;
+        try {
+            if (!this.isRunning) return;
+            if (!gameInstance) return;
 
-        this.frameCount++;
-        const now = performance.now();
-        const elapsed = now - this.lastSampleTime;
+            this.frameCount++;
+            const now = performance.now();
+            const elapsed = now - this.lastSampleTime;
 
-        // Sample metrics at regular intervals
-        if (elapsed >= this.options.sampleInterval) {
-            const fps = Math.round((this.frameCount / elapsed) * 1000);
+            // Sample metrics at regular intervals
+            if (elapsed >= this.options.sampleInterval) {
+                const fps = Math.round((this.frameCount / elapsed) * 1000);
 
-            // Get memory usage if available
-            let memory = null;
-            if (window.performance && window.performance.memory) {
-                memory = {
-                    usedJSHeapSize: window.performance.memory.usedJSHeapSize / (1024 * 1024),
-                    totalJSHeapSize: window.performance.memory.totalJSHeapSize / (1024 * 1024),
-                    jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
-                };
+                // Get memory usage if available
+                let memory = null;
+                try {
+                    if (window.performance && window.performance.memory) {
+                        memory = {
+                            usedJSHeapSize: window.performance.memory.usedJSHeapSize / (1024 * 1024),
+                            totalJSHeapSize: window.performance.memory.totalJSHeapSize / (1024 * 1024),
+                            jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
+                        };
+                    }
+                } catch (e) {
+                    // Memory API might not be available in all browsers
+                    console.debug('Memory API not available:', e);
+                }
+
+                // Get entity count with proper null checks
+                let entityCount = 0;
+                try {
+                    if (gameInstance.world && Array.isArray(gameInstance.world.entities)) {
+                        entityCount = gameInstance.world.entities.length;
+                    }
+                } catch (e) {
+                    console.debug('Error getting entity count:', e);
+                }
+
+                // Get draw calls with proper null checks
+                let drawCalls = 0;
+                try {
+                    if (gameInstance.renderer && gameInstance.renderer.stats) {
+                        drawCalls = gameInstance.renderer.stats.drawCalls || 0;
+                    }
+                } catch (e) {
+                    console.debug('Error getting draw calls:', e);
+                }
+
+                // Get texture count with proper null checks
+                let textureCount = 0;
+                try {
+                    if (gameInstance.tileManager && gameInstance.tileManager.textures) {
+                        textureCount = gameInstance.tileManager.textures.size || 0;
+                    }
+                } catch (e) {
+                    console.debug('Error getting texture count:', e);
+                }
+
+                // Add metrics to history
+                this.metrics.fps.push(fps);
+                this.metrics.memory.push(memory);
+                this.metrics.entities.push(entityCount);
+                this.metrics.drawCalls.push(drawCalls);
+                this.metrics.textures.push(textureCount);
+                this.metrics.timestamp.push(now);
+
+                // Trim history if needed
+                if (this.metrics.fps.length > this.options.historySize) {
+                    Object.keys(this.metrics).forEach(key => {
+                        this.metrics[key] = this.metrics[key].slice(-this.options.historySize);
+                    });
+                }
+
+                // Log metrics
+                if (this.options.logToConsole) {
+                    console.log('Performance metrics:', {
+                        fps,
+                        memory: memory ? `${memory.usedJSHeapSize.toFixed(2)}MB / ${memory.totalJSHeapSize.toFixed(2)}MB` : 'N/A',
+                        entities: entityCount,
+                        drawCalls,
+                        textures: textureCount,
+                        elapsedTime: Math.floor((now - (this.metrics.timestamp[0] || now)) / 1000) + 's'
+                    });
+
+                    // Check for memory leaks
+                    this.checkForMemoryLeaks();
+                }
+
+                // Reset counters
+                this.lastSampleTime = now;
+                this.frameCount = 0;
             }
-
-            // Get entity count with proper null checks
-            const entityCount = gameInstance && gameInstance.world && gameInstance.world.entities ? gameInstance.world.entities.length : 0;
-
-            // Get draw calls with proper null checks
-            const drawCalls = gameInstance && gameInstance.renderer && gameInstance.renderer.stats ? gameInstance.renderer.stats.drawCalls || 0 : 0;
-
-            // Get texture count with proper null checks
-            const textureCount = gameInstance && gameInstance.tileManager && gameInstance.tileManager.textures ? gameInstance.tileManager.textures.size : 0;
-
-            // Add metrics to history
-            this.metrics.fps.push(fps);
-            this.metrics.memory.push(memory);
-            this.metrics.entities.push(entityCount);
-            this.metrics.drawCalls.push(drawCalls);
-            this.metrics.textures.push(textureCount);
-            this.metrics.timestamp.push(now);
-
-            // Trim history if needed
-            if (this.metrics.fps.length > this.options.historySize) {
-                Object.keys(this.metrics).forEach(key => {
-                    this.metrics[key] = this.metrics[key].slice(-this.options.historySize);
-                });
-            }
-
-            // Log metrics
-            if (this.options.logToConsole) {
-                console.log('Performance metrics:', {
-                    fps,
-                    memory: memory ? `${memory.usedJSHeapSize.toFixed(2)}MB / ${memory.totalJSHeapSize.toFixed(2)}MB` : 'N/A',
-                    entities: entityCount,
-                    drawCalls,
-                    textures: textureCount,
-                    elapsedTime: Math.floor((now - this.metrics.timestamp[0]) / 1000) + 's'
-                });
-
-                // Check for memory leaks
-                this.checkForMemoryLeaks();
-            }
-
-            // Reset counters
-            this.lastSampleTime = now;
+        } catch (error) {
+            console.error('Error in performance monitoring:', error);
+            // Don't let performance monitoring crash the game
+            this.lastSampleTime = performance.now();
             this.frameCount = 0;
         }
     }

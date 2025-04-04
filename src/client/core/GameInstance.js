@@ -1100,12 +1100,22 @@ export class GameInstance {
             // Always update game state
             this.update(deltaTime);
 
-            // Update performance monitor
-            this.performanceMonitor.update(this);
+            // Update performance monitor (only every 5 frames to reduce overhead)
+            if (this.frameCount % 5 === 0) {
+                try {
+                    this.performanceMonitor.update(this);
+                } catch (e) {
+                    console.error('Error updating performance monitor:', e);
+                }
+            }
 
-            // Update memory manager (less frequently)
-            if (this.frameCount % 10 === 0) {
-                this.memoryManager.update(this);
+            // Update memory manager (even less frequently)
+            if (this.frameCount % 30 === 0) {
+                try {
+                    this.memoryManager.update(this);
+                } catch (e) {
+                    console.error('Error updating memory manager:', e);
+                }
             }
 
             const updateEnd = performance.now();
@@ -1156,7 +1166,17 @@ export class GameInstance {
                 // Force memory cleanup on very slow frames or consecutive slow frames
                 if (frameTime > 100 || this.performanceMode.consecutiveSlowFrames >= 10) {
                     console.warn(`Performance issue detected - forcing memory cleanup`);
-                    this.memoryManager.cleanupMemory(this);
+                    try {
+                        this.memoryManager.cleanupMemory(this);
+
+                        // Increase frame skipping if we're having severe performance issues
+                        if (frameTime > 200 || this.performanceMode.consecutiveSlowFrames >= 20) {
+                            this.performanceMode.frameSkip = Math.min(5, this.performanceMode.frameSkip + 1);
+                            console.warn(`Severe performance issues - increasing frame skip to ${this.performanceMode.frameSkip}`);
+                        }
+                    } catch (e) {
+                        console.error('Error during emergency memory cleanup:', e);
+                    }
                 }
             } else {
                 // Reset consecutive slow frames counter if we had a good frame
