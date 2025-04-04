@@ -15,6 +15,13 @@ export class InputManager {
         this.mouseDeltaX = 0;
         this.mouseDeltaY = 0;
 
+        // Add properties for drag tracking
+        this.isDragging = false;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.totalDragX = 0;
+        this.totalDragY = 0;
+
         // Bind event handlers
         window.addEventListener('keydown', (e) => {
             this.keys.add(e.key);
@@ -28,15 +35,48 @@ export class InputManager {
                 this.isShiftPressed = false;
             }
         });
-        
-        window.addEventListener('mousedown', (e) => this.mouseButtons.add(this.getMouseButtonName(e.button)));
-        window.addEventListener('mouseup', (e) => this.mouseButtons.delete(this.getMouseButtonName(e.button)));
-        
+
+        window.addEventListener('mousedown', (e) => {
+            this.mouseButtons.add(this.getMouseButtonName(e.button));
+
+            // Start drag tracking if shift is pressed and left mouse button is clicked
+            if (this.isShiftPressed && e.button === 0) {
+                this.isDragging = true;
+                this.dragStartX = e.clientX;
+                this.dragStartY = e.clientY;
+                this.totalDragX = 0;
+                this.totalDragY = 0;
+
+                // Prevent default to avoid text selection during drag
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            this.mouseButtons.delete(this.getMouseButtonName(e.button));
+
+            // End drag tracking
+            if (e.button === 0) {
+                this.isDragging = false;
+            }
+        });
+
         window.addEventListener('mousemove', (e) => {
+            // Update current mouse position
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
-            this.mouseDeltaX = e.movementX;
-            this.mouseDeltaY = e.movementY;
+
+            // Calculate delta from last position
+            this.mouseDeltaX = e.clientX - this.lastMouseX;
+            this.mouseDeltaY = e.clientY - this.lastMouseY;
+
+            // Update drag tracking if dragging
+            if (this.isDragging && this.isShiftPressed) {
+                this.totalDragX += this.mouseDeltaX;
+                this.totalDragY += this.mouseDeltaY;
+            }
+
+            // Update last position
             this.lastMouseX = e.clientX;
             this.lastMouseY = e.clientY;
         });
@@ -95,14 +135,33 @@ export class InputManager {
     }
 
     /**
-     * Gets the current mouse movement delta and resets it.
-     * @returns {{ deltaX: number, deltaY: number }}
+     * Gets the current mouse movement delta.
+     * @param {boolean} [reset=false] - Whether to reset the delta after getting it
+     * @returns {{ deltaX: number, deltaY: number, isDragging: boolean, totalDragX: number, totalDragY: number }}
      */
-    getMouseDelta() {
-        const delta = { deltaX: this.mouseDeltaX, deltaY: this.mouseDeltaY };
-        this.mouseDeltaX = 0;
-        this.mouseDeltaY = 0;
+    getMouseDelta(reset = false) {
+        const delta = {
+            deltaX: this.mouseDeltaX,
+            deltaY: this.mouseDeltaY,
+            isDragging: this.isDragging,
+            totalDragX: this.totalDragX,
+            totalDragY: this.totalDragY
+        };
+
+        if (reset) {
+            this.mouseDeltaX = 0;
+            this.mouseDeltaY = 0;
+        }
+
         return delta;
+    }
+
+    /**
+     * Checks if the user is currently dragging with shift pressed
+     * @returns {boolean}
+     */
+    isShiftDragging() {
+        return this.isDragging && this.isShiftPressed;
     }
 }
 

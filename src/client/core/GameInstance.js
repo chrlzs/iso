@@ -177,7 +177,7 @@ export class GameInstance {
                 forceNPCMovement: true, // Force NPCs to move (for debugging)
                 debugNPCUpdate: true,   // Debug NPC update method calls
                 debugShadowArea: false, // Disable shadow area visualization
-                logCamera: false,       // Disable camera logging
+                logCamera: true,        // Enable camera logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -772,9 +772,9 @@ export class GameInstance {
 
         // Handle mouse movement for camera panning
         this.canvas.addEventListener('mousemove', (e) => {
-            if (this.inputManager && this.inputManager.isShiftPressed) {
-                // Get mouse movement delta
-                const { deltaX, deltaY } = this.inputManager.getMouseDelta();
+            if (this.inputManager && this.inputManager.isShiftDragging()) {
+                // Get mouse movement delta without resetting it
+                const { deltaX, deltaY } = this.inputManager.getMouseDelta(false);
 
                 if (deltaX === 0 && deltaY === 0) return; // Skip if no movement
 
@@ -786,17 +786,32 @@ export class GameInstance {
                 this.camera.pan(-worldDeltaX, -worldDeltaY);
 
                 // Temporarily disable player following while panning
-                if (deltaX !== 0 || deltaY !== 0) {
-                    this.camera.followPlayer = false;
-                }
+                this.camera.followPlayer = false;
 
                 // Log panning if debug is enabled
                 if (this.debug?.flags?.logCamera) {
                     console.log('Camera panning:', {
                         mouseDelta: { x: deltaX, y: deltaY },
                         worldDelta: { x: worldDeltaX, y: worldDeltaY },
-                        cameraOffset: { x: this.camera.offsetX, y: this.camera.offsetY }
+                        cameraOffset: { x: this.camera.offsetX, y: this.camera.offsetY },
+                        isDragging: this.inputManager.isDragging
                     });
+                }
+
+                // Prevent default to avoid text selection during drag
+                e.preventDefault();
+            }
+        });
+
+        // Add mousedown event for starting panning
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (this.inputManager && this.inputManager.isShiftPressed && e.button === 0) {
+                // Prevent default to avoid text selection during drag
+                e.preventDefault();
+
+                // Log start of panning if debug is enabled
+                if (this.debug?.flags?.logCamera) {
+                    console.log('Camera panning started');
                 }
             }
         });
