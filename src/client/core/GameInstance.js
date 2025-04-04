@@ -1560,21 +1560,27 @@ export class GameInstance {
         }
         }
 
-        // DIRECT FIX: Sort entities by their explicit zIndex property if available
-        // Otherwise fall back to position-based sorting
-        const sortByZIndex = (a, b) => {
-            // If both entities have a zIndex property, use it
+        // Sort each group by zIndex or position
+        entitiesOutside.sort((a, b) => {
             if (a.zIndex !== undefined && b.zIndex !== undefined) {
                 return a.zIndex - b.zIndex;
             }
-            // Otherwise fall back to position-based sorting
             return (a.x + a.y) - (b.x + b.y);
-        };
+        });
 
-        // Sort each group using the zIndex sorter
-        entitiesOutside.sort(sortByZIndex);
-        entitiesInside.sort(sortByZIndex);
-        entitiesBehindStructures.sort(sortByZIndex);
+        entitiesInside.sort((a, b) => {
+            if (a.zIndex !== undefined && b.zIndex !== undefined) {
+                return a.zIndex - b.zIndex;
+            }
+            return (a.x + a.y) - (b.x + b.y);
+        });
+
+        entitiesBehindStructures.sort((a, b) => {
+            if (a.zIndex !== undefined && b.zIndex !== undefined) {
+                return a.zIndex - b.zIndex;
+            }
+            return (a.x + a.y) - (b.x + b.y);
+        });
 
         // Log sorting results if debug is enabled
         if (this.debug?.flags?.logEntities) {
