@@ -7,13 +7,21 @@ import { TextureBase } from './TextureBase.js';
  */
 export class TileTexture extends TextureBase {
     /**
+     * Checks if this texture can be generated without a color or source
+     * @returns {boolean} True if the texture can be generated
+     */
+    canGenerateTexture() {
+        // Tile textures need a color to be generated
+        return this.options.color !== undefined;
+    }
+    /**
      * Creates a new tile texture
      * @param {string} id - Unique identifier for the texture
      * @param {Object} [options={}] - Texture options
      */
     constructor(id, options = {}) {
         super(id, { ...options, type: 'tile' });
-        
+
         this.tileSize = options.tileSize || 64;
         this.baseColor = options.color || '#7f7f7f';
         this.noiseIntensity = options.noiseIntensity || 0.2;
@@ -88,7 +96,7 @@ export class TileTexture extends TextureBase {
             const y = Math.random() * height;
             const size = Math.random() * 3 + 1;
             const noise = (Math.random() - 0.5) * this.roughness * 0.3;
-            
+
             ctx.fillStyle = this.adjustColor(this.baseColor, noise);
             ctx.fillRect(x, y, size, size);
         }

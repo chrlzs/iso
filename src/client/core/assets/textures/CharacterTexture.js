@@ -7,13 +7,21 @@ import { TextureBase } from './TextureBase.js';
  */
 export class CharacterTexture extends TextureBase {
     /**
+     * Checks if this texture can be generated without a color or source
+     * @returns {boolean} True if the texture can be generated
+     */
+    canGenerateTexture() {
+        // Character textures can always be generated based on characterType
+        return true;
+    }
+    /**
      * Creates a new character texture
      * @param {string} id - Unique identifier for the texture
      * @param {Object} [options={}] - Texture options
      */
     constructor(id, options = {}) {
         super(id, { ...options, type: 'character' });
-        
+
         this.width = options.width || 64;
         this.height = options.height || 64;
         this.characterType = options.characterType || 'generic';
@@ -117,7 +125,7 @@ export class CharacterTexture extends TextureBase {
     generateCharacterFrame(ctx, x, y, width, height, direction, frameIndex) {
         // Save context state
         ctx.save();
-        
+
         // Translate to the frame position
         ctx.translate(x, y);
 
@@ -169,11 +177,11 @@ export class CharacterTexture extends TextureBase {
         if (frameIndex > 0) {
             // Simple animation: move legs
             const legOffset = frameIndex % 2 === 0 ? 0 : height * 0.05;
-            
+
             // Left leg
             ctx.fillStyle = '#000000';
             ctx.fillRect(width * 0.3, height * 0.9 - legOffset, width * 0.1, height * 0.1);
-            
+
             // Right leg
             ctx.fillRect(width * 0.6, height * 0.9 + legOffset, width * 0.1, height * 0.1);
         } else {
@@ -223,7 +231,7 @@ export class CharacterTexture extends TextureBase {
     generatePlayer(ctx, width, height, direction = 'down', frameIndex = 0) {
         // Use a more detailed version of the generic character
         this.generateGenericCharacter(ctx, width, height, direction, frameIndex);
-        
+
         // Add player-specific details
         ctx.fillStyle = '#ffd700'; // Gold
         ctx.fillRect(width * 0.4, height * 0.4, width * 0.2, height * 0.1); // Belt
@@ -240,7 +248,7 @@ export class CharacterTexture extends TextureBase {
     generateNPC(ctx, width, height, direction = 'down', frameIndex = 0) {
         // Use a variation of the generic character
         this.generateGenericCharacter(ctx, width, height, direction, frameIndex);
-        
+
         // Add NPC-specific details
         ctx.fillStyle = '#32cd32'; // Lime green
         ctx.fillRect(width * 0.25, height * 0.6, width * 0.5, height * 0.1); // Apron
@@ -272,7 +280,7 @@ export class CharacterTexture extends TextureBase {
         ctx.lineTo(width * 0.4, height * 0.1);
         ctx.lineTo(width * 0.45, height * 0.2);
         ctx.fill();
-        
+
         ctx.beginPath();
         ctx.moveTo(width * 0.7, height * 0.2);
         ctx.lineTo(width * 0.6, height * 0.1);
@@ -283,11 +291,11 @@ export class CharacterTexture extends TextureBase {
         if (frameIndex > 0) {
             // Simple animation: move legs
             const legOffset = frameIndex % 2 === 0 ? 0 : height * 0.05;
-            
+
             // Left leg
             ctx.fillStyle = '#000000';
             ctx.fillRect(width * 0.3, height * 0.9 - legOffset, width * 0.1, height * 0.1);
-            
+
             // Right leg
             ctx.fillRect(width * 0.6, height * 0.9 + legOffset, width * 0.1, height * 0.1);
         } else {
@@ -343,7 +351,7 @@ export class CharacterTexture extends TextureBase {
         }
 
         const actualFrameIndex = frameIndex % this.frames;
-        
+
         return {
             image: this.spritesheet,
             sx: actualFrameIndex * this.width,

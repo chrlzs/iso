@@ -7,13 +7,21 @@ import { TextureBase } from './TextureBase.js';
  */
 export class StructureTexture extends TextureBase {
     /**
+     * Checks if this texture can be generated without a color or source
+     * @returns {boolean} True if the texture can be generated
+     */
+    canGenerateTexture() {
+        // Structure textures can always be generated based on structureType
+        return true;
+    }
+    /**
      * Creates a new structure texture
      * @param {string} id - Unique identifier for the texture
      * @param {Object} [options={}] - Texture options
      */
     constructor(id, options = {}) {
         super(id, { ...options, type: 'structure' });
-        
+
         this.width = options.width || 128;
         this.height = options.height || 128;
         this.baseColor = options.color || '#a67c52';
@@ -109,7 +117,7 @@ export class StructureTexture extends TextureBase {
         for (let i = 1; i < this.floors; i++) {
             ctx.fillStyle = this.wallColor;
             ctx.fillRect(0, height * (0.3 - i * 0.2), width, height * 0.2);
-            
+
             // Windows for each floor
             ctx.fillStyle = '#87ceeb'; // Sky blue
             ctx.fillRect(width * 0.2, height * (0.35 - i * 0.2), width * 0.15, height * 0.1);
@@ -148,7 +156,7 @@ export class StructureTexture extends TextureBase {
         for (let i = 1; i < this.floors; i++) {
             ctx.fillStyle = this.wallColor;
             ctx.fillRect(0, height * (0.2 - i * 0.15), width, height * 0.15);
-            
+
             // Windows for each floor
             ctx.fillStyle = '#b0e0e6'; // Powder blue
             ctx.fillRect(width * 0.2, height * (0.25 - i * 0.15), width * 0.6, height * 0.1);
