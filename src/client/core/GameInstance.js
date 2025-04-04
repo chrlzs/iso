@@ -177,8 +177,9 @@ export class GameInstance {
                 forceNPCMovement: true, // Force NPCs to move (for debugging)
                 debugNPCUpdate: true,   // Debug NPC update method calls
                 debugShadowArea: false, // Disable shadow area visualization
-                logCamera: true,        // Enable camera logging
+                logCamera: false,       // Disable camera logging
                 logPerformance: true,   // Enable performance logging
+                logInput: true,         // Enable input logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -829,80 +830,84 @@ export class GameInstance {
         });
 
         this.canvas.addEventListener('click', (e) => {
-            console.log('Canvas clicked');
+            try {
+                console.log('Canvas clicked');
 
-            const rect = this.canvas.getBoundingClientRect();
-            const screenX = e.clientX - rect.left;
-            const screenY = e.clientY - rect.top;
+                // Performance tracking
+                const clickStart = performance.now();
 
-            // Check if clicked on an NPC first
-            const clickedNPC = this.findClickedNPC(screenX, screenY);
+                const rect = this.canvas.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
 
-            if (clickedNPC) {
-                console.log('NPC clicked:', clickedNPC);
-                // Find adjacent tile to NPC
-                const adjacentTile = this.findAdjacentTile(clickedNPC);
-                if (adjacentTile) {
+                // Check if clicked on an NPC first
+                const clickedNPC = this.findClickedNPC(screenX, screenY);
+
+                if (clickedNPC) {
+                    console.log('NPC clicked:', clickedNPC);
+                    // Find adjacent tile to NPC
+                    const adjacentTile = this.findAdjacentTile(clickedNPC);
+                    if (adjacentTile) {
+                        const startX = Math.round(this.player.x);
+                        const startY = Math.round(this.player.y);
+
+                        // Check if player is already at the adjacent tile
+                        if (startX === adjacentTile.x && startY === adjacentTile.y) {
+                            console.log('Player already at interaction position, starting dialog');
+                            this.startDialog(clickedNPC);
+                        } else {
+                            const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
+
+                            if (path) {
+                                console.log('Path found, moving player');
+                                this.player.setPath(path);
+                                // Start dialog when path is complete
+                                this.player.onPathComplete = () => {
+                                    console.log('Path complete, starting dialog with:', clickedNPC.constructor.name);
+                                    this.startDialog(clickedNPC);
+                                };
+                            } else {
+                                console.log('No path found to NPC');
+                            }
+                        }
+                    } else {
+                        console.log('No adjacent tile found for NPC');
+                    }
+
+                    // Log click processing time
+                    const clickEnd = performance.now();
+                    if (this.debug?.flags?.logPerformance) {
+                        console.log(`NPC click processed in ${(clickEnd - clickStart).toFixed(2)}ms`);
+                    }
+                    return;
+                }
+
+                // Convert screen coordinates to world coordinates using the optimized method
+                const worldPos = this.screenToWorld(screenX, screenY);
+                const worldX = worldPos.x;
+                const worldY = worldPos.y;
+
+                if (this.pathFinder.isValidCoordinate(worldX, worldY)) {
                     const startX = Math.round(this.player.x);
                     const startY = Math.round(this.player.y);
+                    const path = this.pathFinder.findPath(startX, startY, worldX, worldY);
 
-                    // Check if player is already at the adjacent tile
-                    if (startX === adjacentTile.x && startY === adjacentTile.y) {
-                        console.log('Player already at interaction position, starting dialog');
-                        this.startDialog(clickedNPC);
+                    if (path) {
+                        this.player.setPath(path);
                     } else {
-                        const path = this.pathFinder.findPath(startX, startY, adjacentTile.x, adjacentTile.y);
-
-                        if (path) {
-                            console.log('Path found, moving player');
-                            this.player.setPath(path);
-                            // Start dialog when path is complete
-                            this.player.onPathComplete = () => {
-                                console.log('Path complete, starting dialog with:', clickedNPC.constructor.name);
-                                this.startDialog(clickedNPC);
-                            };
-                        } else {
-                            console.log('No path found to NPC');
-                        }
+                        console.log('No valid path found');
                     }
                 } else {
-                    console.log('No adjacent tile found for NPC');
+                    console.log('Invalid target coordinates');
                 }
-                return;
-            }
 
-            // Get the center offset where (0,0) should be
-            const centerX = this.canvas.width / 2;
-            const centerY = this.canvas.height / 2;
-
-            // Calculate the player's isometric position
-            const playerIsoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
-            const playerIsoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
-
-            // Adjust click coordinates relative to player position and camera zoom
-            const adjustedX = (screenX - centerX) / this.camera.zoom + playerIsoX;
-            const adjustedY = (screenY - centerY) / this.camera.zoom + playerIsoY;
-
-            // Convert isometric coordinates back to world coordinates
-            const worldX = Math.round(
-                (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
-            );
-            const worldY = Math.round(
-                (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
-            );
-
-            if (this.pathFinder.isValidCoordinate(worldX, worldY)) {
-                const startX = Math.round(this.player.x);
-                const startY = Math.round(this.player.y);
-                const path = this.pathFinder.findPath(startX, startY, worldX, worldY);
-
-                if (path) {
-                    this.player.setPath(path);
-                } else {
-                    console.log('No valid path found');
+                // Log click processing time
+                const clickEnd = performance.now();
+                if (this.debug?.flags?.logPerformance) {
+                    console.log(`Movement click processed in ${(clickEnd - clickStart).toFixed(2)}ms`);
                 }
-            } else {
-                console.log('Invalid target coordinates');
+            } catch (error) {
+                console.error('Error processing click event:', error);
             }
         });
     }
@@ -1568,53 +1573,101 @@ export class GameInstance {
         };
     }
 
+    /**
+     * Converts screen coordinates to world coordinates
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @returns {{x: number, y: number}} World coordinates
+     */
     screenToWorld(screenX, screenY) {
-        // Get the center offset where (0,0) should be
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2;
+        try {
+            // Get the center offset where (0,0) should be
+            const centerX = this.canvas.width / 2;
+            const centerY = this.canvas.height / 2;
 
-        // Calculate the player's isometric position
-        const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
-        const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
+            // Calculate the camera's isometric position
+            const isoX = (this.camera.x - this.camera.y) * (this.renderer.tileWidth / 2);
+            const isoY = (this.camera.x + this.camera.y) * (this.renderer.tileHeight / 2);
 
-        // Adjust click coordinates relative to player position and camera zoom
-        const adjustedX = (screenX - centerX) / this.camera.zoom + isoX;
-        const adjustedY = (screenY - centerY) / this.camera.zoom + isoY;
+            // Adjust click coordinates relative to camera position and zoom
+            const adjustedX = (screenX - centerX) / this.camera.zoom + isoX;
+            const adjustedY = (screenY - centerY) / this.camera.zoom + isoY;
 
-        // Convert isometric coordinates back to world coordinates
-        const worldX = Math.round(
-            (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
-        );
-        const worldY = Math.round(
-            (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
-        );
+            // Convert isometric coordinates back to world coordinates
+            const worldX = Math.round(
+                (adjustedX / (this.renderer.tileWidth / 2) + adjustedY / (this.renderer.tileHeight / 2)) / 2
+            );
+            const worldY = Math.round(
+                (adjustedY / (this.renderer.tileHeight / 2) - adjustedX / (this.renderer.tileWidth / 2)) / 2
+            );
 
-        return { x: worldX, y: worldY };
+            // Log conversion if debug is enabled
+            if (this.debug?.flags?.logInput) {
+                console.log('Screen to world conversion:', {
+                    screen: { x: screenX, y: screenY },
+                    world: { x: worldX, y: worldY },
+                    camera: { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }
+                });
+            }
+
+            return { x: worldX, y: worldY };
+        } catch (error) {
+            console.error('Error in screenToWorld conversion:', error);
+            // Return a fallback position near the camera
+            return { x: Math.round(this.camera.x), y: Math.round(this.camera.y) };
+        }
     }
 
+    /**
+     * Finds the NPC that was clicked on
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @returns {NPC|Merchant|null} The clicked NPC or null if none was clicked
+     */
     findClickedNPC(screenX, screenY) {
-        const worldPos = this.screenToWorld(screenX, screenY);
+        try {
+            // Convert screen coordinates to world coordinates
+            const worldPos = this.screenToWorld(screenX, screenY);
 
-        if (this.debug?.flags?.logInput) {
-            console.log('Click detected:', {
-                screen: { x: screenX, y: screenY },
-                world: worldPos,
-                entities: Array.from(this.entities).map(e => ({
-                    type: e.constructor.name,
-                    pos: { x: e.x, y: e.y },
-                    isEnemy: e.isEnemy
-                }))
+            if (this.debug?.flags?.logInput) {
+                console.log('Click detected:', {
+                    screen: { x: screenX, y: screenY },
+                    world: worldPos
+                });
+            }
+
+            // Check all entities with a larger threshold
+            const clickThreshold = 1.5; // Increased from 1.0 to 1.5
+            let closestEntity = null;
+            let closestDistance = Infinity;
+
+            // Only check entities that are visible and within range of the camera
+            const cameraRange = 20; // Only check entities within this range of the camera
+            const visibleEntities = Array.from(this.entities).filter(entity => {
+                // Skip entities that aren't NPCs
+                if (!(entity instanceof NPC || entity instanceof Merchant)) {
+                    return false;
+                }
+
+                // Skip entities that aren't visible
+                if (!entity.isVisible) {
+                    return false;
+                }
+
+                // Skip entities that are too far from the camera
+                const dx = entity.x - this.camera.x;
+                const dy = entity.y - this.camera.y;
+                const distanceSquared = dx * dx + dy * dy;
+                return distanceSquared <= cameraRange * cameraRange;
             });
-        }
 
-        // Check all entities with a larger threshold
-        const clickThreshold = 1.5; // Increased from 1.0 to 1.5
-        let closestEntity = null;
-        let closestDistance = Infinity;
+            // Log the number of entities being checked
+            if (this.debug?.flags?.logInput) {
+                console.log(`Checking ${visibleEntities.length} visible entities near camera`);
+            }
 
-        for (const entity of this.entities) {
-            // Check if entity is an NPC (including Merchant and Enemy)
-            if (entity instanceof NPC || entity instanceof Merchant) {
+            // Check each visible entity
+            for (const entity of visibleEntities) {
                 const distance = Math.sqrt(
                     Math.pow(entity.x - worldPos.x, 2) +
                     Math.pow(entity.y - worldPos.y, 2)
@@ -1636,20 +1689,23 @@ export class GameInstance {
                     closestDistance = distance;
                 }
             }
-        }
 
-        if (closestEntity) {
-            if (this.debug?.flags?.logInput) {
-                console.log(`${closestEntity.isEnemy ? 'Enemy' : 'NPC'} clicked:`, {
-                    name: closestEntity.name,
-                    type: closestEntity.constructor.name,
-                    isEnemy: closestEntity.isEnemy
-                });
+            if (closestEntity) {
+                if (this.debug?.flags?.logInput) {
+                    console.log(`${closestEntity.isEnemy ? 'Enemy' : 'NPC'} clicked:`, {
+                        name: closestEntity.name,
+                        type: closestEntity.constructor.name,
+                        isEnemy: closestEntity.isEnemy
+                    });
+                }
+                return closestEntity;
             }
-            return closestEntity;
-        }
 
-        return null;
+            return null;
+        } catch (error) {
+            console.error('Error in findClickedNPC:', error);
+            return null;
+        }
     }
 
     findAdjacentTile(npc) {
