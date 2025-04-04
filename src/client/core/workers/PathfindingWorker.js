@@ -4,7 +4,18 @@
  */
 
 // Import AStar algorithm
-importScripts('./AStar.js');
+try {
+    // Try with absolute path first
+    importScripts('/src/client/core/workers/AStar.js');
+} catch (e) {
+    try {
+        // Try with relative path as fallback
+        importScripts('./AStar.js');
+    } catch (e2) {
+        // Log error for debugging
+        self.postMessage({ type: 'error', message: 'Failed to import AStar.js: ' + e2.message });
+    }
+}
 
 // Initialize pathfinder
 let pathfinder = null;
@@ -15,7 +26,7 @@ let height = 0;
 // Handle messages from main thread
 self.onmessage = function(e) {
     const data = e.data;
-    
+
     switch (data.type) {
         case 'init':
             // Initialize pathfinder with walkable map
@@ -25,20 +36,20 @@ self.onmessage = function(e) {
             pathfinder = new AStar(walkableMap, width, height);
             self.postMessage({ type: 'initialized' });
             break;
-            
+
         case 'findPath':
             // Find path between two points
             const { startX, startY, endX, endY, id } = data;
             const path = findPath(startX, startY, endX, endY);
-            self.postMessage({ 
-                type: 'pathResult', 
-                path, 
+            self.postMessage({
+                type: 'pathResult',
+                path,
                 id,
                 start: { x: startX, y: startY },
                 end: { x: endX, y: endY }
             });
             break;
-            
+
         case 'updateMap':
             // Update walkable map
             walkableMap = data.walkableMap;
@@ -47,7 +58,7 @@ self.onmessage = function(e) {
             }
             self.postMessage({ type: 'mapUpdated' });
             break;
-            
+
         case 'updateTile':
             // Update a single tile
             const { x, y, walkable } = data;
@@ -74,18 +85,18 @@ function findPath(startX, startY, endX, endY) {
     if (!pathfinder) {
         return null;
     }
-    
+
     // Check if coordinates are valid
     if (startX < 0 || startX >= width || startY < 0 || startY >= height ||
         endX < 0 || endX >= width || endY < 0 || endY >= height) {
         return null;
     }
-    
+
     // Check if start and end are walkable
     if (!walkableMap[startY * width + startX] || !walkableMap[endY * width + endX]) {
         return null;
     }
-    
+
     // Find path
     const path = pathfinder.findPath(startX, startY, endX, endY);
     return path;

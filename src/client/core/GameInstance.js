@@ -77,7 +77,28 @@ export class GameInstance {
 
         // Try to initialize pathfinding worker
         if (this.workerManager.isSupported) {
-            this.workerManager.createWorker('pathfinding', 'src/client/core/workers/PathfindingWorker.js');
+            try {
+                // Use a more browser-friendly path (no leading slash)
+                const workerPath = 'client/core/workers/PathfindingWorker.js';
+                const success = this.workerManager.createWorker('pathfinding', workerPath);
+
+                if (success) {
+                    console.log('Pathfinding worker initialized successfully');
+
+                    // Set up error handler for worker messages
+                    this.workerManager.setMessageHandler('pathfinding', (data) => {
+                        if (data.type === 'error') {
+                            console.error('Pathfinding worker error:', data.message);
+                        }
+                    });
+                } else {
+                    console.warn('Failed to create pathfinding worker, falling back to main thread pathfinding');
+                }
+            } catch (error) {
+                console.error('Error initializing pathfinding worker:', error);
+            }
+        } else {
+            console.warn('Web Workers not supported in this browser, using main thread pathfinding');
         }
 
         // Try to initialize WebGL renderer if supported

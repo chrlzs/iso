@@ -352,6 +352,16 @@ export class TileManager {
         ];
 
         try {
+            // Create a placeholder texture for use during loading
+            if (!this.placeholderTexture) {
+                this.createPlaceholderTexture();
+            }
+
+            // Initialize texture generation tracking
+            if (!this.generatingTextures) {
+                this.generatingTextures = new Set();
+            }
+
             // Only load textures that haven't been loaded yet
             const texturesToLoad = remainingTextures.filter(type => !this.textures.has(type));
 
@@ -360,7 +370,33 @@ export class TileManager {
                     console.time('texture-loading');
                 }
 
-                await Promise.all(texturesToLoad.map(type => this.generateTexture(type, this.tileColors[type])));
+                // Load textures in batches to avoid overwhelming the browser
+                const batchSize = 5;
+                for (let i = 0; i < texturesToLoad.length; i += batchSize) {
+                    const batch = texturesToLoad.slice(i, i + batchSize);
+                    await Promise.all(batch.map(type => this.generateTexture(type, this.tileColors[type])));
+
+                    // Small delay between batches to allow UI updates
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                // Generate variants for types that have them, also in batches
+                const typesWithVariants = Object.entries(this.variants)
+                    .filter(([type, count]) => count > 1 && texturesToLoad.includes(type));
+
+                for (let i = 0; i < typesWithVariants.length; i += batchSize) {
+                    const batch = typesWithVariants.slice(i, i + batchSize);
+                    await Promise.all(batch.flatMap(([type, count]) => {
+                        const promises = [];
+                        for (let j = 1; j <= count; j++) {
+                            promises.push(this.generateTexture(type, this.tileColors[type], j));
+                        }
+                        return promises;
+                    }));
+
+                    // Small delay between batches to allow UI updates
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
 
                 if (this.debug?.flags?.logTextureLoading) {
                     console.timeEnd('texture-loading');
@@ -838,6 +874,8 @@ export class TileManager {
     }
 
     getTexture(tileType, variant) {
+        if (!tileType) return null;
+
         // Normalize the type to lowercase
         const normalizedType = tileType.toLowerCase();
         // Build the texture key based on variant
@@ -852,12 +890,90 @@ export class TileManager {
 
         // If still no texture, regenerate it
         if (!texture && this.tileColors[normalizedType]) {
-            console.warn(`Regenerating missing texture for ${normalizedType}`);
-            this.generateTexture(normalizedType, this.tileColors[normalizedType])
-                .then(() => console.log(`Generated texture for ${normalizedType}`));
+            // Check if we're already generating this texture
+            if (!this.generatingTextures) {
+                this.generatingTextures = new Set();
+            }
+
+            // Only log and regenerate if we're not already generating this texture
+            if (!this.generatingTextures.has(key)) {
+                console.warn(`Regenerating missing texture for ${normalizedType}`);
+
+                // Mark as generating
+                this.generatingTextures.add(key);
+
+                // Generate the texture asynchronously
+                this.generateTexture(normalizedType, this.tileColors[normalizedType])
+                    .then(() => {
+                        console.log(`Generated texture for ${normalizedType}`);
+                        // Remove from generating set
+                        this.generatingTextures.delete(key);
+                    })
+                    .catch(error => {
+                        console.error(`Failed to generate texture for ${normalizedType}:`, error);
+                        // Remove from generating set even on error
+                        this.generatingTextures.delete(key);
+                    });
+            }
+
+            // Return a placeholder texture while generating
+            if (!this.placeholderTexture) {
+                this.createPlaceholderTexture();
+            }
+            return this.placeholderTexture;
         }
 
         return texture;
+    }
+
+    /**
+     * Creates a placeholder texture for use while real textures are loading
+     * @private
+     */
+    createPlaceholderTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        // Draw a simple checkerboard pattern
+        ctx.fillStyle = '#CCCCCC';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillRect(0, 0, 32, 32);
+        ctx.fillRect(32, 32, 32, 32);
+
+        // Add a "loading" text
+        ctx.fillStyle = '#000000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Loading...', 32, 32);
+
+        this.placeholderTexture = canvas;
+    }
+
+    /**
+     * Checks if a texture exists for the given type
+     * @param {string} type - Tile type
+     * @param {number} [variant] - Variant number
+     * @returns {boolean} - True if texture exists
+     */
+    hasTexture(type, variant) {
+        if (!type) return false;
+
+        const normalizedType = type.toLowerCase();
+
+        // Check if we have a variant
+        if (variant) {
+            const variantKey = `${normalizedType}_var${variant}`;
+            if (this.textures.has(variantKey)) {
+                return true;
+            }
+        }
+
+        // Check base texture
+        return this.textures.has(normalizedType);
     }
 
     getRandomVariant(tileType) {
