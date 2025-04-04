@@ -1558,7 +1558,6 @@ export class GameInstance {
                 }
             }
         }
-        }
 
         // Skip sorting for now to fix the syntax error
 
