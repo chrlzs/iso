@@ -25,6 +25,108 @@ export class StructureRenderer {
     }
 
     /**
+     * Checks if an NPC is behind a structure from the player's perspective
+     * @param {Object} structure - The structure to check
+     * @param {Object} npc - The NPC to check
+     * @param {Object} player - The player object
+     * @returns {boolean} - True if the NPC is behind the structure from player's view
+     */
+    isNPCBehindStructure(structure, npc, player) {
+        if (!structure || !npc || !player) return false;
+
+        // Skip trees and small structures
+        if (structure.type === 'tree' || structure.height < 1) {
+            return false;
+        }
+
+        // Skip if NPC is inside this structure
+        if (npc.currentStructure === structure) return false;
+
+        // Skip if NPC is not visible
+        if (!npc.isVisible) return false;
+
+        // Get structure dimensions
+        const structureWidth = structure.width || 1;
+        const structureHeight = structure.height || 1;
+        const structureFloors = structure.template?.floors || 1;
+
+        // Calculate structure bounds
+        const structureBounds = {
+            minX: structure.x,
+            maxX: structure.x + structureWidth,
+            minY: structure.y,
+            maxY: structure.y + structureHeight
+        };
+
+        // Check if NPC is within the structure's bounds (plus a small buffer)
+        const buffer = 0.5;
+        const isWithinBounds = (
+            npc.x >= structureBounds.minX - buffer &&
+            npc.x <= structureBounds.maxX + buffer &&
+            npc.y >= structureBounds.minY - buffer &&
+            npc.y <= structureBounds.maxY + buffer
+        );
+
+        if (!isWithinBounds) return false;
+
+        // Calculate line of sight from player to NPC
+        const playerToNPC = {
+            x: npc.x - player.x,
+            y: npc.y - player.y
+        };
+
+        // Normalize the direction vector
+        const length = Math.sqrt(playerToNPC.x * playerToNPC.x + playerToNPC.y * playerToNPC.y);
+        if (length === 0) return false;
+
+        const direction = {
+            x: playerToNPC.x / length,
+            y: playerToNPC.y / length
+        };
+
+        // Check if the line of sight intersects with the structure
+        // We'll use a simplified approach: check if the line passes through the structure's bounds
+
+        // Calculate the distance from player to NPC
+        const distanceToNPC = length;
+
+        // Calculate the distance from player to structure (simplified)
+        const distanceToStructure = Math.sqrt(
+            Math.pow(structure.x - player.x, 2) +
+            Math.pow(structure.y - player.y, 2)
+        );
+
+        // If structure is between player and NPC, the NPC is behind the structure
+        const isBehind = distanceToStructure < distanceToNPC;
+
+        // Additional check: the NPC should be on the opposite side of the structure from the player
+        const playerToStructure = {
+            x: structure.x - player.x,
+            y: structure.y - player.y
+        };
+
+        // Calculate dot product to determine if vectors point in similar direction
+        const dotProduct = playerToNPC.x * playerToStructure.x + playerToNPC.y * playerToStructure.y;
+        const isOpposite = dotProduct > 0; // Positive dot product means vectors point in similar direction
+
+        // Debug logging
+        if (this.game?.debug?.flags?.debugShadowArea) {
+            console.log(`Checking if NPC ${npc.name} is behind structure:`, {
+                npcPos: { x: npc.x, y: npc.y },
+                structurePos: { x: structure.x, y: structure.y },
+                playerPos: { x: player.x, y: player.y },
+                isWithinBounds,
+                isBehind,
+                isOpposite,
+                distanceToNPC,
+                distanceToStructure
+            });
+        }
+
+        return isWithinBounds && isBehind && isOpposite;
+    }
+
+    /**
      * Checks if a structure has NPCs behind it that should be visible
      * @param {Object} structure - The structure to check
      * @returns {boolean} - True if there are NPCs behind this structure
@@ -39,10 +141,9 @@ export class StructureRenderer {
             return false;
         }
 
-        // Get structure dimensions and properties
-        const structureWidth = structure.width || 1;
-        const structureHeight = structure.height || 1;
-        const structureFloors = structure.template?.floors || 1;
+        // Get the player
+        const player = this.game.player;
+        if (!player) return false;
 
         // Get all entities from the game
         const entities = Array.from(this.game.entities || []);
@@ -50,76 +151,15 @@ export class StructureRenderer {
         // Debug flag for shadow area visualization
         const debugShadowArea = this.game?.debug?.flags?.debugShadowArea;
 
-        // Calculate the shadow area based on structure dimensions and height
-        // The shadow area extends further for taller buildings
-        const shadowExtendX = structureFloors * 0.5; // Extend shadow area based on height
-        const shadowExtendY = structureFloors * 0.5;
-
-        // Calculate the shadow area bounds in isometric space
-        const shadowArea = {
-            minX: structure.x - shadowExtendX,
-            maxX: structure.x + structureWidth + shadowExtendX,
-            minY: structure.y - shadowExtendY,
-            maxY: structure.y + structureHeight + shadowExtendY,
-            // Front depth is the minimum isometric depth (x+y) of the structure
-            frontDepth: structure.x + structure.y,
-            // Back depth is the maximum isometric depth (x+y) of the structure plus height influence
-            backDepth: structure.x + structureWidth + structure.y + structureHeight + (structureFloors * 0.5)
-        };
-
-        // Visualize shadow area if debug is enabled
-        if (debugShadowArea && this.ctx) {
-            this.visualizeShadowArea(structure, shadowArea);
-        }
-
-        // Check if any NPC is behind this structure
+        // Check if any NPC is behind this structure from player's perspective
         for (const entity of entities) {
             // Skip non-NPC entities
             if (!entity.isNPC) continue;
 
-            // Skip entities that are not visible
-            if (!entity.isVisible) continue;
-
-            // Skip entities that are inside this structure
-            if (entity.currentStructure === structure) continue;
-
-            // Calculate entity's isometric depth
-            const entityDepth = entity.x + entity.y;
-
-            // Calculate if the entity is within the structure's shadow area
-            const isInShadowArea = (
-                // Entity is within the X bounds of the shadow area
-                entity.x >= shadowArea.minX &&
-                entity.x <= shadowArea.maxX &&
-                // Entity is within the Y bounds of the shadow area
-                entity.y >= shadowArea.minY &&
-                entity.y <= shadowArea.maxY &&
-                // Entity is behind the structure in isometric depth
-                entityDepth > shadowArea.frontDepth &&
-                // Entity is not too far behind the structure
-                entityDepth < shadowArea.backDepth
-            );
-
-            // Additional check for tall structures: entity should be within the structure's footprint
-            // This prevents entities far to the side from triggering transparency
-            const isWithinFootprint = (
-                // For taller structures, we want a stricter check on the footprint
-                structureFloors <= 1 || (
-                    entity.x >= structure.x - 0.5 &&
-                    entity.x <= structure.x + structureWidth + 0.5 &&
-                    entity.y >= structure.y - 0.5 &&
-                    entity.y <= structure.y + structureHeight + 0.5
-                )
-            );
-
-            if (isInShadowArea && isWithinFootprint) {
+            // Check if this NPC is behind the structure from player's perspective
+            if (this.isNPCBehindStructure(structure, entity, player)) {
                 if (debugShadowArea) {
-                    console.log(`NPC ${entity.name} is behind structure at (${structure.x},${structure.y}):`, {
-                        entityPos: { x: entity.x, y: entity.y },
-                        entityDepth,
-                        shadowArea,
-                        structureFloors
-                    });
+                    console.log(`NPC ${entity.name} is behind structure at (${structure.x},${structure.y})`);
                 }
                 return true;
             }
@@ -308,12 +348,12 @@ export class StructureRenderer {
         // Set target transparency based on whether there are NPCs behind
         // Adjust transparency based on structure height - taller buildings are more transparent
         // This helps with visibility for very tall structures
-        let targetOpacity = 0.4; // Base opacity when NPCs are behind
+        let targetOpacity = 0.3; // Base opacity when NPCs are behind (more transparent)
 
         // Make taller buildings more transparent
         if (structureFloors > 1) {
             // Reduce opacity for taller buildings (more transparent)
-            targetOpacity = Math.max(0.2, 0.4 - (structureFloors - 1) * 0.05);
+            targetOpacity = Math.max(0.15, 0.3 - (structureFloors - 1) * 0.05);
         }
 
         // Set target transparency

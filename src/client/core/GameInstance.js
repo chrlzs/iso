@@ -176,7 +176,7 @@ export class GameInstance {
                 logNPCMovement: true,   // Enable NPC movement logging
                 forceNPCMovement: true, // Force NPCs to move (for debugging)
                 debugNPCUpdate: true,   // Debug NPC update method calls
-                debugShadowArea: false, // Disable shadow area visualization
+                debugShadowArea: true, // Enable shadow area visualization
                 logCamera: false,       // Disable camera logging
                 logPerformance: true,   // Enable performance logging
                 logInput: true,         // Enable input logging
