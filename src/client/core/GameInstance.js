@@ -178,6 +178,7 @@ export class GameInstance {
                 debugNPCUpdate: true,   // Debug NPC update method calls
                 debugShadowArea: false, // Disable shadow area visualization
                 logCamera: true,        // Enable camera logging
+                logPerformance: true,   // Enable performance logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -929,7 +930,7 @@ export class GameInstance {
     }
 
     /**
-     * Main game loop with frame rate limiting
+     * Main game loop with frame rate limiting and performance monitoring
      * @private
      * @param {number} timestamp - Current timestamp from requestAnimationFrame
      */
@@ -947,11 +948,42 @@ export class GameInstance {
             // Update last time, accounting for any extra time beyond the frame interval
             this.lastTime = timestamp - (elapsed % this.frameInterval);
 
+            // Performance monitoring - start
+            const updateStart = performance.now();
+
             // Update game state
             this.update(deltaTime);
 
+            const updateEnd = performance.now();
+            const renderStart = performance.now();
+
             // Render the frame
             this.render();
+
+            const renderEnd = performance.now();
+
+            // Calculate performance metrics
+            const updateTime = updateEnd - updateStart;
+            const renderTime = renderEnd - renderStart;
+            const frameTime = updateTime + renderTime;
+
+            // Store performance metrics
+            this.performanceMetrics = {
+                updateTime,
+                renderTime,
+                frameTime,
+                timestamp
+            };
+
+            // Detect slow frames
+            if (frameTime > 16.67) { // More than 60fps frame budget
+                if (this.debug?.flags?.logPerformance) {
+                    console.warn(`Slow frame detected: ${frameTime.toFixed(2)}ms`, {
+                        updateTime: updateTime.toFixed(2),
+                        renderTime: renderTime.toFixed(2)
+                    });
+                }
+            }
 
             // Update FPS counter
             this.frameCount++;
@@ -966,7 +998,7 @@ export class GameInstance {
                 if (this.debug?.flags?.showFPS) {
                     const fpsElement = document.getElementById('fpsCounter');
                     if (fpsElement) {
-                        fpsElement.textContent = `FPS: ${this.fps}`;
+                        fpsElement.textContent = `FPS: ${this.fps} | Frame: ${frameTime.toFixed(1)}ms`;
                     }
                 }
             }
@@ -1073,12 +1105,36 @@ export class GameInstance {
         // Ensure camera stays within world bounds
         this.constrainCameraToWorldBounds();
 
-        // Update entities
-        this.entities.forEach(entity => {
-            if (entity.update) {
+        // Update entities with culling
+        // Only update entities that are visible or near the player
+        const updateDistance = 20; // Only update entities within this distance of the player
+        const playerX = this.player.x;
+        const playerY = this.player.y;
+
+        let entitiesUpdated = 0;
+        let entitiesSkipped = 0;
+
+        for (const entity of this.entities) {
+            if (!entity.update) continue;
+
+            // Calculate distance to player
+            const dx = entity.x - playerX;
+            const dy = entity.y - playerY;
+            const distanceSquared = dx * dx + dy * dy;
+
+            // Only update if within update distance or is visible
+            if (distanceSquared <= updateDistance * updateDistance || entity.isVisible) {
                 entity.update(deltaTime);
+                entitiesUpdated++;
+            } else {
+                entitiesSkipped++;
             }
-        });
+        }
+
+        // Log entity update stats if performance logging is enabled
+        if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
+            console.log(`Entity updates: ${entitiesUpdated} updated, ${entitiesSkipped} skipped`);
+        }
 
         // Find the structure at player's position
         let playerX = Math.floor(this.player.x);
@@ -1128,12 +1184,8 @@ export class GameInstance {
         });
 
         // Update NPC visibility based on structures
-        this.entities.forEach(entity => {
-            if (entity instanceof NPC) {
-                entity.update(deltaTime);
-                entity.updateVisibility(playerStructure);
-            }
-        });
+        // This is already handled in the entity update loop above
+        // No need to update NPCs again here
 
         // Update UI
         this.uiManager.update(deltaTime);
@@ -1208,16 +1260,34 @@ export class GameInstance {
         const entitiesInside = [];
         const entitiesBehindStructures = []; // New array for entities behind structures
 
+        // Performance tracking
+        let entitiesProcessed = 0;
+        let entitiesCulled = 0;
+
         // Use for loop instead of forEach for better performance
         const entities = Array.from(this.entities);
         for (let i = 0; i < entities.length; i++) {
             const entity = entities[i];
 
-            // Skip entities outside the visible area
-            if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
+            // Skip entities that don't have a render method
+            if (!entity.render) {
+                entitiesCulled++;
                 continue;
             }
 
+            // Skip entities that aren't visible
+            if (!entity.isVisible) {
+                entitiesCulled++;
+                continue;
+            }
+
+            // Skip entities outside the visible area
+            if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
+                entitiesCulled++;
+                continue;
+            }
+
+            entitiesProcessed++;
             visibleEntities.push(entity);
 
             // Split into different groups based on position and visibility
@@ -1378,6 +1448,11 @@ export class GameInstance {
         // Render minimap last (on top of everything)
         if (this.minimap) {
             this.minimap.render();
+        }
+
+        // Log entity rendering stats if performance logging is enabled
+        if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
+            console.log(`Entity rendering: ${entitiesProcessed} rendered, ${entitiesCulled} culled`);
         }
     }
 
