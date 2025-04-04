@@ -97,14 +97,51 @@ export class GameInstance {
         // Initialize entities collection
         this.entities = new Set();
 
-        // Initialize camera with minimum zoom
+        // Initialize camera with improved properties
         this.camera = {
             x: 0,
             y: 0,
             zoom: 0.5,
+            // Target position (usually the player)
+            targetX: 0,
+            targetY: 0,
+            // Offset from target (for panning)
+            offsetX: 0,
+            offsetY: 0,
+            // Camera movement settings
+            followPlayer: true,  // Whether camera should follow player
+            followSpeed: 0.1,    // How quickly camera follows player (0-1)
+            panSpeed: 15,        // Speed of manual panning
+            // Center camera on specific coordinates
             centerOn(x, y) {
+                this.targetX = x;
+                this.targetY = y;
+                this.offsetX = 0;
+                this.offsetY = 0;
                 this.x = x;
                 this.y = y;
+            },
+            // Pan the camera by the specified amount
+            pan(deltaX, deltaY) {
+                this.offsetX += deltaX;
+                this.offsetY += deltaY;
+            },
+            // Reset panning offset
+            resetPan() {
+                this.offsetX = 0;
+                this.offsetY = 0;
+            },
+            // Update camera position based on target and offset
+            update(deltaTime) {
+                if (this.followPlayer) {
+                    // Smoothly move camera towards target + offset
+                    this.x += ((this.targetX + this.offsetX) - this.x) * this.followSpeed;
+                    this.y += ((this.targetY + this.offsetY) - this.y) * this.followSpeed;
+                } else {
+                    // Just use the offset for manual control
+                    this.x = this.targetX + this.offsetX;
+                    this.y = this.targetY + this.offsetY;
+                }
             }
         };
 
@@ -140,6 +177,7 @@ export class GameInstance {
                 forceNPCMovement: true, // Force NPCs to move (for debugging)
                 debugNPCUpdate: true,   // Debug NPC update method calls
                 debugShadowArea: false, // Disable shadow area visualization
+                logCamera: false,       // Disable camera logging
 
                 // Feature flags
                 enableLayoutMode: true
@@ -732,11 +770,45 @@ export class GameInstance {
         document.addEventListener('keydown', handleKeyDown, { capture: true });
         document.addEventListener('keyup', handleKeyUp, { capture: true });
 
+        // Handle mouse movement for camera panning
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.inputManager && this.inputManager.isShiftPressed) {
+                // Get mouse movement delta
                 const { deltaX, deltaY } = this.inputManager.getMouseDelta();
-                this.camera.x -= deltaX / this.camera.zoom;
-                this.camera.y -= deltaY / this.camera.zoom;
+
+                if (deltaX === 0 && deltaY === 0) return; // Skip if no movement
+
+                // Convert screen delta to world delta based on zoom and isometric projection
+                const worldDeltaX = (deltaX - deltaY) / (this.renderer.tileWidth * this.camera.zoom);
+                const worldDeltaY = (deltaX + deltaY) / (this.renderer.tileHeight * this.camera.zoom);
+
+                // Pan the camera (negative because we want to move the world in the opposite direction)
+                this.camera.pan(-worldDeltaX, -worldDeltaY);
+
+                // Temporarily disable player following while panning
+                if (deltaX !== 0 || deltaY !== 0) {
+                    this.camera.followPlayer = false;
+                }
+
+                // Log panning if debug is enabled
+                if (this.debug?.flags?.logCamera) {
+                    console.log('Camera panning:', {
+                        mouseDelta: { x: deltaX, y: deltaY },
+                        worldDelta: { x: worldDeltaX, y: worldDeltaY },
+                        cameraOffset: { x: this.camera.offsetX, y: this.camera.offsetY }
+                    });
+                }
+            }
+        });
+
+        // Add double-click to reset camera
+        this.canvas.addEventListener('dblclick', (e) => {
+            // Reset camera offset and re-enable player following
+            this.camera.resetPan();
+            this.camera.followPlayer = true;
+
+            if (this.debug?.flags?.logCamera) {
+                console.log('Camera reset to player');
             }
         });
 
@@ -909,6 +981,41 @@ export class GameInstance {
     }
 
     /**
+     * Constrains the camera to stay within the world bounds
+     * @private
+     */
+    constrainCameraToWorldBounds() {
+        if (!this.world) return;
+
+        // Calculate the visible area in world coordinates based on camera zoom
+        const visibleWidth = this.canvas.width / this.camera.zoom / this.renderer.tileWidth;
+        const visibleHeight = this.canvas.height / this.camera.zoom / this.renderer.tileHeight;
+
+        // Calculate the maximum allowed camera position
+        // This ensures we don't pan too far and see empty space
+        const maxX = this.world.width - visibleWidth / 2;
+        const maxY = this.world.height - visibleHeight / 2;
+
+        // Calculate the minimum allowed camera position
+        // This ensures we don't pan too far and see empty space
+        const minX = visibleWidth / 2;
+        const minY = visibleHeight / 2;
+
+        // Constrain camera position
+        this.camera.x = Math.max(minX, Math.min(maxX, this.camera.x));
+        this.camera.y = Math.max(minY, Math.min(maxY, this.camera.y));
+
+        // Log camera constraints if debug is enabled
+        if (this.debug?.flags?.logCamera) {
+            console.log('Camera constraints:', {
+                position: { x: this.camera.x, y: this.camera.y },
+                bounds: { minX, minY, maxX, maxY },
+                visibleArea: { width: visibleWidth, height: visibleHeight }
+            });
+        }
+    }
+
+    /**
      * Updates game state
      * @param {number} deltaTime - Time elapsed since last update
      */
@@ -938,6 +1045,18 @@ export class GameInstance {
 
         // Update player
         this.player.update(deltaTime);
+
+        // Update camera target to follow player
+        if (this.camera.followPlayer) {
+            this.camera.targetX = this.player.x;
+            this.camera.targetY = this.player.y;
+        }
+
+        // Update camera position
+        this.camera.update(deltaTime);
+
+        // Ensure camera stays within world bounds
+        this.constrainCameraToWorldBounds();
 
         // Update entities
         this.entities.forEach(entity => {
@@ -1019,15 +1138,14 @@ export class GameInstance {
         const offsetX = this.canvas.width / 2;
         const offsetY = this.canvas.height / 2;
 
-        // Convert world coordinates to isometric coordinates
-        const isoX = (this.player.x - this.player.y) * (this.renderer.tileWidth / 2);
-        const isoY = (this.player.x + this.player.y) * (this.renderer.tileHeight / 2);
+        // Convert camera world coordinates to isometric coordinates
+        const isoX = (this.camera.x - this.camera.y) * (this.renderer.tileWidth / 2);
+        const isoY = (this.camera.x + this.camera.y) * (this.renderer.tileHeight / 2);
 
-        // Center camera on player with proper zoom handling
         // Apply zoom scaling first
         this.ctx.scale(this.camera.zoom, this.camera.zoom);
 
-        // Then translate to center the view on the player
+        // Then translate to center the view on the camera position
         // Divide by zoom because we've already scaled the context
         this.ctx.translate(
             offsetX / this.camera.zoom - isoX,
@@ -1040,6 +1158,8 @@ export class GameInstance {
                 zoom: this.camera.zoom,
                 offsetX: offsetX / this.camera.zoom - isoX,
                 offsetY: offsetY / this.camera.zoom - isoY,
+                cameraPos: `(${this.camera.x},${this.camera.y})`,
+                cameraOffset: `(${this.camera.offsetX},${this.camera.offsetY})`,
                 playerPos: `(${this.player.x},${this.player.y})`,
                 isoPos: `(${isoX},${isoY})`
             });
