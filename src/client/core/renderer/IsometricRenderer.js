@@ -153,7 +153,7 @@ export class IsometricRenderer {
     }
 
     /**
-     * Renders only the structures of the game world
+     * Renders only the structures of the game world with optimized culling
      * @param {World} world - The game world to render
      * @param {Object} camera - Camera position and zoom
      * @param {GameInstance} [game=null] - Reference to the game instance
@@ -164,6 +164,11 @@ export class IsometricRenderer {
             console.error('StructureRenderer not initialized');
             return;
         }
+
+        // Performance tracking
+        const renderStart = performance.now();
+        let structuresProcessed = 0;
+        let structuresCulled = 0;
 
         // Set the world reference in the structure renderer
         this.structureRenderer.world = world;
@@ -177,10 +182,11 @@ export class IsometricRenderer {
         const viewportWidth = this.canvas.width / camera.zoom;
         const viewportHeight = this.canvas.height / camera.zoom;
 
-        // Use the same buffer calculation as renderWorldTiles
+        // Use adaptive buffer based on performance mode
+        const isPerformanceMode = game?.performanceMode?.enabled;
+        const minBuffer = isPerformanceMode ? 10 : 20;
         const zoomFactor = Math.pow(2, 1 / camera.zoom);
-        const minBuffer = 20;
-        const buffer = Math.max(minBuffer, Math.ceil(30 * zoomFactor));
+        const buffer = Math.max(minBuffer, Math.ceil((isPerformanceMode ? 15 : 30) * zoomFactor));
 
         // Calculate visible range
         const baseVisibleRange = Math.ceil(Math.max(viewportWidth, viewportHeight) / this.tileWidth);
@@ -194,39 +200,76 @@ export class IsometricRenderer {
         const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
         const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
 
-        // Get all structures
-        const structures = world.getAllStructures();
+        // Cache structures array if it hasn't changed
+        if (!world._cachedStructures || world._lastStructureCount !== world.structures.size) {
+            world._cachedStructures = world.getAllStructures();
+            world._lastStructureCount = world.structures.size;
+        }
+
+        const structures = world._cachedStructures;
+        const visibleStructures = [];
+
+        // Use squared distance for faster culling (avoid sqrt)
+        const visibleRangeSq = visibleRange * visibleRange;
 
         // Filter structures to only those in the visible area (with a buffer)
-        const visibleStructures = structures.filter(structure => {
-            // Check if any part of the structure is within the visible range
-            const isVisible = (
-                structure.x + structure.width >= minX &&
-                structure.x <= maxX &&
-                structure.y + structure.height >= minY &&
-                structure.y <= maxY
-            );
+        for (let i = 0; i < structures.length; i++) {
+            const structure = structures[i];
 
-            // Log if debug is enabled and structure is a tree
-            if (!isVisible && structure.type === 'tree' && world?.game?.debug?.flags?.logStructures) {
-                console.log(`Tree at ${structure.x},${structure.y} is outside visible range: ${minX},${minY} to ${maxX},${maxY}`);
+            // Quick distance check (squared distance to avoid sqrt)
+            const dx = structure.x - centerWorldX;
+            const dy = structure.y - centerWorldY;
+            const distanceSq = dx * dx + dy * dy;
+
+            // Skip structures that are too far from camera (faster than bounds check)
+            if (distanceSq > visibleRangeSq * 1.5) { // Use 1.5x for structures that might be large
+                structuresCulled++;
+                continue;
             }
 
-            return isVisible;
-        });
+            // More precise check for structures near the edge of the visible area
+            // Check if any part of the structure is within the visible range
+            const structureMaxX = structure.x + (structure.width || 1);
+            const structureMaxY = structure.y + (structure.height || 1);
 
+            if (structureMaxX < minX || structure.x > maxX || structureMaxY < minY || structure.y > maxY) {
+                structuresCulled++;
+                continue;
+            }
+
+            structuresProcessed++;
+            visibleStructures.push(structure);
+        }
+
+        // Log structure filtering stats if enabled
         if (world?.game?.debug?.flags?.logStructures) {
-            console.log(`Filtered structures: ${structures.length} total, ${visibleStructures.length} visible`);
+            console.log(`Filtered structures: ${structures.length} total, ${visibleStructures.length} visible, ${structuresCulled} culled`);
         }
 
         // Sort structures by their position in the isometric world
-        const sortedStructures = this.sortStructuresByDepth(visibleStructures);
+        // Cache the sorted structures if the visible set hasn't changed
+        if (!world._lastVisibleStructures ||
+            world._lastVisibleStructures.length !== visibleStructures.length ||
+            !world._lastVisibleStructures.every((s, i) => s === visibleStructures[i])) {
+
+            world._sortedStructures = this.sortStructuresByDepth(visibleStructures);
+            world._lastVisibleStructures = visibleStructures;
+        }
+
+        const sortedStructures = world._sortedStructures || this.sortStructuresByDepth(visibleStructures);
 
         // Render structures in sorted order
-        sortedStructures.forEach(structure => {
+        for (let i = 0; i < sortedStructures.length; i++) {
+            const structure = sortedStructures[i];
             const screenCoords = this.worldToScreen(structure.x, structure.y);
             this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
-        });
+        }
+
+        // Log performance stats if enabled
+        if (world?.game?.debug?.flags?.logPerformance && game?.frameCount % 60 === 0) {
+            const renderTime = performance.now() - renderStart;
+            console.log(`Structure rendering: ${structuresProcessed} rendered, ${structuresCulled} culled, ${renderTime.toFixed(2)}ms`);
+        }
     }
 
     /**

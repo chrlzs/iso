@@ -964,7 +964,7 @@ export class GameInstance {
     }
 
     /**
-     * Main game loop with frame rate limiting and performance monitoring
+     * Main game loop with frame rate limiting, performance monitoring, and adaptive frame skipping
      * @private
      * @param {number} timestamp - Current timestamp from requestAnimationFrame
      */
@@ -973,6 +973,20 @@ export class GameInstance {
 
         // Calculate time since last frame
         const elapsed = timestamp - this.lastTime;
+
+        // Initialize performance mode properties if not already set
+        if (this.performanceMode === undefined) {
+            this.performanceMode = {
+                enabled: false,
+                frameSkip: 0,
+                maxFrameSkip: 3,
+                consecutiveSlowFrames: 0,
+                slowFrameThreshold: 5,
+                lastPerformanceCheck: timestamp,
+                checkInterval: 5000, // Check every 5 seconds
+                adaptiveRendering: true
+            };
+        }
 
         // Only update if enough time has passed for the target frame rate
         if (elapsed >= this.frameInterval) {
@@ -985,20 +999,29 @@ export class GameInstance {
             // Performance monitoring - start
             const updateStart = performance.now();
 
-            // Update game state
+            // Always update game state
             this.update(deltaTime);
 
             const updateEnd = performance.now();
             const renderStart = performance.now();
 
-            // Render the frame
-            this.render();
+            // Check if we should skip rendering this frame
+            let skipRender = false;
+            if (this.performanceMode.enabled && this.performanceMode.frameSkip > 0) {
+                // Skip rendering based on frame count
+                skipRender = (this.frameCount % (this.performanceMode.frameSkip + 1)) !== 0;
+            }
+
+            // Render the frame (unless skipped)
+            if (!skipRender) {
+                this.render();
+            }
 
             const renderEnd = performance.now();
 
             // Calculate performance metrics
             const updateTime = updateEnd - updateStart;
-            const renderTime = renderEnd - renderStart;
+            const renderTime = skipRender ? 0 : renderEnd - renderStart;
             const frameTime = updateTime + renderTime;
 
             // Store performance metrics
@@ -1006,17 +1029,32 @@ export class GameInstance {
                 updateTime,
                 renderTime,
                 frameTime,
-                timestamp
+                timestamp,
+                skippedRender: skipRender
             };
 
             // Detect slow frames
-            if (frameTime > 16.67) { // More than 60fps frame budget
+            const isSlowFrame = frameTime > 16.67; // More than 60fps frame budget
+            if (isSlowFrame) {
+                this.performanceMode.consecutiveSlowFrames++;
+
                 if (this.debug?.flags?.logPerformance) {
                     console.warn(`Slow frame detected: ${frameTime.toFixed(2)}ms`, {
                         updateTime: updateTime.toFixed(2),
-                        renderTime: renderTime.toFixed(2)
+                        renderTime: renderTime.toFixed(2),
+                        skipped: skipRender,
+                        consecutiveSlow: this.performanceMode.consecutiveSlowFrames
                     });
                 }
+            } else {
+                // Reset consecutive slow frames counter if we had a good frame
+                this.performanceMode.consecutiveSlowFrames = 0;
+            }
+
+            // Check if we need to adjust performance mode
+            if (timestamp - this.performanceMode.lastPerformanceCheck > this.performanceMode.checkInterval) {
+                this.adjustPerformanceMode();
+                this.performanceMode.lastPerformanceCheck = timestamp;
             }
 
             // Update FPS counter
@@ -1032,7 +1070,7 @@ export class GameInstance {
                 if (this.debug?.flags?.showFPS) {
                     const fpsElement = document.getElementById('fpsCounter');
                     if (fpsElement) {
-                        fpsElement.textContent = `FPS: ${this.fps} | Frame: ${frameTime.toFixed(1)}ms`;
+                        fpsElement.textContent = `FPS: ${this.fps} | Frame: ${frameTime.toFixed(1)}ms | Mode: ${this.performanceMode.enabled ? 'Performance' : 'Quality'} | Skip: ${this.performanceMode.frameSkip}`;
                     }
                 }
             }
@@ -1040,6 +1078,35 @@ export class GameInstance {
 
         // Schedule next frame
         this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+    }
+
+    /**
+     * Adjusts performance mode settings based on recent performance
+     * @private
+     */
+    adjustPerformanceMode() {
+        // If we've had several consecutive slow frames, enable performance mode
+        if (this.performanceMode.consecutiveSlowFrames >= this.performanceMode.slowFrameThreshold) {
+            if (!this.performanceMode.enabled) {
+                this.performanceMode.enabled = true;
+                this.performanceMode.frameSkip = 1;
+                console.log('Performance mode enabled: Frame skip set to 1');
+            } else if (this.performanceMode.frameSkip < this.performanceMode.maxFrameSkip) {
+                // Increase frame skip if already in performance mode but still having issues
+                this.performanceMode.frameSkip++;
+                console.log(`Performance mode adjusted: Frame skip increased to ${this.performanceMode.frameSkip}`);
+            }
+        }
+        // If FPS is good, gradually reduce performance optimizations
+        else if (this.fps > 45 && this.performanceMode.enabled) {
+            if (this.performanceMode.frameSkip > 0) {
+                this.performanceMode.frameSkip--;
+                console.log(`Performance mode adjusted: Frame skip decreased to ${this.performanceMode.frameSkip}`);
+            } else {
+                this.performanceMode.enabled = false;
+                console.log('Performance mode disabled: Good performance detected');
+            }
+        }
     }
 
     stop() {
@@ -1299,23 +1366,45 @@ export class GameInstance {
         let entitiesCulled = 0;
 
         // Use for loop instead of forEach for better performance
-        const entities = Array.from(this.entities);
+        // Convert Set to Array only once and cache the result
+        if (!this._entitiesArray || this._lastEntityCount !== this.entities.size) {
+            this._entitiesArray = Array.from(this.entities);
+            this._lastEntityCount = this.entities.size;
+        }
+
+        const entities = this._entitiesArray;
+
+        // Use spatial partitioning for faster entity culling
+        // Only process entities that are likely to be visible
+        const visibleRangeSq = visibleRange * visibleRange;
+
         for (let i = 0; i < entities.length; i++) {
             const entity = entities[i];
 
-            // Skip entities that don't have a render method
+            // Skip entities that don't have a render method (fast check)
             if (!entity.render) {
                 entitiesCulled++;
                 continue;
             }
 
-            // Skip entities that aren't visible
+            // Skip entities that aren't visible (fast check)
             if (!entity.isVisible) {
                 entitiesCulled++;
                 continue;
             }
 
-            // Skip entities outside the visible area
+            // Quick distance check (squared distance to avoid sqrt)
+            const dx = entity.x - this.camera.x;
+            const dy = entity.y - this.camera.y;
+            const distanceSq = dx * dx + dy * dy;
+
+            // Skip entities that are too far from camera (faster than bounds check)
+            if (distanceSq > visibleRangeSq) {
+                entitiesCulled++;
+                continue;
+            }
+
+            // More precise check for entities near the edge of the visible area
             if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
                 entitiesCulled++;
                 continue;
