@@ -39,8 +39,38 @@ export class StructureRenderer {
             return false;
         }
 
+        // Get structure dimensions and properties
+        const structureWidth = structure.width || 1;
+        const structureHeight = structure.height || 1;
+        const structureFloors = structure.template?.floors || 1;
+
         // Get all entities from the game
         const entities = Array.from(this.game.entities || []);
+
+        // Debug flag for shadow area visualization
+        const debugShadowArea = this.game?.debug?.flags?.debugShadowArea;
+
+        // Calculate the shadow area based on structure dimensions and height
+        // The shadow area extends further for taller buildings
+        const shadowExtendX = structureFloors * 0.5; // Extend shadow area based on height
+        const shadowExtendY = structureFloors * 0.5;
+
+        // Calculate the shadow area bounds in isometric space
+        const shadowArea = {
+            minX: structure.x - shadowExtendX,
+            maxX: structure.x + structureWidth + shadowExtendX,
+            minY: structure.y - shadowExtendY,
+            maxY: structure.y + structureHeight + shadowExtendY,
+            // Front depth is the minimum isometric depth (x+y) of the structure
+            frontDepth: structure.x + structure.y,
+            // Back depth is the maximum isometric depth (x+y) of the structure plus height influence
+            backDepth: structure.x + structureWidth + structure.y + structureHeight + (structureFloors * 0.5)
+        };
+
+        // Visualize shadow area if debug is enabled
+        if (debugShadowArea && this.ctx) {
+            this.visualizeShadowArea(structure, shadowArea);
+        }
 
         // Check if any NPC is behind this structure
         for (const entity of entities) {
@@ -50,29 +80,94 @@ export class StructureRenderer {
             // Skip entities that are not visible
             if (!entity.isVisible) continue;
 
-            // Check if entity is behind this structure in isometric view
+            // Skip entities that are inside this structure
+            if (entity.currentStructure === structure) continue;
+
+            // Calculate entity's isometric depth
             const entityDepth = entity.x + entity.y;
-            const structureFrontDepth = structure.x + structure.y;
-            const structureBackDepth = structure.x + structure.width + structure.y + structure.height;
 
             // Calculate if the entity is within the structure's shadow area
             const isInShadowArea = (
-                // Entity is within the X bounds of the structure (with a small buffer)
-                entity.x >= structure.x - 0.5 &&
-                entity.x <= structure.x + structure.width + 0.5 &&
-                // Entity is within the Y bounds of the structure (with a small buffer)
-                entity.y >= structure.y - 0.5 &&
-                entity.y <= structure.y + structure.height + 0.5 &&
+                // Entity is within the X bounds of the shadow area
+                entity.x >= shadowArea.minX &&
+                entity.x <= shadowArea.maxX &&
+                // Entity is within the Y bounds of the shadow area
+                entity.y >= shadowArea.minY &&
+                entity.y <= shadowArea.maxY &&
                 // Entity is behind the structure in isometric depth
-                entityDepth > structureFrontDepth
+                entityDepth > shadowArea.frontDepth &&
+                // Entity is not too far behind the structure
+                entityDepth < shadowArea.backDepth
             );
 
-            if (isInShadowArea) {
+            // Additional check for tall structures: entity should be within the structure's footprint
+            // This prevents entities far to the side from triggering transparency
+            const isWithinFootprint = (
+                // For taller structures, we want a stricter check on the footprint
+                structureFloors <= 1 || (
+                    entity.x >= structure.x - 0.5 &&
+                    entity.x <= structure.x + structureWidth + 0.5 &&
+                    entity.y >= structure.y - 0.5 &&
+                    entity.y <= structure.y + structureHeight + 0.5
+                )
+            );
+
+            if (isInShadowArea && isWithinFootprint) {
+                if (debugShadowArea) {
+                    console.log(`NPC ${entity.name} is behind structure at (${structure.x},${structure.y}):`, {
+                        entityPos: { x: entity.x, y: entity.y },
+                        entityDepth,
+                        shadowArea,
+                        structureFloors
+                    });
+                }
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Visualizes the shadow area for debugging
+     * @param {Object} structure - The structure
+     * @param {Object} shadowArea - The shadow area bounds
+     */
+    visualizeShadowArea(structure, shadowArea) {
+        // Save context state
+        this.ctx.save();
+
+        // Convert shadow area bounds to screen coordinates
+        const screenMinX = (shadowArea.minX - shadowArea.minY) * (this.tileWidth / 2);
+        const screenMinY = (shadowArea.minX + shadowArea.minY) * (this.tileHeight / 2);
+        const screenMaxX = (shadowArea.maxX - shadowArea.minY) * (this.tileWidth / 2);
+        const screenMaxY = (shadowArea.maxX + shadowArea.maxY) * (this.tileHeight / 2);
+
+        // Draw shadow area outline
+        this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenMinX, screenMinY);
+        this.ctx.lineTo(screenMaxX, screenMinY);
+        this.ctx.lineTo(screenMaxX, screenMaxY);
+        this.ctx.lineTo(screenMinX, screenMaxY);
+        this.ctx.closePath();
+        this.ctx.stroke();
+
+        // Draw shadow area fill
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+        this.ctx.fill();
+
+        // Draw structure position
+        const structureScreenX = (structure.x - structure.y) * (this.tileWidth / 2);
+        const structureScreenY = (structure.x + structure.y) * (this.tileHeight / 2);
+        this.ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+        this.ctx.beginPath();
+        this.ctx.arc(structureScreenX, structureScreenY, 5, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Restore context state
+        this.ctx.restore();
     }
 
     /**
@@ -191,6 +286,9 @@ export class StructureRenderer {
             return 1; // Fully opaque by default
         }
 
+        // Get structure properties
+        const structureFloors = structure.template?.floors || 1;
+
         // Get or initialize transparency data for this structure
         if (!this.structureTransparency.has(structure)) {
             this.structureTransparency.set(structure, {
@@ -208,7 +306,27 @@ export class StructureRenderer {
         const hasNPCsBehind = this.hasNPCsBehind(structure);
 
         // Set target transparency based on whether there are NPCs behind
-        transparencyData.targetTransparency = hasNPCsBehind ? 0.4 : 1; // 40% opacity when NPCs behind
+        // Adjust transparency based on structure height - taller buildings are more transparent
+        // This helps with visibility for very tall structures
+        let targetOpacity = 0.4; // Base opacity when NPCs are behind
+
+        // Make taller buildings more transparent
+        if (structureFloors > 1) {
+            // Reduce opacity for taller buildings (more transparent)
+            targetOpacity = Math.max(0.2, 0.4 - (structureFloors - 1) * 0.05);
+        }
+
+        // Set target transparency
+        transparencyData.targetTransparency = hasNPCsBehind ? targetOpacity : 1;
+
+        // Debug logging
+        if (this.game?.debug?.flags?.debugShadowArea && hasNPCsBehind) {
+            console.log(`Structure at (${structure.x},${structure.y}) has NPCs behind:`, {
+                floors: structureFloors,
+                targetOpacity,
+                currentOpacity: transparencyData.currentTransparency
+            });
+        }
 
         // Gradually adjust current transparency
         const delta = (now - transparencyData.lastUpdate) * transparencyData.transitionSpeed;
