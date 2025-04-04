@@ -13,7 +13,7 @@ export class PerformanceMonitor {
             logToConsole: true,    // Log to console
             ...options
         };
-        
+
         this.metrics = {
             fps: [],
             memory: [],
@@ -22,35 +22,35 @@ export class PerformanceMonitor {
             textures: [],
             timestamp: []
         };
-        
+
         this.lastSampleTime = 0;
         this.frameCount = 0;
         this.isRunning = false;
-        
+
         // Bind methods
         this.update = this.update.bind(this);
         this.startMonitoring = this.startMonitoring.bind(this);
         this.stopMonitoring = this.stopMonitoring.bind(this);
     }
-    
+
     /**
      * Starts performance monitoring
      */
     startMonitoring() {
         if (this.isRunning) return;
-        
+
         this.isRunning = true;
         this.lastSampleTime = performance.now();
         this.frameCount = 0;
-        
+
         // Clear previous metrics
         Object.keys(this.metrics).forEach(key => {
             this.metrics[key] = [];
         });
-        
+
         console.log('Performance monitoring started');
     }
-    
+
     /**
      * Stops performance monitoring
      */
@@ -58,22 +58,22 @@ export class PerformanceMonitor {
         this.isRunning = false;
         console.log('Performance monitoring stopped');
     }
-    
+
     /**
      * Updates performance metrics
      * @param {Object} gameInstance - Game instance
      */
     update(gameInstance) {
         if (!this.isRunning) return;
-        
+
         this.frameCount++;
         const now = performance.now();
         const elapsed = now - this.lastSampleTime;
-        
+
         // Sample metrics at regular intervals
         if (elapsed >= this.options.sampleInterval) {
             const fps = Math.round((this.frameCount / elapsed) * 1000);
-            
+
             // Get memory usage if available
             let memory = null;
             if (window.performance && window.performance.memory) {
@@ -83,16 +83,16 @@ export class PerformanceMonitor {
                     jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
                 };
             }
-            
-            // Get entity count
-            const entityCount = gameInstance.world ? gameInstance.world.entities.length : 0;
-            
-            // Get draw calls
-            const drawCalls = gameInstance.renderer ? gameInstance.renderer.stats.drawCalls : 0;
-            
-            // Get texture count
-            const textureCount = gameInstance.tileManager ? gameInstance.tileManager.textures.size : 0;
-            
+
+            // Get entity count with proper null checks
+            const entityCount = gameInstance && gameInstance.world && gameInstance.world.entities ? gameInstance.world.entities.length : 0;
+
+            // Get draw calls with proper null checks
+            const drawCalls = gameInstance && gameInstance.renderer && gameInstance.renderer.stats ? gameInstance.renderer.stats.drawCalls || 0 : 0;
+
+            // Get texture count with proper null checks
+            const textureCount = gameInstance && gameInstance.tileManager && gameInstance.tileManager.textures ? gameInstance.tileManager.textures.size : 0;
+
             // Add metrics to history
             this.metrics.fps.push(fps);
             this.metrics.memory.push(memory);
@@ -100,14 +100,14 @@ export class PerformanceMonitor {
             this.metrics.drawCalls.push(drawCalls);
             this.metrics.textures.push(textureCount);
             this.metrics.timestamp.push(now);
-            
+
             // Trim history if needed
             if (this.metrics.fps.length > this.options.historySize) {
                 Object.keys(this.metrics).forEach(key => {
                     this.metrics[key] = this.metrics[key].slice(-this.options.historySize);
                 });
             }
-            
+
             // Log metrics
             if (this.options.logToConsole) {
                 console.log('Performance metrics:', {
@@ -118,26 +118,26 @@ export class PerformanceMonitor {
                     textures: textureCount,
                     elapsedTime: Math.floor((now - this.metrics.timestamp[0]) / 1000) + 's'
                 });
-                
+
                 // Check for memory leaks
                 this.checkForMemoryLeaks();
             }
-            
+
             // Reset counters
             this.lastSampleTime = now;
             this.frameCount = 0;
         }
     }
-    
+
     /**
      * Checks for potential memory leaks
      */
     checkForMemoryLeaks() {
         if (this.metrics.memory.length < 5) return; // Need at least 5 samples
-        
+
         const memoryHistory = this.metrics.memory.filter(m => m !== null);
         if (memoryHistory.length < 5) return; // Need at least 5 valid memory samples
-        
+
         // Check for consistent memory growth
         let consistentGrowth = true;
         for (let i = 1; i < memoryHistory.length; i++) {
@@ -146,12 +146,12 @@ export class PerformanceMonitor {
                 break;
             }
         }
-        
+
         if (consistentGrowth) {
             const startMemory = memoryHistory[0].usedJSHeapSize;
             const endMemory = memoryHistory[memoryHistory.length - 1].usedJSHeapSize;
             const growthRate = (endMemory - startMemory) / (this.metrics.timestamp[this.metrics.timestamp.length - 1] - this.metrics.timestamp[0]) * 1000;
-            
+
             console.warn('Potential memory leak detected!', {
                 startMemory: `${startMemory.toFixed(2)}MB`,
                 currentMemory: `${endMemory.toFixed(2)}MB`,
@@ -160,7 +160,7 @@ export class PerformanceMonitor {
                 timeElapsed: `${((this.metrics.timestamp[this.metrics.timestamp.length - 1] - this.metrics.timestamp[0]) / 1000).toFixed(0)}s`
             });
         }
-        
+
         // Check for entity growth
         const entityStart = this.metrics.entities[0];
         const entityEnd = this.metrics.entities[this.metrics.entities.length - 1];
@@ -171,7 +171,7 @@ export class PerformanceMonitor {
                 growth: entityEnd - entityStart
             });
         }
-        
+
         // Check for texture growth
         const textureStart = this.metrics.textures[0];
         const textureEnd = this.metrics.textures[this.metrics.textures.length - 1];
@@ -183,7 +183,7 @@ export class PerformanceMonitor {
             });
         }
     }
-    
+
     /**
      * Gets the current FPS
      * @returns {number} Current FPS
@@ -192,7 +192,7 @@ export class PerformanceMonitor {
         if (this.metrics.fps.length === 0) return 0;
         return this.metrics.fps[this.metrics.fps.length - 1];
     }
-    
+
     /**
      * Gets performance metrics history
      * @returns {Object} Metrics history
