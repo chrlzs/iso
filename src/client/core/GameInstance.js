@@ -15,6 +15,7 @@ import { Item } from './inventory/Item.js';
 import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
+import { AssetRegistry } from './assets/AssetRegistry.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -53,6 +54,9 @@ export class GameInstance {
                 filtering: 'trilinear'
             }
         });
+
+        // Initialize asset registry
+        this.assetRegistry = new AssetRegistry(this.assetManager);
 
         // Define core texture sets
         this.textureDefinitions = {
@@ -563,76 +567,101 @@ export class GameInstance {
      * @async
      */
     async initializeTextures() {
-        const texturePromises = [];
-
-        // Define base texture types that must be loaded
-        const baseTextureTypes = [
-            'water', 'wetland', 'sand', 'dirt', 'grass',
-            'forest', 'mountain', 'concrete', 'asphalt', 'metal',
-            'tiles', 'gravel', 'solar', 'garden', 'door',
-            'helipad', 'parking', 'tree', 'bush', 'road',
-            'walkway', 'stone'
-        ];
-
-        // Initialize all base textures first
-        baseTextureTypes.forEach(type => {
-            texturePromises.push(
-                this.tileManager.generateTexture(type, this.tileManager.tileColors[type])
-            );
-        });
-
-        // Initialize terrain textures
-        for (const [terrainType, config] of Object.entries(this.textureDefinitions.terrain)) {
-            if (!baseTextureTypes.includes(terrainType)) {
-                texturePromises.push(
-                    this.tileManager.generateTexture(terrainType, config.base)
-                );
-            }
-
-            // Generate variant textures if they exist
-            if (config.variants) {
-                config.variants.forEach((variant, index) => {
-                    texturePromises.push(
-                        this.tileManager.generateTexture(
-                            variant,
-                            config.variantColors[index]
-                        )
-                    );
-                });
-            }
-        }
-
-        // Initialize decoration textures
-        for (const [decType, config] of Object.entries(this.textureDefinitions.decorations)) {
-            if (!baseTextureTypes.includes(decType)) {
-                texturePromises.push(
-                    this.tileManager.generateTexture(decType, config.base)
-                );
-            }
-
-            // Generate variant textures if they exist
-            if (config.variants) {
-                config.variants.forEach((variant, index) => {
-                    texturePromises.push(
-                        this.tileManager.generateTexture(
-                            variant,
-                            config.variantColors[index]
-                        )
-                    );
-                });
-            }
-        }
-
-        // Add debug logging for texture loading
-        if (this.debug?.flags?.logTextureLoading) {
-            console.log('Game: Loading textures:', {
-                baseTypes: baseTextureTypes,
-                terrain: Object.keys(this.textureDefinitions.terrain),
-                decorations: Object.keys(this.textureDefinitions.decorations)
-            });
-        }
-
         try {
+            // Initialize default assets from the asset registry
+            await this.assetRegistry.initializeDefaultAssets();
+
+            const texturePromises = [];
+
+            // Define base texture types that must be loaded
+            const baseTextureTypes = [
+                'water', 'wetland', 'sand', 'dirt', 'grass',
+                'forest', 'mountain', 'concrete', 'asphalt', 'metal',
+                'tiles', 'gravel', 'solar', 'garden', 'door',
+                'helipad', 'parking', 'tree', 'bush', 'road',
+                'walkway', 'stone'
+            ];
+
+            // Initialize all base textures first
+            baseTextureTypes.forEach(type => {
+                // Check if the texture already exists in the asset registry
+                const existingTexture = this.assetRegistry.getTexture(`tile_${type}`);
+                if (!existingTexture) {
+                    texturePromises.push(
+                        this.tileManager.generateTexture(type, this.tileManager.tileColors[type])
+                    );
+                }
+            });
+
+            // Initialize terrain textures
+            for (const [terrainType, config] of Object.entries(this.textureDefinitions.terrain)) {
+                if (!baseTextureTypes.includes(terrainType)) {
+                    // Check if the texture already exists in the asset registry
+                    const existingTexture = this.assetRegistry.getTexture(`tile_${terrainType}`);
+                    if (!existingTexture) {
+                        texturePromises.push(
+                            this.tileManager.generateTexture(terrainType, config.base)
+                        );
+                    }
+                }
+
+                // Generate variant textures if they exist
+                if (config.variants) {
+                    config.variants.forEach((variant, index) => {
+                        // Check if the variant texture already exists in the asset registry
+                        const existingVariant = this.assetRegistry.getTexture(`tile_${variant}`);
+                        if (!existingVariant) {
+                            texturePromises.push(
+                                this.tileManager.generateTexture(
+                                    variant,
+                                    config.variantColors[index]
+                                )
+                            );
+                        }
+                    });
+                }
+            }
+
+            // Initialize decoration textures
+            for (const [decType, config] of Object.entries(this.textureDefinitions.decorations)) {
+                if (!baseTextureTypes.includes(decType)) {
+                    // Check if the texture already exists in the asset registry
+                    const existingTexture = this.assetRegistry.getTexture(`tile_${decType}`);
+                    if (!existingTexture) {
+                        texturePromises.push(
+                            this.tileManager.generateTexture(decType, config.base)
+                        );
+                    }
+                }
+
+                // Generate variant textures if they exist
+                if (config.variants) {
+                    config.variants.forEach((variant, index) => {
+                        // Check if the variant texture already exists in the asset registry
+                        const existingVariant = this.assetRegistry.getTexture(`tile_${variant}`);
+                        if (!existingVariant) {
+                            texturePromises.push(
+                                this.tileManager.generateTexture(
+                                    variant,
+                                    config.variantColors[index]
+                                )
+                            );
+                        }
+                    });
+                }
+            }
+
+            // Add debug logging for texture loading
+            if (this.debug?.flags?.logTextureLoading) {
+                console.log('Game: Loading textures:', {
+                    baseTypes: baseTextureTypes,
+                    terrain: Object.keys(this.textureDefinitions.terrain),
+                    decorations: Object.keys(this.textureDefinitions.decorations),
+                    assetRegistryTextures: this.assetRegistry.textures.size,
+                    assetRegistryModels: this.assetRegistry.models.size
+                });
+            }
+
             await Promise.all(texturePromises);
 
             if (this.debug?.flags?.logTextureLoading) {
