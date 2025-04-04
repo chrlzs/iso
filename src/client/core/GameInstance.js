@@ -977,15 +977,24 @@ export class GameInstance {
         // Initialize performance mode properties if not already set
         if (this.performanceMode === undefined) {
             this.performanceMode = {
-                enabled: false,
-                frameSkip: 0,
+                enabled: true, // Start with performance mode enabled by default
+                frameSkip: 1, // Start with frame skip of 1
                 maxFrameSkip: 3,
                 consecutiveSlowFrames: 0,
-                slowFrameThreshold: 5,
+                slowFrameThreshold: 3, // Lower threshold to be more aggressive
                 lastPerformanceCheck: timestamp,
-                checkInterval: 5000, // Check every 5 seconds
-                adaptiveRendering: true
+                checkInterval: 3000, // Check more frequently (every 3 seconds)
+                adaptiveRendering: true,
+                lodEnabled: true, // Enable level-of-detail rendering
+                lodDistance: 15, // Distance at which to switch to lower detail
+                cullingDistance: 25, // Maximum distance for entity rendering
+                textureQuality: 'low', // Start with low texture quality
+                maxEntitiesRendered: 50, // Limit number of entities rendered per frame
+                maxStructuresRendered: 30 // Limit number of structures rendered per frame
             };
+
+            // Log initial performance mode settings
+            console.log('Performance mode initialized:', this.performanceMode);
         }
 
         // Only update if enough time has passed for the target frame rate
@@ -1357,9 +1366,6 @@ export class GameInstance {
 
         // Filter entities to only those in the visible area
         const visibleEntities = [];
-        const entitiesOutside = [];
-        const entitiesInside = [];
-        const entitiesBehindStructures = []; // New array for entities behind structures
 
         // Performance tracking
         let entitiesProcessed = 0;
@@ -1376,7 +1382,15 @@ export class GameInstance {
 
         // Use spatial partitioning for faster entity culling
         // Only process entities that are likely to be visible
-        const visibleRangeSq = visibleRange * visibleRange;
+        const isPerformanceMode = this.performanceMode?.enabled;
+        const maxEntities = isPerformanceMode ? this.performanceMode.maxEntitiesRendered : 100;
+        const cullingDistance = isPerformanceMode ? this.performanceMode.cullingDistance : visibleRange;
+        const visibleRangeSq = cullingDistance * cullingDistance;
+        const lodDistance = isPerformanceMode ? this.performanceMode.lodDistance : visibleRange * 0.7;
+        const lodDistanceSq = lodDistance * lodDistance;
+
+        // Sort entities by distance to camera for better LOD and culling
+        const entitiesWithDistance = [];
 
         for (let i = 0; i < entities.length; i++) {
             const entity = entities[i];
@@ -1410,8 +1424,47 @@ export class GameInstance {
                 continue;
             }
 
+            // Set LOD level based on distance
+            if (isPerformanceMode && this.performanceMode.lodEnabled) {
+                if (distanceSq > lodDistanceSq) {
+                    entity.lodLevel = 'low';
+                } else {
+                    entity.lodLevel = 'high';
+                }
+            } else {
+                entity.lodLevel = 'high';
+            }
+
             entitiesProcessed++;
-            visibleEntities.push(entity);
+            entitiesWithDistance.push({ entity, distanceSq });
+        }
+
+        // Sort entities by distance (closest first) for better rendering
+        entitiesWithDistance.sort((a, b) => a.distanceSq - b.distanceSq);
+
+        // Limit the number of entities rendered in performance mode
+        const entitiesToRender = isPerformanceMode
+            ? entitiesWithDistance.slice(0, maxEntities)
+            : entitiesWithDistance;
+
+        // Extract just the entities from the sorted array
+        for (let i = 0; i < entitiesToRender.length; i++) {
+            visibleEntities.push(entitiesToRender[i].entity);
+        }
+
+        // Log entity culling stats if performance logging is enabled
+        if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
+            console.log(`Entity rendering: ${visibleEntities.length} rendered, ${entitiesCulled} culled, ${entitiesProcessed} processed`);
+        }
+
+        // Now categorize visible entities for proper z-ordering
+        const entitiesOutside = [];
+        const entitiesInside = [];
+        const entitiesBehindStructures = [];
+
+        // Categorize each visible entity
+        for (let i = 0; i < visibleEntities.length; i++) {
+            const entity = visibleEntities[i];
 
             // Split into different groups based on position and visibility
             // IMPORTANT: Check isBehindStructure first to ensure proper z-ordering
@@ -1442,10 +1495,6 @@ export class GameInstance {
                             depth: entity.x + entity.y
                         });
                     }
-                } else {
-                    // If player is not in the same structure, don't render the entity
-                    // This prevents NPCs from being visible through walls
-                    continue;
                 }
             } else {
                 // Entities outside structures
@@ -1459,6 +1508,7 @@ export class GameInstance {
                     });
                 }
             }
+        }
         }
 
         // DIRECT FIX: Sort entities by their explicit zIndex property if available
