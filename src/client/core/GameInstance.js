@@ -23,6 +23,11 @@ import { SimplifiedRenderer } from './renderer/SimplifiedRenderer.js';
 import { WorkerManager } from './workers/WorkerManager.js';
 import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 import { MemoryManager } from './utils/MemoryManager.js';
+import { Vector2Pool } from './utils/Vector2Pool.js';
+import { RectPool } from './utils/RectPool.js';
+import { SpatialGrid } from './utils/SpatialGrid.js';
+import { OcclusionCulling } from './renderer/OcclusionCulling.js';
+import { RenderBatch } from './renderer/RenderBatch.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -142,6 +147,25 @@ export class GameInstance {
             cleanupInterval: 60000,  // Clean up every minute
             textureMaxAge: 300000,   // Textures unused for 5 minutes get purged
             entityCullingDistance: 100 // Distance at which to cull entities
+        });
+
+        // Initialize object pools
+        this.vector2Pool = new Vector2Pool(200);
+        this.rectPool = new RectPool(100);
+
+        // Initialize spatial partitioning
+        this.spatialGrid = new SpatialGrid(64, 2000, 2000);
+
+        // Initialize occlusion culling
+        this.occlusionCulling = new OcclusionCulling({
+            enabled: true,
+            maxOccluders: 50,
+            occluderTypes: ['building', 'structure', 'wall']
+        });
+
+        // Initialize render batching
+        this.renderBatch = new RenderBatch({
+            maxBatchSize: 100
         });
 
         // Start performance monitoring
@@ -1334,6 +1358,30 @@ export class GameInstance {
             this.world.entities = [];
         }
 
+        // Release all object pool objects
+        if (this.vector2Pool) {
+            this.vector2Pool.releaseAll();
+        }
+
+        if (this.rectPool) {
+            this.rectPool.releaseAll();
+        }
+
+        // Clear spatial grid
+        if (this.spatialGrid) {
+            this.spatialGrid.clear();
+        }
+
+        // Release occluder rects
+        if (this.occlusionCulling) {
+            this.occlusionCulling.releaseOccluders();
+        }
+
+        // Clear render batches
+        if (this.renderBatch) {
+            this.renderBatch.clear();
+        }
+
         // Clear event listeners
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         this.canvas.removeEventListener('mouseup', this.handleMouseUp);
@@ -1432,8 +1480,24 @@ export class GameInstance {
         // Ensure camera stays within world bounds
         this.constrainCameraToWorldBounds();
 
-        // Update entities with culling
-        // Only update entities that are visible or near the player
+        // Update spatial grid with player position
+        if (this.spatialGrid) {
+            this.spatialGrid.clear();
+
+            // Insert entities into spatial grid
+            for (const entity of this.entities) {
+                if (entity && entity.getBounds) {
+                    this.spatialGrid.insert(entity);
+                }
+            }
+        }
+
+        // Update occlusion culling
+        if (this.occlusionCulling) {
+            this.occlusionCulling.updateOccluders(this.entities, this.camera);
+        }
+
+        // Update entities with spatial and occlusion culling
         const updateDistance = 20; // Only update entities within this distance of the player
         const playerX = this.player.x;
         const playerY = this.player.y;
@@ -1441,21 +1505,51 @@ export class GameInstance {
         let entitiesUpdated = 0;
         let entitiesSkipped = 0;
 
-        for (const entity of this.entities) {
+        // Query entities near the player using spatial grid
+        const entitiesToUpdate = new Set();
+
+        if (this.spatialGrid) {
+            // Use spatial grid to find nearby entities
+            this.spatialGrid.queryRect(
+                playerX - updateDistance,
+                playerY - updateDistance,
+                updateDistance * 2,
+                updateDistance * 2,
+                entity => {
+                    entitiesToUpdate.add(entity);
+                }
+            );
+        } else {
+            // Fallback to checking all entities
+            for (const entity of this.entities) {
+                if (!entity.update) continue;
+
+                // Calculate distance to player
+                const dx = entity.x - playerX;
+                const dy = entity.y - playerY;
+                const distanceSquared = dx * dx + dy * dy;
+
+                // Only update if within update distance or is visible
+                if (distanceSquared <= updateDistance * updateDistance || entity.isVisible) {
+                    entitiesToUpdate.add(entity);
+                }
+            }
+        }
+
+        // Update entities that passed spatial culling
+        for (const entity of entitiesToUpdate) {
             if (!entity.update) continue;
 
-            // Calculate distance to player
-            const dx = entity.x - playerX;
-            const dy = entity.y - playerY;
-            const distanceSquared = dx * dx + dy * dy;
-
-            // Only update if within update distance or is visible
-            if (distanceSquared <= updateDistance * updateDistance || entity.isVisible) {
-                entity.update(deltaTime);
-                entitiesUpdated++;
-            } else {
+            // Skip occluded entities for non-essential updates
+            if (this.occlusionCulling &&
+                this.occlusionCulling.isOccluded(entity, this.camera) &&
+                !entity.isImportant) {
                 entitiesSkipped++;
+                continue;
             }
+
+            entity.update(deltaTime);
+            entitiesUpdated++;
         }
 
         // Log entity update stats if performance logging is enabled
@@ -1588,17 +1682,7 @@ export class GameInstance {
         let entitiesProcessed = 0;
         let entitiesCulled = 0;
 
-        // Use for loop instead of forEach for better performance
-        // Convert Set to Array only once and cache the result
-        if (!this._entitiesArray || this._lastEntityCount !== this.entities.size) {
-            this._entitiesArray = Array.from(this.entities);
-            this._lastEntityCount = this.entities.size;
-        }
-
-        const entities = this._entitiesArray;
-
-        // Use spatial partitioning for faster entity culling
-        // Only process entities that are likely to be visible
+        // Use spatial grid for faster entity culling if available
         const isPerformanceMode = this.performanceMode?.enabled;
         const maxEntities = isPerformanceMode ? this.performanceMode.maxEntitiesRendered : 100;
         const cullingDistance = isPerformanceMode ? this.performanceMode.cullingDistance : visibleRange;
@@ -1609,51 +1693,132 @@ export class GameInstance {
         // Sort entities by distance to camera for better LOD and culling
         const entitiesWithDistance = [];
 
-        for (let i = 0; i < entities.length; i++) {
-            const entity = entities[i];
+        if (this.spatialGrid) {
+            // Use spatial grid to find visible entities
+            const visibleRect = this.rectPool.get(
+                this.camera.x - cullingDistance,
+                this.camera.y - cullingDistance,
+                cullingDistance * 2,
+                cullingDistance * 2
+            );
 
-            // Skip entities that don't have a render method (fast check)
-            if (!entity.render) {
-                entitiesCulled++;
-                continue;
+            // Query entities in visible area
+            this.spatialGrid.queryRect(
+                visibleRect.x, visibleRect.y, visibleRect.width, visibleRect.height,
+                entity => {
+                    // Skip entities that don't have a render method
+                    if (!entity.render) {
+                        entitiesCulled++;
+                        return;
+                    }
+
+                    // Skip entities that aren't visible
+                    if (!entity.isVisible) {
+                        entitiesCulled++;
+                        return;
+                    }
+
+                    // Quick distance check (squared distance to avoid sqrt)
+                    const dx = entity.x - this.camera.x;
+                    const dy = entity.y - this.camera.y;
+                    const distanceSq = dx * dx + dy * dy;
+
+                    // Skip entities that are too far from camera
+                    if (distanceSq > visibleRangeSq) {
+                        entitiesCulled++;
+                        return;
+                    }
+
+                    // Use occlusion culling if available
+                    if (this.occlusionCulling &&
+                        this.occlusionCulling.isOccluded(entity, this.camera) &&
+                        !entity.isImportant) {
+                        entitiesCulled++;
+                        return;
+                    }
+
+                    // Set LOD level based on distance
+                    if (isPerformanceMode && this.performanceMode.lodEnabled) {
+                        if (distanceSq > lodDistanceSq) {
+                            entity.lodLevel = 'low';
+                        } else {
+                            entity.lodLevel = 'high';
+                        }
+                    } else {
+                        entity.lodLevel = 'high';
+                    }
+
+                    entitiesProcessed++;
+                    entitiesWithDistance.push({ entity, distanceSq });
+                }
+            );
+
+            // Release the rect back to the pool
+            this.rectPool.release(visibleRect);
+        } else {
+            // Fallback to traditional culling if spatial grid is not available
+            // Convert Set to Array only once and cache the result
+            if (!this._entitiesArray || this._lastEntityCount !== this.entities.size) {
+                this._entitiesArray = Array.from(this.entities);
+                this._lastEntityCount = this.entities.size;
             }
 
-            // Skip entities that aren't visible (fast check)
-            if (!entity.isVisible) {
-                entitiesCulled++;
-                continue;
-            }
+            const entities = this._entitiesArray;
 
-            // Quick distance check (squared distance to avoid sqrt)
-            const dx = entity.x - this.camera.x;
-            const dy = entity.y - this.camera.y;
-            const distanceSq = dx * dx + dy * dy;
+            for (let i = 0; i < entities.length; i++) {
+                const entity = entities[i];
 
-            // Skip entities that are too far from camera (faster than bounds check)
-            if (distanceSq > visibleRangeSq) {
-                entitiesCulled++;
-                continue;
-            }
+                // Skip entities that don't have a render method (fast check)
+                if (!entity.render) {
+                    entitiesCulled++;
+                    continue;
+                }
 
-            // More precise check for entities near the edge of the visible area
-            if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
-                entitiesCulled++;
-                continue;
-            }
+                // Skip entities that aren't visible (fast check)
+                if (!entity.isVisible) {
+                    entitiesCulled++;
+                    continue;
+                }
 
-            // Set LOD level based on distance
-            if (isPerformanceMode && this.performanceMode.lodEnabled) {
-                if (distanceSq > lodDistanceSq) {
-                    entity.lodLevel = 'low';
+                // Quick distance check (squared distance to avoid sqrt)
+                const dx = entity.x - this.camera.x;
+                const dy = entity.y - this.camera.y;
+                const distanceSq = dx * dx + dy * dy;
+
+                // Skip entities that are too far from camera (faster than bounds check)
+                if (distanceSq > visibleRangeSq) {
+                    entitiesCulled++;
+                    continue;
+                }
+
+                // More precise check for entities near the edge of the visible area
+                if (entity.x < minX || entity.x > maxX || entity.y < minY || entity.y > maxY) {
+                    entitiesCulled++;
+                    continue;
+                }
+
+                // Use occlusion culling if available
+                if (this.occlusionCulling &&
+                    this.occlusionCulling.isOccluded(entity, this.camera) &&
+                    !entity.isImportant) {
+                    entitiesCulled++;
+                    continue;
+                }
+
+                // Set LOD level based on distance
+                if (isPerformanceMode && this.performanceMode.lodEnabled) {
+                    if (distanceSq > lodDistanceSq) {
+                        entity.lodLevel = 'low';
+                    } else {
+                        entity.lodLevel = 'high';
+                    }
                 } else {
                     entity.lodLevel = 'high';
                 }
-            } else {
-                entity.lodLevel = 'high';
-            }
 
-            entitiesProcessed++;
-            entitiesWithDistance.push({ entity, distanceSq });
+                entitiesProcessed++;
+                entitiesWithDistance.push({ entity, distanceSq });
+            }
         }
 
         // Sort entities by distance (closest first) for better rendering
@@ -1765,18 +1930,18 @@ export class GameInstance {
         // 4. Entities inside structures (only visible when player is in the same structure)
         // 5. Player (highest z-index)
 
-        // 1. Render entities behind structures first (lowest z-index)
+        // Clear render batches
+        this.renderBatch.clear();
+
+        // 1. Batch entities behind structures (lowest z-index)
         for (let i = 0; i < entitiesBehindStructures.length; i++) {
             const entity = entitiesBehindStructures[i];
             if (entity.render && entity.isVisible) {
-                // Apply semi-transparency for entities behind structures
-                this.ctx.save();
-                this.ctx.globalAlpha = 0.6; // 60% opacity
-                entity.render(this.ctx, this.renderer);
-                this.ctx.restore();
+                // Add to behind structures batch
+                this.renderBatch.add('behind', entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Rendered entity behind structure: ${entity.name} at depth ${entity.x + entity.y}`);
+                    console.log(`Batched entity behind structure: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
@@ -1784,29 +1949,58 @@ export class GameInstance {
         // 2. Render structures
         this.renderer.renderWorldStructures(this.world, this.camera, this);
 
-        // 3. Render outside entities
+        // 3. Batch outside entities
         for (let i = 0; i < entitiesOutside.length; i++) {
             const entity = entitiesOutside[i];
             if (entity.render && entity.isVisible) {
-                entity.render(this.ctx, this.renderer);
+                // Group by entity type for better batching
+                const batchKey = entity.type || 'default';
+                this.renderBatch.add(batchKey, entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Rendered outside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                    console.log(`Batched outside entity: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
 
-        // 4. Render inside entities (only visible when player is in the same structure)
+        // 4. Batch inside entities (only visible when player is in the same structure)
         for (let i = 0; i < entitiesInside.length; i++) {
             const entity = entitiesInside[i];
             if (entity.render && entity.isVisible) {
-                entity.render(this.ctx, this.renderer);
+                // Group by entity type for better batching
+                const batchKey = 'inside_' + (entity.type || 'default');
+                this.renderBatch.add(batchKey, entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Rendered inside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                    console.log(`Batched inside entity: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
+
+        // Draw batched entities
+        // 1. First draw entities behind structures with transparency
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.6; // 60% opacity
+        this.renderBatch.draw(this.ctx, (ctx, key, entity) => {
+            if (key === 'behind') {
+                entity.render(ctx, this.renderer);
+            }
+        });
+        this.ctx.restore();
+
+        // 2. Draw outside entities
+        this.renderBatch.draw(this.ctx, (ctx, key, entity) => {
+            if (key !== 'behind' && !key.startsWith('inside_')) {
+                entity.render(ctx, this.renderer);
+            }
+        });
+
+        // 3. Draw inside entities
+        this.renderBatch.draw(this.ctx, (ctx, key, entity) => {
+            if (key.startsWith('inside_')) {
+                entity.render(ctx, this.renderer);
+            }
+        });
 
         // Render player last
         if (this.player) {
