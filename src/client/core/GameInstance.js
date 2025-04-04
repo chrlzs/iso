@@ -1208,12 +1208,12 @@ export class GameInstance {
                     floor: true
                 };
 
-                // Always update transparency based on player position
+                // Always update transparency based on player position and entities
                 const cameraAngle = Math.atan2(
                     this.camera.y - this.player.y,
                     this.camera.x - this.player.x
                 );
-                structure.updateTransparency(this.player.x, this.player.y, cameraAngle);
+                structure.updateTransparency(this.player.x, this.player.y, cameraAngle, this.entities);
             }
         });
 
