@@ -16,6 +16,11 @@ import { MapDefinition } from './world/MapDefinition.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from './constants.js';
 import { AssetManager } from './assets/AssetManager.js';
 import { AssetRegistry } from './assets/AssetRegistry.js';
+import { AssetCache } from './assets/AssetCache.js';
+import { TextureAtlas } from './assets/TextureAtlas.js';
+import { WebGLRenderer } from './renderer/WebGLRenderer.js';
+import { SimplifiedRenderer } from './renderer/SimplifiedRenderer.js';
+import { WorkerManager } from './workers/WorkerManager.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -57,6 +62,50 @@ export class GameInstance {
 
         // Initialize asset registry
         this.assetRegistry = new AssetRegistry(this.assetManager);
+
+        // Initialize asset cache for improved performance
+        this.assetCache = new AssetCache({
+            maxSize: 500,  // Store up to 500 assets
+            ttl: 600000    // 10 minutes TTL
+        });
+
+        // Initialize texture atlas
+        this.textureAtlas = new TextureAtlas(2048, 2048, 'gameAtlas');
+
+        // Initialize worker manager for background processing
+        this.workerManager = new WorkerManager();
+
+        // Try to initialize pathfinding worker
+        if (this.workerManager.isSupported) {
+            this.workerManager.createWorker('pathfinding', 'src/client/core/workers/PathfindingWorker.js');
+        }
+
+        // Try to initialize WebGL renderer if supported
+        try {
+            this.webglRenderer = new WebGLRenderer(canvas, {
+                antialias: true,
+                alpha: true
+            });
+
+            if (this.webglRenderer.gl) {
+                console.log('WebGL renderer initialized successfully');
+            } else {
+                this.webglRenderer = null;
+                console.warn('WebGL not supported, falling back to Canvas renderer');
+            }
+        } catch (error) {
+            console.error('Failed to initialize WebGL renderer:', error);
+            this.webglRenderer = null;
+        }
+
+        // Initialize simplified renderer for low-end devices
+        this.simplifiedRenderer = new SimplifiedRenderer(canvas, {
+            tileSize: 32,
+            entitySize: 32,
+            simplifyDistance: 15,
+            maxEntities: 30,
+            maxStructures: 20
+        });
 
         // Define core texture sets
         this.textureDefinitions = {
