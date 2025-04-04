@@ -21,6 +21,8 @@ import { TextureAtlas } from './assets/TextureAtlas.js';
 import { WebGLRenderer } from './renderer/WebGLRenderer.js';
 import { SimplifiedRenderer } from './renderer/SimplifiedRenderer.js';
 import { WorkerManager } from './workers/WorkerManager.js';
+import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
+import { MemoryManager } from './utils/MemoryManager.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -127,6 +129,23 @@ export class GameInstance {
             maxEntities: 30,
             maxStructures: 20
         });
+
+        // Initialize performance monitoring
+        this.performanceMonitor = new PerformanceMonitor({
+            sampleInterval: 10000,  // Sample every 10 seconds
+            historySize: 60,        // Keep 10 minutes of history
+            logToConsole: true      // Log to console
+        });
+
+        // Initialize memory management
+        this.memoryManager = new MemoryManager({
+            cleanupInterval: 60000,  // Clean up every minute
+            textureMaxAge: 300000,   // Textures unused for 5 minutes get purged
+            entityCullingDistance: 100 // Distance at which to cull entities
+        });
+
+        // Start performance monitoring
+        this.performanceMonitor.startMonitoring();
 
         // Define core texture sets
         this.textureDefinitions = {
@@ -1081,6 +1100,14 @@ export class GameInstance {
             // Always update game state
             this.update(deltaTime);
 
+            // Update performance monitor
+            this.performanceMonitor.update(this);
+
+            // Update memory manager (less frequently)
+            if (this.frameCount % 10 === 0) {
+                this.memoryManager.update(this);
+            }
+
             const updateEnd = performance.now();
             const renderStart = performance.now();
 
@@ -1124,6 +1151,12 @@ export class GameInstance {
                         skipped: skipRender,
                         consecutiveSlow: this.performanceMode.consecutiveSlowFrames
                     });
+                }
+
+                // Force memory cleanup on very slow frames or consecutive slow frames
+                if (frameTime > 100 || this.performanceMode.consecutiveSlowFrames >= 10) {
+                    console.warn(`Performance issue detected - forcing memory cleanup`);
+                    this.memoryManager.cleanupMemory(this);
                 }
             } else {
                 // Reset consecutive slow frames counter if we had a good frame
@@ -1188,23 +1221,117 @@ export class GameInstance {
         }
     }
 
+    /**
+     * Stops the game loop
+     */
     stop() {
         this.running = false;
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
+
+        // Stop performance monitoring
+        if (this.performanceMonitor) {
+            this.performanceMonitor.stopMonitoring();
+        }
+
+        // Force a final memory cleanup
+        if (this.memoryManager) {
+            this.memoryManager.cleanupMemory(this);
+        }
+
+        console.log('Game: Stopped');
     }
 
+    /**
+     * Destroys the game instance and cleans up all resources
+     */
     destroy() {
+        // Stop the game first
         this.stop();
-        this.entities.clear();
+
+        // Clean up resources
+        this.cleanup();
+
+        // Clear all references
+        this.entities = null;
         this.player = null;
         this.world = null;
         this.renderer = null;
         this.tileManager = null;
         this.inputManager = null;
         this.pathFinder = null;
+        this.performanceMonitor = null;
+        this.memoryManager = null;
+        this.webglRenderer = null;
+        this.simplifiedRenderer = null;
+        this.textureAtlas = null;
+        this.assetCache = null;
+        this.workerManager = null;
+
+        console.log('Game: Destroyed');
+    }
+
+    /**
+     * Cleans up resources to prevent memory leaks
+     */
+    cleanup() {
+        console.log('Game: Cleaning up resources...');
+
+        // Dispose of WebGL renderer if it exists
+        if (this.webglRenderer) {
+            this.webglRenderer.dispose();
+        }
+
+        // Dispose of texture atlas
+        if (this.textureAtlas) {
+            this.textureAtlas.clear();
+        }
+
+        // Dispose of asset cache
+        if (this.assetCache) {
+            this.assetCache.clear();
+        }
+
+        // Terminate all workers
+        if (this.workerManager) {
+            this.workerManager.terminateAll();
+        }
+
+        // Clear texture references
+        if (this.tileManager && this.tileManager.textures) {
+            this.tileManager.textures.clear();
+        }
+
+        // Clear entity references
+        if (this.entities) {
+            this.entities.clear();
+        }
+
+        // Clear world entities
+        if (this.world && this.world.entities) {
+            this.world.entities = [];
+        }
+
+        // Clear event listeners
+        this.canvas.removeEventListener('mousedown', this.handleMouseDown);
+        this.canvas.removeEventListener('mouseup', this.handleMouseUp);
+        this.canvas.removeEventListener('mousemove', this.handleMouseMove);
+        this.canvas.removeEventListener('wheel', this.handleMouseWheel);
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
+
+        // Force garbage collection if possible
+        if (window.gc) {
+            try {
+                window.gc();
+            } catch (e) {
+                console.warn('Failed to force garbage collection');
+            }
+        }
+
+        console.log('Game: Cleanup complete');
     }
 
     /**
