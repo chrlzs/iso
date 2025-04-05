@@ -120,6 +120,8 @@
  * @property {Function} blend - Terrain blending function
  */
 
+import { TextureAtlas } from '../renderer/TextureAtlas.js';
+
 /**
  * Manages tile properties, textures, and surface types for the game world
  * @class TileManager
@@ -179,6 +181,17 @@ export class TileManager {
         this.textures = new Map();
         this.tileDefinitions = new Map();
         this.variants = new Map();
+
+        // Create texture atlas for improved performance
+        this.textureAtlas = new TextureAtlas({
+            maxWidth: 2048,
+            maxHeight: 2048,
+            padding: 2,
+            debug: this.debug?.flags?.showTextureAtlas
+        });
+
+        // Track if atlas is ready
+        this.atlasReady = false;
 
         // Define variants for each tile type
         this.variants = {
@@ -406,11 +419,39 @@ export class TileManager {
                 }
             }
 
+            // Build texture atlas now that all textures are loaded
+            this.buildTextureAtlas();
+
             this.texturesLoaded = true;
         } catch (error) {
             console.error('Failed to load textures:', error);
             throw error;
         }
+    }
+
+    /**
+     * Builds the texture atlas from all loaded textures
+     * @private
+     */
+    buildTextureAtlas() {
+        // Clear the atlas first
+        this.textureAtlas.clear();
+
+        // Add all textures to the atlas
+        this.textures.forEach((texture, id) => {
+            this.textureAtlas.addTexture(id, texture);
+        });
+
+        if (this.debug?.flags?.logTextureLoading) {
+            console.log('TileManager: Texture atlas built', {
+                textureCount: this.textureAtlas.getTextureCount(),
+                atlasWidth: this.textureAtlas.maxWidth,
+                atlasHeight: this.textureAtlas.maxHeight
+            });
+        }
+
+        // Mark atlas as ready
+        this.atlasReady = true;
     }
 
     /**
@@ -873,7 +914,14 @@ export class TileManager {
         return patternCanvas;
     }
 
-    getTexture(tileType, variant) {
+    /**
+     * Get a texture for a tile type
+     * @param {string} tileType - The tile type
+     * @param {number} variant - Optional variant number
+     * @param {boolean} useAtlas - Whether to use the texture atlas (default: true)
+     * @returns {Object} - The texture or texture region
+     */
+    getTexture(tileType, variant, useAtlas = true) {
         if (!tileType) return null;
 
         // Normalize the type to lowercase
@@ -881,6 +929,31 @@ export class TileManager {
         // Build the texture key based on variant
         const key = variant ? `${normalizedType}_var${variant}` : normalizedType;
 
+        // If using atlas and atlas is ready, return the atlas region
+        if (useAtlas && this.atlasReady) {
+            const region = this.textureAtlas.getRegion(key);
+            if (region) {
+                return {
+                    texture: this.textureAtlas.getTexture(),
+                    region: region,
+                    isAtlasRegion: true
+                };
+            }
+
+            // If variant not found in atlas, try base texture
+            if (variant) {
+                const baseRegion = this.textureAtlas.getRegion(normalizedType);
+                if (baseRegion) {
+                    return {
+                        texture: this.textureAtlas.getTexture(),
+                        region: baseRegion,
+                        isAtlasRegion: true
+                    };
+                }
+            }
+        }
+
+        // Fall back to individual textures if atlas not ready or texture not in atlas
         let texture = this.textures.get(key);
 
         // If texture not found, try to get base texture
@@ -897,7 +970,9 @@ export class TileManager {
 
             // Only log and regenerate if we're not already generating this texture
             if (!this.generatingTextures.has(key)) {
-                console.warn(`Regenerating missing texture for ${normalizedType}`);
+                if (this.debug?.flags?.logTextureLoading) {
+                    console.warn(`Regenerating missing texture for ${normalizedType}`);
+                }
 
                 // Mark as generating
                 this.generatingTextures.add(key);
@@ -905,9 +980,19 @@ export class TileManager {
                 // Generate the texture asynchronously
                 this.generateTexture(normalizedType, this.tileColors[normalizedType])
                     .then(() => {
-                        console.log(`Generated texture for ${normalizedType}`);
+                        if (this.debug?.flags?.logTextureLoading) {
+                            console.log(`Generated texture for ${normalizedType}`);
+                        }
                         // Remove from generating set
                         this.generatingTextures.delete(key);
+
+                        // Add to atlas if it's ready
+                        if (this.atlasReady) {
+                            const newTexture = this.textures.get(key) || this.textures.get(normalizedType);
+                            if (newTexture) {
+                                this.textureAtlas.addTexture(key, newTexture);
+                            }
+                        }
                     })
                     .catch(error => {
                         console.error(`Failed to generate texture for ${normalizedType}:`, error);
@@ -924,6 +1009,14 @@ export class TileManager {
         }
 
         return texture;
+    }
+
+    /**
+     * Get the texture atlas
+     * @returns {TextureAtlas} - The texture atlas
+     */
+    getTextureAtlas() {
+        return this.textureAtlas;
     }
 
     /**

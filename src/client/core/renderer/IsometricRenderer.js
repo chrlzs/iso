@@ -1,6 +1,7 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
+import { BatchRenderer } from './BatchRenderer.js';
 // Shadow renderer import removed
 
 /**
@@ -48,6 +49,18 @@ export class IsometricRenderer {
         // Track last frame's visible area for optimization
         this.lastVisibleArea = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
         this.visibleAreaChanged = true;
+
+        // Create batch renderer for efficient rendering
+        this.batchRenderer = new BatchRenderer(this.offscreenCtx, {
+            batchSize: 500,
+            autoDraw: false
+        });
+
+        // Performance tracking
+        this.lastFrameTime = performance.now();
+        this.frameCount = 0;
+        this.drawCallCount = 0;
+        this.instanceCount = 0;
 
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();
@@ -129,11 +142,22 @@ export class IsometricRenderer {
         // Start performance measurement
         const startTime = performance.now();
 
+        // Reset performance counters
+        this.frameCount++;
+        this.drawCallCount = 0;
+        this.instanceCount = 0;
+
         // Clear the offscreen canvas
         this.clear();
 
+        // Reset batch renderer
+        this.batchRenderer.clear();
+
         // Render tiles first
         this.renderWorldTiles(world, camera);
+
+        // Draw all batched tiles in one go
+        this.batchRenderer.drawAll();
 
         // Then render structures
         this.renderWorldStructures(world, camera);
@@ -141,10 +165,29 @@ export class IsometricRenderer {
         // Copy the offscreen canvas to the main canvas in a single operation
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
 
+        // Calculate frame time
+        const now = performance.now();
+        const frameTime = now - this.lastFrameTime;
+        this.lastFrameTime = now;
+
         // Log performance if debug is enabled
-        if (world?.game?.debug?.flags?.logPerformance && world.game.frameCount % 60 === 0) {
-            const renderTime = performance.now() - startTime;
-            world.game.logger.debug(`Render time: ${renderTime.toFixed(2)}ms`);
+        if (world?.game?.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
+            const renderTime = now - startTime;
+            const batchStats = this.batchRenderer.getStats();
+
+            world.game.logger.debug(`Render stats:`, {
+                renderTime: `${renderTime.toFixed(2)}ms`,
+                frameTime: `${frameTime.toFixed(2)}ms`,
+                fps: (1000 / frameTime).toFixed(1),
+                drawCalls: this.drawCallCount,
+                batchedInstances: this.instanceCount,
+                batchDrawCalls: batchStats.drawCalls,
+                batchEfficiency: batchStats.drawCalls > 0 ?
+                    (this.instanceCount / batchStats.drawCalls).toFixed(1) : 0
+            });
+
+            // Reset batch renderer counters
+            this.batchRenderer.resetCounters();
         }
     }
 
@@ -419,22 +462,48 @@ export class IsometricRenderer {
         const isoX = (x - y) * this.tileWidth / 2;
         const isoY = (x + y) * this.tileHeight / 2;
 
-        // Use tile cache for better performance
-        const cacheKey = `${tile.type}_${x}_${y}`;
-        let cachedTile = this.tileCache.get(cacheKey);
+        // Get texture from tile manager
+        const textureResult = this.tileManager.getTexture(tile.type);
 
-        if (!cachedTile) {
-            // Create and cache the tile if not in cache
-            cachedTile = this._createCachedTile(tile, x, y);
-            this.tileCache.set(cacheKey, cachedTile);
+        // If texture is from atlas, use batch renderer
+        if (textureResult && textureResult.isAtlasRegion) {
+            // Calculate screen position
+            const screenX = isoX - textureResult.region.width / 2 + this.offscreenCanvas.width / 2;
+            const screenY = isoY - textureResult.region.height / 2 + this.offscreenCanvas.height / 2;
+
+            // Add to batch renderer
+            this.batchRenderer.begin("atlas", textureResult.texture);
+            this.batchRenderer.addFromAtlas(
+                textureResult.region,
+                screenX,
+                screenY,
+                textureResult.region.width,
+                textureResult.region.height
+            );
+
+            // Track instance count for performance monitoring
+            this.instanceCount++;
+        } else {
+            // Fall back to cached tiles for non-atlas textures
+            const cacheKey = `${tile.type}_${x}_${y}`;
+            let cachedTile = this.tileCache.get(cacheKey);
+
+            if (!cachedTile) {
+                // Create and cache the tile if not in cache
+                cachedTile = this._createCachedTile(tile, x, y);
+                this.tileCache.set(cacheKey, cachedTile);
+            }
+
+            // Draw the cached tile to the offscreen canvas
+            this.offscreenCtx.drawImage(
+                cachedTile,
+                isoX - cachedTile.width / 2 + this.offscreenCanvas.width / 2,
+                isoY - cachedTile.height / 2 + this.offscreenCanvas.height / 2
+            );
+
+            // Track draw call for performance monitoring
+            this.drawCallCount++;
         }
-
-        // Draw the cached tile to the offscreen canvas
-        this.offscreenCtx.drawImage(
-            cachedTile,
-            isoX - cachedTile.width / 2 + this.offscreenCanvas.width / 2,
-            isoY - cachedTile.height / 2 + this.offscreenCanvas.height / 2
-        );
 
         // Add debug logging for structure tiles
         if (tile.structure && window.gameInstance?.debug?.flags?.logStructures) {
