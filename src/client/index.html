@@ -32,6 +32,7 @@
     <div id="fpsCounter">FPS: 0</div>
     <script type="module">
         import { GameInstance } from './core/GameInstance.js';
+        import { addProfilerButton } from './debug/LaunchProfiler.js';
 
         // Preload canvas setup - do this before DOMContentLoaded
         let canvas;
@@ -75,6 +76,11 @@
 
                     // Store game instance for debugging
                     window.gameInstance = game;
+
+                    // Add profiler button in debug mode
+                    if (game.debug?.enabled) {
+                        addProfilerButton(game);
+                    }
                 }, 0);
 
             } catch (error) {
