@@ -1709,8 +1709,24 @@ export class GameInstance {
         // Use simplified renderer in performance mode
         if (this.performanceMode && this.performanceMode.enabled &&
             this.simplifiedRenderer && this.currentFPS < 10) {
-            this.simplifiedRenderer.render(this);
-            return;
+            try {
+                // Check if the render method exists
+                if (typeof this.simplifiedRenderer.render === 'function') {
+                    this.simplifiedRenderer.render(this);
+                    return;
+                } else {
+                    // Fallback to using the simplified renderer's renderWorld method if available
+                    if (typeof this.simplifiedRenderer.renderWorld === 'function') {
+                        this.simplifiedRenderer.renderWorld(this.world, this.camera, this);
+                        return;
+                    }
+                    // Otherwise, continue with normal rendering
+                    this.logger.warn('SimplifiedRenderer does not have a render or renderWorld method');
+                }
+            } catch (e) {
+                this.logger.error('Error using simplified renderer:', e);
+                // Continue with normal rendering
+            }
         }
 
         this.renderer.clear();
