@@ -35,7 +35,7 @@ export class IsometricRenderer {
         this.waterRenderer = new WaterRenderer();
         this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
         this.structureRenderer = new StructureRenderer(this.ctx);
-        this.shadowRenderer = new ShadowRenderer(this.ctx);
+        // Shadow renderer initialization removed
     }
 
     /**
@@ -124,7 +124,7 @@ export class IsometricRenderer {
             }
         }
 
-        // Get all structures for shadow rendering
+        // Get all structures for rendering
         const structures = world.getAllStructures();
 
         // Filter structures to only those in the visible area
@@ -139,17 +139,20 @@ export class IsometricRenderer {
 
         // Log structures for debugging
         if (world?.game?.debug?.flags?.logRenderer) {
-            console.log('Structures for shadow rendering:', {
-                total: structures.length,
-                visible: visibleStructures.length,
-                bounds: `(${minX},${minY}) to (${maxX},${maxY})`
-            });
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText(`Structures: ${visibleStructures.length}/${structures.length}`, 10, 60);
+
+            if (world?.game?.logger) {
+                world.game.logger.debug('Visible structures:', {
+                    total: structures.length,
+                    visible: visibleStructures.length,
+                    bounds: `(${minX},${minY}) to (${maxX},${maxY})`
+                });
+            }
         }
 
-        // Render shadows AFTER tiles but BEFORE structures
-        // This ensures shadows are visible on top of tiles but below structures
-        // Pass false to hide the test shadow
-        this.shadowRenderer.renderShadows(visibleStructures, this.tileWidth, this.tileHeight, world, false);
+        // Shadow rendering has been removed
     }
 
     /**

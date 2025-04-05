@@ -6,14 +6,10 @@ export class StructureRenderer {
         this.floorHeight = 32;
         this.patterns = new Map();
 
-        // Add time of day properties
+        // Time of day properties (lighting effects removed)
         this.timeOfDay = 0; // 0-24 hour format
         this.isNight = false;
-        this.windowLightIntensity = 0;
-
-        // Add tracking for building lights
-        this.buildingLights = new Map();
-        this.lightTransitionSpeed = 0.0005; // Much slower transitions
+        // Building lights tracking removed
 
         // Add tracking for structure transparency
         this.structureTransparency = new Map();
@@ -110,8 +106,8 @@ export class StructureRenderer {
         const isOpposite = dotProduct > 0; // Positive dot product means vectors point in similar direction
 
         // Debug logging
-        if (this.game?.debug?.flags?.debugShadowArea) {
-            console.log(`Checking if NPC ${npc.name} is behind structure:`, {
+        if (this.game?.debug?.flags?.logEntities) {
+            this.game.logger.debug(`Checking if NPC ${npc.name} is behind structure:`, {
                 npcPos: { x: npc.x, y: npc.y },
                 structurePos: { x: structure.x, y: structure.y },
                 playerPos: { x: player.x, y: player.y },
@@ -168,47 +164,7 @@ export class StructureRenderer {
         return false;
     }
 
-    /**
-     * Visualizes the shadow area for debugging
-     * @param {Object} structure - The structure
-     * @param {Object} shadowArea - The shadow area bounds
-     */
-    visualizeShadowArea(structure, shadowArea) {
-        // Save context state
-        this.ctx.save();
-
-        // Convert shadow area bounds to screen coordinates
-        const screenMinX = (shadowArea.minX - shadowArea.minY) * (this.tileWidth / 2);
-        const screenMinY = (shadowArea.minX + shadowArea.minY) * (this.tileHeight / 2);
-        const screenMaxX = (shadowArea.maxX - shadowArea.minY) * (this.tileWidth / 2);
-        const screenMaxY = (shadowArea.maxX + shadowArea.maxY) * (this.tileHeight / 2);
-
-        // Draw shadow area outline
-        this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(screenMinX, screenMinY);
-        this.ctx.lineTo(screenMaxX, screenMinY);
-        this.ctx.lineTo(screenMaxX, screenMaxY);
-        this.ctx.lineTo(screenMinX, screenMaxY);
-        this.ctx.closePath();
-        this.ctx.stroke();
-
-        // Draw shadow area fill
-        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
-        this.ctx.fill();
-
-        // Draw structure position
-        const structureScreenX = (structure.x - structure.y) * (this.tileWidth / 2);
-        const structureScreenY = (structure.x + structure.y) * (this.tileHeight / 2);
-        this.ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-        this.ctx.beginPath();
-        this.ctx.arc(structureScreenX, structureScreenY, 5, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Restore context state
-        this.ctx.restore();
-    }
+    // Shadow area visualization method removed
 
     /**
      * Checks if a tree is inside or behind a building
@@ -283,37 +239,11 @@ export class StructureRenderer {
         return this.isTreeInsideOrBehindBuilding(treeStructure).isInside;
     }
 
-    // Add method to update time
+    // Building lighting effects removed
     updateTimeOfDay(hour) {
         this.timeOfDay = hour;
         this.isNight = (hour >= 18 || hour < 6);
-
-        // Update each building's light state
-        const now = Date.now();
-        this.buildingLights.forEach((light, structure) => {
-            // Skip if we haven't passed the transition delay
-            if (now < light.lastUpdate + light.transitionDelay) {
-                return;
-            }
-
-            // Calculate target intensity based on time of day
-            if (this.isNight) {
-                const distanceFromMidnight = Math.abs(((hour + 12) % 24) - 12);
-                light.targetIntensity = 1 - (distanceFromMidnight / 24);
-            } else {
-                light.targetIntensity = 0;
-            }
-
-            // Gradually adjust current intensity
-            const delta = (now - light.lastUpdate) * light.transitionSpeed;
-            if (light.currentIntensity < light.targetIntensity) {
-                light.currentIntensity = Math.min(light.targetIntensity, light.currentIntensity + delta);
-            } else if (light.currentIntensity > light.targetIntensity) {
-                light.currentIntensity = Math.max(light.targetIntensity, light.currentIntensity - delta);
-            }
-
-            light.lastUpdate = now;
-        });
+        // Building lights update code removed
     }
 
     /**
@@ -548,16 +478,7 @@ export class StructureRenderer {
             }
         }
 
-        // Initialize or update light state for this building
-        if (!this.buildingLights.has(structure)) {
-            this.buildingLights.set(structure, {
-                currentIntensity: 0,
-                targetIntensity: 0,
-                transitionDelay: Math.random() * 2000, // Random delay up to 2 seconds
-                lastUpdate: Date.now(),
-                transitionSpeed: this.lightTransitionSpeed * (0.5 + Math.random()) // Randomize per building
-            });
-        }
+        // Building lights initialization removed
 
         this.ctx.save();
 
@@ -965,30 +886,7 @@ export class StructureRenderer {
                     (windowPadding + (w * (this.tileWidth)));
                 const windowY = floorY;
 
-                // Use building-specific light intensity instead of global
-                const buildingLight = this.buildingLights.get(structure);
-                const isLit = this.isNight && Math.random() < 0.7;
-
-                // Draw window glow effect if lit
-                if (isLit) {
-                    const glowRadius = Math.max(windowWidth, windowHeight) * 0.8;
-                    const gradient = this.ctx.createRadialGradient(
-                        windowX, windowY + windowHeight/2,
-                        0,
-                        windowX, windowY + windowHeight/2,
-                        glowRadius
-                    );
-                    gradient.addColorStop(0, `rgba(255, 255, 200, ${0.2 * buildingLight.currentIntensity})`);
-                    gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
-
-                    this.ctx.fillStyle = gradient;
-                    this.ctx.fillRect(
-                        windowX - glowRadius,
-                        windowY - glowRadius/2,
-                        glowRadius * 2,
-                        glowRadius * 2
-                    );
-                }
+                // Building light effects removed
 
                 // Draw window frame
                 this.ctx.beginPath();
@@ -1007,29 +905,22 @@ export class StructureRenderer {
                 this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
                 this.ctx.stroke();
 
-                // Create window gradient based on time of day
+                // Create standard window gradient (lighting effects removed)
                 const gradient = this.ctx.createLinearGradient(
                     windowX, windowY,
                     windowX, windowY + windowHeight
                 );
 
-                if (isLit) {
-                    // Lit window at night
-                    gradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
-                    gradient.addColorStop(0.5, 'rgba(255, 255, 150, 0.8)');
-                    gradient.addColorStop(1, 'rgba(255, 255, 200, 0.9)');
-                } else {
-                    // Normal window during day or unlit at night
-                    gradient.addColorStop(0, 'rgba(180, 214, 230, 0.8)');
-                    gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
-                    gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
-                }
+                // Standard window appearance
+                gradient.addColorStop(0, 'rgba(180, 214, 230, 0.8)');
+                gradient.addColorStop(0.5, 'rgba(200, 230, 255, 0.9)');
+                gradient.addColorStop(1, 'rgba(180, 214, 230, 0.8)');
 
                 this.ctx.fillStyle = gradient;
                 this.ctx.fill();
 
-                // Draw window panes with adjusted opacity
-                const paneOpacity = isLit ? 0.6 : 0.4;
+                // Draw window panes with standard opacity
+                const paneOpacity = 0.4;
                 this.ctx.strokeStyle = `rgba(255, 255, 255, ${paneOpacity})`;
                 this.drawWindowPanes(windowX, windowY, windowWidth, windowHeight, isoSkew, face);
             }
