@@ -2,6 +2,8 @@ import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
 import { BatchRenderer } from './BatchRenderer.js';
+import { DrawCallBatcher } from './DrawCallBatcher.js';
+import { RenderQueue } from './RenderQueue.js';
 // Shadow renderer import removed
 
 /**
@@ -50,7 +52,23 @@ export class IsometricRenderer {
         this.lastVisibleArea = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
         this.visibleAreaChanged = true;
 
-        // Create batch renderer for efficient rendering
+        // Create advanced rendering systems
+        const debug = window.gameInstance?.debug?.flags?.logRenderer || false;
+
+        // Draw call batcher for reducing state changes
+        this.drawBatcher = new DrawCallBatcher(this.offscreenCtx, {
+            maxBatchSize: 1000,
+            autoDraw: false,
+            debug: debug
+        });
+
+        // Render queue for z-sorting
+        this.renderQueue = new RenderQueue({
+            autoSort: false,
+            debug: debug
+        });
+
+        // Legacy batch renderer (will be phased out)
         this.batchRenderer = new BatchRenderer(this.offscreenCtx, {
             batchSize: 500,
             autoDraw: false
@@ -61,6 +79,11 @@ export class IsometricRenderer {
         this.frameCount = 0;
         this.drawCallCount = 0;
         this.instanceCount = 0;
+
+        // Rendering flags
+        this.useDrawBatcher = true;  // Use the new draw batcher
+        this.useRenderQueue = true;  // Use the new render queue
+        this.useBatching = true;     // Use batching optimizations
 
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();
@@ -150,14 +173,30 @@ export class IsometricRenderer {
         // Clear the offscreen canvas
         this.clear();
 
-        // Reset batch renderer
-        this.batchRenderer.clear();
+        // Reset rendering systems
+        if (this.useDrawBatcher) {
+            this.drawBatcher.clear();
+
+            // Enable render queue for z-sorting if needed
+            if (this.useRenderQueue) {
+                this.drawBatcher.enableQueue();
+            } else {
+                this.drawBatcher.disableQueue();
+            }
+        } else {
+            // Legacy batch renderer
+            this.batchRenderer.clear();
+        }
 
         // Render tiles first
         this.renderWorldTiles(world, camera);
 
         // Draw all batched tiles in one go
-        this.batchRenderer.drawAll();
+        if (this.useDrawBatcher) {
+            this.drawBatcher.drawAll();
+        } else {
+            this.batchRenderer.drawAll();
+        }
 
         // Then render structures
         this.renderWorldStructures(world, camera);
@@ -173,7 +212,11 @@ export class IsometricRenderer {
         // Log performance if debug is enabled
         if (world?.game?.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
             const renderTime = now - startTime;
-            const batchStats = this.batchRenderer.getStats();
+
+            // Get stats from appropriate renderer
+            const batchStats = this.useDrawBatcher ?
+                this.drawBatcher.getStats() :
+                this.batchRenderer.getStats();
 
             world.game.logger.debug(`Render stats:`, {
                 renderTime: `${renderTime.toFixed(2)}ms`,
@@ -181,13 +224,19 @@ export class IsometricRenderer {
                 fps: (1000 / frameTime).toFixed(1),
                 drawCalls: this.drawCallCount,
                 batchedInstances: this.instanceCount,
-                batchDrawCalls: batchStats.drawCalls,
-                batchEfficiency: batchStats.drawCalls > 0 ?
-                    (this.instanceCount / batchStats.drawCalls).toFixed(1) : 0
+                batchDrawCalls: batchStats.drawCalls || 0,
+                batchEfficiency: (batchStats.drawCalls > 0 && this.instanceCount > 0) ?
+                    (this.instanceCount / batchStats.drawCalls).toFixed(1) : 0,
+                renderer: this.useDrawBatcher ? 'DrawCallBatcher' : 'BatchRenderer',
+                queueEnabled: this.useRenderQueue
             });
 
-            // Reset batch renderer counters
-            this.batchRenderer.resetCounters();
+            // Reset renderer counters
+            if (this.useDrawBatcher) {
+                this.drawBatcher.resetStats();
+            } else {
+                this.batchRenderer.resetCounters();
+            }
         }
     }
 
@@ -275,16 +324,30 @@ export class IsometricRenderer {
         }
 
         // Render tiles grouped by type to reduce texture switching
-        tilesByType.forEach((tiles, type) => {
-            // Set the texture once for all tiles of this type
-            const texture = this.tileManager.getTexture(type);
-            if (texture) {
-                // Render all tiles of this type
-                for (const { tile, x, y } of tiles) {
-                    this.renderTile(tile, x, y);
+        if (this.useDrawBatcher && this.useRenderQueue) {
+            // When using render queue, we want to add all tiles first, then sort and draw
+            // This gives the best z-ordering for proper isometric depth
+            for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    const tile = world.getTileAt(x, y);
+                    if (tile) {
+                        this.renderTile(tile, x, y);
+                    }
                 }
             }
-        });
+        } else {
+            // Otherwise, render by type to minimize texture switching
+            tilesByType.forEach((tiles, type) => {
+                // Set the texture once for all tiles of this type
+                const texture = this.tileManager.getTexture(type);
+                if (texture) {
+                    // Render all tiles of this type
+                    for (const { tile, x, y } of tiles) {
+                        this.renderTile(tile, x, y);
+                    }
+                }
+            });
+        }
 
         // Get all structures for rendering
         const structures = world.getAllStructures();
@@ -424,10 +487,35 @@ export class IsometricRenderer {
         const sortedStructures = world._sortedStructures || this.sortStructuresByDepth(visibleStructures);
 
         // Render structures in sorted order
-        for (let i = 0; i < sortedStructures.length; i++) {
-            const structure = sortedStructures[i];
-            const screenCoords = this.worldToScreen(structure.x, structure.y);
-            this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
+        if (this.useDrawBatcher) {
+            // Update structure renderer to use draw batcher
+            this.structureRenderer.setDrawBatcher(this.drawBatcher);
+
+            // Render structures in sorted order
+            for (let i = 0; i < sortedStructures.length; i++) {
+                const structure = sortedStructures[i];
+                const screenCoords = this.worldToScreen(structure.x, structure.y);
+
+                // Calculate z-index based on position (for proper depth sorting)
+                // Structures should be on top of tiles at the same position
+                const zIndex = (structure.y + structure.height) * 1000 + structure.x + 500; // +500 to be above tiles
+
+                this.structureRenderer.render(
+                    structure,
+                    structure.x,
+                    structure.y,
+                    screenCoords.x,
+                    screenCoords.y,
+                    { zIndex }
+                );
+            }
+        } else {
+            // Use legacy rendering
+            for (let i = 0; i < sortedStructures.length; i++) {
+                const structure = sortedStructures[i];
+                const screenCoords = this.worldToScreen(structure.x, structure.y);
+                this.structureRenderer.render(structure, structure.x, structure.y, screenCoords.x, screenCoords.y);
+            }
         }
 
         // Log performance stats if enabled
@@ -462,10 +550,67 @@ export class IsometricRenderer {
         const isoX = (x - y) * this.tileWidth / 2;
         const isoY = (x + y) * this.tileHeight / 2;
 
+        // Calculate z-index based on position (for proper depth sorting)
+        const zIndex = y * 1000 + x; // Y first for proper isometric sorting
+
         // Get texture from tile manager
         const textureResult = this.tileManager.getTexture(tile.type);
 
-        // If texture is from atlas, use batch renderer
+        // Use the new draw batcher if enabled
+        if (this.useDrawBatcher) {
+            if (textureResult && textureResult.isAtlasRegion) {
+                // Calculate screen position
+                const screenX = isoX - textureResult.region.width / 2 + this.offscreenCanvas.width / 2;
+                const screenY = isoY - textureResult.region.height / 2 + this.offscreenCanvas.height / 2;
+
+                // Add to draw batcher
+                this.drawBatcher.begin("atlas", { texture: textureResult.texture });
+                this.drawBatcher.addSpriteFromAtlas(
+                    textureResult.texture,
+                    textureResult.region,
+                    screenX,
+                    screenY,
+                    textureResult.region.width,
+                    textureResult.region.height,
+                    { zIndex }
+                );
+
+                // Track instance count for performance monitoring
+                this.instanceCount++;
+                return;
+            }
+
+            // For non-atlas textures, use cached tiles with draw batcher
+            const cacheKey = `${tile.type}_${x}_${y}`;
+            let cachedTile = this.tileCache.get(cacheKey);
+
+            if (!cachedTile) {
+                // Create and cache the tile if not in cache
+                cachedTile = this._createCachedTile(tile, x, y);
+                this.tileCache.set(cacheKey, cachedTile);
+            }
+
+            // Calculate screen position
+            const screenX = isoX - cachedTile.width / 2 + this.offscreenCanvas.width / 2;
+            const screenY = isoY - cachedTile.height / 2 + this.offscreenCanvas.height / 2;
+
+            // Add to draw batcher
+            this.drawBatcher.begin(tile.type, { texture: cachedTile });
+            this.drawBatcher.addSprite(
+                cachedTile,
+                screenX,
+                screenY,
+                cachedTile.width,
+                cachedTile.height,
+                { zIndex }
+            );
+
+            // Track instance count for performance monitoring
+            this.instanceCount++;
+            return;
+        }
+
+        // Fall back to legacy rendering if draw batcher is disabled
         if (textureResult && textureResult.isAtlasRegion) {
             // Calculate screen position
             const screenX = isoX - textureResult.region.width / 2 + this.offscreenCanvas.width / 2;

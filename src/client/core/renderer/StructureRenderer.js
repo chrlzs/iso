@@ -15,9 +15,21 @@ export class StructureRenderer {
         this.structureTransparency = new Map();
         this.transparencyTransitionSpeed = 0.05; // Faster transitions for transparency
 
+        // Rendering optimization
+        this.drawBatcher = null; // Will be set by IsometricRenderer
+        this.useBatching = true; // Whether to use batch rendering
+
         this.initializeMaterialPatterns();
         this.world = null;
         this.game = null; // Reference to the game instance
+    }
+
+    /**
+     * Sets the draw batcher to use for optimized rendering
+     * @param {DrawCallBatcher} batcher - The draw batcher to use
+     */
+    setDrawBatcher(batcher) {
+        this.drawBatcher = batcher;
     }
 
     /**
@@ -455,7 +467,7 @@ export class StructureRenderer {
         this.patterns.set('metal', this.ctx.createPattern(patternCanvas, 'repeat'));
     }
 
-    render(structure, worldX, worldY, screenX, screenY) {
+    render(structure, worldX, worldY, screenX, screenY, options = {}) {
         if (!structure) {
             console.warn('Attempted to render undefined structure');
             return;
@@ -480,45 +492,182 @@ export class StructureRenderer {
 
         // Building lights initialization removed
 
-        this.ctx.save();
-
         // Update structure transparency based on NPCs behind it
         const transparency = this.updateStructureTransparency(structure);
 
-        // Apply transparency to the entire structure
-        this.ctx.globalAlpha = transparency;
+        // Check if we should use the draw batcher
+        const useBatcher = this.useBatching && this.drawBatcher;
 
-        if (structure.type === 'tree') {
-            this.drawTree(screenX, screenY, structure);
-        } else if (structure.type === 'dumpster') {
-            this.drawDumpster(screenX, screenY, structure);
+        // Get z-index from options or calculate based on position
+        const zIndex = options.zIndex || (worldY * 1000 + worldX + 500); // +500 to be above tiles
+
+        if (!useBatcher) {
+            // Traditional rendering
+            this.ctx.save();
+
+            // Apply transparency to the entire structure
+            this.ctx.globalAlpha = transparency;
+
+            if (structure.type === 'tree') {
+                this.drawTree(screenX, screenY, structure);
+            } else if (structure.type === 'dumpster') {
+                this.drawDumpster(screenX, screenY, structure);
+            } else {
+                // Regular structure rendering
+                const material = structure.template.material || 'concrete';
+                const colors = {
+                    // Swap right/left patterns to match the wall angles correctly
+                    frontRight: this.patterns.get(material === 'brick' ? 'brick_left' : material) || '#a0a0a0',
+                    frontLeft: this.patterns.get(material === 'brick' ? 'brick_right' : material) || '#808080',
+                    top: '#c0c0c0'
+                };
+
+                const basePoints = {
+                    bottomLeft: { x: worldX, y: worldY + structure.height },
+                    bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
+                    topRight: { x: worldX + structure.width, y: worldY },
+                    topLeft: { x: worldX, y: worldY }
+                };
+
+                const screenPoints = {
+                    bottomLeft: this.worldToScreen(basePoints.bottomLeft.x, basePoints.bottomLeft.y),
+                    bottomRight: this.worldToScreen(basePoints.bottomRight.x, basePoints.bottomRight.y),
+                    topRight: this.worldToScreen(basePoints.topRight.x, basePoints.topRight.y),
+                    topLeft: this.worldToScreen(basePoints.topLeft.x, basePoints.topLeft.y)
+                };
+
+                const totalHeight = (structure.template.floors || 1) * this.floorHeight;
+
+                this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
+            }
         } else {
-            // Regular structure rendering
-            const material = structure.template.material || 'concrete';
-            const colors = {
-                // Swap right/left patterns to match the wall angles correctly
-                frontRight: this.patterns.get(material === 'brick' ? 'brick_left' : material) || '#a0a0a0',
-                frontLeft: this.patterns.get(material === 'brick' ? 'brick_right' : material) || '#808080',
-                top: '#c0c0c0'
-            };
+            // Use the draw batcher for optimized rendering
+            if (structure.type === 'tree') {
+                // Create a draw function for the tree
+                const drawFn = (ctx, params) => {
+                    const { x, y, structure, transparency } = params;
 
-            const basePoints = {
-                bottomLeft: { x: worldX, y: worldY + structure.height },
-                bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
-                topRight: { x: worldX + structure.width, y: worldY },
-                topLeft: { x: worldX, y: worldY }
-            };
+                    // Save context state
+                    ctx.save();
 
-            const screenPoints = {
-                bottomLeft: this.worldToScreen(basePoints.bottomLeft.x, basePoints.bottomLeft.y),
-                bottomRight: this.worldToScreen(basePoints.bottomRight.x, basePoints.bottomRight.y),
-                topRight: this.worldToScreen(basePoints.topRight.x, basePoints.topRight.y),
-                topLeft: this.worldToScreen(basePoints.topLeft.x, basePoints.topLeft.y)
-            };
+                    // Apply transparency
+                    ctx.globalAlpha = transparency;
 
-            const totalHeight = (structure.template.floors || 1) * this.floorHeight;
+                    // Draw tree
+                    const trunkHeight = 24;
+                    const trunkWidth = 12;
+                    const foliageSize = 48;
 
-            this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
+                    // Draw trunk
+                    ctx.fillStyle = '#8B4513';  // Saddle brown
+                    ctx.fillRect(
+                        x - trunkWidth/2,
+                        y - trunkHeight,
+                        trunkWidth,
+                        trunkHeight
+                    );
+
+                    // Draw foliage (triangle shape)
+                    ctx.fillStyle = '#228B22';  // Forest green
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - trunkHeight - foliageSize); // Top
+                    ctx.lineTo(x - foliageSize/2, y - trunkHeight); // Left
+                    ctx.lineTo(x + foliageSize/2, y - trunkHeight); // Right
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Restore context state
+                    ctx.restore();
+                };
+
+                // Add to batch
+                this.drawBatcher.begin('tree', { type: 'tree' });
+                this.drawBatcher.add(drawFn, {
+                    x: screenX,
+                    y: screenY,
+                    structure,
+                    transparency
+                }, zIndex);
+            } else if (structure.type === 'dumpster') {
+                // Create a draw function for the dumpster
+                const drawFn = (ctx, params) => {
+                    const { x, y, structure, transparency } = params;
+
+                    // Save context state
+                    ctx.save();
+
+                    // Apply transparency
+                    ctx.globalAlpha = transparency;
+
+                    // Draw dumpster
+                    this.drawDumpster(x, y, structure);
+
+                    // Restore context state
+                    ctx.restore();
+                };
+
+                // Add to batch
+                this.drawBatcher.begin('dumpster', { type: 'dumpster' });
+                this.drawBatcher.add(drawFn, {
+                    x: screenX,
+                    y: screenY,
+                    structure,
+                    transparency
+                }, zIndex);
+            } else {
+                // Create a draw function for the structure
+                const drawFn = (ctx, params) => {
+                    const { worldX, worldY, screenX, screenY, structure, transparency } = params;
+
+                    // Save context state
+                    ctx.save();
+
+                    // Apply transparency
+                    ctx.globalAlpha = transparency;
+
+                    // Regular structure rendering
+                    const material = structure.template.material || 'concrete';
+                    const colors = {
+                        // Swap right/left patterns to match the wall angles correctly
+                        frontRight: this.patterns.get(material === 'brick' ? 'brick_left' : material) || '#a0a0a0',
+                        frontLeft: this.patterns.get(material === 'brick' ? 'brick_right' : material) || '#808080',
+                        top: '#c0c0c0'
+                    };
+
+                    const basePoints = {
+                        bottomLeft: { x: worldX, y: worldY + structure.height },
+                        bottomRight: { x: worldX + structure.width, y: worldY + structure.height },
+                        topRight: { x: worldX + structure.width, y: worldY },
+                        topLeft: { x: worldX, y: worldY }
+                    };
+
+                    const screenPoints = {
+                        bottomLeft: this.worldToScreen(basePoints.bottomLeft.x, basePoints.bottomLeft.y),
+                        bottomRight: this.worldToScreen(basePoints.bottomRight.x, basePoints.bottomRight.y),
+                        topRight: this.worldToScreen(basePoints.topRight.x, basePoints.topRight.y),
+                        topLeft: this.worldToScreen(basePoints.topLeft.x, basePoints.topLeft.y)
+                    };
+
+                    const totalHeight = (structure.template.floors || 1) * this.floorHeight;
+
+                    this.drawStructureBox(screenPoints, totalHeight, colors, structure.template.type, structure);
+
+                    // Restore context state
+                    ctx.restore();
+                };
+
+                // Add to batch
+                this.drawBatcher.begin(structure.type, { type: structure.type });
+                this.drawBatcher.add(drawFn, {
+                    worldX,
+                    worldY,
+                    screenX,
+                    screenY,
+                    structure,
+                    transparency
+                }, zIndex);
+            }
+
         }
 
         this.ctx.restore();
