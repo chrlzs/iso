@@ -41,6 +41,34 @@ export class SimplifiedRenderer {
     }
 
     /**
+     * Converts world coordinates to isometric screen coordinates
+     * @param {number} x - World X coordinate
+     * @param {number} y - World Y coordinate
+     * @param {number} tileSize - Size of a tile
+     * @returns {Object} Screen coordinates {x, y}
+     */
+    worldToScreen(x, y, tileSize) {
+        // Isometric projection (2:1 ratio)
+        const screenX = (x - y) * tileSize / 2;
+        const screenY = (x + y) * tileSize / 4;
+        return { x: screenX, y: screenY };
+    }
+
+    /**
+     * Converts screen coordinates to world coordinates
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @param {number} tileSize - Size of a tile
+     * @returns {Object} World coordinates {x, y}
+     */
+    screenToWorld(screenX, screenY, tileSize) {
+        // Inverse isometric projection
+        const x = (screenX / (tileSize / 2) + screenY / (tileSize / 4)) / 2;
+        const y = (screenY / (tileSize / 4) - screenX / (tileSize / 2)) / 2;
+        return { x, y };
+    }
+
+    /**
      * Renders a tile
      * @param {Object} tile - Tile to render
      * @param {number} x - X position
@@ -58,9 +86,22 @@ export class SimplifiedRenderer {
         // Simplified rendering for distant tiles
         const tileSize = this.options.tileSize * camera.zoom;
 
-        // Draw a simple colored rectangle for the tile
+        // Draw a simple colored diamond for the tile (isometric view)
         this.ctx.fillStyle = this.getTileColor(tile);
-        this.ctx.fillRect(screenX - tileSize / 2, screenY - tileSize / 2, tileSize, tileSize);
+
+        // Draw isometric diamond shape
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX, screenY - tileSize / 4); // Top point
+        this.ctx.lineTo(screenX + tileSize / 2, screenY); // Right point
+        this.ctx.lineTo(screenX, screenY + tileSize / 4); // Bottom point
+        this.ctx.lineTo(screenX - tileSize / 2, screenY); // Left point
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Add a subtle outline
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        this.ctx.lineWidth = 0.5;
+        this.ctx.stroke();
 
         this.stats.tilesRendered++;
     }
@@ -97,9 +138,22 @@ export class SimplifiedRenderer {
 
         const entitySize = this.options.entitySize * camera.zoom;
 
-        // Draw a simple colored rectangle for the entity
+        // Draw a simple colored diamond for the entity (isometric view)
         this.ctx.fillStyle = this.getEntityColor(entity);
-        this.ctx.fillRect(screenX - entitySize / 2, screenY - entitySize / 2, entitySize, entitySize);
+
+        // Draw isometric diamond shape
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX, screenY - entitySize / 2); // Top point
+        this.ctx.lineTo(screenX + entitySize / 2, screenY); // Right point
+        this.ctx.lineTo(screenX, screenY + entitySize / 2); // Bottom point
+        this.ctx.lineTo(screenX - entitySize / 2, screenY); // Left point
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Add a subtle outline
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
 
         // Draw entity name if available
         if (entity.name) {
@@ -144,9 +198,26 @@ export class SimplifiedRenderer {
         const width = (structure.width || 1) * this.options.tileSize * camera.zoom;
         const height = (structure.height || 1) * this.options.tileSize * camera.zoom;
 
-        // Draw a simple colored rectangle for the structure
+        // Draw a simple colored diamond for the structure (isometric view)
         this.ctx.fillStyle = this.getStructureColor(structure);
-        this.ctx.fillRect(screenX - width / 2, screenY - height / 2, width, height);
+
+        // Calculate diamond dimensions based on width and height
+        const diamondWidth = width;
+        const diamondHeight = height / 2; // Adjust for isometric view
+
+        // Draw isometric diamond shape
+        this.ctx.beginPath();
+        this.ctx.moveTo(screenX, screenY - diamondHeight); // Top point
+        this.ctx.lineTo(screenX + diamondWidth / 2, screenY); // Right point
+        this.ctx.lineTo(screenX, screenY + diamondHeight); // Bottom point
+        this.ctx.lineTo(screenX - diamondWidth / 2, screenY); // Left point
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Add a subtle outline
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
 
         // Draw structure name if available
         if (structure.name) {
@@ -340,9 +411,11 @@ export class SimplifiedRenderer {
                 for (let x = minX; x <= maxX; x++) {
                     const tile = world.getTileAt ? world.getTileAt(x, y) : (world.getTile ? world.getTile(x, y) : null);
                     if (tile) {
-                        // Calculate screen position
-                        const screenX = (x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                        const screenY = (y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+                        // Calculate isometric screen position
+                        const tileSize = this.options.tileSize * camera.zoom;
+                        const isoPos = this.worldToScreen(x - camera.x, y - camera.y, tileSize);
+                        const screenX = isoPos.x + this.canvas.width / 2;
+                        const screenY = isoPos.y + this.canvas.height / 2;
 
                         // Render tile
                         this.renderTile(tile, x, y, screenX, screenY, camera);
@@ -361,9 +434,11 @@ export class SimplifiedRenderer {
                     .slice(0, this.options.maxStructures);
 
                 for (const structure of visibleStructures) {
-                    // Calculate screen position
-                    const screenX = (structure.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                    const screenY = (structure.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+                    // Calculate isometric screen position
+                    const tileSize = this.options.tileSize * camera.zoom;
+                    const isoPos = this.worldToScreen(structure.x - camera.x, structure.y - camera.y, tileSize);
+                    const screenX = isoPos.x + this.canvas.width / 2;
+                    const screenY = isoPos.y + this.canvas.height / 2;
 
                     // Render structure
                     this.renderStructure(structure, screenX, screenY, camera);
@@ -384,9 +459,11 @@ export class SimplifiedRenderer {
                     .slice(0, this.options.maxEntities);
 
                 for (const entity of visibleEntities) {
-                    // Calculate screen position
-                    const screenX = (entity.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                    const screenY = (entity.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+                    // Calculate isometric screen position
+                    const tileSize = this.options.tileSize * camera.zoom;
+                    const isoPos = this.worldToScreen(entity.x - camera.x, entity.y - camera.y, tileSize);
+                    const screenX = isoPos.x + this.canvas.width / 2;
+                    const screenY = isoPos.y + this.canvas.height / 2;
 
                     // Render entity
                     this.renderEntity(entity, screenX, screenY, camera);
