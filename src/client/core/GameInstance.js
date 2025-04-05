@@ -82,6 +82,9 @@ export class GameInstance {
         };
         window.addEventListener('resize', this._eventHandlers.handleResize);
 
+        // Bind the game loop once to prevent memory leaks
+        this._boundGameLoop = this.gameLoop.bind(this);
+
         // Initialize asset manager with texture configuration
         this.assetManager = new AssetManager({
             textureConfig: {
@@ -1180,8 +1183,8 @@ export class GameInstance {
         this.frameInterval = 1000 / this.targetFps;
         this.frameTime = 0;
 
-        // Start the game loop
-        this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        // Start the game loop using the bound method
+        this.animationFrameId = requestAnimationFrame(this._boundGameLoop);
     }
 
     /**
@@ -1338,6 +1341,11 @@ export class GameInstance {
                     this.fpsStabilizer.update(this, this.currentFPS);
                 }
 
+                // Monitor memory usage every 60 frames
+                if (this.frameCount % 60 === 0 && this.debug?.flags?.logPerformance) {
+                    this.monitorMemoryUsage();
+                }
+
                 // Take periodic game state snapshots when FPS is good (but very rarely)
                 if (this.gameStateSnapshot && this.currentFPS > 15 && Math.random() < 0.05) {
                     try {
@@ -1357,8 +1365,8 @@ export class GameInstance {
             }
         }
 
-        // Schedule next frame
-        this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+        // Schedule next frame using the bound method (not creating a new function each time)
+        this.animationFrameId = requestAnimationFrame(this._boundGameLoop);
     }
 
     /**
@@ -1535,6 +1543,33 @@ export class GameInstance {
         }
 
         this.logger.info('Game: Cleanup complete');
+    }
+
+    /**
+     * Monitors memory usage and logs it
+     * @private
+     */
+    monitorMemoryUsage() {
+        // Only works in Chrome/Edge with the --enable-precise-memory-info flag
+        if (window.performance && window.performance.memory) {
+            const memoryInfo = window.performance.memory;
+            const usedHeapSizeMB = Math.round(memoryInfo.usedJSHeapSize / (1024 * 1024));
+            const totalHeapSizeMB = Math.round(memoryInfo.totalJSHeapSize / (1024 * 1024));
+            const heapLimitMB = Math.round(memoryInfo.jsHeapSizeLimit / (1024 * 1024));
+
+            this.logger.debug(`Memory usage: ${usedHeapSizeMB}MB / ${totalHeapSizeMB}MB (Limit: ${heapLimitMB}MB)`);
+
+            // Log warning if memory usage is high
+            if (usedHeapSizeMB > totalHeapSizeMB * 0.8) {
+                this.logger.warn(`High memory usage: ${usedHeapSizeMB}MB / ${totalHeapSizeMB}MB`);
+
+                // Force garbage collection if available (only works in debug mode)
+                if (window.gc) {
+                    this.logger.debug('Forcing garbage collection');
+                    window.gc();
+                }
+            }
+        }
     }
 
     /**
@@ -1735,7 +1770,7 @@ export class GameInstance {
 
         // Log entity update stats if performance logging is enabled
         if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
-            console.log(`Entity updates: ${entitiesUpdated} updated, ${entitiesSkipped} skipped`);
+            this.logger.debug(`Entity updates: ${entitiesUpdated} updated, ${entitiesSkipped} skipped`);
         }
 
         // Find the structure at player's position
@@ -1825,8 +1860,8 @@ export class GameInstance {
         );
 
         // Log camera transform if debug is enabled
-        if (this.debug?.flags?.logRenderer) {
-            console.log('Camera transform:', {
+        if (this.debug?.flags?.logRenderer && this.frameCount % 60 === 0) {
+            this.logger.debug('Camera transform:', {
                 zoom: this.camera.zoom,
                 offsetX: offsetX / this.camera.zoom - isoX,
                 offsetY: offsetY / this.camera.zoom - isoY,
@@ -2020,7 +2055,7 @@ export class GameInstance {
 
         // Log entity culling stats if performance logging is enabled
         if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
-            console.log(`Entity rendering: ${visibleEntities.length} rendered, ${entitiesCulled} culled, ${entitiesProcessed} processed`);
+            this.logger.debug(`Entity rendering: ${visibleEntities.length} rendered, ${entitiesCulled} culled, ${entitiesProcessed} processed`);
         }
 
         // Now categorize visible entities for proper z-ordering
@@ -2040,7 +2075,7 @@ export class GameInstance {
 
                 // Debug logging for entities behind structures
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Entity ${entity.name} is behind a structure:`, {
+                    this.logger.debug(`Entity ${entity.name} is behind a structure:`, {
                         position: { x: entity.x, y: entity.y },
                         depth: entity.x + entity.y,
                         isOccluded: entity.isOccluded,
@@ -2055,7 +2090,7 @@ export class GameInstance {
 
                     // Debug logging for entities inside structures
                     if (this.debug?.flags?.logEntities) {
-                        console.log(`Entity ${entity.name} is inside structure:`, {
+                        this.logger.debug(`Entity ${entity.name} is inside structure:`, {
                             structure: entity.currentStructure.type,
                             position: { x: entity.x, y: entity.y },
                             depth: entity.x + entity.y
@@ -2068,7 +2103,7 @@ export class GameInstance {
 
                 // Debug logging for entities outside
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Entity ${entity.name} is outside:`, {
+                    this.logger.debug(`Entity ${entity.name} is outside:`, {
                         position: { x: entity.x, y: entity.y },
                         depth: entity.x + entity.y
                     });
@@ -2079,8 +2114,8 @@ export class GameInstance {
         // Skip sorting for now to fix the syntax error
 
         // Log sorting results if debug is enabled
-        if (this.debug?.flags?.logEntities) {
-            console.log('Sorted entities by zIndex:', {
+        if (this.debug?.flags?.logEntities && this.frameCount % 60 === 0) {
+            this.logger.debug('Sorted entities by zIndex:', {
                 behindStructures: entitiesBehindStructures.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) })),
                 outside: entitiesOutside.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) })),
                 inside: entitiesInside.map(e => ({ name: e.name, zIndex: e.zIndex || (e.x + e.y) }))
@@ -2088,8 +2123,8 @@ export class GameInstance {
         }
 
         // Debug log sorting
-        if (this.debug?.flags?.logEntities) {
-            console.log('Entity sorting:', {
+        if (this.debug?.flags?.logEntities && this.frameCount % 60 === 0) {
+            this.logger.debug('Entity sorting:', {
                 outside: entitiesOutside.map(e => ({ name: e.name, depth: e.x + e.y })),
                 inside: entitiesInside.map(e => ({ name: e.name, depth: e.x + e.y })),
                 behindStructures: entitiesBehindStructures.map(e => ({ name: e.name, depth: e.x + e.y }))
@@ -2097,8 +2132,8 @@ export class GameInstance {
         }
 
         // Debug log for entities - only log if debug flag is enabled
-        if (this.debug?.flags?.logEntities) {
-            console.log('Visible entities:', {
+        if (this.debug?.flags?.logEntities && this.frameCount % 60 === 0) {
+            this.logger.debug('Visible entities:', {
                 total: visibleEntities.length,
                 outside: entitiesOutside.length,
                 inside: entitiesInside.length,
@@ -2125,7 +2160,7 @@ export class GameInstance {
                 this.renderBatch.add('behind', entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Batched entity behind structure: ${entity.name} at depth ${entity.x + entity.y}`);
+                    this.logger.debug(`Batched entity behind structure: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
@@ -2142,7 +2177,7 @@ export class GameInstance {
                 this.renderBatch.add(batchKey, entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Batched outside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                    this.logger.debug(`Batched outside entity: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
@@ -2156,7 +2191,7 @@ export class GameInstance {
                 this.renderBatch.add(batchKey, entity);
 
                 if (this.debug?.flags?.logEntities) {
-                    console.log(`Batched inside entity: ${entity.name} at depth ${entity.x + entity.y}`);
+                    this.logger.debug(`Batched inside entity: ${entity.name} at depth ${entity.x + entity.y}`);
                 }
             }
         }
@@ -2205,7 +2240,7 @@ export class GameInstance {
 
         // Log entity rendering stats if performance logging is enabled
         if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
-            console.log(`Entity rendering: ${entitiesProcessed} rendered, ${entitiesCulled} culled`);
+            this.logger.debug(`Entity rendering: ${entitiesProcessed} rendered, ${entitiesCulled} culled`);
         }
     }
 
