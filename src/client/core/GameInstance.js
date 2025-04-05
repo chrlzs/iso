@@ -1222,7 +1222,19 @@ export class GameInstance {
                 cullingDistance: 25, // Maximum distance for entity rendering
                 textureQuality: 'low', // Start with low texture quality
                 maxEntitiesRendered: 50, // Limit number of entities rendered per frame
-                maxStructuresRendered: 30 // Limit number of structures rendered per frame
+                maxStructuresRendered: 30, // Limit number of structures rendered per frame
+
+                // Advanced performance optimizations
+                spatialGridUpdateInterval: 5, // Update spatial grid every 5 frames
+                entitySortInterval: 3, // Sort entities every 3 frames
+                entityUpdateInterval: 2, // Update entities every 2 frames
+                structureSortInterval: 10, // Sort structures every 10 frames
+                particleUpdateInterval: 2, // Update particles every 2 frames
+                disableTransparencyEffects: true, // Disable transparency effects
+                disableParticleEffects: true, // Disable particle effects
+                disableShadows: true, // Disable shadows
+                reduceDrawCalls: true, // Reduce draw calls by batching
+                skipNonEssentialUpdates: true // Skip non-essential updates
             };
 
             // Log initial performance mode settings
@@ -1719,12 +1731,22 @@ export class GameInstance {
 
         // Update spatial grid with player position
         if (this.spatialGrid) {
-            this.spatialGrid.clear();
+            // Only rebuild the spatial grid every few frames in performance mode
+            const shouldRebuildGrid = !this.performanceMode?.enabled ||
+                                     (this.frameCount % this.performanceMode.spatialGridUpdateInterval === 0);
 
-            // Insert entities into spatial grid
-            for (const entity of this.entities) {
-                if (entity && entity.getBounds) {
-                    this.spatialGrid.insert(entity);
+            if (shouldRebuildGrid) {
+                this.spatialGrid.clear();
+
+                // Insert entities into spatial grid
+                for (const entity of this.entities) {
+                    if (entity && entity.getBounds) {
+                        this.spatialGrid.insert(entity);
+                    }
+                }
+
+                if (this.debug?.flags?.logPerformance && this.frameCount % 60 === 0) {
+                    this.logger.debug(`Rebuilt spatial grid with ${this.entities.length} entities`);
                 }
             }
         }
@@ -1738,31 +1760,55 @@ export class GameInstance {
         this.cleanupDeadEntities();
 
         // Update entities with spatial and occlusion culling
-        const updateDistance = 20; // Only update entities within this distance of the player
+        const isPerformanceMode = this.performanceMode?.enabled;
+        const updateInterval = isPerformanceMode ? this.performanceMode.entityUpdateInterval : 1;
+        const shouldUpdateAll = !isPerformanceMode || (this.frameCount % updateInterval === 0);
+
+        // Always update the player
+        this.player.update(deltaTime);
+
+        // Skip other entity updates if not on the right frame in performance mode
+        if (!shouldUpdateAll && isPerformanceMode && this.performanceMode.skipNonEssentialUpdates) {
+            return;
+        }
+
+        // Use a smaller update distance in performance mode
+        const updateDistance = isPerformanceMode ? 15 : 20; // Reduce update distance in performance mode
         const playerX = this.player.x;
         const playerY = this.player.y;
 
-        let entitiesUpdated = 0;
+        let entitiesUpdated = 1; // Player already updated
         let entitiesSkipped = 0;
 
         // Query entities near the player using spatial grid
         const entitiesToUpdate = new Set();
 
+        // Always include important entities
+        for (const entity of this.entities) {
+            if (entity && entity.isImportant) {
+                entitiesToUpdate.add(entity);
+            }
+        }
+
         if (this.spatialGrid) {
-            // Use spatial grid to find nearby entities
+            // Use spatial grid to find nearby entities - much more efficient
             this.spatialGrid.queryRect(
                 playerX - updateDistance,
                 playerY - updateDistance,
                 updateDistance * 2,
                 updateDistance * 2,
                 entity => {
+                    // Skip the player as we already updated it
+                    if (entity === this.player) return;
+
                     entitiesToUpdate.add(entity);
                 }
             );
         } else {
             // Fallback to checking all entities
             for (const entity of this.entities) {
-                if (!entity.update) continue;
+                // Skip the player as we already updated it
+                if (entity === this.player || !entity.update) continue;
 
                 // Calculate distance to player
                 const dx = entity.x - playerX;
@@ -1780,8 +1826,12 @@ export class GameInstance {
         for (const entity of entitiesToUpdate) {
             if (!entity.update) continue;
 
-            // Skip occluded entities for non-essential updates
-            if (this.occlusionCulling &&
+            // Skip the player as we already updated it
+            if (entity === this.player) continue;
+
+            // Skip occluded entities for non-essential updates in performance mode
+            if (isPerformanceMode &&
+                this.occlusionCulling &&
                 this.occlusionCulling.isOccluded(entity, this.camera) &&
                 !entity.isImportant) {
                 entitiesSkipped++;
@@ -2064,8 +2114,35 @@ export class GameInstance {
             }
         }
 
-        // Sort entities by distance (closest first) for better rendering
-        entitiesWithDistance.sort((a, b) => a.distanceSq - b.distanceSq);
+        // Only sort entities if we have more than a few
+        if (entitiesWithDistance.length > 1) {
+            // In performance mode, we can skip sorting every few frames
+            const shouldSort = !isPerformanceMode ||
+                              (this.frameCount % this.performanceMode.entitySortInterval === 0);
+
+            if (shouldSort) {
+                // Sort entities by distance (closest first) for better rendering
+                // Use insertion sort for small arrays (faster than native sort for small arrays)
+                if (entitiesWithDistance.length < 50) {
+                    // Simple insertion sort
+                    for (let i = 1; i < entitiesWithDistance.length; i++) {
+                        const current = entitiesWithDistance[i];
+                        let j = i - 1;
+                        while (j >= 0 && entitiesWithDistance[j].distanceSq > current.distanceSq) {
+                            entitiesWithDistance[j + 1] = entitiesWithDistance[j];
+                            j--;
+                        }
+                        entitiesWithDistance[j + 1] = current;
+                    }
+                } else {
+                    // Use native sort for larger arrays
+                    entitiesWithDistance.sort((a, b) => a.distanceSq - b.distanceSq);
+                }
+
+                // Cache the sort timestamp
+                this._lastEntitySortTime = performance.now();
+            }
+        }
 
         // Limit the number of entities rendered in performance mode
         const entitiesToRender = isPerformanceMode
@@ -2073,8 +2150,10 @@ export class GameInstance {
             : entitiesWithDistance;
 
         // Extract just the entities from the sorted array
+        // Use direct indexing instead of push for better performance
+        visibleEntities.length = entitiesToRender.length;
         for (let i = 0; i < entitiesToRender.length; i++) {
-            visibleEntities.push(entitiesToRender[i].entity);
+            visibleEntities[i] = entitiesToRender[i].entity;
         }
 
         // Log entity culling stats if performance logging is enabled
