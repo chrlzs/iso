@@ -198,7 +198,29 @@ export class Entity {
      */
     die() {
         this.isActive = false;
+        this.isDead = true; // Mark for removal from entity arrays
         this.clearPath();
+
+        // Log death if debug is enabled
+        if (this.game?.debug?.flags?.logEntities) {
+            console.log(`Entity ${this.id} (${this.type}) died`);
+        }
+
         // Additional death handling can be implemented by subclasses
+    }
+
+    /**
+     * Disposes of entity resources
+     * Called when entity is removed from the game
+     */
+    dispose() {
+        // Release any resources held by this entity
+        this.path = null;
+        this.target = null;
+
+        // Remove from spatial grid if needed
+        if (this._spatialGridIndices && this.game?.spatialGrid) {
+            this.game.spatialGrid.remove(this);
+        }
     }
 }

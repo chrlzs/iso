@@ -70,6 +70,18 @@ export class GameInstance {
         document.body.style.margin = '0';
         document.body.style.padding = '0';
 
+        // Set initial canvas size with optimization
+        const initialWidth = window.innerWidth;
+        const initialHeight = window.innerHeight;
+        this.resize(initialWidth, initialHeight);
+
+        // Add window resize listener
+        this._eventHandlers = this._eventHandlers || {};
+        this._eventHandlers.handleResize = () => {
+            this.resize(window.innerWidth, window.innerHeight);
+        };
+        window.addEventListener('resize', this._eventHandlers.handleResize);
+
         // Initialize asset manager with texture configuration
         this.assetManager = new AssetManager({
             textureConfig: {
@@ -890,8 +902,14 @@ export class GameInstance {
         let lastToggleTime = 0;
         const TOGGLE_COOLDOWN = 200;
 
+        // Store event handler references for proper cleanup
+        this._eventHandlers = this._eventHandlers || {};
+
+        // Clean up any existing event handlers first
+        this.cleanupEventListeners();
+
         // Create a separate wheel handler function
-        const handleWheel = (e) => {
+        this._eventHandlers.handleWheel = (e) => {
             // Adjust zoom speed based on current zoom level
             // Slower zooming when already zoomed in a lot
             const zoomSpeed = this.camera.zoom > 1.5 ? 0.05 : 0.1;
@@ -910,7 +928,7 @@ export class GameInstance {
 
                 // Log zoom changes if debug flag is enabled
                 if (this.debug?.flags?.logZoomChanges || this.debug?.flags?.logRenderer) {
-                    console.log('Zoom updated:', {
+                    this.logger.debug('Zoom updated:', {
                         zoom: this.camera.zoom,
                         min: minZoom,
                         max: maxZoom
@@ -920,12 +938,12 @@ export class GameInstance {
         };
 
         // Add wheel listener with passive option
-        this.canvas.addEventListener('wheel', handleWheel, {
+        this.canvas.addEventListener('wheel', this._eventHandlers.handleWheel, {
             passive: true
         });
 
         // Handle keydown
-        const handleKeyDown = (e) => {
+        this._eventHandlers.handleKeyDown = (e) => {
             if (e.key.toLowerCase() === 'i' && !keyStates.has('i')) {
                 const now = Date.now();
                 if (now - lastToggleTime < TOGGLE_COOLDOWN) return;
@@ -937,14 +955,14 @@ export class GameInstance {
 
                 const inventoryUI = this.uiManager.getComponent('inventoryUI');
                 if (inventoryUI) {
-                    console.log('Processing inventory toggle...');
+                    this.logger.debug('Processing inventory toggle...');
                     inventoryUI.toggle();
                 }
             }
         };
 
         // Handle keyup
-        const handleKeyUp = (e) => {
+        this._eventHandlers.handleKeyUp = (e) => {
             if (e.key.toLowerCase() === 'i') {
                 keyStates.delete('i');
                 e.preventDefault();
@@ -952,16 +970,12 @@ export class GameInstance {
             }
         };
 
-        // Clean up any existing listeners
-        document.removeEventListener('keydown', handleKeyDown, true);
-        document.removeEventListener('keyup', handleKeyUp, true);
-
         // Add listeners with capture
-        document.addEventListener('keydown', handleKeyDown, { capture: true });
-        document.addEventListener('keyup', handleKeyUp, { capture: true });
+        document.addEventListener('keydown', this._eventHandlers.handleKeyDown, { capture: true });
+        document.addEventListener('keyup', this._eventHandlers.handleKeyUp, { capture: true });
 
         // Handle mouse movement for camera panning
-        this.canvas.addEventListener('mousemove', (e) => {
+        this._eventHandlers.handleMouseMove = (e) => {
             if (this.inputManager && this.inputManager.isShiftDragging()) {
                 // Get mouse movement delta without resetting it
                 const { deltaX, deltaY } = this.inputManager.getMouseDelta(false);
@@ -980,7 +994,7 @@ export class GameInstance {
 
                 // Log panning if debug is enabled
                 if (this.debug?.flags?.logCamera) {
-                    console.log('Camera panning:', {
+                    this.logger.debug('Camera panning:', {
                         mouseDelta: { x: deltaX, y: deltaY },
                         worldDelta: { x: worldDeltaX, y: worldDeltaY },
                         cameraOffset: { x: this.camera.offsetX, y: this.camera.offsetY },
@@ -991,35 +1005,39 @@ export class GameInstance {
                 // Prevent default to avoid text selection during drag
                 e.preventDefault();
             }
-        });
+        };
+        this.canvas.addEventListener('mousemove', this._eventHandlers.handleMouseMove);
 
         // Add mousedown event for starting panning
-        this.canvas.addEventListener('mousedown', (e) => {
+        this._eventHandlers.handleMouseDown = (e) => {
             if (this.inputManager && this.inputManager.isShiftPressed && e.button === 0) {
                 // Prevent default to avoid text selection during drag
                 e.preventDefault();
 
                 // Log start of panning if debug is enabled
                 if (this.debug?.flags?.logCamera) {
-                    console.log('Camera panning started');
+                    this.logger.debug('Camera panning started');
                 }
             }
-        });
+        };
+        this.canvas.addEventListener('mousedown', this._eventHandlers.handleMouseDown);
 
         // Add double-click to reset camera
-        this.canvas.addEventListener('dblclick', (e) => {
+        this._eventHandlers.handleDoubleClick = (_) => {
             // Reset camera offset and re-enable player following
             this.camera.resetPan();
             this.camera.followPlayer = true;
 
             if (this.debug?.flags?.logCamera) {
-                console.log('Camera reset to player');
+                this.logger.debug('Camera reset to player');
             }
-        });
+        };
+        this.canvas.addEventListener('dblclick', this._eventHandlers.handleDoubleClick);
 
-        this.canvas.addEventListener('click', (e) => {
+        // Handle canvas clicks
+        this._eventHandlers.handleClick = (e) => {
             try {
-                console.log('Canvas clicked');
+                this.logger.debug('Canvas clicked');
 
                 // Performance tracking
                 const clickStart = performance.now();
@@ -1092,12 +1110,56 @@ export class GameInstance {
                 // Log click processing time
                 const clickEnd = performance.now();
                 if (this.debug?.flags?.logPerformance) {
-                    console.log(`Movement click processed in ${(clickEnd - clickStart).toFixed(2)}ms`);
+                    this.logger.debug(`Movement click processed in ${(clickEnd - clickStart).toFixed(2)}ms`);
                 }
             } catch (error) {
-                console.error('Error processing click event:', error);
+                this.logger.error('Error processing click event:', error);
             }
-        });
+        };
+        this.canvas.addEventListener('click', this._eventHandlers.handleClick);
+    }
+
+    /**
+     * Cleans up all event listeners
+     * @private
+     */
+    cleanupEventListeners() {
+        if (!this._eventHandlers) return;
+
+        // Clean up canvas event listeners
+        if (this.canvas) {
+            if (this._eventHandlers.handleWheel) {
+                this.canvas.removeEventListener('wheel', this._eventHandlers.handleWheel);
+            }
+            if (this._eventHandlers.handleMouseMove) {
+                this.canvas.removeEventListener('mousemove', this._eventHandlers.handleMouseMove);
+            }
+            if (this._eventHandlers.handleMouseDown) {
+                this.canvas.removeEventListener('mousedown', this._eventHandlers.handleMouseDown);
+            }
+            if (this._eventHandlers.handleDoubleClick) {
+                this.canvas.removeEventListener('dblclick', this._eventHandlers.handleDoubleClick);
+            }
+            if (this._eventHandlers.handleClick) {
+                this.canvas.removeEventListener('click', this._eventHandlers.handleClick);
+            }
+        }
+
+        // Clean up document event listeners
+        if (this._eventHandlers.handleKeyDown) {
+            document.removeEventListener('keydown', this._eventHandlers.handleKeyDown, { capture: true });
+        }
+        if (this._eventHandlers.handleKeyUp) {
+            document.removeEventListener('keyup', this._eventHandlers.handleKeyUp, { capture: true });
+        }
+
+        // Clean up window event listeners
+        if (this._eventHandlers.handleResize) {
+            window.removeEventListener('resize', this._eventHandlers.handleResize);
+        }
+
+        // Log cleanup
+        this.logger.debug('Event listeners cleaned up');
     }
 
     /**
@@ -1461,12 +1523,7 @@ export class GameInstance {
         }
 
         // Clear event listeners
-        this.canvas.removeEventListener('mousedown', this.handleMouseDown);
-        this.canvas.removeEventListener('mouseup', this.handleMouseUp);
-        this.canvas.removeEventListener('mousemove', this.handleMouseMove);
-        this.canvas.removeEventListener('wheel', this.handleMouseWheel);
-        window.removeEventListener('keydown', this.handleKeyDown);
-        window.removeEventListener('keyup', this.handleKeyUp);
+        this.cleanupEventListeners();
 
         // Force garbage collection if possible
         if (window.gc) {
@@ -1478,6 +1535,49 @@ export class GameInstance {
         }
 
         this.logger.info('Game: Cleanup complete');
+    }
+
+    /**
+     * Cleans up dead or invalid entities
+     * @private
+     */
+    cleanupDeadEntities() {
+        if (!this.entities || !Array.isArray(this.entities)) return;
+
+        const initialCount = this.entities.length;
+
+        // Filter out null, undefined, or dead entities
+        this.entities = this.entities.filter(entity => {
+            if (!entity) return false;
+
+            // Remove entities marked as dead
+            if (entity.isDead) {
+                // Clean up any animations for this entity
+                if (this.animationSystem) {
+                    this.animationSystem.cleanupEntity(entity);
+                }
+
+                // Call entity's dispose method if it exists
+                if (typeof entity.dispose === 'function') {
+                    try {
+                        entity.dispose();
+                    } catch (e) {
+                        this.logger.error('Error disposing entity:', e);
+                    }
+                }
+
+                return false;
+            }
+
+            return true;
+        });
+
+        const removedCount = initialCount - this.entities.length;
+
+        // Log cleanup if entities were removed
+        if (removedCount > 0 && this.debug?.flags?.logPerformance) {
+            this.logger.debug(`Cleaned up ${removedCount} dead entities. Remaining: ${this.entities.length}`);
+        }
     }
 
     /**
@@ -1574,6 +1674,9 @@ export class GameInstance {
         if (this.occlusionCulling) {
             this.occlusionCulling.updateOccluders(this.entities, this.camera);
         }
+
+        // Clean up dead entities first
+        this.cleanupDeadEntities();
 
         // Update entities with spatial and occlusion culling
         const updateDistance = 20; // Only update entities within this distance of the player
@@ -2181,10 +2284,32 @@ export class GameInstance {
         });
     }
 
+    /**
+     * Resizes the canvas with performance optimization
+     * @param {number} width - Desired width
+     * @param {number} height - Desired height
+     */
     resize(width, height) {
-        console.log(`Game: Resizing to ${width}x${height}`);
-        this.canvas.width = width;
-        this.canvas.height = height;
+        this.logger.info(`Game: Resizing to ${width}x${height}`);
+
+        // Check if we need to optimize canvas size for performance
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const optimizedWidth = Math.floor(width / devicePixelRatio) * devicePixelRatio;
+        const optimizedHeight = Math.floor(height / devicePixelRatio) * devicePixelRatio;
+
+        // Set canvas size with optimization
+        this.canvas.width = optimizedWidth;
+        this.canvas.height = optimizedHeight;
+
+        // Log optimization if debug is enabled
+        if (this.debug?.flags?.logRenderer) {
+            this.logger.debug(`Canvas optimized: ${width}x${height} → ${optimizedWidth}x${optimizedHeight} (DPR: ${devicePixelRatio})`);
+        }
+
+        // Update renderer if needed
+        if (this.renderer && typeof this.renderer.handleResize === 'function') {
+            this.renderer.handleResize(optimizedWidth, optimizedHeight);
+        }
     }
 
     // Example method to calculate terrain height

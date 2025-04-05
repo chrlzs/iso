@@ -74,7 +74,7 @@ export class AnimationSystem {
 
         this.activeAnimations.forEach((data, entityId) => {
             const { entity, animation, options } = data;
-            
+
             animation.elapsed += elapsed;
             if (animation.elapsed >= animation.frameDuration) {
                 animation.currentFrame = (animation.currentFrame + 1) % animation.frameCount;
@@ -88,5 +88,32 @@ export class AnimationSystem {
         });
 
         this.lastUpdate = now;
+    }
+
+    /**
+     * Cleans up animations for a specific entity
+     * @param {Entity} entity - Entity to clean up animations for
+     */
+    cleanupEntity(entity) {
+        if (entity && entity.id) {
+            this.activeAnimations.delete(entity.id);
+        }
+    }
+
+    /**
+     * Cleans up all animations
+     */
+    cleanup() {
+        this.activeAnimations.clear();
+        this.lastUpdate = performance.now();
+    }
+
+    /**
+     * Disposes of the animation system
+     */
+    dispose() {
+        this.animations.clear();
+        this.activeAnimations.clear();
+        this.game = null;
     }
 }
