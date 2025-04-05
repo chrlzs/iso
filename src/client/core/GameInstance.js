@@ -29,6 +29,9 @@ import { SpatialGrid } from './utils/SpatialGrid.js';
 import { OcclusionCulling } from './renderer/OcclusionCulling.js';
 import { RenderBatch } from './renderer/RenderBatch.js';
 import { Logger } from './utils/Logger.js';
+import { FPSStabilizer } from './utils/FPSStabilizer.js';
+import { GameStateSnapshot } from './utils/GameStateSnapshot.js';
+import { MinimalRenderer } from './renderer/MinimalRenderer.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
@@ -177,8 +180,41 @@ export class GameInstance {
             maxBatchSize: 100
         });
 
+        // Initialize minimal renderer for emergency situations
+        this.minimalRenderer = new MinimalRenderer(canvas, {
+            tileSize: 16,
+            entitySize: 8,
+            maxEntities: 10,
+            maxTiles: 100
+        });
+
+        // Initialize FPS stabilizer
+        this.fpsStabilizer = new FPSStabilizer({
+            enabled: true,
+            minAcceptableFPS: 5,
+            criticalFPS: 2,
+            checkInterval: 10000,
+            recoveryMeasures: ['gc', 'textures', 'entities', 'reset'],
+            maxResets: 3
+        });
+
+        // Initialize game state snapshot system
+        this.gameStateSnapshot = new GameStateSnapshot({
+            includeEntities: true,
+            includePlayer: true,
+            includeCamera: true
+        });
+
         // Start performance monitoring
         this.performanceMonitor.startMonitoring();
+
+        // Take initial game state snapshot after 30 seconds
+        setTimeout(() => {
+            if (this.running) {
+                this.gameStateSnapshot.takeSnapshot(this);
+                this.logger.info('Initial game state snapshot taken');
+            }
+        }, 30000);
 
         // Define core texture sets
         this.textureDefinitions = {
@@ -1231,6 +1267,19 @@ export class GameInstance {
                 this.lastFpsUpdate = timestamp;
                 this.frameCount = 0;
 
+                // Store current FPS for calculations
+                this.currentFPS = this.fps;
+
+                // Update FPS stabilizer
+                if (this.fpsStabilizer) {
+                    this.fpsStabilizer.update(this, this.currentFPS);
+                }
+
+                // Take periodic game state snapshots when FPS is good
+                if (this.gameStateSnapshot && this.currentFPS > 10 && Math.random() < 0.2) {
+                    this.gameStateSnapshot.takeSnapshot(this);
+                }
+
                 // Update FPS display if enabled
                 if (this.debug?.flags?.showFPS) {
                     const fpsElement = document.getElementById('fpsCounter');
@@ -1389,6 +1438,21 @@ export class GameInstance {
         // Clear render batches
         if (this.renderBatch) {
             this.renderBatch.clear();
+        }
+
+        // Reset FPS stabilizer
+        if (this.fpsStabilizer) {
+            this.fpsStabilizer.reset();
+        }
+
+        // Dispose of minimal renderer
+        if (this.minimalRenderer) {
+            this.minimalRenderer.dispose();
+        }
+
+        // Take a final snapshot if needed
+        if (this.gameStateSnapshot && !this.gameStateSnapshot.hasSnapshot()) {
+            this.gameStateSnapshot.takeSnapshot(this);
         }
 
         // Clear event listeners
@@ -1626,6 +1690,19 @@ export class GameInstance {
      * @private
      */
     render() {
+        // Use minimal renderer in critical performance situations
+        if (this.currentFPS !== undefined && this.currentFPS <= 2 && this.minimalRenderer) {
+            this.minimalRenderer.render(this);
+            return;
+        }
+
+        // Use simplified renderer in performance mode
+        if (this.performanceMode && this.performanceMode.enabled &&
+            this.simplifiedRenderer && this.currentFPS < 10) {
+            this.simplifiedRenderer.render(this);
+            return;
+        }
+
         this.renderer.clear();
 
         // Apply camera transform
