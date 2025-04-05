@@ -1,7 +1,7 @@
 import { DecorationRenderer } from './DecorationRenderer.js';
 import { WaterRenderer } from './WaterRenderer.js';
 import { StructureRenderer } from './StructureRenderer.js';
-import { ShadowRenderer } from './ShadowRenderer.js';
+// Shadow renderer import removed
 
 /**
  * Handles isometric rendering of the game world and entities
