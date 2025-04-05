@@ -208,13 +208,19 @@ export class GameInstance {
         // Start performance monitoring
         this.performanceMonitor.startMonitoring();
 
-        // Take initial game state snapshot after 30 seconds
+        // Take initial game state snapshot after 60 seconds (when game is more stable)
         setTimeout(() => {
-            if (this.running) {
-                this.gameStateSnapshot.takeSnapshot(this);
-                this.logger.info('Initial game state snapshot taken');
+            if (this.running && this.gameStateSnapshot) {
+                try {
+                    const success = this.gameStateSnapshot.takeSnapshot(this);
+                    if (success) {
+                        this.logger.info('Initial game state snapshot taken');
+                    }
+                } catch (e) {
+                    this.logger.warn('Failed to take initial game state snapshot:', e);
+                }
             }
-        }, 30000);
+        }, 60000);
 
         // Define core texture sets
         this.textureDefinitions = {
@@ -1275,9 +1281,13 @@ export class GameInstance {
                     this.fpsStabilizer.update(this, this.currentFPS);
                 }
 
-                // Take periodic game state snapshots when FPS is good
-                if (this.gameStateSnapshot && this.currentFPS > 10 && Math.random() < 0.2) {
-                    this.gameStateSnapshot.takeSnapshot(this);
+                // Take periodic game state snapshots when FPS is good (but very rarely)
+                if (this.gameStateSnapshot && this.currentFPS > 15 && Math.random() < 0.05) {
+                    try {
+                        this.gameStateSnapshot.takeSnapshot(this);
+                    } catch (e) {
+                        // Silently ignore snapshot errors
+                    }
                 }
 
                 // Update FPS display if enabled
