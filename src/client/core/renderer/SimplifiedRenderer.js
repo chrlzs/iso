@@ -312,108 +312,129 @@ export class SimplifiedRenderer {
      * @param {Object} gameInstance - Game instance
      */
     render(gameInstance) {
-        // Clear the canvas
-        this.clear();
+        try {
+            // Clear the canvas
+            this.clear();
 
-        // Get camera and world
-        const camera = gameInstance.camera;
-        const world = gameInstance.world;
+            // Get camera and world
+            const camera = gameInstance.camera;
+            const world = gameInstance.world;
 
-        if (!camera || !world) return;
+            if (!camera || !world) return;
 
-        // Calculate visible area
-        const visibleWidth = this.canvas.width / camera.zoom;
-        const visibleHeight = this.canvas.height / camera.zoom;
+            // Draw a simple background
+            this.ctx.fillStyle = '#333333';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        const minX = Math.floor(camera.x - visibleWidth / 2);
-        const minY = Math.floor(camera.y - visibleHeight / 2);
-        const maxX = Math.ceil(camera.x + visibleWidth / 2);
-        const maxY = Math.ceil(camera.y + visibleHeight / 2);
+            // Calculate visible area
+            const visibleWidth = this.canvas.width / camera.zoom;
+            const visibleHeight = this.canvas.height / camera.zoom;
 
-        // Render visible tiles
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                const tile = world.getTile(x, y);
-                if (tile) {
-                    // Calculate screen position
-                    const screenX = (x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                    const screenY = (y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+            const minX = Math.floor(camera.x - visibleWidth / 2);
+            const minY = Math.floor(camera.y - visibleHeight / 2);
+            const maxX = Math.ceil(camera.x + visibleWidth / 2);
+            const maxY = Math.ceil(camera.y + visibleHeight / 2);
 
-                    // Render tile
-                    this.renderTile(tile, x, y, screenX, screenY, camera);
+            // Render visible tiles
+            for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    const tile = world.getTileAt ? world.getTileAt(x, y) : (world.getTile ? world.getTile(x, y) : null);
+                    if (tile) {
+                        // Calculate screen position
+                        const screenX = (x - camera.x) * this.options.tileSize + this.canvas.width / 2;
+                        const screenY = (y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+
+                        // Render tile
+                        this.renderTile(tile, x, y, screenX, screenY, camera);
+                    }
                 }
             }
-        }
 
-        // Render structures
-        if (world.structures) {
-            const visibleStructures = world.structures
-                .filter(structure => {
-                    return structure.x >= minX - 5 && structure.x <= maxX + 5 &&
-                           structure.y >= minY - 5 && structure.y <= maxY + 5;
-                })
-                .slice(0, this.options.maxStructures);
+            // Render structures
+            if (world.structures && Array.isArray(world.structures)) {
+                const visibleStructures = world.structures
+                    .filter(structure => {
+                        if (!structure || typeof structure.x !== 'number' || typeof structure.y !== 'number') return false;
+                        return structure.x >= minX - 5 && structure.x <= maxX + 5 &&
+                               structure.y >= minY - 5 && structure.y <= maxY + 5;
+                    })
+                    .slice(0, this.options.maxStructures);
 
-            for (const structure of visibleStructures) {
-                // Calculate screen position
-                const screenX = (structure.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                const screenY = (structure.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+                for (const structure of visibleStructures) {
+                    // Calculate screen position
+                    const screenX = (structure.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
+                    const screenY = (structure.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
 
-                // Render structure
-                this.renderStructure(structure, screenX, screenY, camera);
-                this.stats.structuresRendered++;
+                    // Render structure
+                    this.renderStructure(structure, screenX, screenY, camera);
+                    this.stats.structuresRendered++;
+                }
             }
-        }
 
-        // Render entities
-        if (world.entities) {
-            const visibleEntities = world.entities
-                .filter(entity => {
-                    if (!entity || !entity.isVisible) return false;
+            // Render entities
+            if (world.entities && Array.isArray(world.entities)) {
+                const visibleEntities = world.entities
+                    .filter(entity => {
+                        if (!entity || !entity.isVisible) return false;
+                        if (typeof entity.x !== 'number' || typeof entity.y !== 'number') return false;
 
-                    return entity.x >= minX - 2 && entity.x <= maxX + 2 &&
-                           entity.y >= minY - 2 && entity.y <= maxY + 2;
-                })
-                .slice(0, this.options.maxEntities);
+                        return entity.x >= minX - 2 && entity.x <= maxX + 2 &&
+                               entity.y >= minY - 2 && entity.y <= maxY + 2;
+                    })
+                    .slice(0, this.options.maxEntities);
 
-            for (const entity of visibleEntities) {
-                // Calculate screen position
-                const screenX = (entity.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
-                const screenY = (entity.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
+                for (const entity of visibleEntities) {
+                    // Calculate screen position
+                    const screenX = (entity.x - camera.x) * this.options.tileSize + this.canvas.width / 2;
+                    const screenY = (entity.y - camera.y) * this.options.tileSize + this.canvas.height / 2;
 
-                // Render entity
-                this.renderEntity(entity, screenX, screenY, camera);
-                this.stats.entitiesRendered++;
+                    // Render entity
+                    this.renderEntity(entity, screenX, screenY, camera);
+                    this.stats.entitiesRendered++;
+                }
             }
-        }
-
-        // Render player
-        if (gameInstance.player) {
-            const player = gameInstance.player;
-
-            // Calculate screen position (player is always at center)
-            const screenX = this.canvas.width / 2;
-            const screenY = this.canvas.height / 2;
 
             // Render player
-            this.renderEntity(player, screenX, screenY, camera);
-            this.stats.entitiesRendered++;
-        }
+            if (gameInstance.player) {
+                const player = gameInstance.player;
 
-        // Render UI
-        if (gameInstance.ui) {
-            // Render UI elements
-            this.renderUI(gameInstance.ui, camera);
-        }
+                // Calculate screen position (player is always at center)
+                const screenX = this.canvas.width / 2;
+                const screenY = this.canvas.height / 2;
 
-        // Render FPS counter
-        if (gameInstance.debug?.flags?.showFPS) {
-            this.renderText(`FPS: ${gameInstance.currentFPS || 0}`, 10, 20, {
-                font: '14px monospace',
-                color: '#FFFFFF',
-                align: 'left',
-                baseline: 'top'
-            });
+                // Render player
+                this.renderEntity(player, screenX, screenY, camera);
+                this.stats.entitiesRendered++;
+            }
+
+            // Render UI
+            if (gameInstance.ui) {
+                // Render UI elements
+                this.renderUI(gameInstance.ui, camera);
+            }
+
+            // Render FPS counter
+            if (gameInstance.debug?.flags?.showFPS) {
+                this.renderText(`FPS: ${gameInstance.currentFPS || 0}`, 10, 20, {
+                    font: '14px monospace',
+                    color: '#FFFFFF',
+                    align: 'left',
+                    baseline: 'top'
+                });
+            }
+        } catch (error) {
+            // Log error but don't crash
+            console.error('Error in simplified renderer:', error);
+
+            // Draw error message on canvas
+            this.ctx.fillStyle = '#333';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            this.ctx.fillStyle = '#F00';
+            this.ctx.font = '16px monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Renderer Error', this.canvas.width / 2, this.canvas.height / 2 - 20);
+            this.ctx.fillText('Check console for details', this.canvas.width / 2, this.canvas.height / 2 + 20);
         }
     }
 
