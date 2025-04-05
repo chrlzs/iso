@@ -25,6 +25,7 @@ import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 import { MemoryManager } from './utils/MemoryManager.js';
 import { Vector2Pool } from './utils/Vector2Pool.js';
 import { RectPool } from './utils/RectPool.js';
+import { PoolManager } from './utils/PoolManager.js';
 import { SpatialGrid } from './utils/SpatialGrid.js';
 import { OcclusionCulling } from './renderer/OcclusionCulling.js';
 import { RenderBatch } from './renderer/RenderBatch.js';
@@ -176,6 +177,11 @@ export class GameInstance {
             cleanupInterval: 60000,  // Clean up every minute
             textureMaxAge: 300000,   // Textures unused for 5 minutes get purged
             entityCullingDistance: 100 // Distance at which to cull entities
+        });
+
+        // Initialize object pooling system
+        this.poolManager = new PoolManager({
+            debug: this.debug?.flags?.logMemory || false
         });
 
         // Initialize object pools
@@ -1268,6 +1274,17 @@ export class GameInstance {
             if (this.frameCount % 30 === 0) {
                 try {
                     this.memoryManager.update(this);
+
+                    // Log pool statistics in debug mode
+                    if (this.debug?.flags?.logMemory) {
+                        const poolStats = this.poolManager.getStats();
+                        this.logger.debug('Object pool stats:', {
+                            totalEntities: poolStats.totalEntities,
+                            activeEntities: poolStats.activeEntities,
+                            pooledEntities: poolStats.pooledEntities,
+                            poolCount: poolStats.poolCount
+                        });
+                    }
                 } catch (e) {
                     console.error('Error updating memory manager:', e);
                 }
@@ -1322,7 +1339,34 @@ export class GameInstance {
                 if (frameTime > 100 || this.performanceMode.consecutiveSlowFrames >= 10) {
                     this.logger.warn(`Performance issue detected - forcing memory cleanup`);
                     try {
+                        // Clean up memory
                         this.memoryManager.cleanupMemory(this);
+
+                        // Trim object pools to reduce memory usage
+                        if (this.poolManager) {
+                            const stats = this.poolManager.getStats();
+                            this.logger.debug('Trimming object pools', {
+                                before: stats.pooledEntities
+                            });
+
+                            // Release excess pooled objects
+                            Object.values(stats.pools).forEach(poolStats => {
+                                if (poolStats.poolSize > 20) { // Keep a minimum of 20 objects
+                                    const pool = this.poolManager.getPool(poolStats.entityType);
+                                    if (pool) {
+                                        pool.trim(20); // Trim to 20 objects
+                                    }
+                                }
+                            });
+
+                            // Log after trimming
+                            const afterStats = this.poolManager.getStats();
+                            this.logger.debug('Object pools trimmed', {
+                                before: stats.pooledEntities,
+                                after: afterStats.pooledEntities,
+                                reduced: stats.pooledEntities - afterStats.pooledEntities
+                            });
+                        }
 
                         // Increase frame skipping if we're having severe performance issues
                         if (frameTime > 200 || this.performanceMode.consecutiveSlowFrames >= 20) {
@@ -1552,6 +1596,16 @@ export class GameInstance {
 
         // Clear event listeners
         this.cleanupEventListeners();
+
+        // Dispose of pool manager
+        if (this.poolManager) {
+            try {
+                this.logger.info('Game: Disposing object pools');
+                this.poolManager.dispose();
+            } catch (e) {
+                this.logger.error('Error disposing pool manager:', e);
+            }
+        }
 
         // Force garbage collection if possible
         if (window.gc) {

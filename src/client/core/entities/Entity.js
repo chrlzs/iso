@@ -2,6 +2,7 @@
  * @module Entity
  * @description Base class for all game entities including players, NPCs, and interactive objects
  */
+import { ObjectPool } from '../utils/ObjectPool.js';
 
 /**
  * @typedef {Object} EntityConfig
@@ -27,6 +28,48 @@
  * @property {boolean} isVisible - Whether entity is visible
  */
 export class Entity {
+    /**
+     * Object pool for entity instances
+     * @type {ObjectPool}
+     * @static
+     */
+    static pool = null;
+
+    /**
+     * Gets an entity from the pool or creates a new one
+     * @param {Object} config - Entity configuration
+     * @returns {Entity} - A new or recycled entity instance
+     * @static
+     */
+    static create(config = {}) {
+        // Initialize pool if it doesn't exist
+        if (!Entity.pool) {
+            Entity.pool = new ObjectPool(
+                () => new Entity(),
+                (entity) => entity.reset()
+            );
+        }
+
+        // Get entity from pool
+        const entity = Entity.pool.get();
+
+        // Initialize with config
+        entity.init(config);
+
+        return entity;
+    }
+
+    /**
+     * Returns an entity to the pool
+     * @param {Entity} entity - The entity to return to the pool
+     * @static
+     */
+    static release(entity) {
+        if (!entity || !Entity.pool) return;
+
+        // Return to pool
+        Entity.pool.release(entity);
+    }
     /**
      * Creates a new Entity instance
      * @param {EntityConfig} config - Entity configuration
@@ -221,6 +264,87 @@ export class Entity {
         // Remove from spatial grid if needed
         if (this._spatialGridIndices && this.game?.spatialGrid) {
             this.game.spatialGrid.remove(this);
+        }
+
+        // Return to pool
+        Entity.release(this);
+    }
+
+    /**
+     * Resets the entity to its default state
+     * Called when entity is returned to the pool
+     */
+    reset() {
+        // Reset basic properties
+        this.id = null;
+        this.type = 'entity';
+        this.x = 0;
+        this.y = 0;
+        this.width = 1;
+        this.height = 1;
+        this.speed = 1;
+        this.health = 100;
+        this.maxHealth = 100;
+        this.isActive = false;
+        this.isVisible = false;
+        this.isMoving = false;
+        this.isDead = false;
+
+        // Reset references
+        this.game = null;
+        this.world = null;
+        this.path = null;
+        this.target = null;
+        this.currentTileType = null;
+        this.currentHeight = 0;
+        this.nextPathIndex = 0;
+
+        // Reset spatial grid indices
+        this._spatialGridIndices = null;
+    }
+
+    /**
+     * Initializes the entity with the given configuration
+     * @param {EntityConfig} config - Entity configuration
+     */
+    init(config) {
+        // Set basic properties
+        this.id = config.id || `entity_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        this.type = config.type || 'entity';
+        this.x = config.x || 0;
+        this.y = config.y || 0;
+        this.width = config.width || 1;
+        this.height = config.height || 1;
+        this.speed = config.speed || 1;
+        this.health = config.health || 100;
+        this.maxHealth = config.maxHealth || this.health;
+        this.isActive = config.isActive !== undefined ? config.isActive : true;
+        this.isVisible = config.isVisible !== undefined ? config.isVisible : true;
+
+        // Set references
+        this.game = config.game || null;
+        this.world = config.world || null;
+
+        // Initialize state
+        this.isMoving = false;
+        this.isDead = false;
+        this.path = null;
+        this.target = null;
+        this.currentTileType = null;
+        this.currentHeight = 0;
+        this.nextPathIndex = 0;
+
+        // Initialize spatial grid indices
+        this._spatialGridIndices = null;
+
+        // Add to spatial grid if game is provided
+        if (this.game?.spatialGrid) {
+            this.game.spatialGrid.add(this);
+        }
+
+        // Track in memory manager if debug is enabled
+        if (this.game?.debug?.enabled && this.game.memoryManager) {
+            this.game.memoryManager.trackObject(this.type, this);
         }
     }
 }
