@@ -35,6 +35,8 @@ import { MinimalRenderer } from './renderer/MinimalRenderer.js';
 import { createRemixedMap } from './world/templates/RemixedDemoMap.js';
 import { TurnBasedCombatSystem } from './combat/TurnBasedCombatSystem.js';
 import { CombatUI } from './ui/components/CombatUI.js';
+import PerformanceProfiler from './utils/PerformanceProfiler.js';
+import PerformanceTestUI from './ui/components/PerformanceTestUI.js';
 
 /**
  * Core game instance managing all game systems and state
@@ -727,8 +729,14 @@ export class GameInstance {
             // Create NPCs from map definition
             this.createNPCsFromMapDefinition();
 
+            // Initialize performance test UI if in debug mode
+            if (this.debug?.enabled) {
+                this.performanceTestUI = new PerformanceTestUI(this);
+                this.performanceTestUI.init();
+            }
+
             if (this.debug?.flags?.logInit) {
-                console.log('Game: Non-essential components initialized');
+                this.logger.info('Game: Non-essential components initialized');
             }
         } catch (error) {
             console.error('Game: Failed to initialize non-essential components:', error);
@@ -1543,6 +1551,22 @@ export class GameInstance {
         }
 
         this.logger.info('Game: Cleanup complete');
+    }
+
+    /**
+     * Runs a performance test for a specified duration
+     * @param {number} seconds - Duration to run the test for in seconds
+     * @param {Object} options - Test options
+     * @returns {Promise<Object>} Promise that resolves with the profile data
+     */
+    async runPerformanceTest(seconds = 30, options = {}) {
+        if (!this.performanceTestUI) {
+            this.performanceTestUI = new PerformanceTestUI(this);
+            this.performanceTestUI.init();
+        }
+
+        this.logger.info(`Starting programmatic performance test for ${seconds} seconds...`);
+        return this.performanceTestUI.performanceTest.runFor(seconds, options);
     }
 
     /**
