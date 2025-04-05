@@ -180,13 +180,8 @@ export class GameInstance {
             maxBatchSize: 100
         });
 
-        // Initialize minimal renderer for emergency situations
-        this.minimalRenderer = new MinimalRenderer(canvas, {
-            tileSize: 16,
-            entitySize: 8,
-            maxEntities: 10,
-            maxTiles: 100
-        });
+        // Simplified renderers have been disabled per user request
+        // We'll use other performance optimization techniques instead
 
         // Initialize FPS stabilizer
         this.fpsStabilizer = new FPSStabilizer({
@@ -1700,34 +1695,8 @@ export class GameInstance {
      * @private
      */
     render() {
-        // Use minimal renderer in critical performance situations
-        if (this.currentFPS !== undefined && this.currentFPS <= 2 && this.minimalRenderer) {
-            this.minimalRenderer.render(this);
-            return;
-        }
-
-        // Use simplified renderer in performance mode
-        if (this.performanceMode && this.performanceMode.enabled &&
-            this.simplifiedRenderer && this.currentFPS < 10) {
-            try {
-                // Check if the render method exists
-                if (typeof this.simplifiedRenderer.render === 'function') {
-                    this.simplifiedRenderer.render(this);
-                    return;
-                } else {
-                    // Fallback to using the simplified renderer's renderWorld method if available
-                    if (typeof this.simplifiedRenderer.renderWorld === 'function') {
-                        this.simplifiedRenderer.renderWorld(this.world, this.camera, this);
-                        return;
-                    }
-                    // Otherwise, continue with normal rendering
-                    this.logger.warn('SimplifiedRenderer does not have a render or renderWorld method');
-                }
-            } catch (e) {
-                this.logger.error('Error using simplified renderer:', e);
-                // Continue with normal rendering
-            }
-        }
+        // Always use the standard renderer - simplified renderers have been disabled
+        // If performance is an issue, we'll use other optimization techniques instead
 
         this.renderer.clear();
 
