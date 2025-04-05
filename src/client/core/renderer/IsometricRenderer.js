@@ -17,13 +17,17 @@ export class IsometricRenderer {
      * @param {number} [options.tileHeight=32] - Height of tiles in pixels
      */
     constructor(canvas, tileManager, options = {}) {
-        console.log('IsometricRenderer: Initializing...', {
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-            tileManagerLoaded: tileManager?.texturesLoaded
-        });
+        // Use logger instead of console.log
+        if (window.gameInstance?.logger) {
+            window.gameInstance.logger.debug('IsometricRenderer: Initializing...', {
+                canvasWidth: canvas.width,
+                canvasHeight: canvas.height,
+                tileManagerLoaded: tileManager?.texturesLoaded
+            });
+        }
+
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
         this.tileManager = tileManager;
 
         // Define tile dimensions
@@ -31,10 +35,24 @@ export class IsometricRenderer {
         this.tileHeight = 32;
         this.heightScale = 32; // Height scale for elevation
 
+        // Create offscreen canvas for double buffering
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCanvas.width = canvas.width;
+        this.offscreenCanvas.height = canvas.height;
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d', { alpha: false });
+
+        // Create tile cache for frequently rendered tiles
+        this.tileCache = new Map();
+        this.maxCacheSize = 200; // Maximum number of cached tiles
+
+        // Track last frame's visible area for optimization
+        this.lastVisibleArea = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+        this.visibleAreaChanged = true;
+
         // Initialize sub-renderers with correct parameters
         this.waterRenderer = new WaterRenderer();
-        this.decorationRenderer = new DecorationRenderer(this.ctx, this.tileWidth, this.tileHeight);
-        this.structureRenderer = new StructureRenderer(this.ctx);
+        this.decorationRenderer = new DecorationRenderer(this.offscreenCtx, this.tileWidth, this.tileHeight);
+        this.structureRenderer = new StructureRenderer(this.offscreenCtx);
         // Shadow renderer initialization removed
     }
 
@@ -43,7 +61,62 @@ export class IsometricRenderer {
      * @returns {void}
      */
     clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Clear the offscreen canvas instead of the main canvas
+        this.offscreenCtx.fillStyle = '#87CEEB'; // Sky blue background
+        this.offscreenCtx.fillRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
+    }
+
+    /**
+     * Updates canvas dimensions when the window is resized
+     * @param {number} width - New canvas width
+     * @param {number} height - New canvas height
+     */
+    updateCanvasDimensions(width, height) {
+        // Update both main and offscreen canvas
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.offscreenCanvas.width = width;
+        this.offscreenCanvas.height = height;
+
+        // Clear the tile cache when dimensions change
+        this.tileCache.clear();
+        this.visibleAreaChanged = true;
+    }
+
+    /**
+     * Creates a cached tile image for faster rendering
+     * @param {Object} tile - The tile to cache
+     * @param {number} x - Tile x coordinate
+     * @param {number} y - Tile y coordinate
+     * @returns {HTMLCanvasElement} - Cached tile image
+     * @private
+     */
+    _createCachedTile(tile, x, y) {
+        // Create a small canvas for this specific tile
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = this.tileWidth * 1.5; // Add some padding
+        tileCanvas.height = this.tileHeight * 1.5;
+
+        const tileCtx = tileCanvas.getContext('2d');
+
+        // Draw the tile on the cache canvas
+        const texture = this.tileManager.getTexture(tile.type);
+        if (texture) {
+            // Calculate isometric position (centered in the cache canvas)
+            const offsetX = tileCanvas.width / 2 - this.tileWidth / 2;
+            const offsetY = tileCanvas.height / 2 - this.tileHeight / 2;
+
+            tileCtx.drawImage(texture, offsetX, offsetY, this.tileWidth, this.tileHeight);
+        }
+
+        // Manage cache size
+        if (this.tileCache.size >= this.maxCacheSize) {
+            // Remove oldest entry if cache is full
+            const firstKey = this.tileCache.keys().next().value;
+            this.tileCache.delete(firstKey);
+        }
+
+        return tileCanvas;
     }
 
     /**
@@ -53,11 +126,26 @@ export class IsometricRenderer {
      * @returns {void}
      */
     renderWorld(world, camera) {
+        // Start performance measurement
+        const startTime = performance.now();
+
+        // Clear the offscreen canvas
+        this.clear();
+
         // Render tiles first
         this.renderWorldTiles(world, camera);
 
         // Then render structures
         this.renderWorldStructures(world, camera);
+
+        // Copy the offscreen canvas to the main canvas in a single operation
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+
+        // Log performance if debug is enabled
+        if (world?.game?.debug?.flags?.logPerformance && world.game.frameCount % 60 === 0) {
+            const renderTime = performance.now() - startTime;
+            world.game.logger.debug(`Render time: ${renderTime.toFixed(2)}ms`);
+        }
     }
 
     /**
@@ -102,27 +190,58 @@ export class IsometricRenderer {
         const maxX = Math.min(world.width - 1, Math.ceil(centerWorldX + visibleRange));
         const maxY = Math.min(world.height - 1, Math.ceil(centerWorldY + visibleRange));
 
+        // Check if visible area has changed since last frame
+        const visibleAreaChanged =
+            this.lastVisibleArea.minX !== minX ||
+            this.lastVisibleArea.minY !== minY ||
+            this.lastVisibleArea.maxX !== maxX ||
+            this.lastVisibleArea.maxY !== maxY;
+
+        // Update last visible area
+        this.lastVisibleArea = { minX, minY, maxX, maxY };
+        this.visibleAreaChanged = visibleAreaChanged;
+
         // Log the calculated visible area if debug is enabled
-        if (world?.game?.debug?.flags?.logRenderer) {
-            console.log('Visible area:', {
+        if (world?.game?.debug?.flags?.logRenderer && world.game.frameCount % 60 === 0) {
+            world.game.logger.debug('Visible area:', {
                 zoom: camera.zoom,
                 zoomFactor,
                 buffer,
                 visibleRange,
                 bounds: `(${minX},${minY}) to (${maxX},${maxY})`,
-                center: `(${centerWorldX},${centerWorldY})`
+                center: `(${centerWorldX},${centerWorldY})`,
+                changed: visibleAreaChanged
             });
         }
 
-        // Render only visible tiles
+        // Performance optimization: Sort tiles by type for batch rendering
+        const tilesByType = new Map();
+
+        // Collect all visible tiles grouped by type
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
                 const tile = world.getTileAt(x, y);
                 if (tile) {
-                    this.renderTile(tile, x, y);
+                    const type = tile.type;
+                    if (!tilesByType.has(type)) {
+                        tilesByType.set(type, []);
+                    }
+                    tilesByType.get(type).push({ tile, x, y });
                 }
             }
         }
+
+        // Render tiles grouped by type to reduce texture switching
+        tilesByType.forEach((tiles, type) => {
+            // Set the texture once for all tiles of this type
+            const texture = this.tileManager.getTexture(type);
+            if (texture) {
+                // Render all tiles of this type
+                for (const { tile, x, y } of tiles) {
+                    this.renderTile(tile, x, y);
+                }
+            }
+        });
 
         // Get all structures for rendering
         const structures = world.getAllStructures();
@@ -284,27 +403,47 @@ export class IsometricRenderer {
      */
     renderTile(tile, x, y) {
         if (!tile || !tile.type) {
-            console.warn('Invalid tile at', x, y, tile);
+            // Use logger instead of console.warn
+            if (window.gameInstance?.logger) {
+                window.gameInstance.logger.warn('Invalid tile at', x, y, tile);
+            }
             return;
         }
 
         if (!this.getTileColor(tile.type)) {
-            console.warn('Unknown tile type:', tile.type, 'at', x, y);
+            if (window.gameInstance?.logger) {
+                window.gameInstance.logger.warn('Unknown tile type:', tile.type, 'at', x, y);
+            }
         }
 
         const isoX = (x - y) * this.tileWidth / 2;
         const isoY = (x + y) * this.tileHeight / 2;
 
+        // Use tile cache for better performance
+        const cacheKey = `${tile.type}_${x}_${y}`;
+        let cachedTile = this.tileCache.get(cacheKey);
+
+        if (!cachedTile) {
+            // Create and cache the tile if not in cache
+            cachedTile = this._createCachedTile(tile, x, y);
+            this.tileCache.set(cacheKey, cachedTile);
+        }
+
+        // Draw the cached tile to the offscreen canvas
+        this.offscreenCtx.drawImage(
+            cachedTile,
+            isoX - cachedTile.width / 2 + this.offscreenCanvas.width / 2,
+            isoY - cachedTile.height / 2 + this.offscreenCanvas.height / 2
+        );
+
         // Add debug logging for structure tiles
-        if (tile.structure) {
-            /*
-            console.log(`Rendering tile with structure:`, {
+        if (tile.structure && window.gameInstance?.debug?.flags?.logStructures) {
+            window.gameInstance.logger.debug(`Rendering tile with structure:`, {
                 x, y,
                 tileType: tile.type,
                 structureType: tile.structure.type,
                 isoX, isoY
             });
-            */
         }
 
         const heightOffset = tile.type === 'water' ? 0 : (tile.height * this.heightScale);
