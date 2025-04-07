@@ -1,0 +1,26 @@
+{
+  "name": "iso-game",
+  "version": "0.1.0",
+  "description": "Isometric game engine with WebGL rendering",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "game",
+    "isometric",
+    "webgl",
+    "pixijs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pixi.js": "^7.3.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
