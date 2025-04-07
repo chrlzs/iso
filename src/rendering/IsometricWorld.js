@@ -475,7 +475,15 @@ export class IsometricWorld extends Container {
      * @param {Object} target - The target to follow
      */
     setCameraTarget(target) {
+        console.log('Setting camera target:', target ? 'target set' : 'target cleared');
         this.camera.target = target;
+
+        // Immediately update camera to center on target
+        if (target) {
+            this.camera.x = target.x;
+            this.camera.y = target.y;
+            this.updateCamera();
+        }
     }
 
     /**
@@ -551,6 +559,8 @@ export class IsometricWorld extends Container {
             // Smoothly move camera towards target
             this.camera.x += (targetX - this.camera.x) * 0.1;
             this.camera.y += (targetY - this.camera.y) * 0.1;
+
+            console.log('Camera following target:', targetX, targetY, '-> Camera position:', this.camera.x, this.camera.y);
         }
 
         // Apply camera bounds
@@ -577,6 +587,9 @@ export class IsometricWorld extends Container {
 
         // Apply zoom
         this.scale.set(this.camera.zoom);
+
+        // Log camera position for debugging
+        console.log('Camera updated - Position:', this.camera.x, this.camera.y, 'Zoom:', this.camera.zoom);
     }
 
     /**

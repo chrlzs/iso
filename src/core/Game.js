@@ -103,6 +103,26 @@ export class Game {
             game: this
         });
 
+        // Centralized input configuration
+        this.inputConfig = {
+            keys: {
+                movement: ['w', 'a', 's', 'd'],
+                zoom: ['q', 'e'],
+                inventory: ['i'],
+                timeControls: ['t', 'p'],
+                placement: {
+                    tree: 't',
+                    rock: 'r',
+                    item: 'f',
+                    enemy: 'x'
+                }
+            },
+            mouse: {
+                left: 0,
+                right: 2
+            }
+        };
+
         // Input state
         this.input = {
             mouse: { x: 0, y: 0, down: false },
@@ -136,6 +156,14 @@ export class Game {
             debugToggle: document.getElementById('debug-toggle'),
             debugHide: document.getElementById('debug-hide')
         };
+
+        // Bind methods to preserve context
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
+        this.handleMouseDown = this.handleMouseDown.bind(this);
+        this.handleMouseUp = this.handleMouseUp.bind(this);
+        this.handleContextMenu = this.handleContextMenu.bind(this);
 
         // Initialize
         this.initialize();
@@ -174,35 +202,24 @@ export class Game {
     }
 
     /**
-     * Sets up input handlers
+     * Sets up all input handlers
      * @private
      */
     setupInputHandlers() {
-        // Mouse move
-        this.app.view.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        // Mouse events
+        this.app.view.addEventListener('mousemove', this.handleMouseMove);
+        this.app.view.addEventListener('mousedown', this.handleMouseDown);
+        this.app.view.addEventListener('mouseup', this.handleMouseUp);
+        this.app.view.addEventListener('contextmenu', this.handleContextMenu);
 
-        // Mouse down
-        this.app.view.addEventListener('mousedown', this.handleMouseDown.bind(this));
-
-        // Mouse up
-        this.app.view.addEventListener('mouseup', this.handleMouseUp.bind(this));
-
-        // Prevent context menu on right-click
-        this.app.view.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            return false;
-        });
+        // Keyboard events
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
 
         // Make sure the world container is interactive
         if (this.world) {
             this.world.interactive = true;
         }
-
-        // Key down
-        window.addEventListener('keydown', this.handleKeyDown.bind(this));
-
-        // Key up
-        window.addEventListener('keyup', this.handleKeyUp.bind(this));
     }
 
     /**
@@ -383,38 +400,203 @@ export class Game {
      * @private
      */
     handleKeyDown(e) {
-        // Add key to pressed keys
-        this.input.keys.add(e.key.toLowerCase());
+        const key = e.key.toLowerCase();
+        this.input.keys.add(key);
 
-        // Call key down handler if provided
-        if (this.options.onKeyDown) {
-            this.options.onKeyDown(e.key.toLowerCase(), this.input.keys, this);
+        // Handle different key actions
+        this.handleKeyAction(key);
+    }
+
+    /**
+     * Handles different key actions
+     * @param {string} key - The pressed key
+     * @private
+     */
+    handleKeyAction(key) {
+        const { keys } = this.inputConfig;
+
+        // Handle movement
+        if (keys.movement.includes(key)) {
+            this.handleCameraControls();
+            return;
         }
 
-        // Handle camera controls
-        this.handleCameraControls();
+        // Handle zoom
+        if (keys.zoom.includes(key)) {
+            this.handleCameraControls();
+            return;
+        }
 
-        // Handle inventory toggle with 'i' key
-        if (e.key.toLowerCase() === 'i' && this.player && this.player.inventory) {
+        // Handle inventory toggle
+        if (key === keys.inventory && this.player?.inventory) {
             this.ui.togglePanel('inventory');
+            return;
         }
 
         // Handle time controls
-        if (e.key === 't') {
-            // Toggle time scale
-            if (this.dayNightCycle.timeScale === 1) {
-                this.dayNightCycle.setTimeScale(10); // Fast forward
-                console.log('Time: Fast forward (10x)');
-            } else {
-                this.dayNightCycle.setTimeScale(1); // Normal speed
-                console.log('Time: Normal speed');
-            }
+        if (key === keys.timeControls[0] && this.input.keys.has('shift')) {
+            this.handleTimeSpeedToggle();
+            return;
         }
 
-        // Handle pause with 'p' key
-        if (e.key.toLowerCase() === 'p') {
-            const paused = this.dayNightCycle.togglePause();
-            console.log(`Time: ${paused ? 'Paused' : 'Resumed'}`);
+        // Handle placement actions
+        const placementKeys = Object.values(keys.placement);
+        if (placementKeys.includes(key)) {
+            // If no tile is selected, try to use the hovered tile
+            if (!this.input.selectedTile && this.input.hoveredTile) {
+                console.log('No tile selected, using hovered tile for placement');
+                this.input.selectedTile = this.input.hoveredTile;
+                this.input.selectedTile.select();
+            }
+
+            if (this.input.selectedTile) {
+                this.handlePlacementAction(key);
+            } else {
+                console.warn('No tile selected or hovered for placement action');
+            }
+        }
+    }
+
+    /**
+     * Handles placement of objects in the world
+     * @param {string} key - The pressed key
+     * @private
+     */
+    handlePlacementAction(key) {
+        const tile = this.input.selectedTile;
+        if (!tile) {
+            console.warn('No tile selected for placement action');
+            return;
+        }
+
+        console.log(`Handling placement action for key ${key} on tile (${tile.gridX}, ${tile.gridY})`);
+        const { placement } = this.inputConfig.keys;
+
+        switch (key) {
+            case placement.tree:
+                if (!this.input.keys.has('shift')) {
+                    this.placeStructure('tree', tile);
+                }
+                break;
+            case placement.rock:
+                this.placeStructure('rock', tile);
+                break;
+            case placement.item:
+                this.placeRandomItem(tile);
+                break;
+            case placement.enemy:
+                this.placeRandomEnemy(tile);
+                break;
+        }
+    }
+
+    /**
+     * Places a structure in the world
+     * @param {string} type - Type of structure
+     * @param {Tile} tile - Target tile
+     * @private
+     */
+    placeStructure(type, tile) {
+        console.log(`${type} placement attempted at (${tile.gridX}, ${tile.gridY})`);
+
+        const structure = new Structure({
+            structureType: type,
+            gridWidth: 1,
+            gridHeight: 1,
+            interactive: true
+        });
+
+        const success = structure.placeInWorld(this.world, tile.gridX, tile.gridY);
+        console.log(`${type} placement ${success ? 'successful' : 'failed'}`);
+    }
+
+    /**
+     * Places a random item in the world
+     * @param {Tile} tile - Target tile
+     * @private
+     */
+    placeRandomItem(tile) {
+        const center = tile.getCenter();
+        const itemTypes = ['weapon', 'potion'];
+        const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+
+        let item;
+        if (itemType === 'weapon') {
+            item = new Item({
+                name: 'Iron Sword',
+                type: 'weapon',
+                subtype: 'sword',
+                rarity: 'uncommon',
+                value: 50,
+                equippable: true,
+                equipSlot: 'weapon',
+                stats: { damage: 10 }
+            });
+        } else {
+            item = new Item({
+                name: 'Health Potion',
+                type: 'potion',
+                subtype: 'health',
+                rarity: 'common',
+                value: 20,
+                stackable: true,
+                quantity: 5,
+                consumable: true
+            });
+        }
+
+        item.x = center.x;
+        item.y = center.y;
+        this.world.entityContainer.addChild(item);
+    }
+
+    /**
+     * Places a random enemy in the world
+     * @param {Tile} tile - Target tile
+     * @private
+     */
+    placeRandomEnemy(tile) {
+        const center = tile.getCenter();
+        const enemyTypes = ['slime', 'goblin', 'skeleton'];
+        const enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+
+        const enemy = new Enemy({
+            name: enemyType.charAt(0).toUpperCase() + enemyType.slice(1),
+            enemyType: enemyType,
+            health: 50,
+            maxHealth: 50,
+            stats: {
+                level: 1,
+                attack: 8,
+                defense: 3,
+                speed: 5,
+                criticalChance: 0.05,
+                evasion: 0.02
+            },
+            expReward: 20,
+            goldReward: 10
+        });
+
+        enemy.x = center.x;
+        enemy.y = center.y;
+        enemy.gridX = tile.gridX;
+        enemy.gridY = tile.gridY;
+
+        this.world.entityContainer.addChild(enemy);
+        tile.addEntity(enemy);
+    }
+
+    /**
+     * Handles time speed toggle
+     * @private
+     */
+    handleTimeSpeedToggle() {
+        if (this.dayNightCycle.timeScale === 1) {
+            this.dayNightCycle.setTimeScale(10);
+            console.log('Time: Fast forward (10x)');
+        } else {
+            this.dayNightCycle.setTimeScale(1);
+            console.log('Time: Normal speed');
         }
     }
 
@@ -481,11 +663,13 @@ export class Game {
 
         // Always disable camera target when using keyboard controls
         if (cameraChanged) {
+            console.log('Camera changed due to keyboard input, disabling camera target');
             this.world.camera.target = null;
         }
 
         // Update camera if changed
         if (cameraChanged) {
+            console.log('Updating camera position:', this.world.camera.x, this.world.camera.y);
             this.world.updateCamera();
         }
     }
@@ -637,6 +821,9 @@ export class Game {
             player.gridX = centerX;
             player.gridY = centerY;
 
+            // Set world reference on player
+            player.world = this.world;
+
             // Add to world
             this.world.entityContainer.addChild(player);
             tile.addEntity(player);
@@ -675,6 +862,12 @@ export class Game {
         // Store player reference
         this.player = player;
 
+        // Make sure the player reference is available to the world
+        if (this.world) {
+            this.world.player = player;
+        }
+
+        console.log('Player created and references set:', this.player ? 'success' : 'failed');
         return player;
     }
 
@@ -690,9 +883,9 @@ export class Game {
         // Update camera based on keyboard input
         this.updateCamera(deltaTime);
 
-        // Update world - but don't update camera again
-        // This is the key fix - we don't want the world to update the camera
-        // if we've already updated it based on keyboard input
+        // Update world - but don't update camera again if we've already updated it
+        // based on keyboard input. The world.update method will check if camera.target
+        // is set before updating the camera.
         this.world.update(deltaTime);
 
         // Update day/night cycle
@@ -709,6 +902,17 @@ export class Game {
             // Regenerate energy
             if (this.player.energy < this.player.maxEnergy) {
                 this.player.energy = Math.min(this.player.maxEnergy, this.player.energy + 2 * deltaTime);
+            }
+
+            // Make sure player has world reference
+            if (!this.player.world && this.world) {
+                this.player.world = this.world;
+            }
+        } else {
+            // If player is missing but should exist, recreate it
+            if (this.options.createPlayer !== false && this.world) {
+                console.warn('Player reference lost, recreating player');
+                this.createPlayer();
             }
         }
 
@@ -739,7 +943,7 @@ export class Game {
     resize(width, height) {
         this.options.width = width;
         this.options.height = height;
-        
+
         // Resize renderer
         this.app.renderer.resize(width, height);
 
@@ -793,4 +997,5 @@ export class Game {
         }
     }
 }
+
 
