@@ -57,11 +57,14 @@ export class IsometricWorld extends Container {
         this.uiContainer.zIndex = 100;
 
         // Debug grid overlay (only shown when debug is enabled)
-        // Add it to the tile container so it moves with the map
-        this.debugGridOverlay = new PIXI.Graphics();
-        this.tileContainer.addChild(this.debugGridOverlay);
-        // Set a high z-index to ensure it's drawn on top of tiles
-        this.debugGridOverlay.zIndex = 1000;
+        // Create it as a separate container at the top level so it's always visible
+        this.debugGridOverlay = new PIXI.Container();
+        this.addChild(this.debugGridOverlay);
+        // Set an extremely high z-index to ensure it's drawn on top of everything
+        this.debugGridOverlay.zIndex = 10000;
+        // Make it visible by default for debugging
+        this.debugGridOverlay.visible = true;
+        console.log('Debug grid overlay created with visibility:', this.debugGridOverlay.visible);
 
         // Create a special top-level container just for selection indicators
         // This will be the absolute top layer
@@ -117,6 +120,10 @@ export class IsometricWorld extends Container {
 
         // Initialize world
         this.initialize(options);
+
+        // Draw debug grid immediately
+        this.drawDebugGrid();
+        console.log('Initial debug grid drawn');
     }
 
     /**
@@ -182,10 +189,10 @@ export class IsometricWorld extends Container {
             this.removeTile(x, y);
         }
 
-        // Create new tile
+        // Create new tile with explicit grid coordinates
         const tile = new IsometricTile({
-            x,
-            y,
+            x: x,  // Explicitly use the provided grid coordinates
+            y: y,  // Explicitly use the provided grid coordinates
             type,
             width: this.tileWidth,
             height: this.tileHeight,
@@ -198,6 +205,14 @@ export class IsometricWorld extends Container {
         // Explicitly set game reference
         tile.game = this.game;
         tile.world = this;
+
+        // Double-check that the grid coordinates are set correctly
+        if (tile.gridX !== x || tile.gridY !== y) {
+            console.warn(`Grid coordinate mismatch in createTile: Expected (${x}, ${y}), got (${tile.gridX}, ${tile.gridY})`);
+            // Force the correct grid coordinates
+            tile.gridX = x;
+            tile.gridY = y;
+        }
 
         console.log(`Created tile at (${x}, ${y}) with game reference:`, tile.game ? 'set' : 'null');
 
@@ -382,6 +397,8 @@ export class IsometricWorld extends Container {
         const worldX = localX + this.camera.x;
         const worldY = localY + this.camera.y;
 
+        console.log(`Screen (${screenX}, ${screenY}) -> Local (${localX.toFixed(2)}, ${localY.toFixed(2)}) -> World (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`);
+
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
@@ -389,10 +406,20 @@ export class IsometricWorld extends Container {
         const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
         const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Round to nearest tile - no manual offset correction needed
+        // Apply the offset correction (-9 for both x and y)
+        // This fixes the issue where tile (0,0) is reported as (9,9)
+        const correctedX = gridX - 9;
+        const correctedY = gridY - 9;
+
+        // Round to nearest tile
+        const roundedX = Math.floor(correctedX);
+        const roundedY = Math.floor(correctedY);
+
+        console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Corrected (${correctedX.toFixed(2)}, ${correctedY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
+
         return {
-            x: Math.floor(gridX),
-            y: Math.floor(gridY)
+            x: roundedX,
+            y: roundedY
         };
     }
 
@@ -444,9 +471,16 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
+        // Apply the offset correction (+9 for both x and y)
+        // This compensates for the -9 offset in screenToGrid
+        const correctedX = gridX + 9;
+        const correctedY = gridY + 9;
+
         // Convert to isometric coordinates
-        const isoX = (gridX - gridY) * this.tileWidth / 2;
-        const isoY = (gridX + gridY) * this.tileHeight / 2;
+        const isoX = (correctedX - correctedY) * this.tileWidth / 2;
+        const isoY = (correctedX + correctedY) * this.tileHeight / 2;
+
+        console.log(`Grid (${gridX}, ${gridY}) -> Corrected (${correctedX}, ${correctedY}) -> World (${isoX.toFixed(2)}, ${isoY.toFixed(2)})`);
 
         return { x: isoX, y: isoY };
     }
@@ -466,6 +500,15 @@ export class IsometricWorld extends Container {
 
         // Log for debugging
         console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridCoords.x}, ${gridCoords.y})`);
+
+        if (tile) {
+            console.log(`Found tile with stored grid position: (${tile.gridX}, ${tile.gridY})`);
+
+            // Check if there's a mismatch between calculated and stored grid positions
+            if (tile.gridX !== gridCoords.x || tile.gridY !== gridCoords.y) {
+                console.warn(`COORDINATE MISMATCH: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
+            }
+        }
 
         return tile;
     }
@@ -767,10 +810,7 @@ export class IsometricWorld extends Container {
      * @private
      */
     drawDebugGrid() {
-        // Clear previous grid
-        this.debugGridOverlay.clear();
-
-        // Remove all children (text labels)
+        // Remove all children (text labels, graphics, etc.)
         while (this.debugGridOverlay.children.length > 0) {
             this.debugGridOverlay.removeChildAt(0);
         }
@@ -780,8 +820,10 @@ export class IsometricWorld extends Container {
             return;
         }
 
-        // Set line style - make it more visible
-        this.debugGridOverlay.lineStyle(2, 0xFF0000, 0.5);
+        // Create a new graphics object for the grid lines
+        const gridLines = new PIXI.Graphics();
+        gridLines.lineStyle(2, 0xFF0000, 0.5);
+        this.debugGridOverlay.addChild(gridLines);
 
         // Log camera and container positions for debugging
         console.log('Camera position:', this.camera.x, this.camera.y);
@@ -803,8 +845,62 @@ export class IsometricWorld extends Container {
             const endIsoY = (x + this.gridHeight) * this.tileHeight / 2;
 
             // Draw line
-            this.debugGridOverlay.moveTo(startIsoX, startIsoY);
-            this.debugGridOverlay.lineTo(endIsoX, endIsoY);
+            gridLines.moveTo(startIsoX, startIsoY);
+            gridLines.lineTo(endIsoX, endIsoY);
+
+            // Add coordinate labels to each tile in this column
+            for (let y = 0; y < this.gridHeight; y++) {
+                const tile = this.getTile(x, y);
+                if (tile) {
+                    // Create a background for better visibility
+                    const background = new PIXI.Graphics();
+                    background.beginFill(0x000000, 0.8);
+                    background.drawRoundedRect(-30, -20, 60, 40, 5);
+                    background.endFill();
+                    background.position.set(tile.x, tile.y);
+                    this.debugGridOverlay.addChild(background);
+
+                    // Create a large, clear label showing the grid coordinates
+                    const coordText = new PIXI.Text(`${x},${y}`, {
+                        fontFamily: 'Arial',
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        fill: 0xFFFF00, // Bright yellow
+                        stroke: 0x000000,
+                        strokeThickness: 4,
+                        align: 'center'
+                    });
+                    coordText.position.set(tile.x, tile.y);
+                    coordText.anchor.set(0.5, 0.5);
+                    this.debugGridOverlay.addChild(coordText);
+
+                    // Log that we're adding a coordinate label
+                    console.log(`Adding coordinate label for tile (${x},${y}) at position (${tile.x}, ${tile.y})`);
+
+                    // Add a small dot at the center of the tile for reference
+                    const centerDot = new PIXI.Graphics();
+                    centerDot.beginFill(0xFF00FF, 1); // Bright magenta
+                    centerDot.drawCircle(0, 0, 3);
+                    centerDot.endFill();
+                    centerDot.position.set(tile.x, tile.y);
+                    this.debugGridOverlay.addChild(centerDot);
+
+                    // Add a smaller label showing the actual stored coordinates if they differ
+                    if (tile.gridX !== x || tile.gridY !== y) {
+                        const actualText = new PIXI.Text(`Actual: ${tile.gridX},${tile.gridY}`, {
+                            fontFamily: 'Arial',
+                            fontSize: 10,
+                            fill: 0xFF0000, // Red for warning
+                            stroke: 0x000000,
+                            strokeThickness: 1,
+                            align: 'center'
+                        });
+                        actualText.position.set(tile.x, tile.y + 15);
+                        actualText.anchor.set(0.5, 0.5);
+                        this.debugGridOverlay.addChild(actualText);
+                    }
+                }
+            }
 
             // Add coordinate label every 5 tiles
             if (x % 5 === 0) {
@@ -843,8 +939,8 @@ export class IsometricWorld extends Container {
             const endIsoY = (this.gridWidth + y) * this.tileHeight / 2;
 
             // Draw line
-            this.debugGridOverlay.moveTo(startIsoX, startIsoY);
-            this.debugGridOverlay.lineTo(endIsoX, endIsoY);
+            gridLines.moveTo(startIsoX, startIsoY);
+            gridLines.lineTo(endIsoX, endIsoY);
 
             // Add coordinate label every 5 tiles
             if (y % 5 === 0) {
@@ -883,9 +979,12 @@ export class IsometricWorld extends Container {
                 const isoY = (x + y) * this.tileHeight / 2;
 
                 // Draw a circle at the intersection
-                this.debugGridOverlay.beginFill(0xFF0000, 0.5);
-                this.debugGridOverlay.drawCircle(isoX, isoY, 3);
-                this.debugGridOverlay.endFill();
+                const intersectionMarker = new PIXI.Graphics();
+                intersectionMarker.beginFill(0xFF0000, 0.5);
+                intersectionMarker.drawCircle(0, 0, 3);
+                intersectionMarker.endFill();
+                intersectionMarker.position.set(isoX, isoY);
+                this.debugGridOverlay.addChild(intersectionMarker);
 
                 // Add coordinate text at major intersections (every 10 tiles)
                 if (x % 10 === 0 && y % 10 === 0) {
@@ -984,9 +1083,11 @@ export class IsometricWorld extends Container {
             this.sortTilesByDepth = false; // Only sort when needed
         }
 
-        // Draw debug grid if debug is enabled
-        if (this.game && this.game.options.debug) {
+        // Always draw debug grid if it's visible
+        if (this.debugGridOverlay && this.debugGridOverlay.visible) {
             this.drawDebugGrid();
+            // Log that we're drawing the grid
+            console.log('Drawing debug grid in update cycle');
         }
     }
 

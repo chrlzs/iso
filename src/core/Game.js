@@ -110,6 +110,9 @@ export class Game {
                 zoom: ['q', 'e'],
                 inventory: ['i'],
                 timeControls: ['t', 'p'],
+                debug: {
+                    toggleGrid: 'g'
+                },
                 placement: {
                     tree: 't',
                     rock: 'r',
@@ -157,6 +160,16 @@ export class Game {
             debugHide: document.getElementById('debug-hide')
         };
 
+        // Define the context menu handler if it doesn't exist
+        if (!this.handleContextMenu) {
+            this.handleContextMenu = function(e) {
+                // Prevent the default context menu from appearing
+                e.preventDefault();
+                console.log('Context menu prevented');
+                return false;
+            };
+        }
+
         // Bind methods to preserve context
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
@@ -193,6 +206,9 @@ export class Game {
         // Set up performance monitoring
         if (this.options.debug) {
             this.setupPerformanceMonitoring();
+
+            // Show debug grid reminder
+            console.log('%c DEBUG GRID: Press G to toggle grid visibility ', 'background: #222; color: #bada55; font-size: 16px;');
         }
 
         // Create inventory panel
@@ -288,6 +304,10 @@ export class Game {
         // This is just for handling right-click and other special cases
         if (tile) {
             console.log('Found tile at grid position:', tile.gridX, tile.gridY);
+            console.log('Expected grid position based on array index:',
+                        this.world.tiles.findIndex(col => col.includes(tile)),
+                        this.world.tiles.some(col => col.indexOf(tile) !== -1) ?
+                            this.world.tiles.find(col => col.includes(tile)).indexOf(tile) : -1);
 
             // Update debug info
             if (this.options.debug) {
@@ -295,6 +315,35 @@ export class Game {
                 if (this.debugElements.selectedTile) {
                     this.debugElements.selectedTile.textContent = `${tile.type} (${tile.gridX}, ${tile.gridY})`;
                 }
+
+                // Add a temporary visual indicator showing which tile was clicked
+                const clickMarker = new PIXI.Graphics();
+                clickMarker.beginFill(0xFF00FF, 0.5); // Purple semi-transparent
+                clickMarker.drawRect(-this.world.tileWidth/2, -this.world.tileHeight/2,
+                                    this.world.tileWidth, this.world.tileHeight);
+                clickMarker.endFill();
+                clickMarker.position.set(tile.x, tile.y);
+                this.world.debugGridOverlay.addChild(clickMarker);
+
+                // Add a text label showing the clicked coordinates
+                const clickText = new PIXI.Text(`Clicked: (${tile.gridX}, ${tile.gridY})`, {
+                    fontFamily: 'Arial',
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    fill: 0xFF00FF, // Purple
+                    stroke: 0xFFFFFF,
+                    strokeThickness: 3,
+                    align: 'center'
+                });
+                clickText.position.set(tile.x, tile.y - 30);
+                clickText.anchor.set(0.5, 0.5);
+                this.world.debugGridOverlay.addChild(clickText);
+
+                // Remove the marker and text after 2 seconds
+                setTimeout(() => {
+                    if (clickMarker.parent) clickMarker.parent.removeChild(clickMarker);
+                    if (clickText.parent) clickText.parent.removeChild(clickText);
+                }, 2000);
             }
 
             // Handle player movement if right click
@@ -307,24 +356,16 @@ export class Game {
                 // Highlight the tile to confirm which one we're targeting
                 tile.highlight(0xFF00FF, 0.8); // Bright magenta
 
-                // Get the center position of the tile
-                const center = tile.getCenter();
-                console.log('Target tile center:', center);
+                // Get the world position of the tile using gridToWorld
+                const worldPos = this.world.gridToWorld(tile.gridX, tile.gridY);
+                console.log('Target tile world position:', worldPos);
 
-                // Move player directly to this tile
-                this.player.x = center.x;
-                this.player.y = center.y;
-                console.log('Player position set directly to:', this.player.x, this.player.y);
-
-                // Also set move target for smooth movement
-                this.player.setMoveTarget(center);
-
-                // Add a visible marker at the center
+                // Add a visible marker at the world position
                 const marker = new PIXI.Graphics();
                 marker.beginFill(0x00FFFF);
                 marker.drawCircle(0, 0, 10);
                 marker.endFill();
-                marker.position.set(center.x, center.y);
+                marker.position.set(worldPos.x, worldPos.y);
                 this.world.addChild(marker);
 
                 // Add a text label showing the tile coordinates
@@ -336,8 +377,12 @@ export class Game {
                     strokeThickness: 2
                 });
                 text.anchor.set(0.5, 1);
-                text.position.set(center.x, center.y - 20);
+                text.position.set(worldPos.x, worldPos.y - 20);
                 this.world.addChild(text);
+
+                // Set player's move target to the world position
+                console.log('Setting player move target to world position:', worldPos);
+                this.player.setMoveTarget(worldPos);
 
                 // Remove marker and text after 2 seconds
                 setTimeout(() => {
@@ -395,6 +440,18 @@ export class Game {
     }
 
     /**
+     * Handles context menu events (right-click)
+     * @param {MouseEvent} e - Mouse event
+     * @private
+     */
+    handleContextMenu(e) {
+        // Prevent the default context menu from appearing
+        e.preventDefault();
+        console.log('Context menu prevented');
+        return false;
+    }
+
+    /**
      * Handles key down events
      * @param {KeyboardEvent} e - Keyboard event
      * @private
@@ -436,6 +493,20 @@ export class Game {
         // Handle time controls
         if (key === keys.timeControls[0] && this.input.keys.has('shift')) {
             this.handleTimeSpeedToggle();
+            return;
+        }
+
+        // Handle debug grid toggle with G key
+        if (key === 'g') {
+            if (this.world && this.world.debugGridOverlay) {
+                this.world.debugGridOverlay.visible = !this.world.debugGridOverlay.visible;
+                console.log(`Debug grid ${this.world.debugGridOverlay.visible ? 'shown' : 'hidden'}`);
+
+                // Redraw the grid if it's now visible
+                if (this.world.debugGridOverlay.visible) {
+                    this.world.drawDebugGrid();
+                }
+            }
             return;
         }
 

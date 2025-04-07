@@ -270,15 +270,34 @@ export class Character extends Entity {
             const dy = this.moveTarget.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
+            console.log(`Moving character to target: (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)}), current: (${this.x.toFixed(2)}, ${this.y.toFixed(2)}), distance: ${distance.toFixed(2)}`);
+
             // If we're close enough to the target, stop moving
             if (distance < 2) {
                 this.stopMoving();
+                console.log('Reached target, stopping movement');
 
                 // Update grid position
                 if (this.world) {
-                    const gridPos = this.world.screenToGrid(this.x, this.y);
-                    this.gridX = gridPos.x;
-                    this.gridY = gridPos.y;
+                    // Use the world's coordinate system to get the grid position
+                    // This ensures we're using the correct coordinate transformation
+                    const worldX = this.x;
+                    const worldY = this.y;
+
+                    // Convert world coordinates to grid coordinates
+                    const tileWidthHalf = this.world.tileWidth / 2;
+                    const tileHeightHalf = this.world.tileHeight / 2;
+
+                    // Calculate grid coordinates using the isometric formula
+                    const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
+                    const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+
+                    this.gridX = Math.floor(gridX);
+                    this.gridY = Math.floor(gridY);
+
+                    console.log(`Updated grid position to (${this.gridX}, ${this.gridY})`);
+                } else {
+                    console.warn('Character has no world reference, cannot update grid position');
                 }
 
                 return;
@@ -291,9 +310,21 @@ export class Character extends Entity {
             const normalizedDx = dx / distance;
             const normalizedDy = dy / distance;
 
-            // Update velocity
-            this.velocity.x = normalizedDx * this.speed;
-            this.velocity.y = normalizedDy * this.speed;
+            // Update velocity - scale by deltaTime for consistent movement speed
+            this.velocity.x = normalizedDx * this.speed * 60 * deltaTime; // Scale by 60 for frame rate independence
+            this.velocity.y = normalizedDy * this.speed * 60 * deltaTime;
+
+            // Apply velocity to position
+            const oldX = this.x;
+            const oldY = this.y;
+
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+
+            // Log position change if significant
+            if (Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) {
+                console.log(`Updated position to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+            }
 
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
@@ -364,13 +395,19 @@ export class Character extends Entity {
      * @param {Object} target - Target position {x, y}
      */
     setMoveTarget(target) {
-        if (!target) return;
+        if (!target) {
+            console.warn('Attempted to set null move target');
+            return;
+        }
 
+        console.log(`Setting move target to (${target.x}, ${target.y})`);
         this.moveTarget = target;
         this.isMoving = true;
 
         // Show health bar when moving
-        this.healthBar.visible = true;
+        if (this.healthBar) {
+            this.healthBar.visible = true;
+        }
 
         // Hide health bar after 3 seconds of inactivity
         if (this.healthBarTimeout) {
@@ -378,7 +415,9 @@ export class Character extends Entity {
         }
 
         this.healthBarTimeout = setTimeout(() => {
-            this.healthBar.visible = false;
+            if (this.healthBar) {
+                this.healthBar.visible = false;
+            }
         }, 3000);
     }
 

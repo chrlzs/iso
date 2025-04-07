@@ -415,10 +415,22 @@ export class IsometricTile extends Container {
     getCenter() {
         // For isometric tiles, the center is at the tile's position
         // but we need to adjust for elevation
-        return {
+        const center = {
             x: this.x,
             y: this.y - (this.elevation || 0)
         };
+
+        console.log(`Tile (${this.gridX}, ${this.gridY}) center: (${center.x.toFixed(2)}, ${center.y.toFixed(2)})`);
+
+        // If we have a world reference, convert from grid to world coordinates
+        // This ensures we're using the correct coordinate system
+        if (this.world) {
+            const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+            console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
+            return worldPos;
+        }
+
+        return center;
     }
 
     /**
