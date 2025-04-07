@@ -102,9 +102,6 @@ characterPool.release(character);
 - Efficient isometric calculations
 - Visibility culling for off-screen entities
 
-## Legacy Code Reference
-
-The original codebase is preserved in the `legacy` folder for reference. This new implementation is a clean, optimized rewrite focusing on performance and maintainability.
 
 ## License
 
