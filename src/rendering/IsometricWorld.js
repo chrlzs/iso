@@ -371,38 +371,29 @@ export class IsometricWorld extends Container {
      */
     screenToGrid(screenX, screenY, elevation = 0) {
         // Convert screen coordinates to world coordinates
-        // Adjust for container position and scale
         const containerX = this.position.x;
         const containerY = this.position.y;
 
         // Calculate world coordinates relative to container
         const localX = (screenX - containerX) / this.scale.x;
-        const localY = (screenY - containerY) / this.scale.y; // Fixed: was using scale.x for both
+        const localY = (screenY - containerY) / this.scale.y;
 
         // Add camera offset to get world coordinates
         const worldX = localX + this.camera.x;
         const worldY = localY + this.camera.y;
 
-        // Convert to isometric coordinates
-        // These formulas are the inverse of the gridToScreen conversion
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // Calculate grid coordinates with the correct formula
-        // Fix the offset issue by adjusting the formula
+        // Calculate grid coordinates using the correct isometric formula
         const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
         const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Fix the 1-right, 1-down offset by subtracting 1 from both coordinates
-        const correctedGridX = gridX - 1;
-        const correctedGridY = gridY - 1;
-
-        // Round to nearest tile
-        const roundedX = Math.floor(correctedGridX);
-        const roundedY = Math.floor(correctedGridY);
-
-        // Return the calculated grid coordinates
-        return { x: roundedX, y: roundedY };
+        // Round to nearest tile - no manual offset correction needed
+        return {
+            x: Math.floor(gridX),
+            y: Math.floor(gridY)
+        };
     }
 
     /**
@@ -1005,3 +996,4 @@ export class IsometricWorld extends Container {
         this.destroy({ children: true });
     }
 }
+
