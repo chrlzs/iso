@@ -739,6 +739,8 @@ export class Game {
     resize(width, height) {
         this.options.width = width;
         this.options.height = height;
+        
+        // Resize renderer
         this.app.renderer.resize(width, height);
 
         // Resize day/night overlay
@@ -746,8 +748,8 @@ export class Game {
             this.dayNightCycle.resizeOverlay(width, height);
         }
 
-        // Resize UI
-        if (this.ui) {
+        // Resize UI - check if UI exists first
+        if (this.ui && typeof this.ui.resize === 'function') {
             this.ui.resize(width, height);
         }
     }
@@ -791,3 +793,4 @@ export class Game {
         }
     }
 }
+

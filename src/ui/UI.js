@@ -11,14 +11,14 @@ export class UI {
     constructor(options = {}) {
         this.container = options.container || new PIXI.Container();
         this.game = options.game;
+        this.panels = {};
+        this.panelsContainer = new PIXI.Container();
+        this.container.addChild(this.panelsContainer);
 
         // Message system
         this.messages = [];
         this.messageContainer = new PIXI.Container();
         this.container.addChild(this.messageContainer);
-
-        // Create UI elements
-        this.createUI();
     }
 
     /**
@@ -278,4 +278,31 @@ export class UI {
             }
         }
     }
+
+    /**
+     * Resizes all UI elements
+     * @param {number} width - New width
+     * @param {number} height - New height
+     */
+    resize(width, height) {
+        // Resize panels
+        Object.values(this.panels).forEach(panel => {
+            if (panel.name === 'inventory') {
+                // Reposition inventory panel to top-right corner
+                panel.position.set(
+                    width - 320, // Assuming panel width is 320
+                    20
+                );
+            }
+            // Add other panel-specific resize logic here
+        });
+
+        // Resize message container
+        if (this.messageContainer) {
+            // Add any message container resize logic
+        }
+
+        // Resize any other UI elements as needed
+    }
 }
+
