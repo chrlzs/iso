@@ -112,12 +112,278 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleButton.style.transition = 'opacity 0.3s';
         document.body.appendChild(toggleButton);
 
+        // Create calibration controls
+        const calibrationPanel = document.createElement('div');
+        calibrationPanel.style.position = 'fixed';
+        calibrationPanel.style.top = '10px';
+        calibrationPanel.style.right = '10px';
+        calibrationPanel.style.zIndex = '1000';
+        calibrationPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        calibrationPanel.style.padding = '15px';
+        calibrationPanel.style.borderRadius = '5px';
+        calibrationPanel.style.display = 'none';
+        calibrationPanel.style.maxHeight = '80vh';
+        calibrationPanel.style.overflowY = 'auto';
+        calibrationPanel.style.width = '250px';
+        calibrationPanel.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+        document.body.appendChild(calibrationPanel);
+
+        // Add calibration controls
+        const calibrationTitle = document.createElement('div');
+        calibrationTitle.textContent = 'Coordinate Calibration';
+        calibrationTitle.style.color = '#fff';
+        calibrationTitle.style.marginBottom = '15px';
+        calibrationTitle.style.fontWeight = 'bold';
+        calibrationTitle.style.fontSize = '16px';
+        calibrationTitle.style.textAlign = 'center';
+        calibrationTitle.style.borderBottom = '1px solid rgba(255, 255, 255, 0.3)';
+        calibrationTitle.style.paddingBottom = '5px';
+        calibrationPanel.appendChild(calibrationTitle);
+
+        // Create sections
+        const createSection = (title) => {
+            const section = document.createElement('div');
+            section.style.marginBottom = '15px';
+            section.style.padding = '8px';
+            section.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            section.style.borderRadius = '4px';
+
+            const sectionTitle = document.createElement('div');
+            sectionTitle.textContent = title;
+            sectionTitle.style.color = '#fff';
+            sectionTitle.style.marginBottom = '8px';
+            sectionTitle.style.fontWeight = 'bold';
+            sectionTitle.style.fontSize = '14px';
+            section.appendChild(sectionTitle);
+
+            return section;
+        };
+
+        // Create a control with label and input
+        const createControl = (label, type, value, min, max, step, parent) => {
+            const controlContainer = document.createElement('div');
+            controlContainer.style.display = 'flex';
+            controlContainer.style.justifyContent = 'space-between';
+            controlContainer.style.alignItems = 'center';
+            controlContainer.style.marginBottom = '8px';
+
+            const controlLabel = document.createElement('div');
+            controlLabel.textContent = label;
+            controlLabel.style.color = '#fff';
+            controlLabel.style.flexGrow = '1';
+            controlContainer.appendChild(controlLabel);
+
+            const controlInput = document.createElement('input');
+            controlInput.type = type;
+            controlInput.value = value;
+            controlInput.min = min;
+            controlInput.max = max;
+            controlInput.step = step;
+            controlInput.style.width = '60px';
+            controlInput.style.padding = '3px';
+            controlInput.style.borderRadius = '3px';
+            controlInput.style.border = '1px solid #ccc';
+            controlContainer.appendChild(controlInput);
+
+            parent.appendChild(controlContainer);
+
+            return controlInput;
+        };
+
+        // Coordinate Transformation Section
+        const coordSection = createSection('Coordinate Transformation');
+        calibrationPanel.appendChild(coordSection);
+
+        const xOffsetInput = createControl('X Offset:', 'number', '9', null, null, '1', coordSection);
+        const yOffsetInput = createControl('Y Offset:', 'number', '9', null, null, '1', coordSection);
+
+        // Grid Visualization Section
+        const gridSection = createSection('Grid Visualization');
+        calibrationPanel.appendChild(gridSection);
+
+        const gridOffsetXInput = createControl('Grid X Offset:', 'number', '-65', null, null, '1', gridSection);
+        const gridOffsetYInput = createControl('Grid Y Offset:', 'number', '-65', null, null, '1', gridSection);
+        const gridScaleInput = createControl('Grid Scale:', 'number', '1.0', '0.1', '2.0', '0.1', gridSection);
+
+        // Presets Section
+        const presetsSection = createSection('Presets');
+        calibrationPanel.appendChild(presetsSection);
+
+        // Presets container
+        const presetsContainer = document.createElement('div');
+        presetsContainer.style.display = 'flex';
+        presetsContainer.style.flexWrap = 'wrap';
+        presetsContainer.style.gap = '5px';
+        presetsSection.appendChild(presetsContainer);
+
+        // Create preset buttons
+        const createPresetButton = (name, xOffset, yOffset, gridOffsetX, gridOffsetY, gridScale) => {
+            const button = document.createElement('button');
+            button.textContent = name;
+            button.style.padding = '5px';
+            button.style.margin = '2px';
+            button.style.backgroundColor = 'rgba(0, 100, 200, 0.5)';
+            button.style.color = 'white';
+            button.style.border = 'none';
+            button.style.borderRadius = '3px';
+            button.style.cursor = 'pointer';
+            button.style.flexGrow = '1';
+            button.style.minWidth = '70px';
+
+            button.addEventListener('click', () => {
+                xOffsetInput.value = xOffset;
+                yOffsetInput.value = yOffset;
+                gridOffsetXInput.value = gridOffsetX;
+                gridOffsetYInput.value = gridOffsetY;
+                gridScaleInput.value = gridScale;
+
+                // Apply the preset immediately
+                applyCalibration();
+            });
+
+            presetsContainer.appendChild(button);
+        };
+
+        // Add some preset configurations
+        createPresetButton('Final', '9', '9', '-65', '-65', '1.0');
+        createPresetButton('Previous', '9', '10', '-65', '-65', '1.0');
+        createPresetButton('Original', '10', '11', '-65', '-65', '1.0');
+        createPresetButton('Default', '6', '7', '0', '0', '1.0');
+
+        // Action buttons section
+        const actionsSection = createSection('Actions');
+        calibrationPanel.appendChild(actionsSection);
+
+        // Buttons container
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.gap = '10px';
+        actionsSection.appendChild(buttonsContainer);
+
+        // Apply button
+        const applyButton = document.createElement('button');
+        applyButton.textContent = 'Apply';
+        applyButton.style.padding = '8px 15px';
+        applyButton.style.backgroundColor = 'rgba(0, 150, 0, 0.7)';
+        applyButton.style.color = 'white';
+        applyButton.style.border = 'none';
+        applyButton.style.borderRadius = '4px';
+        applyButton.style.cursor = 'pointer';
+        applyButton.style.flexGrow = '1';
+        buttonsContainer.appendChild(applyButton);
+
+        // Reset button
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reset';
+        resetButton.style.padding = '8px 15px';
+        resetButton.style.backgroundColor = 'rgba(150, 0, 0, 0.7)';
+        resetButton.style.color = 'white';
+        resetButton.style.border = 'none';
+        resetButton.style.borderRadius = '4px';
+        resetButton.style.cursor = 'pointer';
+        resetButton.style.flexGrow = '1';
+        buttonsContainer.appendChild(resetButton);
+
+        // Status message
+        const statusMessage = document.createElement('div');
+        statusMessage.style.color = '#fff';
+        statusMessage.style.fontSize = '12px';
+        statusMessage.style.marginTop = '10px';
+        statusMessage.style.textAlign = 'center';
+        statusMessage.style.height = '20px';
+        actionsSection.appendChild(statusMessage);
+
+        // Toggle calibration panel button
+        const calibrateButton = document.createElement('button');
+        calibrateButton.textContent = 'Cal';
+        calibrateButton.title = 'Calibrate Coordinates';
+        calibrateButton.style.position = 'fixed';
+        calibrateButton.style.bottom = '10px';
+        calibrateButton.style.right = '40px';
+        calibrateButton.style.zIndex = '1000';
+        calibrateButton.style.padding = '3px 6px';
+        calibrateButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        calibrateButton.style.color = '#fff';
+        calibrateButton.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        calibrateButton.style.borderRadius = '3px';
+        calibrateButton.style.cursor = 'pointer';
+        calibrateButton.style.fontSize = '10px';
+        calibrateButton.style.opacity = '0.7';
+        calibrateButton.style.transition = 'opacity 0.3s';
+        document.body.appendChild(calibrateButton);
+
+        // Toggle calibration panel
+        calibrateButton.addEventListener('click', () => {
+            calibrationPanel.style.display = calibrationPanel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Function to apply calibration
+        const applyCalibration = () => {
+            const xOffset = parseInt(xOffsetInput.value);
+            const yOffset = parseInt(yOffsetInput.value);
+            const gridOffsetX = parseInt(gridOffsetXInput.value);
+            const gridOffsetY = parseInt(gridOffsetYInput.value);
+            const gridScale = parseFloat(gridScaleInput.value);
+
+            // Update the coordinate transformation in IsometricWorld
+            game.world.coordinateOffsetX = xOffset;
+            game.world.coordinateOffsetY = yOffset;
+
+            // Update the grid visualization
+            game.world.gridOffsetX = gridOffsetX;
+            game.world.gridOffsetY = gridOffsetY;
+            game.world.gridScale = gridScale;
+
+            // Redraw the debug grid
+            game.world.drawDebugGrid();
+
+            // Update coordinates
+            updateCoordinates();
+
+            // Show success message
+            statusMessage.textContent = 'Settings applied successfully!';
+            statusMessage.style.color = '#00FF00';
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 2000);
+
+            console.log(`Applied settings - Coords: X=${xOffset}, Y=${yOffset}, Grid: X=${gridOffsetX}, Y=${gridOffsetY}, Scale=${gridScale}`);
+        };
+
+        // Apply calibration when button is clicked
+        applyButton.addEventListener('click', applyCalibration);
+
+        // Reset to defaults
+        resetButton.addEventListener('click', () => {
+            xOffsetInput.value = '9';
+            yOffsetInput.value = '9';
+            gridOffsetXInput.value = '-65';
+            gridOffsetYInput.value = '-65';
+            gridScaleInput.value = '1.0';
+
+            applyCalibration();
+
+            statusMessage.textContent = 'Reset to defaults';
+            statusMessage.style.color = '#FFFF00';
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 2000);
+        });
+
         // Make button more visible on hover
         toggleButton.addEventListener('mouseover', () => {
             toggleButton.style.opacity = '1';
         });
         toggleButton.addEventListener('mouseout', () => {
             toggleButton.style.opacity = '0.7';
+        });
+
+        // Make calibrate button more visible on hover
+        calibrateButton.addEventListener('mouseover', () => {
+            calibrateButton.style.opacity = '1';
+        });
+        calibrateButton.addEventListener('mouseout', () => {
+            calibrateButton.style.opacity = '0.7';
         });
 
         // Create container for coordinate labels

@@ -100,6 +100,16 @@ export class IsometricWorld extends Container {
             }
         };
 
+        // Coordinate transformation offsets
+        // These can be adjusted at runtime to calibrate the coordinate system
+        this.coordinateOffsetX = 9; // Final calibrated value
+        this.coordinateOffsetY = 9; // Final calibrated value
+
+        // Grid visualization offsets
+        this.gridOffsetX = -65; // Working value based on testing
+        this.gridOffsetY = -65; // Working value based on testing
+        this.gridScale = 1.0; // Scale factor for the grid
+
         // Add direct click handling to the world container
         this.interactive = true;
         this.on('pointerdown', this.handleDirectClick.bind(this));
@@ -260,8 +270,15 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTile(x, y) {
+        // Special case for (0,0) tile to ensure it can be highlighted
+        if (x === 0 && y === 0) {
+            console.log('Special handling for (0,0) tile');
+            return this.tiles[0][0];
+        }
+
         // Check if position is valid
         if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) {
+            console.warn(`Tile position out of bounds: (${x}, ${y})`);
             return null;
         }
 
@@ -406,17 +423,26 @@ export class IsometricWorld extends Container {
         const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
         const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Apply the offset correction (-9 for both x and y, then +1 for both)
-        // This fixes the issue where tile (0,0) is reported as (9,9)
-        // And then adjusts for the off-by-one error where (1,1) is reported as (0,0)
-        const correctedX = gridX - 9 + 1;
-        const correctedY = gridY - 9 + 1;
+        // Use dynamic coordinate offsets that can be adjusted at runtime
+        // Default values are 6 and 7 based on testing
+        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 6;
+        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 7;
+
+        const correctedX = gridX - offsetX;
+        const correctedY = gridY - offsetY;
 
         // Round to nearest tile
         const roundedX = Math.floor(correctedX);
         const roundedY = Math.floor(correctedY);
 
         console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Corrected (${correctedX.toFixed(2)}, ${correctedY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
+
+        // Special case for coordinates very close to (0,0)
+        // This helps with selecting the (0,0) tile which can be tricky in isometric view
+        if (Math.abs(roundedX) <= 0.5 && Math.abs(roundedY) <= 0.5) {
+            console.log('Coordinates very close to (0,0), snapping to origin');
+            return { x: 0, y: 0 };
+        }
 
         return {
             x: roundedX,
@@ -472,11 +498,13 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Apply the offset correction (+9 for both x and y, then -1 for both)
-        // This compensates for the -9 offset in screenToGrid
-        // And then adjusts for the off-by-one error where (1,1) is reported as (0,0)
-        const correctedX = gridX + 9 - 1;
-        const correctedY = gridY + 9 - 1;
+        // Use dynamic coordinate offsets that can be adjusted at runtime
+        // Default values are 6 and 7 based on testing
+        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 6;
+        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 7;
+
+        const correctedX = gridX + offsetX;
+        const correctedY = gridY + offsetY;
 
         // Convert to isometric coordinates
         const isoX = (correctedX - correctedY) * this.tileWidth / 2;
@@ -832,19 +860,18 @@ export class IsometricWorld extends Container {
         console.log('Container position:', this.position.x, this.position.y);
         console.log('Tile dimensions - width:', this.tileWidth, 'height:', this.tileHeight);
 
-        // We don't need offsets anymore - the grid should be aligned with the map
-        // by using the same coordinate system
-        const horizontalOffset = 0;
-        const verticalOffset = 0;
+        // Use the configurable grid offsets and scale
+        const gridOffsetX = this.tileWidth * this.gridScale + this.gridOffsetX;
+        const gridOffsetY = this.tileHeight * this.gridScale + this.gridOffsetY;
 
         // Draw grid lines using isometric coordinates directly
         // This ensures the grid moves with the map
         for (let x = 0; x <= this.gridWidth; x++) {
-            // Convert grid coordinates to isometric coordinates
-            const startIsoX = (x - 0) * this.tileWidth / 2;
-            const startIsoY = (x + 0) * this.tileHeight / 2;
-            const endIsoX = (x - this.gridHeight) * this.tileWidth / 2;
-            const endIsoY = (x + this.gridHeight) * this.tileHeight / 2;
+            // Convert grid coordinates to isometric coordinates with offset
+            const startIsoX = (x - 0) * this.tileWidth / 2 + gridOffsetX;
+            const startIsoY = (x + 0) * this.tileHeight / 2 + gridOffsetY;
+            const endIsoX = (x - this.gridHeight) * this.tileWidth / 2 + gridOffsetX;
+            const endIsoY = (x + this.gridHeight) * this.tileHeight / 2 + gridOffsetY;
 
             // Draw line
             gridLines.moveTo(startIsoX, startIsoY);
@@ -878,9 +905,9 @@ export class IsometricWorld extends Container {
 
             // Add a small marker at major grid lines instead of text labels
             if (x % 5 === 0) {
-                // Convert grid coordinates to isometric coordinates
-                const labelIsoX = (x - 0) * this.tileWidth / 2;
-                const labelIsoY = (x + 0) * this.tileHeight / 2;
+                // Convert grid coordinates to isometric coordinates with offset
+                const labelIsoX = (x - 0) * this.tileWidth / 2 + gridOffsetX;
+                const labelIsoY = (x + 0) * this.tileHeight / 2 + gridOffsetY;
 
                 // Create a small marker
                 const marker = new PIXI.Graphics();
@@ -893,11 +920,11 @@ export class IsometricWorld extends Container {
         }
 
         for (let y = 0; y <= this.gridHeight; y++) {
-            // Convert grid coordinates to isometric coordinates
-            const startIsoX = (0 - y) * this.tileWidth / 2;
-            const startIsoY = (0 + y) * this.tileHeight / 2;
-            const endIsoX = (this.gridWidth - y) * this.tileWidth / 2;
-            const endIsoY = (this.gridWidth + y) * this.tileHeight / 2;
+            // Convert grid coordinates to isometric coordinates with offset
+            const startIsoX = (0 - y) * this.tileWidth / 2 + gridOffsetX;
+            const startIsoY = (0 + y) * this.tileHeight / 2 + gridOffsetY;
+            const endIsoX = (this.gridWidth - y) * this.tileWidth / 2 + gridOffsetX;
+            const endIsoY = (this.gridWidth + y) * this.tileHeight / 2 + gridOffsetY;
 
             // Draw line
             gridLines.moveTo(startIsoX, startIsoY);
@@ -905,9 +932,9 @@ export class IsometricWorld extends Container {
 
             // Add a small marker at major grid lines instead of text labels
             if (y % 5 === 0) {
-                // Convert grid coordinates to isometric coordinates
-                const labelIsoX = (0 - y) * this.tileWidth / 2;
-                const labelIsoY = (0 + y) * this.tileHeight / 2;
+                // Convert grid coordinates to isometric coordinates with offset
+                const labelIsoX = (0 - y) * this.tileWidth / 2 + gridOffsetX;
+                const labelIsoY = (0 + y) * this.tileHeight / 2 + gridOffsetY;
 
                 // Create a small marker
                 const marker = new PIXI.Graphics();
@@ -922,9 +949,9 @@ export class IsometricWorld extends Container {
         // Draw grid intersections to make the grid more visible
         for (let x = 0; x <= this.gridWidth; x += 5) {
             for (let y = 0; y <= this.gridHeight; y += 5) {
-                // Convert grid coordinates to isometric coordinates directly
-                const isoX = (x - y) * this.tileWidth / 2;
-                const isoY = (x + y) * this.tileHeight / 2;
+                // Convert grid coordinates to isometric coordinates with offset
+                const isoX = (x - y) * this.tileWidth / 2 + gridOffsetX;
+                const isoY = (x + y) * this.tileHeight / 2 + gridOffsetY;
 
                 // Draw a circle at the intersection
                 const intersectionMarker = new PIXI.Graphics();
