@@ -37,17 +37,15 @@ export class IsometricWorld extends Container {
         this.gridOffsetX = -64;
         this.gridOffsetY = -64;
 
-        // Position the entire map down by half a tile to compensate for the grid shift
-        this.mapOffsetY = this.tileHeight / 2;
-
         // PixiJS application
         this.app = options.app;
 
         // Game reference
         this.game = options.game;
 
-        // Create tile container
+        // Create tile container with initial offset
         this.tileContainer = new PIXI.Container();
+        this.tileContainer.position.set(this.gridOffsetX, this.gridOffsetY);
         this.addChild(this.tileContainer);
 
         // Create entity container
@@ -142,9 +140,12 @@ export class IsometricWorld extends Container {
         // Create empty tile grid
         this.createEmptyGrid();
 
-        // Set initial camera position to center of world
-        this.camera.x = (this.gridWidth * this.tileWidth) / 2;
-        this.camera.y = (this.gridHeight * this.tileHeight) / 2;
+        // Create tile container with initial offset
+        this.tileContainer.position.set(this.gridOffsetX, this.gridOffsetY);
+
+        // Set initial camera position to center of world, accounting for grid offsets
+        this.camera.x = (this.gridWidth * this.tileWidth) / 4; // Adjust to match new grid position
+        this.camera.y = (this.gridHeight * this.tileHeight) / 4;
 
         // Apply camera position
         this.updateCamera();
@@ -471,22 +472,18 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     worldToGrid(worldX, worldY) {
-        // Convert world coordinates to grid coordinates using the standard isometric formula
+        // Adjust world coordinates to remove grid offsets
+        const adjustedWorldX = worldX - this.gridOffsetX;
+        const adjustedWorldY = worldY - this.gridOffsetY;
+
+        // Convert to grid coordinates using standard isometric formula
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // Add the tile height back for SE tiles to compensate for the offset
-        const adjustedY = worldY + (this.mapOffsetY || 0);
+        let gridY = (adjustedWorldY / tileHeightHalf - adjustedWorldX / tileWidthHalf) / 2;
+        let gridX = (adjustedWorldY / tileHeightHalf + adjustedWorldX / tileWidthHalf) / 2;
 
-        // Standard formula for isometric projection
-        let gridY = (adjustedY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-        let gridX = (adjustedY / tileHeightHalf + worldX / tileWidthHalf) / 2;
-
-        // Round to get integer grid coordinates
-        const roundedX = Math.floor(gridX);
-        const roundedY = Math.floor(gridY);
-
-        return { x: roundedX, y: roundedY };
+        return { x: Math.floor(gridX), y: Math.floor(gridY) };
     }
 
     /**
@@ -497,9 +494,9 @@ export class IsometricWorld extends Container {
      * @returns {Object} Screen coordinates {x, y}
      */
     gridToScreen(gridX, gridY, elevation = 0) {
-        // Convert to isometric coordinates
-        const isoX = (gridX - gridY) * this.tileWidth / 2;
-        const isoY = (gridX + gridY) * this.tileHeight / 2;
+        // Convert to isometric coordinates with offsets
+        const isoX = (gridX - gridY) * this.tileWidth / 2 + this.gridOffsetX;
+        const isoY = (gridX + gridY) * this.tileHeight / 2 + this.gridOffsetY - (elevation || 0);
 
         // Adjust for camera position
         const worldX = isoX - this.camera.x;
@@ -519,9 +516,9 @@ export class IsometricWorld extends Container {
         const localX = (screenX - this.position.x) / this.scale.x;
         const localY = (screenY - this.position.y) / this.scale.y;
 
-        // Add camera offset to get world coordinates
-        const worldX = localX + this.camera.x;
-        const worldY = localY + this.camera.y;
+        // Add camera offset and grid offsets to get world coordinates
+        const worldX = localX + this.camera.x + this.gridOffsetX;
+        const worldY = localY + this.camera.y + this.gridOffsetY;
 
         return { x: worldX, y: worldY };
     }
@@ -965,118 +962,53 @@ export class IsometricWorld extends Container {
         gridLines.lineStyle(2, 0xFF0000, 0.5);
         this.debugGridOverlay.addChild(gridLines);
 
-        // Log camera and container positions for debugging
-        console.log('Camera position:', this.camera.x, this.camera.y);
-        console.log('Container position:', this.position.x, this.position.y);
-        console.log('Tile dimensions - width:', this.tileWidth, 'height:', this.tileHeight);
-
         // Use the configurable grid offsets
         const gridOffsetX = this.gridOffsetX;
         const gridOffsetY = this.gridOffsetY;
 
         // Draw grid lines using isometric coordinates directly
-        // This ensures the grid moves with the map
         for (let x = 0; x <= this.gridWidth; x++) {
-            // Convert grid coordinates to isometric coordinates with offset
+            // Draw vertical grid lines
             const startIsoX = (x - 0) * this.tileWidth / 2 + gridOffsetX;
             const startIsoY = (x + 0) * this.tileHeight / 2 + gridOffsetY;
             const endIsoX = (x - this.gridHeight) * this.tileWidth / 2 + gridOffsetX;
             const endIsoY = (x + this.gridHeight) * this.tileHeight / 2 + gridOffsetY;
-
-            // Draw line
+            
             gridLines.moveTo(startIsoX, startIsoY);
             gridLines.lineTo(endIsoX, endIsoY);
-
-            // Add a small dot at the center of each tile for reference, but no labels
-            // (we're using the HTML overlay for labels now)
-            for (let y = 0; y < this.gridHeight; y++) {
-                const tile = this.getTile(x, y);
-                if (tile) {
-                    // Add a small dot at the center of the tile for reference
-                    const centerDot = new PIXI.Graphics();
-                    centerDot.beginFill(0xFF00FF, 0.5); // Semi-transparent magenta
-                    centerDot.drawCircle(0, 0, 2);
-                    centerDot.endFill();
-                    centerDot.position.set(tile.x, tile.y);
-                    this.debugGridOverlay.addChild(centerDot);
-
-                    // Only show a warning indicator if coordinates differ
-                    if (tile.gridX !== x || tile.gridY !== y) {
-                        // Add a warning indicator for mismatched coordinates
-                        const warningIndicator = new PIXI.Graphics();
-                        warningIndicator.beginFill(0xFF0000, 0.5); // Semi-transparent red
-                        warningIndicator.drawCircle(0, 0, 5);
-                        warningIndicator.endFill();
-                        warningIndicator.position.set(tile.x, tile.y);
-                        this.debugGridOverlay.addChild(warningIndicator);
-                    }
-                }
-            }
-
-            // Add a small marker at major grid lines instead of text labels
-            if (x % 5 === 0) {
-                // Convert grid coordinates to isometric coordinates with offset
-                const labelIsoX = (x - 0) * this.tileWidth / 2 + gridOffsetX;
-                const labelIsoY = (x + 0) * this.tileHeight / 2 + gridOffsetY;
-
-                // Create a small marker
-                const marker = new PIXI.Graphics();
-                marker.beginFill(0xFF0000, 0.5);
-                marker.drawCircle(0, 0, 3);
-                marker.endFill();
-                marker.position.set(labelIsoX, labelIsoY);
-                this.debugGridOverlay.addChild(marker);
-            }
         }
 
         for (let y = 0; y <= this.gridHeight; y++) {
-            // Convert grid coordinates to isometric coordinates with offset
+            // Draw horizontal grid lines
             const startIsoX = (0 - y) * this.tileWidth / 2 + gridOffsetX;
             const startIsoY = (0 + y) * this.tileHeight / 2 + gridOffsetY;
             const endIsoX = (this.gridWidth - y) * this.tileWidth / 2 + gridOffsetX;
             const endIsoY = (this.gridWidth + y) * this.tileHeight / 2 + gridOffsetY;
-
-            // Draw line
+            
             gridLines.moveTo(startIsoX, startIsoY);
             gridLines.lineTo(endIsoX, endIsoY);
-
-            // Add a small marker at major grid lines instead of text labels
-            if (y % 5 === 0) {
-                // Convert grid coordinates to isometric coordinates with offset
-                const labelIsoX = (0 - y) * this.tileWidth / 2 + gridOffsetX;
-                const labelIsoY = (0 + y) * this.tileHeight / 2 + gridOffsetY;
-
-                // Create a small marker
-                const marker = new PIXI.Graphics();
-                marker.beginFill(0x0000FF, 0.5); // Blue to distinguish from X markers
-                marker.drawCircle(0, 0, 3);
-                marker.endFill();
-                marker.position.set(labelIsoX, labelIsoY);
-                this.debugGridOverlay.addChild(marker);
-            }
         }
 
-        // Draw grid intersections to make the grid more visible
-        for (let x = 0; x <= this.gridWidth; x += 5) {
-            for (let y = 0; y <= this.gridHeight; y += 5) {
-                // Convert grid coordinates to isometric coordinates with offset
+        // Draw grid intersections
+        for (let x = 0; x <= this.gridWidth; x += 1) {
+            for (let y = 0; y <= this.gridHeight; y += 1) {
+                // Calculate intersection position
                 const isoX = (x - y) * this.tileWidth / 2 + gridOffsetX;
                 const isoY = (x + y) * this.tileHeight / 2 + gridOffsetY;
 
-                // Draw a circle at the intersection
-                const intersectionMarker = new PIXI.Graphics();
-                intersectionMarker.beginFill(0xFF0000, 0.5);
-                intersectionMarker.drawCircle(0, 0, 3);
-                intersectionMarker.endFill();
-                intersectionMarker.position.set(isoX, isoY);
-                this.debugGridOverlay.addChild(intersectionMarker);
+                // Draw a small dot at each intersection
+                const marker = new PIXI.Graphics();
+                marker.beginFill(0xFF0000, 0.5);
+                marker.drawCircle(0, 0, 2);
+                marker.endFill();
+                marker.position.set(isoX, isoY);
+                this.debugGridOverlay.addChild(marker);
 
-                // Add a larger marker at major intersections (every 10 tiles)
-                if (x % 10 === 0 && y % 10 === 0) {
-                    // Create a larger marker for major intersections
+                // Add larger markers at major intersections
+                if (x % 5 === 0 && y % 5 === 0) {
                     const majorMarker = new PIXI.Graphics();
-                    majorMarker.beginFill(0xFFFFFF, 0.7);
-                    majorMarker.drawCircle(0, 0, 5);
+                    majorMarker.beginFill(0xFF0000, 0.7);
+                    majorMarker.drawCircle(0, 0, 4);
                     majorMarker.endFill();
                     majorMarker.position.set(isoX, isoY);
                     this.debugGridOverlay.addChild(majorMarker);

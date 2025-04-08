@@ -25,9 +25,13 @@ export class IsometricTile extends Container {
         this.world = options.world || null;
         this.game = options.game || null;
 
-        // Calculate isometric position with grid offsets
-        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2 + (this.world?.gridOffsetX || 0);
-        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2 + (this.world?.gridOffsetY || 0);
+        // Calculate isometric position
+        // Use the world's grid offsets to align with debug grid
+        const worldOffsetX = this.world?.gridOffsetX || 0;
+        const worldOffsetY = this.world?.gridOffsetY || 0;
+
+        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2 + worldOffsetX;
+        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2 + worldOffsetY;
 
         // Position tile
         this.x = this.isoX;
