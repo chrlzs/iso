@@ -406,10 +406,11 @@ export class IsometricWorld extends Container {
         const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
         const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Apply the offset correction (-9 for both x and y)
+        // Apply the offset correction (-9 for both x and y, then +1 for both)
         // This fixes the issue where tile (0,0) is reported as (9,9)
-        const correctedX = gridX - 9;
-        const correctedY = gridY - 9;
+        // And then adjusts for the off-by-one error where (1,1) is reported as (0,0)
+        const correctedX = gridX - 9 + 1;
+        const correctedY = gridY - 9 + 1;
 
         // Round to nearest tile
         const roundedX = Math.floor(correctedX);
@@ -471,10 +472,11 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Apply the offset correction (+9 for both x and y)
+        // Apply the offset correction (+9 for both x and y, then -1 for both)
         // This compensates for the -9 offset in screenToGrid
-        const correctedX = gridX + 9;
-        const correctedY = gridY + 9;
+        // And then adjusts for the off-by-one error where (1,1) is reported as (0,0)
+        const correctedX = gridX + 9 - 1;
+        const correctedY = gridY + 9 - 1;
 
         // Convert to isometric coordinates
         const isoX = (correctedX - correctedY) * this.tileWidth / 2;
@@ -848,86 +850,45 @@ export class IsometricWorld extends Container {
             gridLines.moveTo(startIsoX, startIsoY);
             gridLines.lineTo(endIsoX, endIsoY);
 
-            // Add coordinate labels to each tile in this column
+            // Add a small dot at the center of each tile for reference, but no labels
+            // (we're using the HTML overlay for labels now)
             for (let y = 0; y < this.gridHeight; y++) {
                 const tile = this.getTile(x, y);
                 if (tile) {
-                    // Create a background for better visibility
-                    const background = new PIXI.Graphics();
-                    background.beginFill(0x000000, 0.8);
-                    background.drawRoundedRect(-30, -20, 60, 40, 5);
-                    background.endFill();
-                    background.position.set(tile.x, tile.y);
-                    this.debugGridOverlay.addChild(background);
-
-                    // Create a large, clear label showing the grid coordinates
-                    const coordText = new PIXI.Text(`${x},${y}`, {
-                        fontFamily: 'Arial',
-                        fontSize: 20,
-                        fontWeight: 'bold',
-                        fill: 0xFFFF00, // Bright yellow
-                        stroke: 0x000000,
-                        strokeThickness: 4,
-                        align: 'center'
-                    });
-                    coordText.position.set(tile.x, tile.y);
-                    coordText.anchor.set(0.5, 0.5);
-                    this.debugGridOverlay.addChild(coordText);
-
-                    // Log that we're adding a coordinate label
-                    console.log(`Adding coordinate label for tile (${x},${y}) at position (${tile.x}, ${tile.y})`);
-
                     // Add a small dot at the center of the tile for reference
                     const centerDot = new PIXI.Graphics();
-                    centerDot.beginFill(0xFF00FF, 1); // Bright magenta
-                    centerDot.drawCircle(0, 0, 3);
+                    centerDot.beginFill(0xFF00FF, 0.5); // Semi-transparent magenta
+                    centerDot.drawCircle(0, 0, 2);
                     centerDot.endFill();
                     centerDot.position.set(tile.x, tile.y);
                     this.debugGridOverlay.addChild(centerDot);
 
-                    // Add a smaller label showing the actual stored coordinates if they differ
+                    // Only show a warning indicator if coordinates differ
                     if (tile.gridX !== x || tile.gridY !== y) {
-                        const actualText = new PIXI.Text(`Actual: ${tile.gridX},${tile.gridY}`, {
-                            fontFamily: 'Arial',
-                            fontSize: 10,
-                            fill: 0xFF0000, // Red for warning
-                            stroke: 0x000000,
-                            strokeThickness: 1,
-                            align: 'center'
-                        });
-                        actualText.position.set(tile.x, tile.y + 15);
-                        actualText.anchor.set(0.5, 0.5);
-                        this.debugGridOverlay.addChild(actualText);
+                        // Add a warning indicator for mismatched coordinates
+                        const warningIndicator = new PIXI.Graphics();
+                        warningIndicator.beginFill(0xFF0000, 0.5); // Semi-transparent red
+                        warningIndicator.drawCircle(0, 0, 5);
+                        warningIndicator.endFill();
+                        warningIndicator.position.set(tile.x, tile.y);
+                        this.debugGridOverlay.addChild(warningIndicator);
                     }
                 }
             }
 
-            // Add coordinate label every 5 tiles
+            // Add a small marker at major grid lines instead of text labels
             if (x % 5 === 0) {
                 // Convert grid coordinates to isometric coordinates
                 const labelIsoX = (x - 0) * this.tileWidth / 2;
                 const labelIsoY = (x + 0) * this.tileHeight / 2;
 
-                // Create a background for better visibility
-                const background = new PIXI.Graphics();
-                background.beginFill(0x000000, 0.5);
-                background.drawRoundedRect(-20, -10, 40, 20, 5);
-                background.endFill();
-                background.position.set(labelIsoX, labelIsoY);
-                this.debugGridOverlay.addChild(background);
-
-                // Create text with larger font
-                const text = new PIXI.Text(`X:${x}`, {
-                    fontFamily: 'Arial',
-                    fontSize: 14,
-                    fill: 0xFFFFFF,
-                    stroke: 0xFF0000,
-                    strokeThickness: 2,
-                    align: 'center'
-                });
-                text.position.set(labelIsoX, labelIsoY);
-                text.anchor.set(0.5, 0.5);
-                this.debugGridOverlay.addChild(text);
+                // Create a small marker
+                const marker = new PIXI.Graphics();
+                marker.beginFill(0xFF0000, 0.5);
+                marker.drawCircle(0, 0, 3);
+                marker.endFill();
+                marker.position.set(labelIsoX, labelIsoY);
+                this.debugGridOverlay.addChild(marker);
             }
         }
 
@@ -942,32 +903,19 @@ export class IsometricWorld extends Container {
             gridLines.moveTo(startIsoX, startIsoY);
             gridLines.lineTo(endIsoX, endIsoY);
 
-            // Add coordinate label every 5 tiles
+            // Add a small marker at major grid lines instead of text labels
             if (y % 5 === 0) {
                 // Convert grid coordinates to isometric coordinates
                 const labelIsoX = (0 - y) * this.tileWidth / 2;
                 const labelIsoY = (0 + y) * this.tileHeight / 2;
 
-                // Create a background for better visibility
-                const background = new PIXI.Graphics();
-                background.beginFill(0x000000, 0.5);
-                background.drawRoundedRect(-20, -10, 40, 20, 5);
-                background.endFill();
-                background.position.set(labelIsoX, labelIsoY);
-                this.debugGridOverlay.addChild(background);
-
-                // Create text with larger font
-                const text = new PIXI.Text(`Y:${y}`, {
-                    fontFamily: 'Arial',
-                    fontSize: 14,
-                    fill: 0xFFFFFF,
-                    stroke: 0xFF0000,
-                    strokeThickness: 2,
-                    align: 'center'
-                });
-                text.position.set(labelIsoX, labelIsoY);
-                text.anchor.set(0.5, 0.5);
-                this.debugGridOverlay.addChild(text);
+                // Create a small marker
+                const marker = new PIXI.Graphics();
+                marker.beginFill(0x0000FF, 0.5); // Blue to distinguish from X markers
+                marker.drawCircle(0, 0, 3);
+                marker.endFill();
+                marker.position.set(labelIsoX, labelIsoY);
+                this.debugGridOverlay.addChild(marker);
             }
         }
 
@@ -986,28 +934,15 @@ export class IsometricWorld extends Container {
                 intersectionMarker.position.set(isoX, isoY);
                 this.debugGridOverlay.addChild(intersectionMarker);
 
-                // Add coordinate text at major intersections (every 10 tiles)
+                // Add a larger marker at major intersections (every 10 tiles)
                 if (x % 10 === 0 && y % 10 === 0) {
-                    // Create a background for better visibility
-                    const background = new PIXI.Graphics();
-                    background.beginFill(0x000000, 0.7);
-                    background.drawRoundedRect(-25, -15, 50, 30, 5);
-                    background.endFill();
-                    background.position.set(isoX, isoY);
-                    this.debugGridOverlay.addChild(background);
-
-                    // Create coordinate text
-                    const text = new PIXI.Text(`${x},${y}`, {
-                        fontFamily: 'Arial',
-                        fontSize: 12,
-                        fill: 0xFFFFFF,
-                        stroke: 0xFF0000,
-                        strokeThickness: 1,
-                        align: 'center'
-                    });
-                    text.position.set(isoX, isoY);
-                    text.anchor.set(0.5, 0.5);
-                    this.debugGridOverlay.addChild(text);
+                    // Create a larger marker for major intersections
+                    const majorMarker = new PIXI.Graphics();
+                    majorMarker.beginFill(0xFFFFFF, 0.7);
+                    majorMarker.drawCircle(0, 0, 5);
+                    majorMarker.endFill();
+                    majorMarker.position.set(isoX, isoY);
+                    this.debugGridOverlay.addChild(majorMarker);
                 }
             }
         }

@@ -93,20 +93,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Create a simple HTML overlay for tile coordinates
     if (game.options.debug) {
-        // Create a button to toggle coordinate display
+        // Create a small, unobtrusive button to toggle coordinate display
         const toggleButton = document.createElement('button');
-        toggleButton.textContent = 'Show Tile Coordinates';
+        toggleButton.textContent = 'C';
+        toggleButton.title = 'Toggle Tile Coordinates';
         toggleButton.style.position = 'fixed';
-        toggleButton.style.top = '10px';
+        toggleButton.style.bottom = '10px';
         toggleButton.style.right = '10px';
         toggleButton.style.zIndex = '1000';
-        toggleButton.style.padding = '5px 10px';
-        toggleButton.style.backgroundColor = '#333';
+        toggleButton.style.padding = '3px 6px';
+        toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
         toggleButton.style.color = '#fff';
-        toggleButton.style.border = 'none';
-        toggleButton.style.borderRadius = '4px';
+        toggleButton.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        toggleButton.style.borderRadius = '3px';
         toggleButton.style.cursor = 'pointer';
+        toggleButton.style.fontSize = '10px';
+        toggleButton.style.opacity = '0.7';
+        toggleButton.style.transition = 'opacity 0.3s';
         document.body.appendChild(toggleButton);
+
+        // Make button more visible on hover
+        toggleButton.addEventListener('mouseover', () => {
+            toggleButton.style.opacity = '1';
+        });
+        toggleButton.addEventListener('mouseout', () => {
+            toggleButton.style.opacity = '0.7';
+        });
 
         // Create container for coordinate labels
         const coordContainer = document.createElement('div');
@@ -124,11 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleButton.addEventListener('click', () => {
             if (coordContainer.style.display === 'none') {
                 coordContainer.style.display = 'block';
-                toggleButton.textContent = 'Hide Tile Coordinates';
+                toggleButton.textContent = 'C✓';
+                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.5)';
                 updateCoordinates();
             } else {
                 coordContainer.style.display = 'none';
-                toggleButton.textContent = 'Show Tile Coordinates';
+                toggleButton.textContent = 'C';
+                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             }
         });
 
@@ -155,15 +169,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         label.style.left = `${screenPos.x}px`;
                         label.style.top = `${screenPos.y}px`;
                         label.style.transform = 'translate(-50%, -50%)';
-                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                        label.style.color = '#FFFF00';
-                        label.style.padding = '2px 5px';
-                        label.style.borderRadius = '3px';
-                        label.style.fontSize = '14px';
-                        label.style.fontWeight = 'bold';
+                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+                        label.style.color = 'rgba(255, 255, 0, 0.7)';
+                        label.style.padding = '1px 3px';
+                        label.style.borderRadius = '2px';
+                        label.style.fontSize = '10px';
                         label.style.fontFamily = 'Arial, sans-serif';
                         label.style.textAlign = 'center';
-                        label.style.minWidth = '40px';
+                        label.style.minWidth = '20px';
+                        label.style.pointerEvents = 'none';
 
                         // Add to container
                         coordContainer.appendChild(label);
@@ -172,14 +186,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Update coordinates when camera moves
+        // Update coordinates periodically instead of on every camera update
+        // This is more efficient and less intrusive
+        let updateTimer = null;
+
+        // Update coordinates when camera moves, but throttled
         const originalUpdateCamera = game.world.updateCamera;
         game.world.updateCamera = function() {
             originalUpdateCamera.call(game.world);
+
+            // Only schedule an update if coordinates are visible and no update is pending
+            if (coordContainer.style.display !== 'none' && !updateTimer) {
+                // Throttle updates to once every 500ms for better performance
+                updateTimer = setTimeout(() => {
+                    updateCoordinates();
+                    updateTimer = null;
+                }, 500);
+            }
+        };
+
+        // Also update coordinates on window resize
+        window.addEventListener('resize', () => {
             if (coordContainer.style.display !== 'none') {
                 updateCoordinates();
             }
-        };
+        });
     }
 
     // Log success message
