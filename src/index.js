@@ -244,14 +244,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 gridOffsetYInput.value = gridOffsetY;
                 gridScaleInput.value = gridScale;
 
-                // Apply the preset immediately
+                // Apply the preset configuration
                 applyCalibration();
             });
 
             presetsContainer.appendChild(button);
         };
 
-        // Add some preset configurations
+        // Add preset configurations
         createPresetButton('Final', '9', '8', '-65', '-65', '1.0');
         createPresetButton('Previous', '9', '9', '-65', '-65', '1.0');
         createPresetButton('Original', '10', '11', '-65', '-65', '1.0');
@@ -396,26 +396,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Function to apply calibration
         const applyCalibration = () => {
-            const xOffset = parseInt(xOffsetInput.value);
-            const yOffset = parseInt(yOffsetInput.value);
-            const gridOffsetX = parseInt(gridOffsetXInput.value);
-            const gridOffsetY = parseInt(gridOffsetYInput.value);
+            // Get values from inputs
+            const xOffset = parseFloat(xOffsetInput.value);
+            const yOffset = parseFloat(yOffsetInput.value);
+            const gridOffsetX = parseFloat(gridOffsetXInput.value);
+            const gridOffsetY = parseFloat(gridOffsetYInput.value);
             const gridScale = parseFloat(gridScaleInput.value);
 
-            // Update the coordinate transformation in IsometricWorld
-            game.world.coordinateOffsetX = xOffset;
-            game.world.coordinateOffsetY = yOffset;
-
-            // Update the grid visualization
-            game.world.gridOffsetX = gridOffsetX;
-            game.world.gridOffsetY = gridOffsetY;
-            game.world.gridScale = gridScale;
-
-            // Redraw the debug grid
-            game.world.drawDebugGrid();
-
-            // Update coordinates
-            updateCoordinates();
+            // Update the coordinate system configuration through the world config
+            game.world.updateCoordinates({
+                coordinateOffsetX: xOffset,
+                coordinateOffsetY: yOffset,
+                gridOffsetX: gridOffsetX,
+                gridOffsetY: gridOffsetY,
+                gridScale: gridScale
+            });
 
             // Show success message
             statusMessage.textContent = 'Settings applied successfully!';
@@ -430,21 +425,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Apply calibration when button is clicked
         applyButton.addEventListener('click', applyCalibration);
 
-        // Reset to defaults
+        // Reset to defaults button handler
         resetButton.addEventListener('click', () => {
+            // Reset inputs to default values
             xOffsetInput.value = '9';
             yOffsetInput.value = '8';
             gridOffsetXInput.value = '-65';
             gridOffsetYInput.value = '-65';
             gridScaleInput.value = '1.0';
 
+            // Apply the reset configuration
             applyCalibration();
-
-            statusMessage.textContent = 'Reset to defaults';
-            statusMessage.style.color = '#FFFF00';
-            setTimeout(() => {
-                statusMessage.textContent = '';
-            }, 2000);
         });
 
         // Make button more visible on hover

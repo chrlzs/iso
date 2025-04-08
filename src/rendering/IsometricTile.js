@@ -25,13 +25,9 @@ export class IsometricTile extends Container {
         this.world = options.world || null;
         this.game = options.game || null;
 
-        // Calculate isometric position
-        // Use the world's grid offsets to align with debug grid
-        const worldOffsetX = this.world?.gridOffsetX || 0;
-        const worldOffsetY = this.world?.gridOffsetY || 0;
-
-        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2 + worldOffsetX;
-        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2 + worldOffsetY;
+        // Calculate isometric position without any offsets
+        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2;
+        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2;
 
         // Position tile
         this.x = this.isoX;
@@ -108,25 +104,17 @@ export class IsometricTile extends Container {
         const localPoint = new PIXI.Point();
         this.worldTransform.applyInverse(point, localPoint);
 
-        // Special handling for bottom row tiles
-        if (this.gridY === this.world.gridHeight - 1) {
-            // For bottom row tiles, adjust the hit area to only accept clicks in the top half
-            const dy = localPoint.y + this.tileHeight / 2; // Offset for visual center
-            if (dy > 0) { // If in bottom half of tile
-                return false;
-            }
-        }
+        // Since our tiles are rendered at bottom-center, adjust Y coordinate
+        localPoint.y += this.tileHeight / 2;
 
         // Get point relative to tile center
         const dx = Math.abs(localPoint.x);
-        const dy = Math.abs(localPoint.y + this.tileHeight / 2); // Offset for visual center
+        const dy = Math.abs(localPoint.y);
 
-        // Use strict diamond shape equation for hit testing
-        // A point is inside a diamond if the sum of its normalized coordinates is <= 1
-        const normalizedX = dx / (this.tileWidth / 2);
-        const normalizedY = dy / (this.tileHeight / 2);
-
-        return (normalizedX + normalizedY) <= 1;
+        // Use diamond equation for hit testing
+        // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
+        // where w and h are the full width and height
+        return (dx / this.tileWidth + dy / this.tileHeight) <= 0.5;
     }
 
     /**
@@ -303,20 +291,13 @@ export class IsometricTile extends Container {
             this.highlightGraphics = new PIXI.Graphics();
             world.selectionContainer.addChild(this.highlightGraphics);
 
-            // Position the highlight at the tile's world position
-            // Adjust position to center perfectly on the tile
-            // Move it further left to fix the remaining offset
-            this.highlightGraphics.x = this.x - this.tileWidth / 2;
+            // Position exactly at the tile's position without any offsets
+            this.highlightGraphics.x = this.x;
             this.highlightGraphics.y = this.y;
-
-            console.log(`Highlight position for tile (${this.gridX}, ${this.gridY}): x=${this.x} -> ${this.highlightGraphics.x}`);
         }
 
         this.drawHighlight(color, alpha);
         this.highlighted = true;
-
-        // Log highlight for debugging
-        console.log(`Highlighting tile at (${this.gridX}, ${this.gridY})`);
     }
 
     /**

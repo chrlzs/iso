@@ -1,6 +1,7 @@
 import { IsometricTile } from './IsometricTile.js';
 import { EntityPool } from '../utils/EntityPool.js';
 import { PIXI, Container } from '../utils/PixiWrapper.js';
+import { WorldConfig } from '../core/WorldConfig.js';
 
 /**
  * IsometricWorld - Manages the isometric game world
@@ -22,20 +23,17 @@ export class IsometricWorld extends Container {
         // Enable sortable children to control z-index
         this.sortableChildren = true;
 
-        // World dimensions
-        this.gridWidth = options.width || 32;
-        this.gridHeight = options.height || 32;
-
-        // Log world dimensions
-        console.log('IsometricWorld: Creating world with dimensions:', this.gridWidth, 'x', this.gridHeight);
-
-        // Tile dimensions
-        this.tileWidth = options.tileWidth || 64;
-        this.tileHeight = options.tileHeight || 32;
-
-        // Grid visualization offsets that match the debug grid
-        this.gridOffsetX = -64;
-        this.gridOffsetY = -64;
+        // Create world configuration
+        this.config = new WorldConfig({
+            width: options.width,
+            height: options.height,
+            tileWidth: options.tileWidth,
+            tileHeight: options.tileHeight,
+            cameraBoundsMinX: -5000,
+            cameraBoundsMinY: -5000,
+            cameraBoundsMaxX: 5000,
+            cameraBoundsMaxY: 5000
+        });
 
         // PixiJS application
         this.app = options.app;
@@ -43,9 +41,9 @@ export class IsometricWorld extends Container {
         // Game reference
         this.game = options.game;
 
-        // Create tile container with initial offset
+        // Create tile container with no offset
         this.tileContainer = new PIXI.Container();
-        this.tileContainer.position.set(this.gridOffsetX, this.gridOffsetY);
+        this.tileContainer.position.set(0, 0);
         this.addChild(this.tileContainer);
 
         // Create entity container
@@ -55,29 +53,19 @@ export class IsometricWorld extends Container {
         // Create UI container (on top)
         this.uiContainer = new PIXI.Container();
         this.addChild(this.uiContainer);
-
-        // Enable sortable children for the UI container
         this.uiContainer.sortableChildren = true;
-        // Set high z-index to ensure UI is always on top
         this.uiContainer.zIndex = 100;
 
-        // Debug grid overlay (only shown when debug is enabled)
-        // Create it as a separate container at the top level so it's always visible
+        // Debug grid overlay
         this.debugGridOverlay = new PIXI.Container();
         this.addChild(this.debugGridOverlay);
-        // Set an extremely high z-index to ensure it's drawn on top of everything
         this.debugGridOverlay.zIndex = 10000;
-        // Make it visible by default for debugging
         this.debugGridOverlay.visible = true;
-        console.log('Debug grid overlay created with visibility:', this.debugGridOverlay.visible);
 
-        // Create a special top-level container just for selection indicators
-        // This will be the absolute top layer
+        // Selection container
         this.selectionContainer = new PIXI.Container();
         this.addChild(this.selectionContainer);
-        this.selectionContainer.zIndex = 9999; // Extremely high z-index
-
-        // No cursor graphics needed with the new distance-based approach
+        this.selectionContainer.zIndex = 9999;
 
         // Create tile grid
         this.tiles = [];
@@ -91,32 +79,26 @@ export class IsometricWorld extends Container {
         // Active entities
         this.entities = new Set();
 
-        // Camera
+        // Camera with centered starting position
         this.camera = {
             x: 0,
             y: 0,
             zoom: 1,
             target: null,
-            bounds: {
-                minX: -5000,
-                minY: -5000,
-                maxX: 5000,
-                maxY: 5000
-            }
+            bounds: this.config.cameraBounds
         };
 
-        // Add direct click handling to the world container
+        // Add direct click handling
         this.interactive = true;
         this.on('pointerdown', this.handleDirectClick.bind(this));
 
-        // Center the container in the screen
+        // Center in screen
         if (this.app && this.app.screen) {
             this.position.set(
                 this.app.screen.width / 2,
                 this.app.screen.height / 2
             );
         } else {
-            // Fallback to window dimensions if app is not available
             this.position.set(
                 window.innerWidth / 2,
                 window.innerHeight / 2
@@ -125,10 +107,9 @@ export class IsometricWorld extends Container {
 
         // Initialize world
         this.initialize(options);
-
-        // Draw debug grid immediately
+        
+        // Draw debug grid
         this.drawDebugGrid();
-        console.log('Initial debug grid drawn');
     }
 
     /**
@@ -140,12 +121,12 @@ export class IsometricWorld extends Container {
         // Create empty tile grid
         this.createEmptyGrid();
 
-        // Create tile container with initial offset
-        this.tileContainer.position.set(this.gridOffsetX, this.gridOffsetY);
+        // Create tile container with no offset
+        this.tileContainer.position.set(0, 0);
 
-        // Set initial camera position to center of world, accounting for grid offsets
-        this.camera.x = (this.gridWidth * this.tileWidth) / 4; // Adjust to match new grid position
-        this.camera.y = (this.gridHeight * this.tileHeight) / 4;
+        // Set initial camera position to center of world
+        this.camera.x = (this.config.gridWidth * this.config.tileWidth) / 4;
+        this.camera.y = (this.config.gridHeight * this.config.tileHeight) / 4;
 
         // Apply camera position
         this.updateCamera();
@@ -162,15 +143,15 @@ export class IsometricWorld extends Container {
      * @private
      */
     createEmptyGrid() {
-        console.log('Creating empty grid with dimensions:', this.gridWidth, 'x', this.gridHeight);
+        console.log('Creating empty grid with dimensions:', this.config.gridWidth, 'x', this.config.gridHeight);
 
         // Initialize 2D array
-        this.tiles = new Array(this.gridWidth);
+        this.tiles = new Array(this.config.gridWidth);
 
-        for (let x = 0; x < this.gridWidth; x++) {
-            this.tiles[x] = new Array(this.gridHeight);
+        for (let x = 0; x < this.config.gridWidth; x++) {
+            this.tiles[x] = new Array(this.config.gridHeight);
 
-            for (let y = 0; y < this.gridHeight; y++) {
+            for (let y = 0; y < this.config.gridHeight; y++) {
                 this.tiles[x][y] = null;
             }
         }
@@ -187,7 +168,7 @@ export class IsometricWorld extends Container {
      */
     createTile(x, y, type, texture, options = {}) {
         // Check if position is valid
-        if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) {
+        if (x < 0 || x >= this.config.gridWidth || y < 0 || y >= this.config.gridHeight) {
             console.warn(`Tile position out of bounds: ${x}, ${y}`);
             return null;
         }
@@ -202,8 +183,8 @@ export class IsometricWorld extends Container {
             x: x,  // Explicitly use the provided grid coordinates
             y: y,  // Explicitly use the provided grid coordinates
             type,
-            width: this.tileWidth,
-            height: this.tileHeight,
+            width: this.config.tileWidth,
+            height: this.config.tileHeight,
             texture,
             world: this,
             game: this.game,
@@ -248,7 +229,7 @@ export class IsometricWorld extends Container {
      */
     removeTile(x, y) {
         // Check if position is valid
-        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+        if (x < 0 || x >= this.config.gridWidth || y < 0 || y >= this.config.gridHeight) {
             return;
         }
 
@@ -284,11 +265,11 @@ export class IsometricWorld extends Container {
         const gridY = Math.floor(y);
 
         // Check if position is valid
-        if (gridX < 0 || gridX >= this.gridWidth || gridY < 0 || gridY >= this.gridHeight) {
+        if (gridX < 0 || gridX >= this.config.gridWidth || gridY < 0 || gridY >= this.config.gridHeight) {
             // Only log warnings occasionally to reduce console spam
             // Use a random check to log only about 1% of the time for significant out-of-bounds
             // and 0.1% of the time for near-boundary cases
-            const isFarOutOfBounds = gridX < -5 || gridX >= this.gridWidth + 5 || gridY < -5 || gridY >= this.gridHeight + 5;
+            const isFarOutOfBounds = gridX < -5 || gridX >= this.config.gridWidth + 5 || gridY < -5 || gridY >= this.config.gridHeight + 5;
 
             if (isFarOutOfBounds && Math.random() < 0.01) {
                 console.warn(`Tile position significantly out of bounds: (${gridX}, ${gridY})`);
@@ -298,8 +279,8 @@ export class IsometricWorld extends Container {
             }
 
             // Try to find the nearest valid tile
-            const clampedX = Math.max(0, Math.min(this.gridWidth - 1, gridX));
-            const clampedY = Math.max(0, Math.min(this.gridHeight - 1, gridY));
+            const clampedX = Math.max(0, Math.min(this.config.gridWidth - 1, gridX));
+            const clampedY = Math.max(0, Math.min(this.config.gridHeight - 1, gridY));
 
             // If we're not too far out of bounds, return the nearest valid tile
             if (Math.abs(gridX - clampedX) <= 3 && Math.abs(gridY - clampedY) <= 3) {
@@ -438,107 +419,7 @@ export class IsometricWorld extends Container {
         const worldY = localY + this.camera.y;
 
         // Convert world coordinates to grid coordinates
-        const tileWidthHalf = this.tileWidth / 2;
-        const tileHeightHalf = this.tileHeight / 2;
-
-        // Adjust Y coordinate based on map offset
-        const adjustedY = worldY + (this.mapOffsetY || 0);
-
-        // Initial conversion to grid space
-        let gridY = (adjustedY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-        let gridX = (adjustedY / tileHeightHalf + worldX / tileWidthHalf) / 2;
-
-        // Calculate the fractional parts
-        const fracX = gridX - Math.floor(gridX);
-        const fracY = gridY - Math.floor(gridY);
-
-        // Round coordinates
-        const roundedX = Math.floor(gridX);
-        const roundedY = Math.floor(gridY);
-
-        // Strict boundary check
-        if (roundedX < 0 || roundedX >= this.gridWidth || 
-            roundedY < 0 || roundedY >= this.gridHeight) {
-            return { x: -1, y: -1 };
-        }
-
-        return { x: roundedX, y: roundedY };
-    }
-
-    /**
-     * Converts world coordinates to grid coordinates
-     * @param {number} worldX - World X coordinate
-     * @param {number} worldY - World Y coordinate
-     * @returns {Object} Grid coordinates {x, y}
-     */
-    worldToGrid(worldX, worldY) {
-        // Adjust world coordinates to remove grid offsets
-        const adjustedWorldX = worldX - this.gridOffsetX;
-        const adjustedWorldY = worldY - this.gridOffsetY;
-
-        // Convert to grid coordinates using standard isometric formula
-        const tileWidthHalf = this.tileWidth / 2;
-        const tileHeightHalf = this.tileHeight / 2;
-
-        let gridY = (adjustedWorldY / tileHeightHalf - adjustedWorldX / tileWidthHalf) / 2;
-        let gridX = (adjustedWorldY / tileHeightHalf + adjustedWorldX / tileWidthHalf) / 2;
-
-        return { x: Math.floor(gridX), y: Math.floor(gridY) };
-    }
-
-    /**
-     * Converts grid coordinates to screen coordinates
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate
-     * @param {number} elevation - Optional elevation (height) of the tile
-     * @returns {Object} Screen coordinates {x, y}
-     */
-    gridToScreen(gridX, gridY, elevation = 0) {
-        // Convert to isometric coordinates with offsets
-        const isoX = (gridX - gridY) * this.tileWidth / 2 + this.gridOffsetX;
-        const isoY = (gridX + gridY) * this.tileHeight / 2 + this.gridOffsetY - (elevation || 0);
-
-        // Adjust for camera position
-        const worldX = isoX - this.camera.x;
-        const worldY = isoY - this.camera.y;
-
-        return { x: worldX, y: worldY };
-    }
-
-    /**
-     * Converts screen coordinates to world coordinates
-     * @param {number} screenX - Screen X coordinate
-     * @param {number} screenY - Screen Y coordinate
-     * @returns {Object} World coordinates {x, y}
-     */
-    screenToWorld(screenX, screenY) {
-        // Calculate world coordinates relative to container
-        const localX = (screenX - this.position.x) / this.scale.x;
-        const localY = (screenY - this.position.y) / this.scale.y;
-
-        // Add camera offset and grid offsets to get world coordinates
-        const worldX = localX + this.camera.x + this.gridOffsetX;
-        const worldY = localY + this.camera.y + this.gridOffsetY;
-
-        return { x: worldX, y: worldY };
-    }
-
-    /**
-     * Converts world coordinates to screen coordinates
-     * @param {number} worldX - World X coordinate
-     * @param {number} worldY - World Y coordinate
-     * @returns {Object} Screen coordinates {x, y}
-     */
-    worldToScreen(worldX, worldY) {
-        // Subtract camera offset to get local coordinates
-        const localX = worldX - this.camera.x;
-        const localY = worldY - this.camera.y;
-
-        // Apply container position and scale to get screen coordinates
-        const screenX = localX * this.scale.x + this.position.x;
-        const screenY = localY * this.scale.y + this.position.y;
-
-        return { x: screenX, y: screenY };
+        return this.worldToGrid(worldX, worldY);
     }
 
     /**
@@ -548,12 +429,26 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Convert grid coordinates to world coordinates using the standard isometric formula
-        // Include the grid offsets in the calculation
-        const isoX = (gridX - gridY) * this.tileWidth / 2 + this.gridOffsetX;
-        const isoY = (gridX + gridY) * this.tileHeight / 2 + this.gridOffsetY;
+        return this.config.gridToWorld(gridX, gridY);
+    }
 
-        return { x: isoX, y: isoY };
+    /**
+     * Converts world coordinates to grid coordinates
+     * @param {number} worldX - World X coordinate
+     * @param {number} worldY - World Y coordinate
+     * @returns {Object} Grid coordinates {x, y}
+     */
+    worldToGrid(worldX, worldY) {
+        return this.config.worldToGrid(worldX, worldY);
+    }
+
+    /**
+     * Updates the coordinate system configuration
+     * @param {Object} config - New configuration
+     */
+    updateCoordinates(config) {
+        this.config.updateCoordinates(config);
+        this.drawDebugGrid();
     }
 
     /**
@@ -565,89 +460,48 @@ export class IsometricWorld extends Container {
     getTileAtScreen(screenX, screenY) {
         // Convert screen coordinates to local space
         const point = new PIXI.Point(screenX, screenY);
-        const localPoint = this.tileContainer.toLocal(point);
+        const localPoint = this.toLocal(point);
 
-        // Get approximate grid position
-        const tileWidthHalf = this.tileWidth / 2;
-        const tileHeightHalf = this.tileHeight / 2;
+        // Convert to grid coordinates using standard isometric formula
+        const tileWidthHalf = this.config.tileWidth / 2;
+        const tileHeightHalf = this.config.tileHeight / 2;
 
-        // Calculate grid coordinates using isometric formula
-        // Note: we don't floor these values yet as we need the fractional parts
-        const gridY = (localPoint.y / tileHeightHalf - localPoint.x / tileWidthHalf) / 2;
-        const gridX = (localPoint.y / tileHeightHalf + localPoint.x / tileWidthHalf) / 2;
-
-        // Get the fractional parts to determine exact position within tile
-        const fracX = gridX - Math.floor(gridX);
-        const fracY = gridY - Math.floor(gridY);
-
-        // Calculate exact grid coordinates
-        const baseGridX = Math.floor(gridX);
-        const baseGridY = Math.floor(gridY);
+        // Convert from isometric to grid coordinates
+        const gridY = Math.floor((localPoint.y / tileHeightHalf - localPoint.x / tileWidthHalf) / 2);
+        const gridX = Math.floor((localPoint.y / tileHeightHalf + localPoint.x / tileWidthHalf) / 2);
 
         // Early bounds check
-        if (baseGridX < 0 || baseGridX >= this.gridWidth || 
-            baseGridY < 0 || baseGridY >= this.gridHeight) {
+        if (gridX < 0 || gridX >= this.config.gridWidth || 
+            gridY < 0 || gridY >= this.config.gridHeight) {
             return null;
         }
 
-        // Calculate position within diamond tile
-        // In isometric space, this forms a diamond where:
-        // - fracX + fracY <= 1 is the lower right triangle
-        // - |fracX - fracY| <= 1 is the middle square
-        // - fracX + fracY >= 1 is the upper left triangle
-        const sum = fracX + fracY;
-        const diff = Math.abs(fracX - fracY);
-
-        // Get potential tiles to test
-        let tilesToTest = [];
-        
-        // Always test the base tile
-        const baseTile = this.getTile(baseGridX, baseGridY);
-        if (baseTile) {
-            tilesToTest.push({
-                tile: baseTile,
-                priority: 1
-            });
+        // Get the candidate tile
+        const tile = this.getTile(gridX, gridY);
+        if (!tile) {
+            return null;
         }
 
-        // Strictly validate position for edge tiles
-        if (baseGridY === this.gridHeight - 1) {
-            // On bottom row, only allow hits in the upper half of tiles
-            if (fracY > 0.5) {
-                return null;
+        // Use the tile's containsPoint method for precise hit detection
+        if (tile.containsPoint(point)) {
+            return tile;
+        }
+
+        // If the precise hit test fails, test neighboring tiles
+        const neighbors = [
+            this.getTile(gridX - 1, gridY),
+            this.getTile(gridX + 1, gridY),
+            this.getTile(gridX, gridY - 1),
+            this.getTile(gridX, gridY + 1)
+        ];
+
+        for (const neighbor of neighbors) {
+            if (neighbor && neighbor.containsPoint(point)) {
+                return neighbor;
             }
         }
 
-        // Test each potential tile with the diamond equation
-        const hits = [];
-        for (const testTile of tilesToTest) {
-            if (testTile.tile.containsPoint(point)) {
-                const center = testTile.tile.getCenter();
-                const dx = center.x - point.x;
-                const dy = center.y - point.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                hits.push({
-                    tile: testTile.tile,
-                    distance: distance,
-                    priority: testTile.priority
-                });
-            }
-        }
-
-        // If we found hits, return the closest one with highest priority
-        if (hits.length > 0) {
-            hits.sort((a, b) => {
-                // First sort by priority
-                if (a.priority !== b.priority) {
-                    return b.priority - a.priority;
-                }
-                // Then by distance
-                return a.distance - b.distance;
-            });
-            return hits[0].tile;
-        }
-
-        return null;
+        return tile; // Return the original tile if no precise hit was found
     }
 
     /**
@@ -794,11 +648,11 @@ export class IsometricWorld extends Container {
         // Merge options
         const genOptions = { ...defaultOptions, ...options };
 
-        console.log('World dimensions:', this.gridWidth, 'x', this.gridHeight);
+        console.log('World dimensions:', this.config.gridWidth, 'x', this.config.gridHeight);
 
         // Simple random generation for now
-        for (let x = 0; x < this.gridWidth; x++) {
-            for (let y = 0; y < this.gridHeight; y++) {
+        for (let x = 0; x < this.config.gridWidth; x++) {
+            for (let y = 0; y < this.config.gridHeight; y++) {
                 // Choose terrain type based on weights
                 const terrainType = this.weightedRandom(
                     genOptions.terrainTypes,
@@ -859,19 +713,19 @@ export class IsometricWorld extends Container {
 
         // Draw diamond shape
         graphics.beginFill(color);
-        graphics.moveTo(0, -this.tileHeight / 2);
-        graphics.lineTo(this.tileWidth / 2, 0);
-        graphics.lineTo(0, this.tileHeight / 2);
-        graphics.lineTo(-this.tileWidth / 2, 0);
+        graphics.moveTo(0, -this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.lineTo(-this.config.tileWidth / 2, 0);
         graphics.closePath();
         graphics.endFill();
 
         // Draw outline
         graphics.lineStyle(1, 0x000000, 0.3);
-        graphics.moveTo(0, -this.tileHeight / 2);
-        graphics.lineTo(this.tileWidth / 2, 0);
-        graphics.lineTo(0, this.tileHeight / 2);
-        graphics.lineTo(-this.tileWidth / 2, 0);
+        graphics.moveTo(0, -this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.lineTo(-this.config.tileWidth / 2, 0);
         graphics.closePath();
 
         // Generate texture
@@ -881,8 +735,8 @@ export class IsometricWorld extends Container {
             console.error('Cannot generate texture: app or renderer is not available');
             // Create a fallback texture
             const canvas = document.createElement('canvas');
-            canvas.width = this.tileWidth;
-            canvas.height = this.tileHeight;
+            canvas.width = this.config.tileWidth;
+            canvas.height = this.config.tileHeight;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
             ctx.beginPath();
@@ -927,8 +781,8 @@ export class IsometricWorld extends Container {
      */
     clearWorld() {
         // Remove all tiles
-        for (let x = 0; x < this.gridWidth; x++) {
-            for (let y = 0; y < this.gridHeight; y++) {
+        for (let x = 0; x < this.config.gridWidth; x++) {
+            for (let y = 0; y < this.config.gridHeight; y++) {
                 this.removeTile(x, y);
             }
         }
@@ -947,54 +801,15 @@ export class IsometricWorld extends Container {
      * @private
      */
     drawDebugGrid() {
-        // Remove all children (text labels, graphics, etc.)
-        while (this.debugGridOverlay.children.length > 0) {
-            this.debugGridOverlay.removeChildAt(0);
-        }
+        this.debugGridOverlay.removeChildren();
 
-        // Only draw if debug is enabled
-        if (!this.game || !this.game.options.debug) {
-            return;
-        }
+        const { gridWidth, gridHeight, tileWidth, tileHeight, gridOffsetX, gridOffsetY, gridScale } = this.config;
 
-        // Create a new graphics object for the grid lines
-        const gridLines = new PIXI.Graphics();
-        gridLines.lineStyle(2, 0xFF0000, 0.5);
-        this.debugGridOverlay.addChild(gridLines);
-
-        // Use the configurable grid offsets
-        const gridOffsetX = this.gridOffsetX;
-        const gridOffsetY = this.gridOffsetY;
-
-        // Draw grid lines using isometric coordinates directly
-        for (let x = 0; x <= this.gridWidth; x++) {
-            // Draw vertical grid lines
-            const startIsoX = (x - 0) * this.tileWidth / 2 + gridOffsetX;
-            const startIsoY = (x + 0) * this.tileHeight / 2 + gridOffsetY;
-            const endIsoX = (x - this.gridHeight) * this.tileWidth / 2 + gridOffsetX;
-            const endIsoY = (x + this.gridHeight) * this.tileHeight / 2 + gridOffsetY;
-            
-            gridLines.moveTo(startIsoX, startIsoY);
-            gridLines.lineTo(endIsoX, endIsoY);
-        }
-
-        for (let y = 0; y <= this.gridHeight; y++) {
-            // Draw horizontal grid lines
-            const startIsoX = (0 - y) * this.tileWidth / 2 + gridOffsetX;
-            const startIsoY = (0 + y) * this.tileHeight / 2 + gridOffsetY;
-            const endIsoX = (this.gridWidth - y) * this.tileWidth / 2 + gridOffsetX;
-            const endIsoY = (this.gridWidth + y) * this.tileHeight / 2 + gridOffsetY;
-            
-            gridLines.moveTo(startIsoX, startIsoY);
-            gridLines.lineTo(endIsoX, endIsoY);
-        }
-
-        // Draw grid intersections
-        for (let x = 0; x <= this.gridWidth; x += 1) {
-            for (let y = 0; y <= this.gridHeight; y += 1) {
-                // Calculate intersection position
-                const isoX = (x - y) * this.tileWidth / 2 + gridOffsetX;
-                const isoY = (x + y) * this.tileHeight / 2 + gridOffsetY;
+        for (let x = 0; x < gridWidth; x++) {
+            for (let y = 0; y < gridHeight; y++) {
+                const worldPos = this.gridToWorld(x, y);
+                const isoX = worldPos.x + gridOffsetX * gridScale;
+                const isoY = worldPos.y + gridOffsetY * gridScale;
 
                 // Draw a small dot at each intersection
                 const marker = new PIXI.Graphics();
@@ -1002,6 +817,7 @@ export class IsometricWorld extends Container {
                 marker.drawCircle(0, 0, 2);
                 marker.endFill();
                 marker.position.set(isoX, isoY);
+                marker.scale.set(gridScale);
                 this.debugGridOverlay.addChild(marker);
 
                 // Add larger markers at major intersections
@@ -1011,6 +827,7 @@ export class IsometricWorld extends Container {
                     majorMarker.drawCircle(0, 0, 4);
                     majorMarker.endFill();
                     majorMarker.position.set(isoX, isoY);
+                    majorMarker.scale.set(gridScale);
                     this.debugGridOverlay.addChild(majorMarker);
                 }
             }
@@ -1025,8 +842,8 @@ export class IsometricWorld extends Container {
         // Create an array of all tiles
         const allTiles = [];
 
-        for (let x = 0; x < this.gridWidth; x++) {
-            for (let y = 0; y < this.gridHeight; y++) {
+        for (let x = 0; x < this.config.gridWidth; x++) {
+            for (let y = 0; y < this.config.gridHeight; y++) {
                 const tile = this.getTile(x, y);
                 if (tile) {
                     allTiles.push(tile);
