@@ -405,11 +405,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update the coordinate system configuration through the world config
             game.world.updateCoordinates({
-                coordinateOffsetX: xOffset,
-                coordinateOffsetY: yOffset,
-                gridOffsetX: gridOffsetX,
-                gridOffsetY: gridOffsetY,
-                gridScale: gridScale
+                coordinateOffsetX: 0,
+                coordinateOffsetY: 0,
+                gridOffsetX: -32,
+                gridOffsetY: -16,
+                gridScale: 1.0
             });
 
             // Show success message
@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusMessage.textContent = '';
             }, 2000);
 
-            console.log(`Applied settings - Coords: X=${xOffset}, Y=${yOffset}, Grid: X=${gridOffsetX}, Y=${gridOffsetY}, Scale=${gridScale}`);
+            console.log(`Applied settings - Coords: X=0, Y=0, Grid: X=-32, Y=-16, Scale=1.0`);
         };
 
         // Apply calibration when button is clicked

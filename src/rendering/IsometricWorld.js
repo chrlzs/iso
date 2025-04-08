@@ -79,13 +79,18 @@ export class IsometricWorld extends Container {
         // Active entities
         this.entities = new Set();
 
-        // Camera with centered starting position
+        // Camera with centered starting position and bounds
         this.camera = {
             x: 0,
             y: 0,
             zoom: 1,
             target: null,
-            bounds: this.config.cameraBounds
+            bounds: {
+                minX: this.config.cameraBoundsMinX,
+                minY: this.config.cameraBoundsMinY,
+                maxX: this.config.cameraBoundsMaxX,
+                maxY: this.config.cameraBoundsMaxY
+            }
         };
 
         // Add direct click handling
@@ -254,10 +259,10 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTile(x, y) {
-        // Special case for (0,0) tile to ensure it can be highlighted
-        if (x === 0 && y === 0) {
-            console.log('Special handling for (0,0) tile');
-            return this.tiles[0][0];
+        // Handle NaN or undefined values
+        if (isNaN(x) || isNaN(y) || x === undefined || y === undefined) {
+            console.warn('Invalid coordinates passed to getTile:', x, y);
+            return null;
         }
 
         // Round coordinates to integers to handle floating point issues
@@ -266,31 +271,17 @@ export class IsometricWorld extends Container {
 
         // Check if position is valid
         if (gridX < 0 || gridX >= this.config.gridWidth || gridY < 0 || gridY >= this.config.gridHeight) {
-            // Only log warnings occasionally to reduce console spam
-            // Use a random check to log only about 1% of the time for significant out-of-bounds
-            // and 0.1% of the time for near-boundary cases
-            const isFarOutOfBounds = gridX < -5 || gridX >= this.config.gridWidth + 5 || gridY < -5 || gridY >= this.config.gridHeight + 5;
-
-            if (isFarOutOfBounds && Math.random() < 0.01) {
-                console.warn(`Tile position significantly out of bounds: (${gridX}, ${gridY})`);
-            } else if (!isFarOutOfBounds && Math.random() < 0.001) {
-                // For near-boundary cases, just log at debug level and even less frequently
-                console.log(`Tile position out of bounds: (${gridX}, ${gridY})`);
-            }
-
-            // Try to find the nearest valid tile
-            const clampedX = Math.max(0, Math.min(this.config.gridWidth - 1, gridX));
-            const clampedY = Math.max(0, Math.min(this.config.gridHeight - 1, gridY));
-
-            // If we're not too far out of bounds, return the nearest valid tile
-            if (Math.abs(gridX - clampedX) <= 3 && Math.abs(gridY - clampedY) <= 3) {
-                console.log(`Returning nearest valid tile at (${clampedX}, ${clampedY})`);
-                return this.tiles[clampedX][clampedY];
-            }
-
+            // Return null for invalid coordinates
             return null;
         }
 
+        // Ensure tiles array exists
+        if (!this.tiles || !this.tiles[gridX]) {
+            console.warn('Tiles array not properly initialized at position:', gridX, gridY);
+            return null;
+        }
+
+        // Get tile from grid
         return this.tiles[gridX][gridY];
     }
 

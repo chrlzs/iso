@@ -886,57 +886,89 @@ export class Game {
             }
         });
 
-        // Add to world
-        const centerX = Math.floor(this.world.gridWidth / 2);
-        const centerY = Math.floor(this.world.gridHeight / 2);
-        console.log('Player position:', centerX, centerY);
-        const tile = this.world.getTile(centerX, centerY);
+        // Place player in center of world
+        if (this.world) {
+            // Calculate center tile coordinates
+            const centerX = Math.floor(this.world.config.gridWidth / 2);
+            const centerY = Math.floor(this.world.config.gridHeight / 2);
+            console.log('Attempting to place player at center:', centerX, centerY);
 
-        if (tile) {
-            console.log('Found tile at center:', tile);
-            const center = tile.getCenter();
-            console.log('Tile center:', center);
-            player.x = center.x;
-            player.y = center.y;
-            player.gridX = centerX;
-            player.gridY = centerY;
+            // Get the center tile
+            const tile = this.world.getTile(centerX, centerY);
 
-            // Set world reference on player
-            player.world = this.world;
+            if (tile) {
+                console.log('Found valid center tile:', tile);
+                const center = tile.getCenter();
+                console.log('Tile center:', center);
 
-            // Add to world
-            this.world.entityContainer.addChild(player);
-            tile.addEntity(player);
-            console.log('Player added to world at position:', player.x, player.y);
+                // Set player position
+                player.x = center.x;
+                player.y = center.y;
+                player.gridX = centerX;
+                player.gridY = centerY;
 
-            // Set camera to follow player
-            this.world.setCameraTarget(player);
+                // Set world reference on player
+                player.world = this.world;
 
-            // Add some test items to inventory
-            const sword = new Item({
-                name: 'Iron Sword',
-                type: 'weapon',
-                subtype: 'sword',
-                rarity: 'uncommon',
-                value: 50,
-                equippable: true,
-                equipSlot: 'weapon',
-                stats: { damage: 10 }
-            });
+                // Add to world
+                this.world.entityContainer.addChild(player);
+                tile.addEntity(player);
+                console.log('Player added to world at position:', player.x, player.y);
 
-            const potion = new Item({
-                name: 'Health Potion',
-                type: 'potion',
-                subtype: 'health',
-                rarity: 'common',
-                value: 20,
-                stackable: true,
-                quantity: 5,
-                consumable: true
-            });
+                // Set camera to follow player
+                this.world.setCameraTarget(player);
 
-            player.inventory.addItem(sword);
-            player.inventory.addItem(potion);
+                // Add some test items to inventory
+                const sword = new Item({
+                    name: 'Iron Sword',
+                    type: 'weapon',
+                    subtype: 'sword',
+                    rarity: 'uncommon',
+                    value: 50,
+                    equippable: true,
+                    equipSlot: 'weapon',
+                    stats: { damage: 10 }
+                });
+
+                const potion = new Item({
+                    name: 'Health Potion',
+                    type: 'potion',
+                    subtype: 'health',
+                    rarity: 'common',
+                    value: 20,
+                    stackable: true,
+                    quantity: 5,
+                    consumable: true
+                });
+
+                player.inventory.addItem(sword);
+                player.inventory.addItem(potion);
+            } else {
+                console.error('Failed to find valid center tile at', centerX, centerY);
+                // Try to find any valid tile
+                for (let x = 0; x < this.world.config.gridWidth; x++) {
+                    for (let y = 0; y < this.world.config.gridHeight; y++) {
+                        const alternateTile = this.world.getTile(x, y);
+                        if (alternateTile && alternateTile.walkable) {
+                            console.log('Found alternate tile at', x, y);
+                            const center = alternateTile.getCenter();
+                            player.x = center.x;
+                            player.y = center.y;
+                            player.gridX = x;
+                            player.gridY = y;
+                            player.world = this.world;
+                            this.world.entityContainer.addChild(player);
+                            alternateTile.addEntity(player);
+                            this.world.setCameraTarget(player);
+                            break;
+                        }
+                    }
+                    if (player.world) break; // Stop if we found a tile
+                }
+                if (!player.world) {
+                    console.error('Could not find any valid tile to place player');
+                }
+            }
         }
 
         // Store player reference
