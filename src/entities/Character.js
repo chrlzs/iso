@@ -279,23 +279,33 @@ export class Character extends Entity {
 
                 // Update grid position
                 if (this.world) {
-                    // Use the world's coordinate system to get the grid position
+                    // Use the world's screenToGrid method to get the grid position
                     // This ensures we're using the correct coordinate transformation
-                    const worldX = this.x;
-                    const worldY = this.y;
+                    // that matches the gridToWorld method used for movement
 
-                    // Convert world coordinates to grid coordinates
-                    const tileWidthHalf = this.world.tileWidth / 2;
-                    const tileHeightHalf = this.world.tileHeight / 2;
+                    // First, convert our world position to screen coordinates
+                    const screenPos = this.world.worldToScreen(this.x, this.y);
 
-                    // Calculate grid coordinates using the isometric formula
-                    const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-                    const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+                    // Then use screenToGrid to get the grid coordinates
+                    const gridPos = this.world.screenToGrid(screenPos.x, screenPos.y);
 
-                    this.gridX = Math.floor(gridX);
-                    this.gridY = Math.floor(gridY);
+                    // Round to integers and clamp to valid grid range
+                    const gridX = Math.floor(gridPos.x);
+                    const gridY = Math.floor(gridPos.y);
+
+                    // Clamp to valid grid range
+                    this.gridX = Math.max(0, Math.min(this.world.gridWidth - 1, gridX));
+                    this.gridY = Math.max(0, Math.min(this.world.gridHeight - 1, gridY));
 
                     console.log(`Updated grid position to (${this.gridX}, ${this.gridY})`);
+                    console.log(`Original grid position: (${gridX}, ${gridY})`);
+                    console.log(`World position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+                    console.log(`Screen position: (${screenPos.x.toFixed(2)}, ${screenPos.y.toFixed(2)})`);
+
+                    // If we had to clamp the position, log a warning
+                    if (this.gridX !== gridX || this.gridY !== gridY) {
+                        console.warn(`Had to clamp character grid position from (${gridX}, ${gridY}) to (${this.gridX}, ${this.gridY})`);
+                    }
                 } else {
                     console.warn('Character has no world reference, cannot update grid position');
                 }

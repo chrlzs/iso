@@ -103,7 +103,7 @@ export class IsometricWorld extends Container {
         // Coordinate transformation offsets
         // These can be adjusted at runtime to calibrate the coordinate system
         this.coordinateOffsetX = 9; // Final calibrated value
-        this.coordinateOffsetY = 9; // Final calibrated value
+        this.coordinateOffsetY = 8; // Final calibrated value
 
         // Grid visualization offsets
         this.gridOffsetX = -65; // Working value based on testing
@@ -276,13 +276,38 @@ export class IsometricWorld extends Container {
             return this.tiles[0][0];
         }
 
+        // Round coordinates to integers to handle floating point issues
+        const gridX = Math.floor(x);
+        const gridY = Math.floor(y);
+
         // Check if position is valid
-        if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) {
-            console.warn(`Tile position out of bounds: (${x}, ${y})`);
+        if (gridX < 0 || gridX >= this.gridWidth || gridY < 0 || gridY >= this.gridHeight) {
+            // Only log warnings occasionally to reduce console spam
+            // Use a random check to log only about 1% of the time for significant out-of-bounds
+            // and 0.1% of the time for near-boundary cases
+            const isFarOutOfBounds = gridX < -5 || gridX >= this.gridWidth + 5 || gridY < -5 || gridY >= this.gridHeight + 5;
+
+            if (isFarOutOfBounds && Math.random() < 0.01) {
+                console.warn(`Tile position significantly out of bounds: (${gridX}, ${gridY})`);
+            } else if (!isFarOutOfBounds && Math.random() < 0.001) {
+                // For near-boundary cases, just log at debug level and even less frequently
+                console.log(`Tile position out of bounds: (${gridX}, ${gridY})`);
+            }
+
+            // Try to find the nearest valid tile
+            const clampedX = Math.max(0, Math.min(this.gridWidth - 1, gridX));
+            const clampedY = Math.max(0, Math.min(this.gridHeight - 1, gridY));
+
+            // If we're not too far out of bounds, return the nearest valid tile
+            if (Math.abs(gridX - clampedX) <= 3 && Math.abs(gridY - clampedY) <= 3) {
+                console.log(`Returning nearest valid tile at (${clampedX}, ${clampedY})`);
+                return this.tiles[clampedX][clampedY];
+            }
+
             return null;
         }
 
-        return this.tiles[x][y];
+        return this.tiles[gridX][gridY];
     }
 
     /**
@@ -403,30 +428,48 @@ export class IsometricWorld extends Container {
      */
     screenToGrid(screenX, screenY, elevation = 0) {
         // Convert screen coordinates to world coordinates
-        const containerX = this.position.x;
-        const containerY = this.position.y;
+        const worldPos = this.screenToWorld(screenX, screenY);
+        const worldX = worldPos.x;
+        const worldY = worldPos.y;
 
-        // Calculate world coordinates relative to container
-        const localX = (screenX - containerX) / this.scale.x;
-        const localY = (screenY - containerY) / this.scale.y;
+        // Log the conversion steps
+        if (Math.random() < 0.01) { // Only log occasionally to reduce spam
+            console.log(`Screen (${screenX}, ${screenY}) -> World (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`);
+        }
 
-        // Add camera offset to get world coordinates
-        const worldX = localX + this.camera.x;
-        const worldY = localY + this.camera.y;
+        // Convert world coordinates to grid coordinates
+        const gridPos = this.worldToGrid(worldX, worldY);
 
-        console.log(`Screen (${screenX}, ${screenY}) -> Local (${localX.toFixed(2)}, ${localY.toFixed(2)}) -> World (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`);
+        // Special case for coordinates very close to (0,0)
+        // This helps with selecting the (0,0) tile which can be tricky in isometric view
+        if (Math.abs(gridPos.x) <= 1.5 && Math.abs(gridPos.y) <= 1.5) {
+            if (Math.random() < 0.01) { // Only log occasionally
+                console.log('Coordinates very close to (0,0), snapping to origin');
+            }
+            return { x: 0, y: 0 };
+        }
 
+        return gridPos;
+    }
+
+    /**
+     * Converts world coordinates to grid coordinates
+     * @param {number} worldX - World X coordinate
+     * @param {number} worldY - World Y coordinate
+     * @returns {Object} Grid coordinates {x, y}
+     */
+    worldToGrid(worldX, worldY) {
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // Calculate grid coordinates using the correct isometric formula
+        // Calculate grid coordinates using the isometric formula
         const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
         const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Use dynamic coordinate offsets that can be adjusted at runtime
-        // Default values are 6 and 7 based on testing
-        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 6;
-        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 7;
+        // Apply the fixed offset correction
+        // These values should be calibrated for your specific grid
+        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 9;
+        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 8;
 
         const correctedX = gridX - offsetX;
         const correctedY = gridY - offsetY;
@@ -435,13 +478,8 @@ export class IsometricWorld extends Container {
         const roundedX = Math.floor(correctedX);
         const roundedY = Math.floor(correctedY);
 
-        console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Corrected (${correctedX.toFixed(2)}, ${correctedY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
-
-        // Special case for coordinates very close to (0,0)
-        // This helps with selecting the (0,0) tile which can be tricky in isometric view
-        if (Math.abs(roundedX) <= 0.5 && Math.abs(roundedY) <= 0.5) {
-            console.log('Coordinates very close to (0,0), snapping to origin');
-            return { x: 0, y: 0 };
+        if (Math.random() < 0.01) { // Only log occasionally
+            console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Corrected (${correctedX.toFixed(2)}, ${correctedY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
         }
 
         return {
@@ -465,6 +503,24 @@ export class IsometricWorld extends Container {
         // Adjust for camera position
         const worldX = isoX - this.camera.x;
         const worldY = isoY - this.camera.y;
+
+        return { x: worldX, y: worldY };
+    }
+
+    /**
+     * Converts screen coordinates to world coordinates
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @returns {Object} World coordinates {x, y}
+     */
+    screenToWorld(screenX, screenY) {
+        // Calculate world coordinates relative to container
+        const localX = (screenX - this.position.x) / this.scale.x;
+        const localY = (screenY - this.position.y) / this.scale.y;
+
+        // Add camera offset to get world coordinates
+        const worldX = localX + this.camera.x;
+        const worldY = localY + this.camera.y;
 
         return { x: worldX, y: worldY };
     }
@@ -498,10 +554,10 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Use dynamic coordinate offsets that can be adjusted at runtime
-        // Default values are 6 and 7 based on testing
-        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 6;
-        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 7;
+        // Apply the fixed offset correction
+        // These values should be calibrated for your specific grid
+        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 9;
+        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 8;
 
         const correctedX = gridX + offsetX;
         const correctedY = gridY + offsetY;
@@ -510,7 +566,9 @@ export class IsometricWorld extends Container {
         const isoX = (correctedX - correctedY) * this.tileWidth / 2;
         const isoY = (correctedX + correctedY) * this.tileHeight / 2;
 
-        console.log(`Grid (${gridX}, ${gridY}) -> Corrected (${correctedX}, ${correctedY}) -> World (${isoX.toFixed(2)}, ${isoY.toFixed(2)})`);
+        if (Math.random() < 0.01) { // Only log occasionally
+            console.log(`Grid (${gridX}, ${gridY}) -> Corrected (${correctedX}, ${correctedY}) -> World (${isoX.toFixed(2)}, ${isoY.toFixed(2)})`);
+        }
 
         return { x: isoX, y: isoY };
     }
@@ -522,21 +580,50 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTileAtScreen(screenX, screenY) {
+        // Special case for clicks near the origin (0,0) tile
+        // This helps with selecting the (0,0) tile which can be tricky in isometric view
+        const worldPos = this.screenToWorld(screenX, screenY);
+        const originPos = this.gridToWorld(0, 0);
+        const distance = Math.sqrt(
+            Math.pow(worldPos.x - originPos.x, 2) +
+            Math.pow(worldPos.y - originPos.y, 2)
+        );
+
+        // If click is very close to the (0,0) tile, return it directly
+        // Use a larger threshold to make it easier to select
+        if (distance < this.tileWidth * 1.5) {
+            console.log('Click detected near (0,0) tile, returning it directly');
+            console.log('Distance to (0,0):', distance, 'Threshold:', this.tileWidth * 1.5);
+            return this.getTile(0, 0);
+        }
+
         // Convert screen coordinates to grid coordinates
         const gridCoords = this.screenToGrid(screenX, screenY);
 
         // Get the tile at the calculated grid coordinates
         const tile = this.getTile(gridCoords.x, gridCoords.y);
 
-        // Log for debugging
-        console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridCoords.x}, ${gridCoords.y})`);
+        // Only log detailed debugging info occasionally to reduce console spam
+        // Use a random check to log only about 1% of the time
+        const shouldLog = Math.random() < 0.01;
 
-        if (tile) {
-            console.log(`Found tile with stored grid position: (${tile.gridX}, ${tile.gridY})`);
+        if (shouldLog) {
+            console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridCoords.x}, ${gridCoords.y})`);
 
-            // Check if there's a mismatch between calculated and stored grid positions
-            if (tile.gridX !== gridCoords.x || tile.gridY !== gridCoords.y) {
-                console.warn(`COORDINATE MISMATCH: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
+            if (tile) {
+                console.log(`Found tile with stored grid position: (${tile.gridX}, ${tile.gridY})`);
+
+                // Check if there's a mismatch between calculated and stored grid positions
+                if (tile.gridX !== Math.floor(gridCoords.x) || tile.gridY !== Math.floor(gridCoords.y)) {
+                    // Only warn if the mismatch is significant (more than rounding error)
+                    if (Math.abs(tile.gridX - gridCoords.x) > 1 || Math.abs(tile.gridY - gridCoords.y) > 1) {
+                        console.warn(`COORDINATE MISMATCH: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
+                    } else {
+                        console.log(`Minor coordinate difference: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
+                    }
+                }
+            } else {
+                console.log(`No tile found at grid coordinates (${gridCoords.x}, ${gridCoords.y})`);
             }
         }
 

@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calibrationPanel.appendChild(coordSection);
 
         const xOffsetInput = createControl('X Offset:', 'number', '9', null, null, '1', coordSection);
-        const yOffsetInput = createControl('Y Offset:', 'number', '9', null, null, '1', coordSection);
+        const yOffsetInput = createControl('Y Offset:', 'number', '8', null, null, '1', coordSection);
 
         // Grid Visualization Section
         const gridSection = createSection('Grid Visualization');
@@ -245,10 +245,71 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Add some preset configurations
-        createPresetButton('Final', '9', '9', '-65', '-65', '1.0');
-        createPresetButton('Previous', '9', '10', '-65', '-65', '1.0');
+        createPresetButton('Final', '9', '8', '-65', '-65', '1.0');
+        createPresetButton('Previous', '9', '9', '-65', '-65', '1.0');
         createPresetButton('Original', '10', '11', '-65', '-65', '1.0');
         createPresetButton('Default', '6', '7', '0', '0', '1.0');
+
+        // Add a special button to highlight the (0,0) tile
+        const highlightZeroButton = document.createElement('button');
+        highlightZeroButton.textContent = 'Highlight (0,0)';
+        highlightZeroButton.style.padding = '8px 15px';
+        highlightZeroButton.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
+        highlightZeroButton.style.color = 'white';
+        highlightZeroButton.style.border = 'none';
+        highlightZeroButton.style.borderRadius = '4px';
+        highlightZeroButton.style.cursor = 'pointer';
+        highlightZeroButton.style.marginTop = '10px';
+        highlightZeroButton.style.width = '100%';
+        presetsSection.appendChild(highlightZeroButton);
+
+        // Add event listener to highlight the (0,0) tile
+        highlightZeroButton.addEventListener('click', () => {
+            // Force highlight the (0,0) tile
+            const zeroTile = game.world.getTile(0, 0);
+            if (zeroTile) {
+                // Create a temporary highlight effect
+                const highlight = new PIXI.Graphics();
+                highlight.beginFill(0xFF9900, 0.5);
+                highlight.drawRect(-game.world.tileWidth/2, -game.world.tileHeight/2,
+                                 game.world.tileWidth, game.world.tileHeight);
+                highlight.endFill();
+                highlight.position.set(zeroTile.x, zeroTile.y);
+                game.world.debugGridOverlay.addChild(highlight);
+
+                // Add a text label
+                const text = new PIXI.Text('(0,0)', {
+                    fontFamily: 'Arial',
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    fill: 0xFFFFFF,
+                    stroke: 0x000000,
+                    strokeThickness: 4,
+                    align: 'center'
+                });
+                text.position.set(zeroTile.x, zeroTile.y - 30);
+                text.anchor.set(0.5, 0.5);
+                game.world.debugGridOverlay.addChild(text);
+
+                // Log the tile position
+                console.log('Zero tile position:', zeroTile.x, zeroTile.y);
+                console.log('Zero tile grid coordinates:', zeroTile.gridX, zeroTile.gridY);
+
+                // Show success message
+                statusMessage.textContent = 'Highlighted (0,0) tile!';
+                statusMessage.style.color = '#FFAA00';
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                }, 2000);
+            } else {
+                console.error('Could not find the (0,0) tile!');
+                statusMessage.textContent = 'Error: Could not find (0,0) tile';
+                statusMessage.style.color = '#FF0000';
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                }, 2000);
+            }
+        });
 
         // Action buttons section
         const actionsSection = createSection('Actions');
@@ -356,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset to defaults
         resetButton.addEventListener('click', () => {
             xOffsetInput.value = '9';
-            yOffsetInput.value = '9';
+            yOffsetInput.value = '8';
             gridOffsetXInput.value = '-65';
             gridOffsetYInput.value = '-65';
             gridScaleInput.value = '1.0';
