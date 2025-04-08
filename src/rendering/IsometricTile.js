@@ -577,4 +577,50 @@ export class IsometricTile extends Container {
         // Destroy container
         this.destroy({ children: true });
     }
+
+    /**
+     * Checks if a point is inside this tile
+     * @param {PIXI.Point} point - The point to check in local coordinates
+     * @returns {boolean} True if the point is inside the tile
+     */
+    containsPoint(point) {
+        // Get the point relative to the tile's position
+        const relX = point.x - this.x;
+        const relY = point.y - this.y;
+
+        // For an isometric tile, we need to check if the point is inside the diamond shape
+        // We can do this by checking if the point is inside the four triangles that make up the diamond
+
+        // The four corners of the diamond
+        const top = { x: 0, y: -this.tileHeight / 2 };
+        const right = { x: this.tileWidth / 2, y: 0 };
+        const bottom = { x: 0, y: this.tileHeight / 2 };
+        const left = { x: -this.tileWidth / 2, y: 0 };
+
+        // Check if the point is inside the diamond by checking if it's on the same side of all four edges
+        const edge1 = this.pointOnSameSide(relX, relY, top, right, bottom);
+        const edge2 = this.pointOnSameSide(relX, relY, right, bottom, left);
+        const edge3 = this.pointOnSameSide(relX, relY, bottom, left, top);
+        const edge4 = this.pointOnSameSide(relX, relY, left, top, right);
+
+        return edge1 && edge2 && edge3 && edge4;
+    }
+
+    /**
+     * Helper method to check if a point is on the same side of a line as a reference point
+     * @param {number} px - X coordinate of the point to check
+     * @param {number} py - Y coordinate of the point to check
+     * @param {Object} lineStart - Start point of the line
+     * @param {Object} lineEnd - End point of the line
+     * @param {Object} ref - Reference point
+     * @returns {boolean} True if the point is on the same side of the line as the reference point
+     */
+    pointOnSameSide(px, py, lineStart, lineEnd, ref) {
+        // Calculate the cross product to determine which side of the line the point is on
+        const line1 = (lineEnd.x - lineStart.x) * (py - lineStart.y) - (lineEnd.y - lineStart.y) * (px - lineStart.x);
+        const line2 = (lineEnd.x - lineStart.x) * (ref.y - lineStart.y) - (lineEnd.y - lineStart.y) * (ref.x - lineStart.x);
+
+        // If the signs are the same, the point is on the same side of the line as the reference point
+        return (line1 >= 0 && line2 >= 0) || (line1 <= 0 && line2 <= 0);
+    }
 }

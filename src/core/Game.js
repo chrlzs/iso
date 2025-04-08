@@ -253,26 +253,8 @@ export class Game {
         this.input.mouse.x = x;
         this.input.mouse.y = y;
 
-        // Check if mouse is in a valid area before trying to get a tile
-        // Convert screen coordinates to world coordinates
-        const worldPos = this.world.screenToWorld(x, y);
-
-        // Convert world coordinates to grid coordinates (without applying offsets)
-        const tileWidthHalf = this.world.tileWidth / 2;
-        const tileHeightHalf = this.world.tileHeight / 2;
-        const gridY = (worldPos.y / tileHeightHalf - worldPos.x / tileWidthHalf) / 2;
-        const gridX = (worldPos.y / tileHeightHalf + worldPos.x / tileWidthHalf) / 2;
-
-        // Quick check if we're likely to be in bounds (with some margin)
-        const margin = 5;
-        const likelyInBounds =
-            gridX >= -margin &&
-            gridX < this.world.gridWidth + margin &&
-            gridY >= -margin &&
-            gridY < this.world.gridHeight + margin;
-
-        // Only try to get a tile if we're likely to be in bounds
-        const tile = likelyInBounds ? this.world.getTileAtScreen(x, y) : null;
+        // Get the tile at the mouse position using hit testing
+        const tile = this.world.getTileAtScreen(x, y);
 
         // Debug info
         if (this.options.debug) {
@@ -295,11 +277,10 @@ export class Game {
 
             const mouseInfo = document.getElementById('debug-mouse');
             if (mouseInfo) {
-                if (likelyInBounds) {
-                    const tileInfo = tile ? `Tile: (${tile.gridX}, ${tile.gridY}) Type: ${tile.type}` : 'No tile';
-                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | ${tileInfo}`;
+                if (tile) {
+                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | Tile: (${tile.gridX}, ${tile.gridY}) Type: ${tile.type}`;
                 } else {
-                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | Out of bounds | Approx: (${Math.floor(gridX)}, ${Math.floor(gridY)})`;
+                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | No tile under cursor`;
                 }
             }
         }
