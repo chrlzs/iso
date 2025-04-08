@@ -262,7 +262,7 @@ export class IsometricTile extends Container {
     /**
      * Highlights the tile
      * @param {number} color - Highlight color (default: 0xFFFF00)
-     * @param {number} alpha - Highlight alpha (default: 0.5)
+     * @param {number} alpha - Highlight alpha (default: 0.7)
      */
     highlight(color = 0xFFFF00, alpha = 0.7) {
         // Strict boundary check - don't highlight if outside world bounds
@@ -291,9 +291,9 @@ export class IsometricTile extends Container {
             this.highlightGraphics = new PIXI.Graphics();
             world.selectionContainer.addChild(this.highlightGraphics);
 
-            // Position exactly at the tile's position without any offsets
+            // Position at the tile's position, accounting for elevation and centering
             this.highlightGraphics.x = this.x;
-            this.highlightGraphics.y = this.y;
+            this.highlightGraphics.y = this.y - (this.elevation || 0);
         }
 
         this.drawHighlight(color, alpha);
@@ -309,27 +309,22 @@ export class IsometricTile extends Container {
     drawHighlight(color, alpha) {
         this.highlightGraphics.clear();
 
-        // Draw filled diamond with transparency
+        // Draw filled diamond with transparency, properly centered on the tile
         this.highlightGraphics.beginFill(color, alpha);
-        this.highlightGraphics.moveTo(0, -this.tileHeight / 2);
-        this.highlightGraphics.lineTo(this.tileWidth / 2, 0);
-        this.highlightGraphics.lineTo(0, this.tileHeight / 2);
-        this.highlightGraphics.lineTo(-this.tileWidth / 2, 0);
+        this.highlightGraphics.moveTo(0, 0); // Top
+        this.highlightGraphics.lineTo(this.tileWidth / 2, this.tileHeight / 2); // Right
+        this.highlightGraphics.lineTo(0, this.tileHeight); // Bottom
+        this.highlightGraphics.lineTo(-this.tileWidth / 2, this.tileHeight / 2); // Left
         this.highlightGraphics.closePath();
         this.highlightGraphics.endFill();
 
         // Draw outline for better visibility
         this.highlightGraphics.lineStyle(2, color, 1);
-        this.highlightGraphics.moveTo(0, -this.tileHeight / 2);
-        this.highlightGraphics.lineTo(this.tileWidth / 2, 0);
-        this.highlightGraphics.lineTo(0, this.tileHeight / 2);
-        this.highlightGraphics.lineTo(-this.tileWidth / 2, 0);
+        this.highlightGraphics.moveTo(0, 0);
+        this.highlightGraphics.lineTo(this.tileWidth / 2, this.tileHeight / 2);
+        this.highlightGraphics.lineTo(0, this.tileHeight);
+        this.highlightGraphics.lineTo(-this.tileWidth / 2, this.tileHeight / 2);
         this.highlightGraphics.closePath();
-
-        // Add a pulsing effect to make it more visible
-        const pulseTime = Date.now() / 500;
-        const pulseScale = 1.0 + 0.1 * Math.sin(pulseTime);
-        this.highlightGraphics.scale.set(pulseScale, pulseScale);
     }
 
     /**

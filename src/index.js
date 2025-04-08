@@ -463,8 +463,12 @@ document.addEventListener('DOMContentLoaded', () => {
         coordContainer.style.width = '100%';
         coordContainer.style.height = '100%';
         coordContainer.style.pointerEvents = 'none';
-        coordContainer.style.display = 'none';
+        coordContainer.style.display = 'block'; // Show coordinates by default
         document.getElementById('game-container').appendChild(coordContainer);
+
+        // Set initial button state to active
+        toggleButton.textContent = 'C✓';
+        toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.5)';
 
         // Toggle coordinate display
         toggleButton.addEventListener('click', () => {
@@ -519,6 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        // Initial coordinate update
+        updateCoordinates();
 
         // Update coordinates periodically instead of on every camera update
         // This is more efficient and less intrusive
