@@ -33,6 +33,13 @@ export class IsometricWorld extends Container {
         this.tileWidth = options.tileWidth || 64;
         this.tileHeight = options.tileHeight || 32;
 
+        // Grid visualization offsets that match the debug grid
+        this.gridOffsetX = -64;
+        this.gridOffsetY = -64;
+
+        // Position the entire map down by half a tile to compensate for the grid shift
+        this.mapOffsetY = this.tileHeight / 2;
+
         // PixiJS application
         this.app = options.app;
 
@@ -99,11 +106,6 @@ export class IsometricWorld extends Container {
                 maxY: 5000
             }
         };
-
-        // Grid visualization offsets
-        this.gridOffsetX = 0; // Working value based on testing
-        this.gridOffsetY = -32; // Working value based on testing
-        this.gridScale = 1.0; // Scale factor for the grid
 
         // Add direct click handling to the world container
         this.interactive = true;
@@ -426,29 +428,38 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     screenToGrid(screenX, screenY) {
-        // STEP 1: Convert screen coordinates to local coordinates (relative to the container)
+        // Convert screen coordinates to local coordinates
         const localX = (screenX - this.position.x) / this.scale.x;
         const localY = (screenY - this.position.y) / this.scale.y;
 
-        // STEP 2: Add camera offset to get world coordinates
+        // Add camera offset to get world coordinates
         const worldX = localX + this.camera.x;
         const worldY = localY + this.camera.y;
 
-        // STEP 3: Convert world coordinates to grid coordinates using the standard isometric formula
+        // Convert world coordinates to grid coordinates
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // This is the standard formula for isometric projection
-        let gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-        let gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+        // Adjust Y coordinate based on map offset
+        const adjustedY = worldY + (this.mapOffsetY || 0);
 
-        // STEP 4: Round to get integer grid coordinates
+        // Initial conversion to grid space
+        let gridY = (adjustedY / tileHeightHalf - worldX / tileWidthHalf) / 2;
+        let gridX = (adjustedY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+
+        // Calculate the fractional parts
+        const fracX = gridX - Math.floor(gridX);
+        const fracY = gridY - Math.floor(gridY);
+
+        // Round coordinates
         const roundedX = Math.floor(gridX);
         const roundedY = Math.floor(gridY);
 
-        // Log the transformation steps for debugging
-        console.log(`Screen (${screenX.toFixed(0)}, ${screenY.toFixed(0)}) -> Local (${localX.toFixed(0)}, ${localY.toFixed(0)}) -> World (${worldX.toFixed(0)}, ${worldY.toFixed(0)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
-        console.log(`Camera: (${this.camera.x.toFixed(0)}, ${this.camera.y.toFixed(0)})`);
+        // Strict boundary check
+        if (roundedX < 0 || roundedX >= this.gridWidth || 
+            roundedY < 0 || roundedY >= this.gridHeight) {
+            return { x: -1, y: -1 };
+        }
 
         return { x: roundedX, y: roundedY };
     }
@@ -460,15 +471,18 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     worldToGrid(worldX, worldY) {
-        // STEP 1: Convert world coordinates to grid coordinates using the standard isometric formula
+        // Convert world coordinates to grid coordinates using the standard isometric formula
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // This is the standard formula for isometric projection
-        let gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-        let gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+        // Add the tile height back for SE tiles to compensate for the offset
+        const adjustedY = worldY + (this.mapOffsetY || 0);
 
-        // STEP 2: Round to get integer grid coordinates
+        // Standard formula for isometric projection
+        let gridY = (adjustedY / tileHeightHalf - worldX / tileWidthHalf) / 2;
+        let gridX = (adjustedY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+
+        // Round to get integer grid coordinates
         const roundedX = Math.floor(gridX);
         const roundedY = Math.floor(gridY);
 
@@ -537,10 +551,10 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // STEP 1: Convert grid coordinates to world coordinates using the standard isometric formula
-        // This is the inverse of the formula used in worldToGrid
-        const isoX = (gridX - gridY) * this.tileWidth / 2;
-        const isoY = (gridX + gridY) * this.tileHeight / 2;
+        // Convert grid coordinates to world coordinates using the standard isometric formula
+        // Include the grid offsets in the calculation
+        const isoX = (gridX - gridY) * this.tileWidth / 2 + this.gridOffsetX;
+        const isoY = (gridX + gridY) * this.tileHeight / 2 + this.gridOffsetY;
 
         return { x: isoX, y: isoY };
     }
@@ -552,31 +566,88 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTileAtScreen(screenX, screenY) {
-        // Use PIXI's built-in hit testing to find the tile under the mouse
-        // This is much more reliable than mathematical transformations
+        // Convert screen coordinates to local space
         const point = new PIXI.Point(screenX, screenY);
-
-        // Convert the point to the local coordinate space of the tile container
         const localPoint = this.tileContainer.toLocal(point);
 
-        // Find all tiles that contain this point
-        const hitTiles = [];
+        // Get approximate grid position
+        const tileWidthHalf = this.tileWidth / 2;
+        const tileHeightHalf = this.tileHeight / 2;
 
-        // Iterate through all tiles to find those that contain the point
-        for (let x = 0; x < this.gridWidth; x++) {
-            for (let y = 0; y < this.gridHeight; y++) {
-                const tile = this.getTile(x, y);
-                if (tile && tile.containsPoint(localPoint)) {
-                    hitTiles.push(tile);
-                }
+        // Calculate grid coordinates using isometric formula
+        // Note: we don't floor these values yet as we need the fractional parts
+        const gridY = (localPoint.y / tileHeightHalf - localPoint.x / tileWidthHalf) / 2;
+        const gridX = (localPoint.y / tileHeightHalf + localPoint.x / tileWidthHalf) / 2;
+
+        // Get the fractional parts to determine exact position within tile
+        const fracX = gridX - Math.floor(gridX);
+        const fracY = gridY - Math.floor(gridY);
+
+        // Calculate exact grid coordinates
+        const baseGridX = Math.floor(gridX);
+        const baseGridY = Math.floor(gridY);
+
+        // Early bounds check
+        if (baseGridX < 0 || baseGridX >= this.gridWidth || 
+            baseGridY < 0 || baseGridY >= this.gridHeight) {
+            return null;
+        }
+
+        // Calculate position within diamond tile
+        // In isometric space, this forms a diamond where:
+        // - fracX + fracY <= 1 is the lower right triangle
+        // - |fracX - fracY| <= 1 is the middle square
+        // - fracX + fracY >= 1 is the upper left triangle
+        const sum = fracX + fracY;
+        const diff = Math.abs(fracX - fracY);
+
+        // Get potential tiles to test
+        let tilesToTest = [];
+        
+        // Always test the base tile
+        const baseTile = this.getTile(baseGridX, baseGridY);
+        if (baseTile) {
+            tilesToTest.push({
+                tile: baseTile,
+                priority: 1
+            });
+        }
+
+        // Strictly validate position for edge tiles
+        if (baseGridY === this.gridHeight - 1) {
+            // On bottom row, only allow hits in the upper half of tiles
+            if (fracY > 0.5) {
+                return null;
             }
         }
 
-        // If we found any tiles, return the one with the highest y-coordinate (frontmost)
-        if (hitTiles.length > 0) {
-            // Sort by y-coordinate (higher y means closer to the front in isometric view)
-            hitTiles.sort((a, b) => b.gridY - a.gridY);
-            return hitTiles[0];
+        // Test each potential tile with the diamond equation
+        const hits = [];
+        for (const testTile of tilesToTest) {
+            if (testTile.tile.containsPoint(point)) {
+                const center = testTile.tile.getCenter();
+                const dx = center.x - point.x;
+                const dy = center.y - point.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                hits.push({
+                    tile: testTile.tile,
+                    distance: distance,
+                    priority: testTile.priority
+                });
+            }
+        }
+
+        // If we found hits, return the closest one with highest priority
+        if (hits.length > 0) {
+            hits.sort((a, b) => {
+                // First sort by priority
+                if (a.priority !== b.priority) {
+                    return b.priority - a.priority;
+                }
+                // Then by distance
+                return a.distance - b.distance;
+            });
+            return hits[0].tile;
         }
 
         return null;

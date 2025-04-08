@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Isometric Game</title>
   <style>
     body {
@@ -41,6 +44,18 @@
       border-radius: 3px;
       z-index: 1000;
     }
+    #version-info {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: monospace;
+      font-size: 12px;
+      background-color: rgba(0, 0, 0, 0.3);
+      padding: 5px;
+      border-radius: 3px;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -48,11 +63,12 @@
     <div id="loading">Loading game...</div>
   </div>
   <div id="fps-counter">FPS: 0</div>
+  <div id="version-info">v1.0.0</div>
 
   <!-- Load PIXI.js -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
 
   <!-- Load our game -->
-  <script type="module" src="/src/index.js"></script>
+  <script type="module" src="/src/index.js?v=1.0.0"></script>
 </body>
 </html>

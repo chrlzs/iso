@@ -246,8 +246,6 @@ export class Structure extends Entity {
         return true;
     }
 
-
-
     /**
      * Checks if the structure can be placed at the specified position
      * @param {IsometricWorld} world - The world to check
@@ -256,19 +254,35 @@ export class Structure extends Entity {
      * @returns {boolean} Whether the structure can be placed
      */
     canPlaceAt(world, gridX, gridY) {
-        // Check if the position is valid
+        // Strict boundary check for entire structure footprint
         if (gridX < 0 || gridX + this.gridWidth > world.gridWidth ||
             gridY < 0 || gridY + this.gridHeight > world.gridHeight) {
+            console.log(`Structure placement out of bounds at (${gridX}, ${gridY})`);
             return false;
         }
 
-        // Check if all tiles are available
+        // Special check for bottom row to prevent phantom structure placement
+        if (gridY + this.gridHeight > world.gridHeight) {
+            console.log(`Structure would extend beyond world bounds at (${gridX}, ${gridY})`);
+            return false;
+        }
+
+        // Check if all tiles are available and valid
         for (let x = 0; x < this.gridWidth; x++) {
             for (let y = 0; y < this.gridHeight; y++) {
                 const tile = world.getTile(gridX + x, gridY + y);
 
-                // Check if tile exists and is walkable
-                if (!tile || !tile.walkable || tile.structure) {
+                // Additional validation to prevent phantom tile placement
+                if (!tile) {
+                    console.log(`No valid tile at (${gridX + x}, ${gridY + y})`);
+                    return false;
+                }
+
+                // Ensure tile is within bounds and valid
+                if (!tile.walkable || tile.structure || 
+                    tile.gridX < 0 || tile.gridX >= world.gridWidth ||
+                    tile.gridY < 0 || tile.gridY >= world.gridHeight) {
+                    console.log(`Invalid tile for structure at (${tile.gridX}, ${tile.gridY})`);
                     return false;
                 }
             }

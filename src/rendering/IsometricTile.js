@@ -5,18 +5,6 @@ import { PIXI, Container } from '../utils/PixiWrapper.js';
  * Optimized for PixiJS rendering
  */
 export class IsometricTile extends Container {
-    /**
-     * Creates a new isometric tile
-     * @param {Object} options - Tile options
-     * @param {number} options.x - Grid X position
-     * @param {number} options.y - Grid Y position
-     * @param {string} options.type - Tile type
-     * @param {number} options.width - Tile width in pixels
-     * @param {number} options.height - Tile height in pixels
-     * @param {PIXI.Texture} options.texture - Tile texture
-     * @param {boolean} options.walkable - Whether the tile is walkable
-     * @param {number} options.elevation - Tile elevation
-     */
     constructor(options = {}) {
         super();
 
@@ -27,9 +15,7 @@ export class IsometricTile extends Container {
         // Tile properties
         this.type = options.type || 'grass';
         this.walkable = options.walkable !== undefined ? options.walkable : true;
-        // Set elevation to 0 for all tiles to make them render at the same level
-        // We'll use this later for height variations
-        this.elevation = 0; // Ignoring options.elevation for now
+        this.elevation = 0;
 
         // Dimensions
         this.tileWidth = options.width || 64;
@@ -39,13 +25,11 @@ export class IsometricTile extends Container {
         this.world = options.world || null;
         this.game = options.game || null;
 
-        // Calculate isometric position
-        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2;
-        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2;
+        // Calculate isometric position with grid offsets
+        this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2 + (this.world?.gridOffsetX || 0);
+        this.isoY = (this.gridX + this.gridY) * this.tileHeight / 2 + (this.world?.gridOffsetY || 0);
 
-        // Set container position
-        // Position tiles directly at their isometric coordinates without any offset
-        // This ensures they align with the grid
+        // Position tile
         this.x = this.isoX;
         this.y = this.isoY;
 
@@ -56,13 +40,17 @@ export class IsometricTile extends Container {
         this.interactive = true;
         this.buttonMode = true;
 
-        // Set hit area to diamond shape
-        this.hitArea = new PIXI.Polygon([
-            0, -this.tileHeight / 2,           // Top
-            this.tileWidth / 2, 0,             // Right
-            0, this.tileHeight / 2,            // Bottom
-            -this.tileWidth / 2, 0             // Left
-        ]);
+        // Calculate the visual center offset (where the sprite is actually rendered)
+        const visualCenterY = -this.tileHeight / 2; // Because sprite anchor is at bottom center
+
+        // Create the diamond-shaped hit area aligned with visual representation
+        const hitAreaPoints = [
+            new PIXI.Point(0, visualCenterY),                    // Top
+            new PIXI.Point(this.tileWidth / 2, visualCenterY + this.tileHeight / 2),    // Right
+            new PIXI.Point(0, visualCenterY + this.tileHeight),           // Bottom
+            new PIXI.Point(-this.tileWidth / 2, visualCenterY + this.tileHeight / 2)    // Left
+        ];
+        this.hitArea = new PIXI.Polygon(hitAreaPoints);
 
         // Add mouse events
         this.on('mouseover', this.onMouseOver.bind(this));
@@ -71,51 +59,7 @@ export class IsometricTile extends Container {
         this.on('rightclick', this.onRightClick.bind(this));
 
         // Add direct right-click handler
-        this.on('pointerdown', (event) => {
-            console.log('Pointer down on tile:', event.button);
-            if (event.button === 2) {
-                console.log('Direct right-click detected on tile at', this.gridX, this.gridY);
-
-                // Highlight this tile with a bright color
-                this.highlight(0xFF0000, 0.8); // Bright red
-
-                // Get the center position of THIS tile
-                const center = this.getCenter();
-                console.log(`THIS tile center: (${center.x}, ${center.y})`);
-
-                // Move player directly to this tile's center
-                if (this.game && this.game.player) {
-                    console.log('Moving player directly to THIS tile');
-                    this.game.player.x = center.x;
-                    this.game.player.y = center.y;
-
-                    // Also set move target for smooth movement
-                    this.game.player.setMoveTarget(center);
-
-                    // Add a visible marker at the center
-                    const marker = new PIXI.Graphics();
-                    marker.beginFill(0x00FF00);
-                    marker.drawCircle(0, 0, 10);
-                    marker.endFill();
-                    marker.position.set(center.x, center.y);
-                    this.world.addChild(marker);
-
-                    // Remove marker after 2 seconds
-                    setTimeout(() => {
-                        if (marker.parent) {
-                            marker.parent.removeChild(marker);
-                        }
-                    }, 2000);
-                }
-
-                // Clear highlight after a short delay
-                setTimeout(() => {
-                    if (!this.selected) {
-                        this.unhighlight();
-                    }
-                }, 1000);
-            }
-        });
+        this.on('pointerdown', this.onPointerDown.bind(this));
 
         // Set texture if provided
         if (options.texture) {
@@ -127,10 +71,58 @@ export class IsometricTile extends Container {
         this.entities = new Set();
         this.highlighted = false;
         this.selected = false;
-        this.game = null; // Will be set by the world
 
         // Highlight graphics
         this.highlightGraphics = null;
+    }
+
+    onPointerDown(event) {
+        // Strict boundary check
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+            console.log(`Prevented pointer event on out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
+            return;
+        }
+
+        if (event.button === 2) { // Right click
+            const center = this.getCenter();
+            if (this.game && this.game.player) {
+                console.log(`Moving player to tile (${this.gridX}, ${this.gridY}) at ${center.x}, ${center.y}`);
+                this.game.player.setMoveTarget(center);
+            }
+        }
+    }
+
+    containsPoint(point) {
+        // First do a strict boundary check
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+            return false;
+        }
+
+        // Convert point to local tile coordinates
+        const localPoint = new PIXI.Point();
+        this.worldTransform.applyInverse(point, localPoint);
+
+        // Special handling for bottom row tiles
+        if (this.gridY === this.world.gridHeight - 1) {
+            // For bottom row tiles, adjust the hit area to only accept clicks in the top half
+            const dy = localPoint.y + this.tileHeight / 2; // Offset for visual center
+            if (dy > 0) { // If in bottom half of tile
+                return false;
+            }
+        }
+
+        // Get point relative to tile center
+        const dx = Math.abs(localPoint.x);
+        const dy = Math.abs(localPoint.y + this.tileHeight / 2); // Offset for visual center
+
+        // Use strict diamond shape equation for hit testing
+        // A point is inside a diamond if the sum of its normalized coordinates is <= 1
+        const normalizedX = dx / (this.tileWidth / 2);
+        const normalizedY = dy / (this.tileHeight / 2);
+
+        return (normalizedX + normalizedY) <= 1;
     }
 
     /**
@@ -207,6 +199,15 @@ export class IsometricTile extends Container {
      * @param {Object} structure - The structure to add
      */
     addStructure(structure) {
+        // Strict validation to prevent phantom structure placement
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight ||
+            // Special check for bottom row
+            this.gridY === this.world.gridHeight - 1) {
+            console.log(`Prevented structure placement on invalid tile at (${this.gridX}, ${this.gridY})`);
+            return;
+        }
+
         this.structure = structure;
 
         // Update walkable property
@@ -272,6 +273,13 @@ export class IsometricTile extends Container {
      * @param {number} alpha - Highlight alpha (default: 0.5)
      */
     highlight(color = 0xFFFF00, alpha = 0.7) {
+        // Strict boundary check - don't highlight if outside world bounds
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+            console.log(`Prevented highlight of out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
+            return;
+        }
+
         // Get reference to the world's selection container
         const world = this.world;
         if (!world || !world.selectionContainer) {
@@ -376,8 +384,6 @@ export class IsometricTile extends Container {
         this.selected = false;
     }
 
-
-
     /**
      * Gets the top position of the tile in screen coordinates
      * @returns {Object} The top position {x, y}
@@ -387,25 +393,6 @@ export class IsometricTile extends Container {
             x: this.x,
             y: this.y - this.tileHeight
         };
-    }
-
-    /**
-     * Checks if a point is inside the tile
-     * @param {number} x - X coordinate
-     * @param {number} y - Y coordinate
-     * @returns {boolean} Whether the point is inside the tile
-     */
-    containsPoint(x, y) {
-        // Convert to local coordinates
-        const localX = x - this.x;
-        const localY = y - this.y;
-
-        // Check if point is inside diamond shape
-        const halfWidth = this.tileWidth / 2;
-        const halfHeight = this.tileHeight / 2;
-
-        // Diamond equation: |x/halfWidth| + |y/halfHeight| <= 1
-        return Math.abs(localX / halfWidth) + Math.abs(localY / halfHeight) <= 1;
     }
 
     /**
@@ -438,6 +425,12 @@ export class IsometricTile extends Container {
      * @private
      */
     onMouseOver() {
+        // Strict boundary check
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+            return;
+        }
+
         // Highlight the tile
         this.highlight();
 
@@ -474,6 +467,12 @@ export class IsometricTile extends Container {
      * @private
      */
     onClick() {
+        // Strict boundary check
+        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+            return;
+        }
+
         // Select the tile
         this.select();
 
@@ -576,51 +575,5 @@ export class IsometricTile extends Container {
 
         // Destroy container
         this.destroy({ children: true });
-    }
-
-    /**
-     * Checks if a point is inside this tile
-     * @param {PIXI.Point} point - The point to check in local coordinates
-     * @returns {boolean} True if the point is inside the tile
-     */
-    containsPoint(point) {
-        // Get the point relative to the tile's position
-        const relX = point.x - this.x;
-        const relY = point.y - this.y;
-
-        // For an isometric tile, we need to check if the point is inside the diamond shape
-        // We can do this by checking if the point is inside the four triangles that make up the diamond
-
-        // The four corners of the diamond
-        const top = { x: 0, y: -this.tileHeight / 2 };
-        const right = { x: this.tileWidth / 2, y: 0 };
-        const bottom = { x: 0, y: this.tileHeight / 2 };
-        const left = { x: -this.tileWidth / 2, y: 0 };
-
-        // Check if the point is inside the diamond by checking if it's on the same side of all four edges
-        const edge1 = this.pointOnSameSide(relX, relY, top, right, bottom);
-        const edge2 = this.pointOnSameSide(relX, relY, right, bottom, left);
-        const edge3 = this.pointOnSameSide(relX, relY, bottom, left, top);
-        const edge4 = this.pointOnSameSide(relX, relY, left, top, right);
-
-        return edge1 && edge2 && edge3 && edge4;
-    }
-
-    /**
-     * Helper method to check if a point is on the same side of a line as a reference point
-     * @param {number} px - X coordinate of the point to check
-     * @param {number} py - Y coordinate of the point to check
-     * @param {Object} lineStart - Start point of the line
-     * @param {Object} lineEnd - End point of the line
-     * @param {Object} ref - Reference point
-     * @returns {boolean} True if the point is on the same side of the line as the reference point
-     */
-    pointOnSameSide(px, py, lineStart, lineEnd, ref) {
-        // Calculate the cross product to determine which side of the line the point is on
-        const line1 = (lineEnd.x - lineStart.x) * (py - lineStart.y) - (lineEnd.y - lineStart.y) * (px - lineStart.x);
-        const line2 = (lineEnd.x - lineStart.x) * (ref.y - lineStart.y) - (lineEnd.y - lineStart.y) * (ref.x - lineStart.x);
-
-        // If the signs are the same, the point is on the same side of the line as the reference point
-        return (line1 >= 0 && line2 >= 0) || (line1 <= 0 && line2 <= 0);
     }
 }

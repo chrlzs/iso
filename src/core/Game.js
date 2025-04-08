@@ -284,9 +284,6 @@ export class Game {
                 }
             }
         }
-
-        // We're now using interactive tiles, so this is just for debugging
-        // The actual highlighting is handled by the tile's onMouseOver/onMouseOut methods
     }
 
     /**
@@ -572,6 +569,15 @@ export class Game {
      */
     placeStructure(type, tile) {
         console.log(`${type} placement attempted at (${tile.gridX}, ${tile.gridY})`);
+
+        // Additional validation to prevent phantom tile placement
+        if (!tile || tile.gridX < 0 || tile.gridX >= this.world.gridWidth ||
+            tile.gridY < 0 || tile.gridY >= this.world.gridHeight ||
+            // Special check for bottom row
+            tile.gridY === this.world.gridHeight - 1) {
+            console.log(`Invalid tile location for structure placement: (${tile?.gridX}, ${tile?.gridY})`);
+            return;
+        }
 
         const structure = new Structure({
             structureType: type,
