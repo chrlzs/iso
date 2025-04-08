@@ -190,12 +190,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return controlInput;
         };
 
-        // Coordinate Transformation Section
-        const coordSection = createSection('Coordinate Transformation');
+        // Note: Coordinate transformation is now handled by hit-testing
+        // These controls are kept for reference but don't affect the coordinate system
+        const coordSection = createSection('Coordinate System');
         calibrationPanel.appendChild(coordSection);
 
-        const xOffsetInput = createControl('X Offset:', 'number', '9', null, null, '1', coordSection);
-        const yOffsetInput = createControl('Y Offset:', 'number', '8', null, null, '1', coordSection);
+        // Add an explanation about the hit-testing approach
+        const hitTestingInfo = document.createElement('div');
+        hitTestingInfo.textContent = 'Using hit-testing for coordinate detection';
+        hitTestingInfo.style.color = '#00FF00';
+        hitTestingInfo.style.fontSize = '12px';
+        hitTestingInfo.style.marginBottom = '10px';
+        hitTestingInfo.style.textAlign = 'center';
+        coordSection.appendChild(hitTestingInfo);
+
+        // Keep these inputs for reference but mark them as disabled
+        const xOffsetInput = createControl('X Offset (disabled):', 'number', '9', null, null, '1', coordSection);
+        const yOffsetInput = createControl('Y Offset (disabled):', 'number', '8', null, null, '1', coordSection);
+
+        // Disable the inputs
+        xOffsetInput.disabled = true;
+        yOffsetInput.disabled = true;
 
         // Grid Visualization Section
         const gridSection = createSection('Grid Visualization');
@@ -387,15 +402,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Function to apply calibration
         const applyCalibration = () => {
-            const xOffset = parseInt(xOffsetInput.value);
-            const yOffset = parseInt(yOffsetInput.value);
+            // Note: X and Y offsets are now disabled and don't affect the coordinate system
+            // We're using hit-testing instead of coordinate transformations
+
+            // Get grid visualization values
             const gridOffsetX = parseInt(gridOffsetXInput.value);
             const gridOffsetY = parseInt(gridOffsetYInput.value);
             const gridScale = parseFloat(gridScaleInput.value);
-
-            // Update the coordinate transformation in IsometricWorld
-            game.world.coordinateOffsetX = xOffset;
-            game.world.coordinateOffsetY = yOffset;
 
             // Update the grid visualization
             game.world.gridOffsetX = gridOffsetX;
@@ -404,6 +417,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Redraw the debug grid
             game.world.drawDebugGrid();
+
+            // Show success message
+            statusMessage.textContent = 'Grid visualization updated!';
+            statusMessage.style.color = '#00FF00';
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 2000);
 
             // Update coordinates
             updateCoordinates();
@@ -415,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusMessage.textContent = '';
             }, 2000);
 
-            console.log(`Applied settings - Coords: X=${xOffset}, Y=${yOffset}, Grid: X=${gridOffsetX}, Y=${gridOffsetY}, Scale=${gridScale}`);
+            console.log(`Applied settings - Grid: X=${gridOffsetX}, Y=${gridOffsetY}, Scale=${gridScale}`);
         };
 
         // Apply calibration when button is clicked
@@ -423,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset to defaults
         resetButton.addEventListener('click', () => {
+            // Note: X and Y offsets are now disabled and don't affect the coordinate system
             xOffsetInput.value = '9';
             yOffsetInput.value = '8';
             gridOffsetXInput.value = '0';
@@ -488,33 +509,49 @@ document.addEventListener('DOMContentLoaded', () => {
             // Only proceed if the overlay is visible
             if (coordContainer.style.display === 'none') return;
 
+            // Get the game container dimensions
+            const gameContainer = document.getElementById('game-container');
+            const containerRect = gameContainer.getBoundingClientRect();
+
             // Create labels for each tile
             for (let x = 0; x < game.world.gridWidth; x++) {
                 for (let y = 0; y < game.world.gridHeight; y++) {
                     const tile = game.world.getTile(x, y);
                     if (tile) {
-                        // Convert tile position to screen coordinates
-                        const screenPos = game.world.worldToScreen(tile.x, tile.y);
+                        // Get the tile's position in the PIXI container
+                        const tileGlobalPos = tile.getGlobalPosition();
 
-                        // Create label element
-                        const label = document.createElement('div');
-                        label.textContent = `${x},${y}`;
-                        label.style.position = 'absolute';
-                        label.style.left = `${screenPos.x}px`;
-                        label.style.top = `${screenPos.y}px`;
-                        label.style.transform = 'translate(-50%, -50%)';
-                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
-                        label.style.color = 'rgba(255, 255, 0, 0.7)';
-                        label.style.padding = '1px 3px';
-                        label.style.borderRadius = '2px';
-                        label.style.fontSize = '10px';
-                        label.style.fontFamily = 'Arial, sans-serif';
-                        label.style.textAlign = 'center';
-                        label.style.minWidth = '20px';
-                        label.style.pointerEvents = 'none';
+                        // Convert PIXI global position to DOM position
+                        const screenX = tileGlobalPos.x;
+                        const screenY = tileGlobalPos.y;
 
-                        // Add to container
-                        coordContainer.appendChild(label);
+                        // Apply a small offset to center the label on the tile
+                        const offsetY = -15; // Move the label up a bit to center it better
+
+                        // Only show labels for tiles that are on screen
+                        if (screenX >= 0 && screenX <= containerRect.width &&
+                            screenY >= 0 && screenY <= containerRect.height) {
+
+                            // Create label element
+                            const label = document.createElement('div');
+                            label.textContent = `${x},${y}`;
+                            label.style.position = 'absolute';
+                            label.style.left = `${screenX}px`;
+                            label.style.top = `${screenY + offsetY}px`;
+                            label.style.transform = 'translate(-50%, -50%)';
+                            label.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                            label.style.color = 'rgba(255, 255, 0, 0.9)';
+                            label.style.padding = '1px 3px';
+                            label.style.borderRadius = '2px';
+                            label.style.fontSize = '10px';
+                            label.style.fontFamily = 'Arial, sans-serif';
+                            label.style.textAlign = 'center';
+                            label.style.minWidth = '20px';
+                            label.style.pointerEvents = 'none';
+
+                            // Add to container
+                            coordContainer.appendChild(label);
+                        }
                     }
                 }
             }
