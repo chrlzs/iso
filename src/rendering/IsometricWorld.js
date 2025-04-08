@@ -110,6 +110,18 @@ export class IsometricWorld extends Container {
         this.gridOffsetY = -65; // Working value based on testing
         this.gridScale = 1.0; // Scale factor for the grid
 
+        // Flag to use absolute coordinates (independent of screen position)
+        this.useAbsoluteCoordinates = false;
+
+        // Store the absolute positions of each tile
+        this.absoluteTilePositions = {};
+
+        // Reference point for absolute coordinates
+        this.referenceWorldX = 0;
+        this.referenceWorldY = 0;
+        this.referenceGridX = 0;
+        this.referenceGridY = 0;
+
         // Add direct click handling to the world container
         this.interactive = true;
         this.on('pointerdown', this.handleDirectClick.bind(this));
@@ -224,7 +236,17 @@ export class IsometricWorld extends Container {
             tile.gridY = y;
         }
 
-        console.log(`Created tile at (${x}, ${y}) with game reference:`, tile.game ? 'set' : 'null');
+        // Store the world position of this tile for absolute coordinate lookup
+        // This is the key to fixing the coordinate consistency issue
+        const worldPos = this.gridToWorld(x, y);
+        tile.worldX = worldPos.x;
+        tile.worldY = worldPos.y;
+
+        // Store this position in our lookup table
+        const key = `${worldPos.x.toFixed(0)},${worldPos.y.toFixed(0)}`;
+        this.absoluteTilePositions[key] = { gridX: x, gridY: y };
+
+        console.log(`Created tile at grid (${x}, ${y}), world (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
 
         // Add to grid
         this.tiles[x][y] = tile;
@@ -427,29 +449,41 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     screenToGrid(screenX, screenY, elevation = 0) {
-        // Convert screen coordinates to world coordinates
-        const worldPos = this.screenToWorld(screenX, screenY);
-        const worldX = worldPos.x;
-        const worldY = worldPos.y;
+        // Convert screen coordinates to local coordinates (relative to the container)
+        const localX = (screenX - this.position.x) / this.scale.x;
+        const localY = (screenY - this.position.y) / this.scale.y;
 
-        // Log the conversion steps
-        if (Math.random() < 0.01) { // Only log occasionally to reduce spam
-            console.log(`Screen (${screenX}, ${screenY}) -> World (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`);
-        }
+        // Add camera offset to get world coordinates
+        const worldX = localX + this.camera.x;
+        const worldY = localY + this.camera.y;
 
-        // Convert world coordinates to grid coordinates
-        const gridPos = this.worldToGrid(worldX, worldY);
+        // Simple isometric formula - much more reliable and consistent
+        // This is based on the approach used in pixi-isometric-tilemaps
+        const tileWidthHalf = this.tileWidth / 2;
+        const tileHeightHalf = this.tileHeight / 2;
+
+        // Calculate grid coordinates using the standard isometric formula
+        let gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
+        let gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+
+        // Apply fixed offsets
+        gridX -= 9; // Fixed X offset
+        gridY -= 8; // Fixed Y offset
+
+        // Round to nearest tile
+        const roundedX = Math.floor(gridX);
+        const roundedY = Math.floor(gridY);
 
         // Special case for coordinates very close to (0,0)
-        // This helps with selecting the (0,0) tile which can be tricky in isometric view
-        if (Math.abs(gridPos.x) <= 1.5 && Math.abs(gridPos.y) <= 1.5) {
-            if (Math.random() < 0.01) { // Only log occasionally
-                console.log('Coordinates very close to (0,0), snapping to origin');
-            }
+        if (Math.abs(roundedX) <= 1 && Math.abs(roundedY) <= 1 &&
+            Math.abs(gridX) <= 1.5 && Math.abs(gridY) <= 1.5) {
             return { x: 0, y: 0 };
         }
 
-        return gridPos;
+        return {
+            x: roundedX,
+            y: roundedY
+        };
     }
 
     /**
@@ -459,28 +493,22 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     worldToGrid(worldX, worldY) {
+        // Simple isometric formula - much more reliable and consistent
+        // This is based on the approach used in pixi-isometric-tilemaps
         const tileWidthHalf = this.tileWidth / 2;
         const tileHeightHalf = this.tileHeight / 2;
 
-        // Calculate grid coordinates using the isometric formula
-        const gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
-        const gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
+        // Calculate grid coordinates using the standard isometric formula
+        let gridY = (worldY / tileHeightHalf - worldX / tileWidthHalf) / 2;
+        let gridX = (worldY / tileHeightHalf + worldX / tileWidthHalf) / 2;
 
-        // Apply the fixed offset correction
-        // These values should be calibrated for your specific grid
-        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 9;
-        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 8;
-
-        const correctedX = gridX - offsetX;
-        const correctedY = gridY - offsetY;
+        // Apply fixed offsets
+        gridX -= 9; // Fixed X offset
+        gridY -= 8; // Fixed Y offset
 
         // Round to nearest tile
-        const roundedX = Math.floor(correctedX);
-        const roundedY = Math.floor(correctedY);
-
-        if (Math.random() < 0.01) { // Only log occasionally
-            console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Grid (${gridX.toFixed(2)}, ${gridY.toFixed(2)}) -> Corrected (${correctedX.toFixed(2)}, ${correctedY.toFixed(2)}) -> Rounded (${roundedX}, ${roundedY})`);
-        }
+        const roundedX = Math.floor(gridX);
+        const roundedY = Math.floor(gridY);
 
         return {
             x: roundedX,
@@ -522,6 +550,11 @@ export class IsometricWorld extends Container {
         const worldX = localX + this.camera.x;
         const worldY = localY + this.camera.y;
 
+        if (Math.random() < 0.01) { // Only log occasionally
+            console.log(`Screen (${screenX.toFixed(2)}, ${screenY.toFixed(2)}) -> Local (${localX.toFixed(2)}, ${localY.toFixed(2)}) -> World (${worldX.toFixed(2)}, ${worldY.toFixed(2)})`);
+            console.log(`Camera position: (${this.camera.x.toFixed(2)}, ${this.camera.y.toFixed(2)})`);
+        }
+
         return { x: worldX, y: worldY };
     }
 
@@ -544,6 +577,11 @@ export class IsometricWorld extends Container {
             screenY = window.innerHeight / 2 + (worldY - this.camera.y) * this.camera.zoom;
         }
 
+        if (Math.random() < 0.01) { // Only log occasionally
+            console.log(`World (${worldX.toFixed(2)}, ${worldY.toFixed(2)}) -> Screen (${screenX.toFixed(2)}, ${screenY.toFixed(2)})`);
+            console.log(`Camera position: (${this.camera.x.toFixed(2)}, ${this.camera.y.toFixed(2)}), zoom: ${this.camera.zoom}`);
+        }
+
         return { x: screenX, y: screenY };
     }
 
@@ -554,21 +592,13 @@ export class IsometricWorld extends Container {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Apply the fixed offset correction
-        // These values should be calibrated for your specific grid
-        const offsetX = this.coordinateOffsetX !== undefined ? this.coordinateOffsetX : 9;
-        const offsetY = this.coordinateOffsetY !== undefined ? this.coordinateOffsetY : 8;
+        // Apply fixed offsets (inverse of worldToGrid)
+        const correctedX = gridX + 9; // Fixed X offset
+        const correctedY = gridY + 8; // Fixed Y offset
 
-        const correctedX = gridX + offsetX;
-        const correctedY = gridY + offsetY;
-
-        // Convert to isometric coordinates
+        // Convert to isometric coordinates using the standard formula
         const isoX = (correctedX - correctedY) * this.tileWidth / 2;
         const isoY = (correctedX + correctedY) * this.tileHeight / 2;
-
-        if (Math.random() < 0.01) { // Only log occasionally
-            console.log(`Grid (${gridX}, ${gridY}) -> Corrected (${correctedX}, ${correctedY}) -> World (${isoX.toFixed(2)}, ${isoY.toFixed(2)})`);
-        }
 
         return { x: isoX, y: isoY };
     }
@@ -580,54 +610,46 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTileAtScreen(screenX, screenY) {
-        // Special case for clicks near the origin (0,0) tile
-        // This helps with selecting the (0,0) tile which can be tricky in isometric view
-        const worldPos = this.screenToWorld(screenX, screenY);
-        const originPos = this.gridToWorld(0, 0);
-        const distance = Math.sqrt(
-            Math.pow(worldPos.x - originPos.x, 2) +
-            Math.pow(worldPos.y - originPos.y, 2)
-        );
+        // Convert screen coordinates to grid coordinates using our simplified approach
+        const gridCoords = this.screenToGrid(screenX, screenY);
 
-        // If click is very close to the (0,0) tile, return it directly
-        // Use a larger threshold to make it easier to select
-        if (distance < this.tileWidth * 1.5) {
-            console.log('Click detected near (0,0) tile, returning it directly');
-            console.log('Distance to (0,0):', distance, 'Threshold:', this.tileWidth * 1.5);
+        // Special case for coordinates near (0,0)
+        if (Math.abs(gridCoords.x) <= 1 && Math.abs(gridCoords.y) <= 1) {
             return this.getTile(0, 0);
         }
-
-        // Convert screen coordinates to grid coordinates
-        const gridCoords = this.screenToGrid(screenX, screenY);
 
         // Get the tile at the calculated grid coordinates
         const tile = this.getTile(gridCoords.x, gridCoords.y);
 
-        // Only log detailed debugging info occasionally to reduce console spam
-        // Use a random check to log only about 1% of the time
-        const shouldLog = Math.random() < 0.01;
-
-        if (shouldLog) {
-            console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridCoords.x}, ${gridCoords.y})`);
-
-            if (tile) {
+        // If we found a tile, return it
+        if (tile) {
+            // Only log occasionally to reduce console spam
+            if (Math.random() < 0.01) {
+                console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridCoords.x}, ${gridCoords.y})`);
                 console.log(`Found tile with stored grid position: (${tile.gridX}, ${tile.gridY})`);
+            }
+            return tile;
+        }
 
-                // Check if there's a mismatch between calculated and stored grid positions
-                if (tile.gridX !== Math.floor(gridCoords.x) || tile.gridY !== Math.floor(gridCoords.y)) {
-                    // Only warn if the mismatch is significant (more than rounding error)
-                    if (Math.abs(tile.gridX - gridCoords.x) > 1 || Math.abs(tile.gridY - gridCoords.y) > 1) {
-                        console.warn(`COORDINATE MISMATCH: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
-                    } else {
-                        console.log(`Minor coordinate difference: Calculated (${gridCoords.x}, ${gridCoords.y}) vs Stored (${tile.gridX}, ${tile.gridY})`);
+        // If we didn't find a tile, try to find a nearby tile
+        // This helps with edge cases and makes selection more forgiving
+        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+            for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                if (offsetX === 0 && offsetY === 0) continue; // Skip the center tile (already checked)
+
+                const nearbyTile = this.getTile(gridCoords.x + offsetX, gridCoords.y + offsetY);
+                if (nearbyTile) {
+                    // Only log occasionally to reduce console spam
+                    if (Math.random() < 0.01) {
+                        console.log(`Found nearby tile at (${nearbyTile.gridX}, ${nearbyTile.gridY})`);
                     }
+                    return nearbyTile;
                 }
-            } else {
-                console.log(`No tile found at grid coordinates (${gridCoords.x}, ${gridCoords.y})`);
             }
         }
 
-        return tile;
+        // If we still didn't find a tile, return null
+        return null;
     }
 
     /**

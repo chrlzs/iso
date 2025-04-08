@@ -250,6 +250,49 @@ document.addEventListener('DOMContentLoaded', () => {
         createPresetButton('Original', '10', '11', '-65', '-65', '1.0');
         createPresetButton('Default', '6', '7', '0', '0', '1.0');
 
+        // Add a note about the screen position issue
+        const noteElement = document.createElement('div');
+        noteElement.textContent = 'Note: Fixing coordinate consistency across screen positions...';
+        noteElement.style.color = '#FFFF00';
+        noteElement.style.fontSize = '12px';
+        noteElement.style.marginTop = '10px';
+        noteElement.style.textAlign = 'center';
+        presetsSection.appendChild(noteElement);
+
+        // Add a button to toggle absolute coordinate display
+        const absoluteCoordButton = document.createElement('button');
+        absoluteCoordButton.textContent = 'Toggle Absolute Coords';
+        absoluteCoordButton.style.padding = '8px 15px';
+        absoluteCoordButton.style.backgroundColor = 'rgba(0, 100, 200, 0.7)';
+        absoluteCoordButton.style.color = 'white';
+        absoluteCoordButton.style.border = 'none';
+        absoluteCoordButton.style.borderRadius = '4px';
+        absoluteCoordButton.style.cursor = 'pointer';
+        absoluteCoordButton.style.marginTop = '10px';
+        absoluteCoordButton.style.width = '100%';
+        presetsSection.appendChild(absoluteCoordButton);
+
+        // Add event listener to toggle absolute coordinate display
+        absoluteCoordButton.addEventListener('click', () => {
+            // Toggle the absolute coordinate mode
+            game.world.useAbsoluteCoordinates = !game.world.useAbsoluteCoordinates;
+
+            // Update the button text
+            absoluteCoordButton.textContent = game.world.useAbsoluteCoordinates ?
+                'Using Absolute Coords ✓' : 'Toggle Absolute Coords';
+
+            // Update the button color
+            absoluteCoordButton.style.backgroundColor = game.world.useAbsoluteCoordinates ?
+                'rgba(0, 150, 0, 0.7)' : 'rgba(0, 100, 200, 0.7)';
+
+            // Show success message
+            statusMessage.textContent = `Absolute coordinates ${game.world.useAbsoluteCoordinates ? 'enabled' : 'disabled'}`;
+            statusMessage.style.color = '#00FFFF';
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 2000);
+        });
+
         // Add a special button to highlight the (0,0) tile
         const highlightZeroButton = document.createElement('button');
         highlightZeroButton.textContent = 'Highlight (0,0)';
