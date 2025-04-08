@@ -101,8 +101,8 @@ export class IsometricWorld extends Container {
         };
 
         // Grid visualization offsets
-        this.gridOffsetX = -65; // Working value based on testing
-        this.gridOffsetY = -65; // Working value based on testing
+        this.gridOffsetX = 0; // Working value based on testing
+        this.gridOffsetY = -32; // Working value based on testing
         this.gridScale = 1.0; // Scale factor for the grid
 
         // Add direct click handling to the world container

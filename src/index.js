@@ -201,8 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const gridSection = createSection('Grid Visualization');
         calibrationPanel.appendChild(gridSection);
 
-        const gridOffsetXInput = createControl('Grid X Offset:', 'number', '-65', null, null, '1', gridSection);
-        const gridOffsetYInput = createControl('Grid Y Offset:', 'number', '-65', null, null, '1', gridSection);
+        const gridOffsetXInput = createControl('Grid X Offset:', 'number', '0', null, null, '1', gridSection);
+        const gridOffsetYInput = createControl('Grid Y Offset:', 'number', '-32', null, null, '1', gridSection);
         const gridScaleInput = createControl('Grid Scale:', 'number', '1.0', '0.1', '2.0', '0.1', gridSection);
 
         // Presets Section
@@ -245,9 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Add some preset configurations
-        createPresetButton('Final', '9', '8', '-65', '-65', '1.0');
-        createPresetButton('Previous', '9', '9', '-65', '-65', '1.0');
-        createPresetButton('Original', '10', '11', '-65', '-65', '1.0');
+        createPresetButton('Working', '9', '8', '0', '-32', '1.0');
         createPresetButton('Default', '6', '7', '0', '0', '1.0');
 
         // Add a note about the coordinate system
@@ -427,8 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resetButton.addEventListener('click', () => {
             xOffsetInput.value = '9';
             yOffsetInput.value = '8';
-            gridOffsetXInput.value = '-65';
-            gridOffsetYInput.value = '-65';
+            gridOffsetXInput.value = '0';
+            gridOffsetYInput.value = '-32';
             gridScaleInput.value = '1.0';
 
             applyCalibration();
