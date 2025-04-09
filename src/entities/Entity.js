@@ -192,7 +192,7 @@ export class Entity extends Container {
 
             // Log position change if significant
             if (Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) {
-                console.log(`Entity ${this.id} moved from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+                //console.log(`Entity ${this.id} moved from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
             }
         }
     }
