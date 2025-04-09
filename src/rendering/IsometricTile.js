@@ -272,30 +272,29 @@ export class IsometricTile extends Container {
             return;
         }
 
-        // Get reference to the world's selection container
-        const world = this.world;
-        if (!world || !world.selectionContainer) {
+        // Ensure we have a world reference and selection container
+        if (!this.world || !this.world.selectionContainer) {
             console.warn('Cannot highlight tile: world or selectionContainer not available');
             return;
         }
 
-        if (this.highlighted && this.highlightGraphics) {
-            // Update existing highlight
-            this.highlightGraphics.clear();
-            this.drawHighlight(color, alpha);
-            return;
-        }
-
-        // Create highlight graphics in the world's selection container
+        // Create highlight graphics if needed
         if (!this.highlightGraphics) {
             this.highlightGraphics = new PIXI.Graphics();
-            world.selectionContainer.addChild(this.highlightGraphics);
-
-            // Position at the tile's position, accounting for elevation and centering
-            this.highlightGraphics.x = this.x;
-            this.highlightGraphics.y = this.y - (this.elevation || 0);
         }
 
+        // Remove from previous parent if any
+        if (this.highlightGraphics.parent) {
+            this.highlightGraphics.parent.removeChild(this.highlightGraphics);
+        }
+
+        // Add highlight graphics as the last child so it renders on top
+        this.addChild(this.highlightGraphics);
+
+        // Position relative to tile's center
+        this.highlightGraphics.position.set(0, 0);
+
+        // Draw the highlight
         this.drawHighlight(color, alpha);
         this.highlighted = true;
     }
@@ -307,23 +306,27 @@ export class IsometricTile extends Container {
      * @private
      */
     drawHighlight(color, alpha) {
+        if (!this.highlightGraphics) return;
+
         this.highlightGraphics.clear();
 
-        // Draw filled diamond with transparency, properly centered on the tile
+        // Draw filled diamond with transparency
         this.highlightGraphics.beginFill(color, alpha);
-        this.highlightGraphics.moveTo(0, 0); // Top
-        this.highlightGraphics.lineTo(this.tileWidth / 2, this.tileHeight / 2); // Right
-        this.highlightGraphics.lineTo(0, this.tileHeight); // Bottom
-        this.highlightGraphics.lineTo(-this.tileWidth / 2, this.tileHeight / 2); // Left
+        
+        // Draw the diamond shape matching the tile dimensions
+        this.highlightGraphics.moveTo(0, -this.tileHeight); // Top point
+        this.highlightGraphics.lineTo(this.tileWidth/2, -this.tileHeight/2); // Right point
+        this.highlightGraphics.lineTo(0, 0); // Bottom point
+        this.highlightGraphics.lineTo(-this.tileWidth/2, -this.tileHeight/2); // Left point
         this.highlightGraphics.closePath();
         this.highlightGraphics.endFill();
 
         // Draw outline for better visibility
-        this.highlightGraphics.lineStyle(2, color, 1);
-        this.highlightGraphics.moveTo(0, 0);
-        this.highlightGraphics.lineTo(this.tileWidth / 2, this.tileHeight / 2);
-        this.highlightGraphics.lineTo(0, this.tileHeight);
-        this.highlightGraphics.lineTo(-this.tileWidth / 2, this.tileHeight / 2);
+        this.highlightGraphics.lineStyle(2, color, Math.min(1, alpha + 0.3));
+        this.highlightGraphics.moveTo(0, -this.tileHeight);
+        this.highlightGraphics.lineTo(this.tileWidth/2, -this.tileHeight/2);
+        this.highlightGraphics.lineTo(0, 0);
+        this.highlightGraphics.lineTo(-this.tileWidth/2, -this.tileHeight/2);
         this.highlightGraphics.closePath();
     }
 
