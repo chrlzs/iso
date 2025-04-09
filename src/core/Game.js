@@ -9,6 +9,7 @@ import { UI } from '../ui/UI.js';
 import { Inventory } from './Inventory.js';
 import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
+import { InputManager } from './InputManager.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -46,8 +47,19 @@ export class Game {
             backgroundColor: this.options.backgroundColor,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
-            antialias: true
+            antialias: true,
+            // Add interaction options
+            eventFeatures: {
+                click: true,
+                globalMove: true,
+                move: true,
+                rightclick: true  // Enable right-click events
+            }
         });
+
+        // Enable interaction on the stage
+        this.app.stage.interactive = true;
+        this.app.stage.hitArea = this.app.screen;
 
         // Add canvas to container
         this.container.appendChild(this.app.view);
@@ -127,12 +139,7 @@ export class Game {
         };
 
         // Input state
-        this.input = {
-            mouse: { x: 0, y: 0, down: false },
-            keys: new Set(),
-            selectedTile: null,
-            hoveredTile: null
-        };
+        this.input = null;
 
         // Performance monitoring
         this.performance = {
@@ -171,12 +178,8 @@ export class Game {
         }
 
         // Bind methods to preserve context
-        this.handleKeyDown = this.handleKeyDown.bind(this);
-        this.handleKeyUp = this.handleKeyUp.bind(this);
-        this.handleMouseMove = this.handleMouseMove.bind(this);
-        this.handleMouseDown = this.handleMouseDown.bind(this);
-        this.handleMouseUp = this.handleMouseUp.bind(this);
-        this.handleContextMenu = this.handleContextMenu.bind(this);
+        this.handlePlacementAction = this.handlePlacementAction.bind(this);
+        this.handleCameraControls = this.handleCameraControls.bind(this);
 
         // Initialize
         this.initialize();
@@ -190,8 +193,8 @@ export class Game {
         // Set up game loop
         this.app.ticker.add(this.update.bind(this));
 
-        // Set up input handling
-        this.setupInputHandlers();
+        // Initialize input manager
+        this.input = new InputManager(this);
 
         // Set up window resize handler
         window.addEventListener('resize', this.handleResize.bind(this));
@@ -217,316 +220,14 @@ export class Game {
         }
     }
 
-    /**
-     * Sets up all input handlers
-     * @private
-     */
-    setupInputHandlers() {
-        // Mouse events
-        this.app.view.addEventListener('mousemove', this.handleMouseMove);
-        this.app.view.addEventListener('mousedown', this.handleMouseDown);
-        this.app.view.addEventListener('mouseup', this.handleMouseUp);
-        this.app.view.addEventListener('contextmenu', this.handleContextMenu);
-
-        // Keyboard events
-        window.addEventListener('keydown', this.handleKeyDown);
-        window.addEventListener('keyup', this.handleKeyUp);
-
-        // Make sure the world container is interactive
-        if (this.world) {
-            this.world.interactive = true;
-        }
-    }
-
-    /**
-     * Handles mouse move events
-     * @param {MouseEvent} e - Mouse event
-     * @private
-     */
-    handleMouseMove(e) {
-        // Get mouse position relative to canvas
-        const rect = this.app.view.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        // Update mouse position
-        this.input.mouse.x = x;
-        this.input.mouse.y = y;
-
-        // Get the tile at the mouse position using hit testing
-        const tile = this.world.getTileAtScreen(x, y);
-
-        // Debug info
-        if (this.options.debug) {
-            const debugInfo = document.getElementById('debug-mouse');
-            if (!debugInfo) {
-                const div = document.createElement('div');
-                div.id = 'debug-mouse';
-                div.style.position = 'absolute';
-                div.style.bottom = '10px';
-                div.style.left = '10px';
-                div.style.color = 'white';
-                div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                div.style.padding = '5px';
-                div.style.borderRadius = '3px';
-                div.style.fontFamily = 'monospace';
-                div.style.fontSize = '12px';
-                div.style.zIndex = '1000';
-                document.body.appendChild(div);
-            }
-
-            const mouseInfo = document.getElementById('debug-mouse');
-            if (mouseInfo) {
-                if (tile) {
-                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | Tile: (${tile.gridX}, ${tile.gridY}) Type: ${tile.type}`;
-                } else {
-                    mouseInfo.textContent = `Mouse: (${x}, ${y}) | No tile under cursor`;
-                }
-            }
-        }
-    }
-
-    /**
-     * Handles mouse down events
-     * @param {MouseEvent} e - Mouse event
-     * @private
-     */
-    handleMouseDown(e) {
-        this.input.mouse.down = true;
-
-        // Log mouse position
-        console.log('Mouse down at screen position:', this.input.mouse.x, this.input.mouse.y);
-
-        // Get tile at mouse position
-        const tile = this.world.getTileAtScreen(this.input.mouse.x, this.input.mouse.y);
-
-        // We're now using interactive tiles, so selection is handled by the tile's onClick method
-        // This is just for handling right-click and other special cases
-        if (tile) {
-            console.log('Found tile at grid position:', tile.gridX, tile.gridY);
-            console.log('Expected grid position based on array index:',
-                        this.world.tiles.findIndex(col => col.includes(tile)),
-                        this.world.tiles.some(col => col.indexOf(tile) !== -1) ?
-                            this.world.tiles.find(col => col.includes(tile)).indexOf(tile) : -1);
-
-            // Update debug info
-            if (this.options.debug) {
-                // Update the selected tile info in the debug panel
-                if (this.debugElements.selectedTile) {
-                    this.debugElements.selectedTile.textContent = `${tile.type} (${tile.gridX}, ${tile.gridY})`;
-                }
-
-                // Add a temporary visual indicator showing which tile was clicked
-                const clickMarker = new PIXI.Graphics();
-                clickMarker.beginFill(0xFF00FF, 0.5); // Purple semi-transparent
-                clickMarker.drawRect(-this.world.tileWidth/2, -this.world.tileHeight/2,
-                                    this.world.tileWidth, this.world.tileHeight);
-                clickMarker.endFill();
-                clickMarker.position.set(tile.x, tile.y);
-                this.world.debugGridOverlay.addChild(clickMarker);
-
-                // Add a text label showing the clicked coordinates
-                const clickText = new PIXI.Text(`Clicked: (${tile.gridX}, ${tile.gridY})`, {
-                    fontFamily: 'Arial',
-                    fontSize: 16,
-                    fontWeight: 'bold',
-                    fill: 0xFF00FF, // Purple
-                    stroke: 0xFFFFFF,
-                    strokeThickness: 3,
-                    align: 'center'
-                });
-                clickText.position.set(tile.x, tile.y - 30);
-                clickText.anchor.set(0.5, 0.5);
-                this.world.debugGridOverlay.addChild(clickText);
-
-                // Remove the marker and text after 2 seconds
-                setTimeout(() => {
-                    if (clickMarker.parent) clickMarker.parent.removeChild(clickMarker);
-                    if (clickText.parent) clickText.parent.removeChild(clickText);
-                }, 2000);
-            }
-
-            // Handle player movement if right click
-            if (e.button === 2 && this.player) {
-                console.log('Right-click detected, moving player to tile:', tile.gridX, tile.gridY);
-                console.log('Player exists:', this.player ? 'yes' : 'no');
-                console.log('Tile has game reference:', tile.game ? 'yes' : 'no');
-                console.log('Tile has onRightClick method:', typeof tile.onRightClick === 'function' ? 'yes' : 'no');
-
-                // Highlight the tile to confirm which one we're targeting
-                tile.highlight(0xFF00FF, 0.8); // Bright magenta
-
-                // Get the world position of the tile using gridToWorld
-                const worldPos = this.world.gridToWorld(tile.gridX, tile.gridY);
-                console.log('Target tile world position:', worldPos);
-
-                // Add a visible marker at the world position
-                const marker = new PIXI.Graphics();
-                marker.beginFill(0x00FFFF);
-                marker.drawCircle(0, 0, 10);
-                marker.endFill();
-                marker.position.set(worldPos.x, worldPos.y);
-                this.world.addChild(marker);
-
-                // Add a text label showing the tile coordinates
-                const text = new PIXI.Text(`Tile: (${tile.gridX}, ${tile.gridY})`, {
-                    fontFamily: 'Arial',
-                    fontSize: 12,
-                    fill: 0xFFFFFF,
-                    stroke: 0x000000,
-                    strokeThickness: 2
-                });
-                text.anchor.set(0.5, 1);
-                text.position.set(worldPos.x, worldPos.y - 20);
-                this.world.addChild(text);
-
-                // Set player's move target to the world position
-                console.log('Setting player move target to world position:', worldPos);
-                this.player.setMoveTarget(worldPos);
-
-                // Remove marker and text after 2 seconds
-                setTimeout(() => {
-                    if (marker.parent) {
-                        marker.parent.removeChild(marker);
-                    }
-                    if (text.parent) {
-                        text.parent.removeChild(text);
-                    }
-                }, 2000);
-
-                // Clear highlight after a short delay
-                setTimeout(() => {
-                    tile.unhighlight();
-                }, 1000);
-
-                // Prevent default context menu
-                e.preventDefault();
-                console.log('Default context menu prevented');
-            }
-            // Handle structure placement if shift is held
-            else if (this.input.keys.has('shift') && !tile.structure) {
-                // Create a structure
-                const structure = new Structure({
-                    structureType: 'house',
-                    gridWidth: 2,
-                    gridHeight: 2,
-                    interactive: true
-                });
-
-                // Place in world
-                if (structure.placeInWorld(this.world, tile.gridX, tile.gridY)) {
-                    console.log(`Placed ${structure.structureType} at (${tile.gridX}, ${tile.gridY})`);
-                } else {
-                    console.log(`Cannot place structure at (${tile.gridX}, ${tile.gridY})`);
-                }
-            }
-            // Handle normal tile click
-            else {
-                // Call tile click handler if provided
-                if (this.options.onTileClick) {
-                    this.options.onTileClick(tile, this);
-                }
-            }
-        }
-    }
-
-    /**
-     * Handles mouse up events
-     * @param {MouseEvent} e - Mouse event
-     * @private
-     */
-    handleMouseUp(e) {
-        this.input.mouse.down = false;
-    }
-
-    /**
-     * Handles context menu events (right-click)
-     * @param {MouseEvent} e - Mouse event
-     * @private
-     */
-    handleContextMenu(e) {
-        // Prevent the default context menu from appearing
-        e.preventDefault();
-        console.log('Context menu prevented');
-        return false;
-    }
-
-    /**
-     * Handles key down events
-     * @param {KeyboardEvent} e - Keyboard event
-     * @private
-     */
-    handleKeyDown(e) {
-        const key = e.key.toLowerCase();
-        this.input.keys.add(key);
-
-        // Handle different key actions
-        this.handleKeyAction(key);
-    }
-
-    /**
-     * Handles different key actions
-     * @param {string} key - The pressed key
-     * @private
-     */
-    handleKeyAction(key) {
-        const { keys } = this.inputConfig;
-
-        // Handle movement
-        if (keys.movement.includes(key)) {
-            this.handleCameraControls();
-            return;
-        }
-
-        // Handle zoom
-        if (keys.zoom.includes(key)) {
-            this.handleCameraControls();
-            return;
-        }
-
-        // Handle inventory toggle
-        if (key === keys.inventory && this.player?.inventory) {
-            this.ui.togglePanel('inventory');
-            return;
-        }
-
-        // Handle time controls
-        if (key === keys.timeControls[0] && this.input.keys.has('shift')) {
-            this.handleTimeSpeedToggle();
-            return;
-        }
-
-        // Handle debug grid toggle with G key
-        if (key === 'g') {
-            if (this.world && this.world.debugGridOverlay) {
-                this.world.debugGridOverlay.visible = !this.world.debugGridOverlay.visible;
-                console.log(`Debug grid ${this.world.debugGridOverlay.visible ? 'shown' : 'hidden'}`);
-
-                // Redraw the grid if it's now visible
-                if (this.world.debugGridOverlay.visible) {
-                    this.world.drawDebugGrid();
-                }
-            }
-            return;
-        }
-
-        // Handle placement actions
-        const placementKeys = Object.values(keys.placement);
-        if (placementKeys.includes(key)) {
-            // If no tile is selected, try to use the hovered tile
-            if (!this.input.selectedTile && this.input.hoveredTile) {
-                console.log('No tile selected, using hovered tile for placement');
-                this.input.selectedTile = this.input.hoveredTile;
-                this.input.selectedTile.select();
-            }
-
-            if (this.input.selectedTile) {
-                this.handlePlacementAction(key);
-            } else {
-                console.warn('No tile selected or hovered for placement action');
-            }
-        }
-    }
+    // Remove these handlers as they're now in InputManager
+    handleMouseMove = undefined;
+    handleMouseDown = undefined;
+    handleMouseUp = undefined;
+    handleContextMenu = undefined;
+    handleKeyDown = undefined;
+    handleKeyUp = undefined;
+    handleKeyAction = undefined;
 
     /**
      * Handles placement of objects in the world
@@ -558,140 +259,6 @@ export class Game {
             case placement.enemy:
                 this.placeRandomEnemy(tile);
                 break;
-        }
-    }
-
-    /**
-     * Places a structure in the world
-     * @param {string} type - Type of structure
-     * @param {Tile} tile - Target tile
-     * @private
-     */
-    placeStructure(type, tile) {
-        console.log(`${type} placement attempted at (${tile.gridX}, ${tile.gridY})`);
-
-        // Additional validation to prevent phantom tile placement
-        if (!tile || tile.gridX < 0 || tile.gridX >= this.world.gridWidth ||
-            tile.gridY < 0 || tile.gridY >= this.world.gridHeight ||
-            // Special check for bottom row
-            tile.gridY === this.world.gridHeight - 1) {
-            console.log(`Invalid tile location for structure placement: (${tile?.gridX}, ${tile?.gridY})`);
-            return;
-        }
-
-        const structure = new Structure({
-            structureType: type,
-            gridWidth: 1,
-            gridHeight: 1,
-            interactive: true
-        });
-
-        const success = structure.placeInWorld(this.world, tile.gridX, tile.gridY);
-        console.log(`${type} placement ${success ? 'successful' : 'failed'}`);
-    }
-
-    /**
-     * Places a random item in the world
-     * @param {Tile} tile - Target tile
-     * @private
-     */
-    placeRandomItem(tile) {
-        const center = tile.getCenter();
-        const itemTypes = ['weapon', 'potion'];
-        const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-
-        let item;
-        if (itemType === 'weapon') {
-            item = new Item({
-                name: 'Iron Sword',
-                type: 'weapon',
-                subtype: 'sword',
-                rarity: 'uncommon',
-                value: 50,
-                equippable: true,
-                equipSlot: 'weapon',
-                stats: { damage: 10 }
-            });
-        } else {
-            item = new Item({
-                name: 'Health Potion',
-                type: 'potion',
-                subtype: 'health',
-                rarity: 'common',
-                value: 20,
-                stackable: true,
-                quantity: 5,
-                consumable: true
-            });
-        }
-
-        item.x = center.x;
-        item.y = center.y;
-        this.world.entityContainer.addChild(item);
-    }
-
-    /**
-     * Places a random enemy in the world
-     * @param {Tile} tile - Target tile
-     * @private
-     */
-    placeRandomEnemy(tile) {
-        const center = tile.getCenter();
-        const enemyTypes = ['slime', 'goblin', 'skeleton'];
-        const enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-
-        const enemy = new Enemy({
-            name: enemyType.charAt(0).toUpperCase() + enemyType.slice(1),
-            enemyType: enemyType,
-            health: 50,
-            maxHealth: 50,
-            stats: {
-                level: 1,
-                attack: 8,
-                defense: 3,
-                speed: 5,
-                criticalChance: 0.05,
-                evasion: 0.02
-            },
-            expReward: 20,
-            goldReward: 10
-        });
-
-        enemy.x = center.x;
-        enemy.y = center.y;
-        enemy.gridX = tile.gridX;
-        enemy.gridY = tile.gridY;
-
-        this.world.entityContainer.addChild(enemy);
-        tile.addEntity(enemy);
-    }
-
-    /**
-     * Handles time speed toggle
-     * @private
-     */
-    handleTimeSpeedToggle() {
-        if (this.dayNightCycle.timeScale === 1) {
-            this.dayNightCycle.setTimeScale(10);
-            console.log('Time: Fast forward (10x)');
-        } else {
-            this.dayNightCycle.setTimeScale(1);
-            console.log('Time: Normal speed');
-        }
-    }
-
-    /**
-     * Handles key up events
-     * @param {KeyboardEvent} e - Keyboard event
-     * @private
-     */
-    handleKeyUp(e) {
-        // Remove key from pressed keys
-        this.input.keys.delete(e.key.toLowerCase());
-
-        // Call key up handler if provided
-        if (this.options.onKeyUp) {
-            this.options.onKeyUp(e.key.toLowerCase(), this.input.keys, this);
         }
     }
 
@@ -886,89 +453,88 @@ export class Game {
             }
         });
 
-        // Place player in center of world
         if (this.world) {
-            // Calculate center tile coordinates
+            // Start searching from center and spiral outward
             const centerX = Math.floor(this.world.config.gridWidth / 2);
             const centerY = Math.floor(this.world.config.gridHeight / 2);
-            console.log('Attempting to place player at center:', centerX, centerY);
+            console.log('Starting player placement search at center:', centerX, centerY);
 
-            // Get the center tile
-            const tile = this.world.getTile(centerX, centerY);
-
-            if (tile) {
-                console.log('Found valid center tile:', tile);
-                const center = tile.getCenter();
-                console.log('Tile center:', center);
-
-                // Set player position
+            // Try center tile first
+            const centerTile = this.world.getTile(centerX, centerY);
+            if (centerTile && centerTile.walkable && !centerTile.structure) {
+                console.log('Found valid center tile:', centerTile);
+                const center = centerTile.getCenter();
                 player.x = center.x;
                 player.y = center.y;
                 player.gridX = centerX;
                 player.gridY = centerY;
-
-                // Set world reference on player
                 player.world = this.world;
-
-                // Add to world
                 this.world.entityContainer.addChild(player);
-                tile.addEntity(player);
-                console.log('Player added to world at position:', player.x, player.y);
-
-                // Set camera to follow player
-                this.world.setCameraTarget(player);
-
-                // Add some test items to inventory
-                const sword = new Item({
-                    name: 'Iron Sword',
-                    type: 'weapon',
-                    subtype: 'sword',
-                    rarity: 'uncommon',
-                    value: 50,
-                    equippable: true,
-                    equipSlot: 'weapon',
-                    stats: { damage: 10 }
-                });
-
-                const potion = new Item({
-                    name: 'Health Potion',
-                    type: 'potion',
-                    subtype: 'health',
-                    rarity: 'common',
-                    value: 20,
-                    stackable: true,
-                    quantity: 5,
-                    consumable: true
-                });
-
-                player.inventory.addItem(sword);
-                player.inventory.addItem(potion);
+                centerTile.addEntity(player);
+                console.log('Player placed at center tile');
             } else {
-                console.error('Failed to find valid center tile at', centerX, centerY);
-                // Try to find any valid tile
-                for (let x = 0; x < this.world.config.gridWidth; x++) {
-                    for (let y = 0; y < this.world.config.gridHeight; y++) {
-                        const alternateTile = this.world.getTile(x, y);
-                        if (alternateTile && alternateTile.walkable) {
-                            console.log('Found alternate tile at', x, y);
-                            const center = alternateTile.getCenter();
-                            player.x = center.x;
-                            player.y = center.y;
-                            player.gridX = x;
-                            player.gridY = y;
-                            player.world = this.world;
-                            this.world.entityContainer.addChild(player);
-                            alternateTile.addEntity(player);
-                            this.world.setCameraTarget(player);
-                            break;
+                // Spiral search pattern
+                let found = false;
+                let layer = 1;
+                while (!found && layer < Math.max(this.world.config.gridWidth, this.world.config.gridHeight)) {
+                    // Check each direction in the current layer
+                    for (let dx = -layer; dx <= layer && !found; dx++) {
+                        for (let dy = -layer; dy <= layer && !found; dy++) {
+                            const x = centerX + dx;
+                            const y = centerY + dy;
+                            const tile = this.world.getTile(x, y);
+                            
+                            if (tile && tile.walkable && !tile.structure) {
+                                console.log('Found valid tile at:', x, y);
+                                const pos = tile.getCenter();
+                                player.x = pos.x;
+                                player.y = pos.y;
+                                player.gridX = x;
+                                player.gridY = y;
+                                player.world = this.world;
+                                this.world.entityContainer.addChild(player);
+                                tile.addEntity(player);
+                                found = true;
+                            }
                         }
                     }
-                    if (player.world) break; // Stop if we found a tile
+                    layer++;
                 }
-                if (!player.world) {
-                    console.error('Could not find any valid tile to place player');
+
+                if (!found) {
+                    console.error('Could not find any valid tile to place player after spiral search');
+                    return null;
                 }
             }
+
+            // Set camera to follow player
+            this.world.setCameraTarget(player);
+
+            // Add some test items to inventory
+            const sword = new Item({
+                name: 'Iron Sword',
+                type: 'weapon',
+                subtype: 'sword',
+                rarity: 'uncommon',
+                value: 50,
+                equippable: true,
+                equipSlot: 'weapon',
+                stats: { damage: 10 }
+            });
+
+            const potion = new Item({
+                name: 'Health Potion',
+                type: 'potion',
+                subtype: 'health',
+                rarity: 'common',
+                value: 20,
+                stackable: true,
+                quantity: 5,
+                consumable: true
+            });
+
+            player.inventory.addItem(sword);
+            player.inventory.addItem(potion);
         }
 
         // Store player reference
@@ -1075,11 +641,6 @@ export class Game {
      */
     destroy() {
         // Remove event listeners
-        this.app.view.removeEventListener('mousemove', this.handleMouseMove);
-        this.app.view.removeEventListener('mousedown', this.handleMouseDown);
-        this.app.view.removeEventListener('mouseup', this.handleMouseUp);
-        window.removeEventListener('keydown', this.handleKeyDown);
-        window.removeEventListener('keyup', this.handleKeyUp);
         window.removeEventListener('resize', this.handleResize);
 
         // Clear any timeouts or intervals

@@ -19,67 +19,54 @@ export class IsometricWorld extends Container {
      */
     constructor(options = {}) {
         super();
-
-        // Enable sortable children to control z-index
-        this.sortableChildren = true;
-
-        // Create world configuration
-        this.config = new WorldConfig({
-            width: options.width,
-            height: options.height,
-            tileWidth: options.tileWidth,
-            tileHeight: options.tileHeight,
-            cameraBoundsMinX: -5000,
-            cameraBoundsMinY: -5000,
-            cameraBoundsMaxX: 5000,
-            cameraBoundsMaxY: 5000
-        });
-
-        // PixiJS application
+        
+        // Store references
         this.app = options.app;
-
-        // Game reference
         this.game = options.game;
 
-        // Create tile container with no offset
-        this.tileContainer = new PIXI.Container();
-        this.tileContainer.position.set(0, 0);
-        this.addChild(this.tileContainer);
+        // Initialize world configuration with proper coordinate system
+        this.config = new WorldConfig({
+            width: options.width || 32,
+            height: options.height || 32,
+            tileWidth: options.tileWidth || 64,
+            tileHeight: options.tileHeight || 32,
+            cameraBoundsMinX: options.cameraBoundsMinX || -1000,
+            cameraBoundsMaxX: options.cameraBoundsMaxX || 1000,
+            cameraBoundsMinY: options.cameraBoundsMinY || -1000,
+            cameraBoundsMaxY: options.cameraBoundsMaxY || 1000
+        });
 
-        // Create entity container
-        this.entityContainer = new PIXI.Container();
-        this.addChild(this.entityContainer);
-
-        // Create UI container (on top)
-        this.uiContainer = new PIXI.Container();
-        this.addChild(this.uiContainer);
-        this.uiContainer.sortableChildren = true;
-        this.uiContainer.zIndex = 100;
-
-        // Debug grid overlay
-        this.debugGridOverlay = new PIXI.Container();
-        this.addChild(this.debugGridOverlay);
-        this.debugGridOverlay.zIndex = 10000;
-        this.debugGridOverlay.visible = true;
-
-        // Selection container
-        this.selectionContainer = new PIXI.Container();
-        this.addChild(this.selectionContainer);
-        this.selectionContainer.zIndex = 9999;
-
-        // Create tile grid
-        this.tiles = [];
-
-        // Sort all children by zIndex
-        this.sortChildren();
-
-        // Entity pools
+        // Initialize entity tracking first
+        this.entities = new Set();
         this.entityPools = new Map();
 
-        // Active entities
-        this.entities = new Set();
+        // Enable interaction properly
+        this.eventMode = 'dynamic';
+        this.interactiveChildren = true;
+        this.sortableChildren = true;  // Enable proper z-sorting
+        
+        // Create layers
+        this.tileContainer = new Container();
+        this.entityContainer = new Container();
+        this.selectionContainer = new Container();
+        this.debugGridOverlay = new Container();
 
-        // Camera with centered starting position and bounds
+        // Make tile container interactive
+        this.tileContainer.eventMode = 'dynamic';
+        this.tileContainer.interactiveChildren = true;
+        this.tileContainer.sortableChildren = true;
+
+        // Add layers in correct order
+        this.addChild(this.tileContainer);
+        this.addChild(this.entityContainer);
+        this.addChild(this.selectionContainer);
+        this.addChild(this.debugGridOverlay);
+
+        // Initialize tiles array
+        this.tiles = [];
+        this.tilesByCoord = new Map();
+
+        // Create camera
         this.camera = {
             x: 0,
             y: 0,
@@ -93,28 +80,16 @@ export class IsometricWorld extends Container {
             }
         };
 
-        // Add direct click handling
-        this.interactive = true;
-        this.on('pointerdown', this.handleDirectClick.bind(this));
-
-        // Center in screen
-        if (this.app && this.app.screen) {
-            this.position.set(
-                this.app.screen.width / 2,
-                this.app.screen.height / 2
-            );
-        } else {
-            this.position.set(
-                window.innerWidth / 2,
-                window.innerHeight / 2
-            );
-        }
-
-        // Initialize world
-        this.initialize(options);
+        // Remove direct click handling since it's now managed by InputManager
+        this.hitArea = new PIXI.Rectangle(
+            -this.config.gridWidth * this.config.tileWidth,
+            -this.config.gridHeight * this.config.tileHeight,
+            this.config.gridWidth * this.config.tileWidth * 2,
+            this.config.gridHeight * this.config.tileHeight * 2
+        );
         
-        // Draw debug grid
-        this.drawDebugGrid();
+        // Initialize the world
+        this.initialize(options);
     }
 
     /**
@@ -123,8 +98,14 @@ export class IsometricWorld extends Container {
      * @private
      */
     initialize(options) {
-        // Create empty tile grid
+        // Create empty tile grid first
         this.createEmptyGrid();
+
+        // Generate world first if requested, before anything else
+        if (options.generateWorld) {
+            console.log('Generating world...');
+            this.generateWorld(options.worldOptions || {});
+        }
 
         // Create tile container with no offset
         this.tileContainer.position.set(0, 0);
@@ -135,12 +116,6 @@ export class IsometricWorld extends Container {
 
         // Apply camera position
         this.updateCamera();
-
-        // Generate world if requested
-        if (options.generateWorld) {
-            console.log('Generating world...');
-            this.generateWorld(options.worldOptions || {});
-        }
     }
 
     /**
@@ -457,9 +432,13 @@ export class IsometricWorld extends Container {
         const tileWidthHalf = this.config.tileWidth / 2;
         const tileHeightHalf = this.config.tileHeight / 2;
 
-        // Convert from isometric to grid coordinates
-        const gridY = Math.floor((localPoint.y / tileHeightHalf - localPoint.x / tileWidthHalf) / 2);
-        const gridX = Math.floor((localPoint.y / tileHeightHalf + localPoint.x / tileWidthHalf) / 2);
+        // Convert from isometric to grid coordinates with proper offset
+        const isoX = localPoint.x / tileWidthHalf;
+        const isoY = localPoint.y / tileHeightHalf;
+        
+        // These formulas convert isometric screen coordinates to grid coordinates
+        const gridY = Math.floor((isoY - isoX) / 2);
+        const gridX = Math.floor((isoY + isoX) / 2);
 
         // Early bounds check
         if (gridX < 0 || gridX >= this.config.gridWidth || 
@@ -473,7 +452,7 @@ export class IsometricWorld extends Container {
             return null;
         }
 
-        // Use the tile's containsPoint method for precise hit detection
+        // If the precise hit test passes, use this tile
         if (tile.containsPoint(point)) {
             return tile;
         }
@@ -492,7 +471,8 @@ export class IsometricWorld extends Container {
             }
         }
 
-        return tile; // Return the original tile if no precise hit was found
+        // If no precise hit was found, return the original tile as a fallback
+        return tile;
     }
 
     /**
@@ -537,37 +517,6 @@ export class IsometricWorld extends Container {
 
         // Update camera
         this.updateCamera();
-    }
-
-    /**
-     * Handles direct clicks on the world container
-     * @param {PIXI.InteractionEvent} event - The interaction event
-     * @private
-     */
-    handleDirectClick(event) {
-        // Get the global position of the click
-        const globalPos = event.data.global;
-
-        // Convert to screen coordinates
-        const screenX = globalPos.x;
-        const screenY = globalPos.y;
-
-        // Get the tile at the screen coordinates
-        const tile = this.getTileAtScreen(screenX, screenY);
-
-        // If we found a tile
-        if (tile) {
-            console.log(`Clicked on tile at (${tile.gridX}, ${tile.gridY})`);
-
-            // If right-click, move the player to this tile
-            if (event.data.button === 2 && this.game && this.game.player) {
-                // Get the center position of the tile
-                const center = tile.getCenter();
-
-                // Move player to this tile
-                this.game.player.setMoveTarget(center);
-            }
-        }
     }
 
     /**
@@ -631,7 +580,7 @@ export class IsometricWorld extends Container {
         const defaultOptions = {
             seed: Math.random() * 1000,
             terrainTypes: ['grass', 'dirt', 'sand', 'water'],
-            terrainWeights: [0.7, 0.2, 0.05, 0.05],
+            terrainWeights: [0.8, 0.15, 0.04, 0.01], // Increased chance of walkable tiles
             elevationScale: 0.1,
             elevationOctaves: 2
         };
@@ -641,7 +590,15 @@ export class IsometricWorld extends Container {
 
         console.log('World dimensions:', this.config.gridWidth, 'x', this.config.gridHeight);
 
-        // Simple random generation for now
+        // Initialize tiles array if needed
+        if (!this.tiles || this.tiles.length === 0) {
+            this.createEmptyGrid();
+        }
+
+        // Track walkable tiles for player placement
+        let walkableTiles = [];
+
+        // Generate tiles
         for (let x = 0; x < this.config.gridWidth; x++) {
             for (let y = 0; y < this.config.gridHeight; y++) {
                 // Choose terrain type based on weights
@@ -650,7 +607,7 @@ export class IsometricWorld extends Container {
                     genOptions.terrainWeights
                 );
 
-                // Create placeholder texture (would use actual textures in real implementation)
+                // Create placeholder texture
                 const texture = this.createPlaceholderTexture(terrainType);
 
                 if (!texture) {
@@ -658,18 +615,50 @@ export class IsometricWorld extends Container {
                     continue;
                 }
 
-                // Create tile
+                // Create tile with walkable property based on terrain type
+                const isWalkable = terrainType !== 'water'; // Only water is unwalkable
                 const tile = this.createTile(x, y, terrainType, texture, {
-                    elevation: Math.floor(Math.random() * 3) * 8
+                    elevation: Math.floor(Math.random() * 3) * 8,
+                    walkable: isWalkable
                 });
 
-                if (!tile) {
+                if (tile) {
+                    // Track walkable tiles for player placement
+                    if (isWalkable) {
+                        walkableTiles.push(tile);
+                    }
+                } else {
                     console.error('Failed to create tile at position:', x, y);
                 }
             }
         }
 
-        console.log('World generation complete. Created', this.tileContainer.children.length, 'tiles.');
+        // Ensure we have at least some walkable tiles
+        if (walkableTiles.length === 0) {
+            console.warn('No walkable tiles generated, creating a safe starting area');
+            // Create a safe starting area in the center
+            const centerX = Math.floor(this.config.gridWidth / 2);
+            const centerY = Math.floor(this.config.gridHeight / 2);
+            const texture = this.createPlaceholderTexture('grass');
+            
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const x = centerX + dx;
+                    const y = centerY + dy;
+                    if (x >= 0 && x < this.config.gridWidth && y >= 0 && y < this.config.gridHeight) {
+                        const tile = this.createTile(x, y, 'grass', texture, {
+                            elevation: 0,
+                            walkable: true
+                        });
+                        if (tile) {
+                            walkableTiles.push(tile);
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('World generation complete. Created', this.tileContainer.children.length, 'tiles,', walkableTiles.length, 'walkable');
     }
 
     /**

@@ -395,31 +395,47 @@ export class Enemy extends Character {
      * @private
      */
     generatePatrolPoint() {
-        // Generate a random angle
-        const angle = Math.random() * Math.PI * 2;
+        if (!this.world) return;
 
-        // Generate a random distance within the patrol radius
-        const distance = Math.random() * this.patrolRadius;
+        // Get spawn point grid coordinates
+        const spawnGridPos = this.world.worldToGrid(this.spawnPoint.x, this.spawnPoint.y);
 
-        // Calculate new point
-        const x = this.spawnPoint.x + Math.cos(angle) * distance * 50;
-        const y = this.spawnPoint.y + Math.sin(angle) * distance * 50;
+        // Generate random offsets within patrol radius
+        const gridOffsetX = (Math.random() * 2 - 1) * this.patrolRadius;
+        const gridOffsetY = (Math.random() * 2 - 1) * this.patrolRadius;
 
-        // Set patrol point
-        this.patrolPoint = { x, y };
+        // Calculate new grid coordinates
+        const newGridX = Math.round(spawnGridPos.x + gridOffsetX);
+        const newGridY = Math.round(spawnGridPos.y + gridOffsetY);
+
+        // Clamp to world bounds
+        const clampedGridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, newGridX));
+        const clampedGridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, newGridY));
+
+        // Convert back to world coordinates
+        const worldPos = this.world.gridToWorld(clampedGridX, clampedGridY);
+        this.patrolPoint = worldPos;
+        
+        console.log(`Generated patrol point at grid (${clampedGridX}, ${clampedGridY}), world (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
     }
 
     /**
      * Checks if a player is within a certain range
      * @param {Character} player - The player to check
-     * @param {number} range - The range to check
+     * @param {number} range - The range to check in grid units
      * @returns {boolean} Whether the player is in range
      * @private
      */
     isPlayerInRange(player, range) {
+        if (!this.world) return false;
+
+        // Get our position in grid coordinates
+        const ourGridPos = this.world.worldToGrid(this.x, this.y);
+        const playerGridPos = this.world.worldToGrid(player.x, player.y);
+
         // Calculate grid distance
-        const gridDx = player.gridX - this.gridX;
-        const gridDy = player.gridY - this.gridY;
+        const gridDx = playerGridPos.x - ourGridPos.x;
+        const gridDy = playerGridPos.y - ourGridPos.y;
         const gridDistance = Math.sqrt(gridDx * gridDx + gridDy * gridDy);
 
         return gridDistance <= range;

@@ -270,79 +270,55 @@ export class Character extends Entity {
             const dy = this.moveTarget.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            console.log(`Moving character to target: (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)}), current: (${this.x.toFixed(2)}, ${this.y.toFixed(2)}), distance: ${distance.toFixed(2)}`);
-
-            // If we're close enough to the target, stop moving
+            // If we're close enough to the target, stop moving and update grid position
             if (distance < 2) {
+                this.x = this.moveTarget.x; // Snap to exact target position
+                this.y = this.moveTarget.y;
                 this.stopMoving();
-                console.log('Reached target, stopping movement');
 
-                // Update grid position
+                // Update grid position using world's coordinate system
                 if (this.world) {
-                    // Use the world's screenToGrid method to get the grid position
-                    // This ensures we're using the correct coordinate transformation
-                    // that matches the gridToWorld method used for movement
-
-                    // First, convert our world position to screen coordinates
-                    const screenPos = this.world.worldToScreen(this.x, this.y);
-
-                    // Then use screenToGrid to get the grid coordinates
-                    const gridPos = this.world.screenToGrid(screenPos.x, screenPos.y);
-
-                    // Round to integers and clamp to valid grid range
-                    const gridX = Math.floor(gridPos.x);
-                    const gridY = Math.floor(gridPos.y);
-
-                    // Clamp to valid grid range
-                    this.gridX = Math.max(0, Math.min(this.world.gridWidth - 1, gridX));
-                    this.gridY = Math.max(0, Math.min(this.world.gridHeight - 1, gridY));
-
-                    console.log(`Updated grid position to (${this.gridX}, ${this.gridY})`);
-                    console.log(`Original grid position: (${gridX}, ${gridY})`);
-                    console.log(`World position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
-                    console.log(`Screen position: (${screenPos.x.toFixed(2)}, ${screenPos.y.toFixed(2)})`);
-
-                    // If we had to clamp the position, log a warning
-                    if (this.gridX !== gridX || this.gridY !== gridY) {
-                        console.warn(`Had to clamp character grid position from (${gridX}, ${gridY}) to (${this.gridX}, ${this.gridY})`);
-                    }
-                } else {
-                    console.warn('Character has no world reference, cannot update grid position');
+                    const gridPos = this.world.worldToGrid(this.x, this.y);
+                    this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
+                    this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
+                    console.log(`Reached target. Grid position: (${this.gridX}, ${this.gridY}), World position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
                 }
-
                 return;
             }
 
-            // Otherwise, move towards the target
-            this.isMoving = true;
-
-            // Calculate movement direction
+            // Calculate normalized movement direction
             const normalizedDx = dx / distance;
             const normalizedDy = dy / distance;
 
-            // Update velocity - scale by deltaTime for consistent movement speed
-            this.velocity.x = normalizedDx * this.speed * 60 * deltaTime; // Scale by 60 for frame rate independence
+            // Update velocity with proper scaling
+            this.velocity.x = normalizedDx * this.speed * 60 * deltaTime;
             this.velocity.y = normalizedDy * this.speed * 60 * deltaTime;
 
-            // Apply velocity to position
-            const oldX = this.x;
-            const oldY = this.y;
-
+            // Update position
             this.x += this.velocity.x;
             this.y += this.velocity.y;
 
-            // Log position change if significant
-            if (Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) {
-                console.log(`Updated position to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
-            }
-
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
+
+            // Update grid position continuously during movement
+            if (this.world) {
+                const gridPos = this.world.worldToGrid(this.x, this.y);
+                const newGridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
+                const newGridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
+                
+                // Only update and log if grid position has changed
+                if (newGridX !== this.gridX || newGridY !== this.gridY) {
+                    this.gridX = newGridX;
+                    this.gridY = newGridY;
+                    console.log(`Updated grid position to (${this.gridX}, ${this.gridY})`);
+                }
+            }
         } else {
-            // No target, stop moving
-            this.isMoving = false;
+            // No target, ensure velocity is zero
             this.velocity.x = 0;
             this.velocity.y = 0;
+            this.isMoving = false;
         }
     }
 
@@ -410,9 +386,18 @@ export class Character extends Entity {
             return;
         }
 
-        console.log(`Setting move target to (${target.x}, ${target.y})`);
-        this.moveTarget = target;
+        // Ensure we have valid coordinates
+        if (typeof target.x !== 'number' || typeof target.y !== 'number') {
+            console.warn('Invalid move target coordinates:', target);
+            return;
+        }
+
+        // Create a new target object to prevent reference issues
+        this.moveTarget = { x: Number(target.x), y: Number(target.y) };
         this.isMoving = true;
+
+        // Log the new target for debugging
+        console.log(`Setting move target to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
 
         // Show health bar when moving
         if (this.healthBar) {

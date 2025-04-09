@@ -12,6 +12,20 @@ export class IsometricTile extends Container {
         this.gridX = options.x || 0;
         this.gridY = options.y || 0;
 
+        // References
+        this.world = options.world || null;
+        this.game = options.game || null;
+
+        // Make tile interactive
+        this.eventMode = 'dynamic';  // Changed from static to dynamic for better event handling
+        this.cursor = 'pointer';
+        this.interactive = true;
+
+        // Set up interaction events with both mouse and touch support
+        this.on('pointerdown', this.onPointerDown.bind(this));
+        this.on('mouseover', this.onMouseOver.bind(this));  // Changed from pointerover to mouseover
+        this.on('mouseout', this.onMouseOut.bind(this));    // Changed from pointerout to mouseout
+
         // Tile properties
         this.type = options.type || 'grass';
         this.walkable = options.walkable !== undefined ? options.walkable : true;
@@ -20,10 +34,6 @@ export class IsometricTile extends Container {
         // Dimensions
         this.tileWidth = options.width || 64;
         this.tileHeight = options.height || 32;
-
-        // References
-        this.world = options.world || null;
-        this.game = options.game || null;
 
         // Calculate isometric position without any offsets
         this.isoX = (this.gridX - this.gridY) * this.tileWidth / 2;
@@ -36,10 +46,6 @@ export class IsometricTile extends Container {
         // Create sprite
         this.sprite = null;
 
-        // Make tile interactive
-        this.interactive = true;
-        this.buttonMode = true;
-
         // Calculate the visual center offset (where the sprite is actually rendered)
         const visualCenterY = -this.tileHeight / 2; // Because sprite anchor is at bottom center
 
@@ -51,15 +57,6 @@ export class IsometricTile extends Container {
             new PIXI.Point(-this.tileWidth / 2, visualCenterY + this.tileHeight / 2)    // Left
         ];
         this.hitArea = new PIXI.Polygon(hitAreaPoints);
-
-        // Add mouse events
-        this.on('mouseover', this.onMouseOver.bind(this));
-        this.on('mouseout', this.onMouseOut.bind(this));
-        this.on('click', this.onClick.bind(this));
-        this.on('rightclick', this.onRightClick.bind(this));
-
-        // Add direct right-click handler
-        this.on('pointerdown', this.onPointerDown.bind(this));
 
         // Set texture if provided
         if (options.texture) {
@@ -76,21 +73,14 @@ export class IsometricTile extends Container {
         this.highlightGraphics = null;
     }
 
+    /**
+     * Handles pointer down events (both left and right click)
+     * @param {PIXI.InteractionEvent} event - The interaction event
+     * @private
+     */
     onPointerDown(event) {
-        // Strict boundary check
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
-            console.log(`Prevented pointer event on out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
-            return;
-        }
-
-        if (event.button === 2) { // Right click
-            const center = this.getCenter();
-            if (this.game && this.game.player) {
-                console.log(`Moving player to tile (${this.gridX}, ${this.gridY}) at ${center.x}, ${center.y}`);
-                this.game.player.setMoveTarget(center);
-            }
-        }
+        // Event is now handled by InputManager, this is just for PIXI.js interaction system
+        event.stopPropagation();
     }
 
     containsPoint(point) {
@@ -104,8 +94,9 @@ export class IsometricTile extends Container {
         const localPoint = new PIXI.Point();
         this.worldTransform.applyInverse(point, localPoint);
 
-        // Since our tiles are rendered at bottom-center, adjust Y coordinate
-        localPoint.y += this.tileHeight / 2;
+        // Adjust point for visual center - tiles are drawn from their bottom center
+        const visualCenterY = -this.tileHeight / 2;
+        localPoint.y -= visualCenterY;
 
         // Get point relative to tile center
         const dx = Math.abs(localPoint.x);
@@ -113,7 +104,6 @@ export class IsometricTile extends Container {
 
         // Use diamond equation for hit testing
         // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
-        // where w and h are the full width and height
         return (dx / this.tileWidth + dy / this.tileHeight) <= 0.5;
     }
 
@@ -313,20 +303,21 @@ export class IsometricTile extends Container {
         // Draw filled diamond with transparency
         this.highlightGraphics.beginFill(color, alpha);
         
-        // Draw the diamond shape matching the tile dimensions
-        this.highlightGraphics.moveTo(0, -this.tileHeight); // Top point
-        this.highlightGraphics.lineTo(this.tileWidth/2, -this.tileHeight/2); // Right point
-        this.highlightGraphics.lineTo(0, 0); // Bottom point
-        this.highlightGraphics.lineTo(-this.tileWidth/2, -this.tileHeight/2); // Left point
+        // Draw the diamond shape matching the visual position of the tile
+        const visualCenterY = -this.tileHeight / 2;
+        this.highlightGraphics.moveTo(0, visualCenterY); // Top point
+        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2); // Right point
+        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight); // Bottom point
+        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2); // Left point
         this.highlightGraphics.closePath();
         this.highlightGraphics.endFill();
 
         // Draw outline for better visibility
         this.highlightGraphics.lineStyle(2, color, Math.min(1, alpha + 0.3));
-        this.highlightGraphics.moveTo(0, -this.tileHeight);
-        this.highlightGraphics.lineTo(this.tileWidth/2, -this.tileHeight/2);
-        this.highlightGraphics.lineTo(0, 0);
-        this.highlightGraphics.lineTo(-this.tileWidth/2, -this.tileHeight/2);
+        this.highlightGraphics.moveTo(0, visualCenterY);
+        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
+        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
         this.highlightGraphics.closePath();
     }
 
@@ -383,24 +374,18 @@ export class IsometricTile extends Container {
      * @returns {Object} Center position {x, y}
      */
     getCenter() {
-        // For isometric tiles, the center is at the tile's position
-        // but we need to adjust for elevation
-        const center = {
-            x: this.x,
-            y: this.y - (this.elevation || 0)
-        };
-
-        console.log(`Tile (${this.gridX}, ${this.gridY}) center: (${center.x.toFixed(2)}, ${center.y.toFixed(2)})`);
-
-        // If we have a world reference, convert from grid to world coordinates
-        // This ensures we're using the correct coordinate system
+        // If we have a world reference, return world coordinates
         if (this.world) {
             const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
             console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
             return worldPos;
         }
 
-        return center;
+        // Fallback to local coordinates
+        return {
+            x: this.x,
+            y: this.y - (this.elevation || 0)
+        };
     }
 
     /**
@@ -408,21 +393,9 @@ export class IsometricTile extends Container {
      * @private
      */
     onMouseOver() {
-        // Strict boundary check
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
-            return;
-        }
-
-        // Highlight the tile
-        this.highlight();
-
-        // Log for debugging
-        console.log(`Mouse over tile at (${this.gridX}, ${this.gridY})`);
-
-        // Update game's hovered tile reference if available
-        if (this.game && this.game.input) {
-            this.game.input.hoveredTile = this;
+        // Visual feedback only - state is managed by InputManager
+        if (!this.selected) {
+            this.highlight();
         }
     }
 
@@ -431,105 +404,9 @@ export class IsometricTile extends Container {
      * @private
      */
     onMouseOut() {
-        // Unhighlight the tile if not selected
+        // Visual feedback only - state is managed by InputManager
         if (!this.selected) {
             this.unhighlight();
-        }
-
-        // Log for debugging
-        console.log(`Mouse out tile at (${this.gridX}, ${this.gridY})`);
-
-        // Update game's hovered tile reference if available
-        if (this.game && this.game.input && this.game.input.hoveredTile === this) {
-            this.game.input.hoveredTile = null;
-        }
-    }
-
-    /**
-     * Handles click event
-     * @private
-     */
-    onClick() {
-        // Strict boundary check
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
-            return;
-        }
-
-        // Select the tile
-        this.select();
-
-        // Log for debugging
-        console.log(`Clicked tile at (${this.gridX}, ${this.gridY})`);
-        console.log(`Tile properties: type=${this.type}, walkable=${this.walkable}, structure=${this.structure ? 'yes' : 'no'}`);
-
-        // Update game's selected tile reference if available
-        if (this.game && this.game.input) {
-            console.log('Game and input available, updating selected tile');
-
-            // Deselect previous tile
-            if (this.game.input.selectedTile && this.game.input.selectedTile !== this) {
-                console.log(`Deselecting previous tile at (${this.game.input.selectedTile.gridX}, ${this.game.input.selectedTile.gridY})`);
-                this.game.input.selectedTile.deselect();
-            }
-
-            // Set new selected tile
-            this.game.input.selectedTile = this;
-            console.log(`Set new selected tile to (${this.gridX}, ${this.gridY})`);
-
-            // Call tile click handler if provided
-            if (this.game.options.onTileClick) {
-                console.log('Calling onTileClick handler');
-                this.game.options.onTileClick(this, this.game);
-            } else {
-                console.log('No onTileClick handler available');
-            }
-        } else {
-            console.log('Game or input not available, cannot update selected tile');
-        }
-    }
-
-    /**
-     * Handles right-click event
-     * @private
-     */
-    onRightClick() {
-        // Log for debugging
-        console.log(`Right-clicked tile at (${this.gridX}, ${this.gridY})`);
-        console.log('this.game:', this.game ? 'exists' : 'null');
-        console.log('this.world:', this.world ? 'exists' : 'null');
-
-        // Move player to this tile if game and player are available
-        if (this.game && this.game.player) {
-            console.log('Game and player found, moving player to right-clicked tile');
-            console.log('Player:', this.game.player);
-
-            // Get the center position of the tile
-            const center = this.getCenter();
-            console.log(`Tile center: (${center.x}, ${center.y})`);
-
-            // Move player to selected tile
-            this.game.player.setMoveTarget(center);
-            console.log('setMoveTarget called');
-
-            // Highlight the tile to show it's the target
-            this.highlight(0x0000FF, 0.5); // Blue highlight for movement target
-            console.log('Tile highlighted');
-
-            // Clear highlight after a short delay
-            setTimeout(() => {
-                if (!this.selected) {
-                    this.unhighlight();
-                }
-            }, 1000);
-        } else {
-            console.log('Game or player not available, cannot move player');
-            if (this.game) {
-                console.log('Game exists but player is null or undefined');
-            } else {
-                console.log('Game is null or undefined');
-                console.log('this:', this);
-            }
         }
     }
 
