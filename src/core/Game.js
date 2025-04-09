@@ -263,6 +263,37 @@ export class Game {
     }
 
     /**
+     * Places a structure at the specified tile
+     * @param {string} type - Type of structure to place
+     * @param {IsometricTile} tile - Tile to place the structure on
+     */
+    placeStructure(type, tile) {
+        if (!tile || !tile.walkable || tile.structure) {
+            console.warn('Cannot place structure: invalid tile or tile already has structure');
+            return;
+        }
+
+        // Create structure with appropriate options based on type
+        const structure = new Structure({
+            structureType: type,
+            gridX: tile.gridX,
+            gridY: tile.gridY,
+            walkable: false,
+            solid: true,
+            destructible: true,
+            interactive: true
+        });
+
+        // Try to place the structure in the world
+        if (structure.canPlaceAt(this.world, tile.gridX, tile.gridY)) {
+            structure.placeInWorld(this.world, tile.gridX, tile.gridY);
+            console.log(`Placed ${type} structure at (${tile.gridX}, ${tile.gridY})`);
+        } else {
+            console.warn(`Cannot place ${type} structure at (${tile.gridX}, ${tile.gridY})`);
+        }
+    }
+
+    /**
      * Handles camera controls
      * @private
      */

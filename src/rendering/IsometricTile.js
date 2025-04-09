@@ -278,15 +278,27 @@ export class IsometricTile extends Container {
             this.highlightGraphics.parent.removeChild(this.highlightGraphics);
         }
 
-        // Add highlight graphics as the last child so it renders on top
-        this.addChild(this.highlightGraphics);
+        // Add highlight graphics to the world's selection container
+        this.world.selectionContainer.addChild(this.highlightGraphics);
 
-        // Position relative to tile's center
-        this.highlightGraphics.position.set(0, 0);
+        // Position in world space
+        const worldPos = this.getParentPosition();
+        this.highlightGraphics.position.set(worldPos.x, worldPos.y);
 
         // Draw the highlight
         this.drawHighlight(color, alpha);
         this.highlighted = true;
+    }
+
+    /**
+     * Gets the position of this tile in its parent's coordinate space
+     * @private
+     * @returns {Object} Position {x, y}
+     */
+    getParentPosition() {
+        const point = new PIXI.Point(this.x, this.y);
+        const newPoint = this.parent.toGlobal(point);
+        return this.world.selectionContainer.toLocal(newPoint);
     }
 
     /**

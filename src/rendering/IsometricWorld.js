@@ -46,18 +46,22 @@ export class IsometricWorld extends Container {
         this.sortableChildren = true;  // Enable proper z-sorting
         
         // Create layers
-        this.tileContainer = new Container();
-        this.entityContainer = new Container();
-        this.selectionContainer = new Container();
+        this.groundLayer = new Container();
+        this.entityLayer = new Container();
+        this.structureLayer = new Container();
+        this.selectionContainer = new Container(); // Container for tile selection/highlights
+        this.entityContainer = new Container(); // Container for game entities like players, enemies, etc.
         this.debugGridOverlay = new Container();
 
         // Make tile container interactive
-        this.tileContainer.eventMode = 'dynamic';
-        this.tileContainer.interactiveChildren = true;
-        this.tileContainer.sortableChildren = true;
+        this.groundLayer.eventMode = 'dynamic';
+        this.groundLayer.interactiveChildren = true;
+        this.groundLayer.sortableChildren = true;
 
         // Add layers in correct order
-        this.addChild(this.tileContainer);
+        this.addChild(this.groundLayer);
+        this.addChild(this.entityLayer);
+        this.addChild(this.structureLayer);
         this.addChild(this.entityContainer);
         this.addChild(this.selectionContainer);
         this.addChild(this.debugGridOverlay);
@@ -108,7 +112,7 @@ export class IsometricWorld extends Container {
         }
 
         // Create tile container with no offset
-        this.tileContainer.position.set(0, 0);
+        this.groundLayer.position.set(0, 0);
 
         // Set initial camera position to center of world
         this.camera.x = (this.config.gridWidth * this.config.tileWidth) / 4;
@@ -194,7 +198,7 @@ export class IsometricWorld extends Container {
         this.tiles[x][y] = tile;
 
         // Add to container
-        this.tileContainer.addChild(tile);
+        this.groundLayer.addChild(tile);
 
         // Mark for depth sorting
         this.sortTilesByDepth = true;
@@ -218,7 +222,7 @@ export class IsometricWorld extends Container {
         if (!tile) return;
 
         // Remove from container
-        this.tileContainer.removeChild(tile);
+        this.groundLayer.removeChild(tile);
 
         // Dispose tile
         tile.dispose();
@@ -277,7 +281,7 @@ export class IsometricWorld extends Container {
         // Create new pool
         const pool = new EntityPool(entityClass, {
             ...options,
-            container: this.entityContainer
+            container: this.entityLayer
         });
 
         // Store pool
@@ -658,7 +662,7 @@ export class IsometricWorld extends Container {
             }
         }
 
-        console.log('World generation complete. Created', this.tileContainer.children.length, 'tiles,', walkableTiles.length, 'walkable');
+        console.log('World generation complete. Created', this.groundLayer.children.length, 'tiles,', walkableTiles.length, 'walkable');
     }
 
     /**
@@ -847,11 +851,11 @@ export class IsometricWorld extends Container {
         });
 
         // Remove all tiles from container
-        this.tileContainer.removeChildren();
+        this.groundLayer.removeChildren();
 
         // Add tiles back in sorted order
         for (const tile of allTiles) {
-            this.tileContainer.addChild(tile);
+            this.groundLayer.addChild(tile);
         }
 
         console.log('Sorted tiles by depth');
