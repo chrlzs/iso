@@ -267,23 +267,28 @@ export class Character extends Entity {
      * @private
      */
     updateMovement(deltaTime) {
-        console.log('updateMovement called, deltaTime:', deltaTime);
+        console.log('-----Movement Update Start-----');
+        console.log('deltaTime:', deltaTime);
+        console.log('isMoving:', this.isMoving);
+        console.log('active:', this.active);  // Add active state check
+        console.log('Current position:', this.x, this.y);
+        console.log('Move target:', this.moveTarget ? `(${this.moveTarget.x}, ${this.moveTarget.y})` : 'none');
+        console.log('Current velocity:', this.velocity.x, this.velocity.y);
+        console.log('Speed:', this.speed);
 
         // If we have a target, move towards it
         if (this.moveTarget) {
-            console.log('Move target exists:', this.moveTarget);
-            console.log('Current position:', this.x, this.y);
-
             const dx = this.moveTarget.x - this.x;
             const dy = this.moveTarget.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             console.log('Distance to target:', distance);
+            console.log('Direction vector:', dx, dy);
 
             // If we're close enough to the target, stop moving and update grid position
             if (distance < 2) {
-                console.log('Reached target');
-                this.x = this.moveTarget.x; // Snap to exact target position
+                console.log('Reached target - snapping to final position');
+                this.x = this.moveTarget.x;
                 this.y = this.moveTarget.y;
                 this.stopMoving();
 
@@ -292,7 +297,7 @@ export class Character extends Entity {
                     const gridPos = this.world.worldToGrid(this.x, this.y);
                     this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
                     this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
-                    console.log(`Reached target. Grid position: (${this.gridX}, ${this.gridY}), World position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+                    console.log(`Final grid position: (${this.gridX}, ${this.gridY}), World position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
                 }
                 return;
             }
@@ -300,17 +305,12 @@ export class Character extends Entity {
             // Calculate normalized movement direction
             const normalizedDx = dx / distance;
             const normalizedDy = dy / distance;
-            console.log('Movement direction:', normalizedDx, normalizedDy);
+            console.log('Normalized direction:', normalizedDx, normalizedDy);
 
-            // Update velocity with proper scaling
-            this.velocity.x = normalizedDx * this.speed * 60 * deltaTime;
-            this.velocity.y = normalizedDy * this.speed * 60 * deltaTime;
-            console.log('Velocity:', this.velocity.x, this.velocity.y);
-
-            // Update position
-            this.x += this.velocity.x;
-            this.y += this.velocity.y;
-            console.log('New position:', this.x, this.y);
+            // Update velocity
+            this.velocity.x = normalizedDx * this.speed;
+            this.velocity.y = normalizedDy * this.speed;
+            console.log('New velocity:', this.velocity.x, this.velocity.y);
 
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
@@ -321,7 +321,6 @@ export class Character extends Entity {
                 const newGridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
                 const newGridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
 
-                // Only update and log if grid position has changed
                 if (newGridX !== this.gridX || newGridY !== this.gridY) {
                     this.gridX = newGridX;
                     this.gridY = newGridY;
@@ -333,7 +332,9 @@ export class Character extends Entity {
             this.velocity.x = 0;
             this.velocity.y = 0;
             this.isMoving = false;
+            console.log('No movement target - velocity set to zero');
         }
+        console.log('-----Movement Update End-----');
     }
 
     /**

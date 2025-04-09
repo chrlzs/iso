@@ -506,6 +506,8 @@ export class Game {
                 player.world = this.world;
                 this.world.entityContainer.addChild(player);
                 centerTile.addEntity(player);
+                // Add player to world's entities Set
+                this.world.entities.add(player);
                 console.log('Player placed at center tile');
             } else {
                 // Spiral search pattern
@@ -529,6 +531,8 @@ export class Game {
                                 player.world = this.world;
                                 this.world.entityContainer.addChild(player);
                                 tile.addEntity(player);
+                                // Add player to world's entities Set
+                                this.world.entities.add(player);
                                 found = true;
                             }
                         }

@@ -183,12 +183,12 @@ export class Entity extends Container {
 
         // Only update position if velocity is significant
         if (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.y) > 0.01) {
-            // Update position
             const oldX = this.x;
             const oldY = this.y;
 
-            this.x += this.velocity.x * deltaTime;
-            this.y += this.velocity.y * deltaTime;
+            // Apply velocity directly since deltaTime was already applied when setting velocity
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
 
             // Log position change if significant
             if (Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) {
