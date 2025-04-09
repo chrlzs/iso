@@ -464,7 +464,7 @@ export class Game {
             color: 0x3498db,
             showName: true,
             tags: ['player'],
-            active: true // Ensure the player is active
+            active: true
         });
 
         // Double-check that the player is active
@@ -492,12 +492,10 @@ export class Game {
             // Start searching from center and spiral outward
             const centerX = Math.floor(this.world.config.gridWidth / 2);
             const centerY = Math.floor(this.world.config.gridHeight / 2);
-            console.log('Starting player placement search at center:', centerX, centerY);
 
             // Try center tile first
             const centerTile = this.world.getTile(centerX, centerY);
             if (centerTile && centerTile.walkable && !centerTile.structure) {
-                console.log('Found valid center tile:', centerTile);
                 const center = centerTile.getCenter();
                 player.x = center.x;
                 player.y = center.y;
@@ -506,9 +504,7 @@ export class Game {
                 player.world = this.world;
                 this.world.entityContainer.addChild(player);
                 centerTile.addEntity(player);
-                // Add player to world's entities Set
                 this.world.entities.add(player);
-                console.log('Player placed at center tile');
             } else {
                 // Spiral search pattern
                 let found = false;
@@ -522,7 +518,6 @@ export class Game {
                             const tile = this.world.getTile(x, y);
 
                             if (tile && tile.walkable && !tile.structure) {
-                                console.log('Found valid tile at:', x, y);
                                 const pos = tile.getCenter();
                                 player.x = pos.x;
                                 player.y = pos.y;
@@ -531,7 +526,6 @@ export class Game {
                                 player.world = this.world;
                                 this.world.entityContainer.addChild(player);
                                 tile.addEntity(player);
-                                // Add player to world's entities Set
                                 this.world.entities.add(player);
                                 found = true;
                             }
@@ -584,7 +578,6 @@ export class Game {
             this.world.player = player;
         }
 
-        console.log('Player created and references set:', this.player ? 'success' : 'failed');
         return player;
     }
 
