@@ -19,7 +19,7 @@ export class IsometricWorld extends Container {
      */
     constructor(options = {}) {
         super();
-        
+
         // Store references
         this.app = options.app;
         this.game = options.game;
@@ -44,7 +44,7 @@ export class IsometricWorld extends Container {
         this.eventMode = 'dynamic';
         this.interactiveChildren = true;
         this.sortableChildren = true;  // Enable proper z-sorting
-        
+
         // Create layers
         this.groundLayer = new Container();
         this.entityLayer = new Container();
@@ -91,7 +91,7 @@ export class IsometricWorld extends Container {
             this.config.gridWidth * this.config.tileWidth * 2,
             this.config.gridHeight * this.config.tileHeight * 2
         );
-        
+
         // Initialize the world
         this.initialize(options);
     }
@@ -439,13 +439,13 @@ export class IsometricWorld extends Container {
         // Convert from isometric to grid coordinates with proper offset
         const isoX = localPoint.x / tileWidthHalf;
         const isoY = localPoint.y / tileHeightHalf;
-        
+
         // These formulas convert isometric screen coordinates to grid coordinates
         const gridY = Math.floor((isoY - isoX) / 2);
         const gridX = Math.floor((isoY + isoX) / 2);
 
         // Early bounds check
-        if (gridX < 0 || gridX >= this.config.gridWidth || 
+        if (gridX < 0 || gridX >= this.config.gridWidth ||
             gridY < 0 || gridY >= this.config.gridHeight) {
             return null;
         }
@@ -538,7 +538,7 @@ export class IsometricWorld extends Container {
             this.camera.x += (targetX - this.camera.x) * 0.1;
             this.camera.y += (targetY - this.camera.y) * 0.1;
 
-            console.log('Camera following target:', targetX, targetY, '-> Camera position:', this.camera.x, this.camera.y);
+            // console.log('Camera following target:', targetX, targetY, '-> Camera position:', this.camera.x, this.camera.y);
         }
 
         // Apply camera bounds
@@ -567,7 +567,7 @@ export class IsometricWorld extends Container {
         this.scale.set(this.camera.zoom);
 
         // Log camera position for debugging
-        console.log('Camera updated - Position:', this.camera.x, this.camera.y, 'Zoom:', this.camera.zoom);
+        //console.log('Camera updated - Position:', this.camera.x, this.camera.y, 'Zoom:', this.camera.zoom);
     }
 
     /**
@@ -644,7 +644,7 @@ export class IsometricWorld extends Container {
             const centerX = Math.floor(this.config.gridWidth / 2);
             const centerY = Math.floor(this.config.gridHeight / 2);
             const texture = this.createPlaceholderTexture('grass');
-            
+
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     const x = centerX + dx;
@@ -866,12 +866,12 @@ export class IsometricWorld extends Container {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        console.log('World update called');
+        //console.log('World update called');
 
         // Update camera - ONLY if we have a camera target
         // This prevents the camera from being updated unnecessarily
         if (this.camera.target) {
-            console.log('Updating camera because target is set');
+            //console.log('Updating camera because target is set');
             this.updateCamera();
         }
 
@@ -892,7 +892,7 @@ export class IsometricWorld extends Container {
         if (this.debugGridOverlay && this.debugGridOverlay.visible) {
             this.drawDebugGrid();
             // Log that we're drawing the grid
-            console.log('Drawing debug grid in update cycle');
+            //console.log('Drawing debug grid in update cycle');
         }
     }
 

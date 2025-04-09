@@ -143,7 +143,15 @@ export class Entity extends Container {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        if (!this.active) return;
+        if (!this.active) {
+            // Log if this is the player entity
+            if (this.isPlayer) {
+                console.warn('Player entity is not active! Activating...');
+                this.active = true;
+            } else {
+                return;
+            }
+        }
 
         // Update physics
         this.updatePhysics(deltaTime);

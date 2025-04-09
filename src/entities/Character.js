@@ -219,6 +219,9 @@ export class Character extends Entity {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
+        console.log('Character update called, deltaTime:', deltaTime);
+        console.log('Character moving:', this.isMoving, 'moveTarget:', this.moveTarget ? `(${this.moveTarget.x}, ${this.moveTarget.y})` : 'none');
+
         super.update(deltaTime);
 
         // Update animation
@@ -264,14 +267,22 @@ export class Character extends Entity {
      * @private
      */
     updateMovement(deltaTime) {
+        console.log('updateMovement called, deltaTime:', deltaTime);
+
         // If we have a target, move towards it
         if (this.moveTarget) {
+            console.log('Move target exists:', this.moveTarget);
+            console.log('Current position:', this.x, this.y);
+
             const dx = this.moveTarget.x - this.x;
             const dy = this.moveTarget.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
+            console.log('Distance to target:', distance);
+
             // If we're close enough to the target, stop moving and update grid position
             if (distance < 2) {
+                console.log('Reached target');
                 this.x = this.moveTarget.x; // Snap to exact target position
                 this.y = this.moveTarget.y;
                 this.stopMoving();
@@ -289,14 +300,17 @@ export class Character extends Entity {
             // Calculate normalized movement direction
             const normalizedDx = dx / distance;
             const normalizedDy = dy / distance;
+            console.log('Movement direction:', normalizedDx, normalizedDy);
 
             // Update velocity with proper scaling
             this.velocity.x = normalizedDx * this.speed * 60 * deltaTime;
             this.velocity.y = normalizedDy * this.speed * 60 * deltaTime;
+            console.log('Velocity:', this.velocity.x, this.velocity.y);
 
             // Update position
             this.x += this.velocity.x;
             this.y += this.velocity.y;
+            console.log('New position:', this.x, this.y);
 
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
@@ -306,7 +320,7 @@ export class Character extends Entity {
                 const gridPos = this.world.worldToGrid(this.x, this.y);
                 const newGridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
                 const newGridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
-                
+
                 // Only update and log if grid position has changed
                 if (newGridX !== this.gridX || newGridY !== this.gridY) {
                     this.gridX = newGridX;
@@ -391,6 +405,11 @@ export class Character extends Entity {
             console.warn('Invalid move target coordinates:', target);
             return;
         }
+
+        // Debug world reference
+        console.log('Character world reference:', this.world ? 'exists' : 'missing');
+        console.log('Character position:', this.x, this.y);
+        console.log('Character grid position:', this.gridX, this.gridY);
 
         // Create a new target object to prevent reference issues
         this.moveTarget = { x: Number(target.x), y: Number(target.y) };

@@ -347,7 +347,7 @@ export class Game {
 
         // Update camera if changed
         if (cameraChanged) {
-            console.log('Updating camera position:', this.world.camera.x, this.world.camera.y);
+            //console.log('Updating camera position:', this.world.camera.x, this.world.camera.y);
             this.world.updateCamera();
         }
     }
@@ -463,8 +463,12 @@ export class Game {
             speed: 3,
             color: 0x3498db,
             showName: true,
-            tags: ['player']
+            tags: ['player'],
+            active: true // Ensure the player is active
         });
+
+        // Double-check that the player is active
+        player.active = true;
 
         // Create inventory for player
         player.inventory = new Inventory({
@@ -514,7 +518,7 @@ export class Game {
                             const x = centerX + dx;
                             const y = centerY + dy;
                             const tile = this.world.getTile(x, y);
-                            
+
                             if (tile && tile.walkable && !tile.structure) {
                                 console.log('Found valid tile at:', x, y);
                                 const pos = tile.getCenter();
