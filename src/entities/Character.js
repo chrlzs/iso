@@ -289,9 +289,9 @@ export class Character extends Entity {
             const normalizedDx = dx / distance;
             const normalizedDy = dy / distance;
 
-            // Update velocity
-            this.velocity.x = normalizedDx * this.speed;
-            this.velocity.y = normalizedDy * this.speed;
+            // Update velocity with proper scaling for deltaTime
+            this.velocity.x = normalizedDx * this.speed * deltaTime * 60; // Scale by 60 to normalize for 60 FPS
+            this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
 
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
@@ -385,17 +385,9 @@ export class Character extends Entity {
             return;
         }
 
-        // Debug world reference
-        console.log('Character world reference:', this.world ? 'exists' : 'missing');
-        console.log('Character position:', this.x, this.y);
-        console.log('Character grid position:', this.gridX, this.gridY);
-
         // Create a new target object to prevent reference issues
         this.moveTarget = { x: Number(target.x), y: Number(target.y) };
         this.isMoving = true;
-
-        // Log the new target for debugging
-        console.log(`Setting move target to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
 
         // Show health bar when moving
         if (this.healthBar) {
