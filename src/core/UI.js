@@ -318,6 +318,15 @@ export class UI {
 
         // Create container
         const container = new PIXI.Container();
+        
+        // Make container interactive and stop event propagation
+        container.interactive = true;
+        container.eventMode = 'static';
+        container.on('pointerdown', e => e.stopPropagation());
+        container.on('pointermove', e => e.stopPropagation());
+        container.on('click', e => e.stopPropagation());
+        container.on('mousedown', e => e.stopPropagation());
+        container.on('mousemove', e => e.stopPropagation());
 
         // Get panel style
         const style = { ...this.styles.panel, ...options.style };
@@ -342,35 +351,13 @@ export class UI {
         background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
         background.endFill();
 
-        // Create title if provided
-        if (options.title) {
-            const title = new PIXI.Text(options.title, options.titleStyle || this.styles.heading);
-            title.position.set(style.padding, style.padding);
-            container.addChild(title);
-            container.title = title;
-        }
-
-        // Create close button if closable
-        if (options.closable) {
-            const closeButton = this.createButton('X', () => {
-                this.hidePanel(id);
-            }, {
-                width: 24,
-                height: 24,
-                style: {
-                    fill: 0xAA0000,
-                    hoverFill: 0xFF0000
-                }
-            });
-
-            closeButton.position.set(width - 30, 6);
-            container.addChild(closeButton);
-            container.closeButton = closeButton;
-        }
-
-        // Create content container
+        // Create content container with event handling
         const contentY = options.title ? 40 : style.padding;
         const contentContainer = new PIXI.Container();
+        contentContainer.interactive = true;
+        contentContainer.eventMode = 'static';
+        contentContainer.on('pointerdown', e => e.stopPropagation());
+        contentContainer.on('pointermove', e => e.stopPropagation());
         contentContainer.position.set(style.padding, contentY);
         container.addChild(contentContainer);
         container.contentContainer = contentContainer;
@@ -481,6 +468,15 @@ export class UI {
             y: 0,
             closable: false
         });
+
+        // Ensure panel itself is interactive and blocks events
+        panel.interactive = true;
+        panel.eventMode = 'static';
+        panel.on('pointerdown', e => e.stopPropagation());
+        panel.on('pointermove', e => e.stopPropagation());
+        panel.on('click', e => e.stopPropagation());
+        panel.on('mousedown', e => e.stopPropagation());
+        panel.on('mousemove', e => e.stopPropagation());
 
         // Create combat UI
         const combatUI = new CombatUI({

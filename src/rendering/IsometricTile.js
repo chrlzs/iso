@@ -85,8 +85,8 @@ export class IsometricTile extends Container {
 
     containsPoint(point) {
         // First do a strict boundary check
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
+        if (!this.world || this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
+            this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
             return false;
         }
 
@@ -98,13 +98,18 @@ export class IsometricTile extends Container {
         const visualCenterY = -this.tileHeight / 2;
         localPoint.y -= visualCenterY;
 
-        // Get point relative to tile center
+        // Add some padding to the hit area for better click detection
+        const padding = 4;
+        const adjustedWidth = this.tileWidth + padding * 2;
+        const adjustedHeight = this.tileHeight + padding * 2;
+
+        // Get point relative to tile center with padding adjustment
         const dx = Math.abs(localPoint.x);
         const dy = Math.abs(localPoint.y);
 
-        // Use diamond equation for hit testing
+        // Use diamond equation for hit testing with adjusted dimensions
         // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
-        return (dx / this.tileWidth + dy / this.tileHeight) <= 0.5;
+        return (dx / adjustedWidth + dy / adjustedHeight) <= 0.5;
     }
 
     /**

@@ -8,6 +8,10 @@ export class CombatManager {
      * @param {Game} options.game - Game instance
      */
     constructor(options = {}) {
+        if (!options.game) {
+            throw new Error('CombatManager requires a game instance');
+        }
+        
         this.game = options.game;
         
         // Combat state

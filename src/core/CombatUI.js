@@ -16,6 +16,38 @@ export class CombatUI {
         this.combatManager = options.combatManager;
         this.ui = options.ui;
 
+        // Make container interactive to capture all events
+        this.container.interactive = true;
+        this.container.eventMode = 'static';  // Use static mode to ensure it captures all events
+        this.container.sortableChildren = true; // Enable z-index sorting
+        this.container.zIndex = 1000; // Ensure combat UI is above game world
+        
+        // Create full-screen hit area to catch all events
+        const hitArea = new PIXI.Graphics();
+        hitArea.beginFill(0x000000, 0.01); // Nearly transparent
+        hitArea.drawRect(0, 0, 800, 600);  // Full screen size
+        hitArea.endFill();
+        hitArea.eventMode = 'static';
+        hitArea.cursor = 'default';
+        this.container.addChild(hitArea);
+
+        // Block all types of events from reaching game world
+        const blockEvent = e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        };
+        this.container.on('pointerdown', blockEvent);
+        this.container.on('pointermove', blockEvent);
+        this.container.on('pointerup', blockEvent);
+        this.container.on('click', blockEvent);
+        this.container.on('mousedown', blockEvent);
+        this.container.on('mousemove', blockEvent);
+        this.container.on('mouseup', blockEvent);
+        this.container.on('tap', blockEvent);
+        this.container.on('touchstart', blockEvent);
+        this.container.on('touchmove', blockEvent);
+        this.container.on('touchend', blockEvent);
+
         // UI elements
         this.elements = new Map();
 
@@ -63,8 +95,17 @@ export class CombatUI {
         background.beginFill(0x000000, 0.7);
         background.drawRect(0, 0, 800, 600);
         background.endFill();
+        
+        // Make background interactive and stop event propagation
+        background.interactive = true;
+        background.eventMode = 'static';
+        background.on('pointerdown', e => e.stopPropagation());
+        background.on('pointermove', e => e.stopPropagation());
+        background.on('click', e => e.stopPropagation());
+        background.on('mousedown', e => e.stopPropagation());
+        background.on('mousemove', e => e.stopPropagation());
+        
         this.container.addChild(background);
-
         this.elements.set('background', background);
     }
 
@@ -129,6 +170,14 @@ export class CombatUI {
     createActionButtons() {
         const actionArea = new PIXI.Container();
         actionArea.position.set(50, 500);
+        
+        // Make action area interactive to block events
+        actionArea.interactive = true;
+        actionArea.eventMode = 'static';
+        actionArea.on('pointerdown', e => e.stopPropagation());
+        actionArea.on('pointermove', e => e.stopPropagation());
+        actionArea.on('click', e => e.stopPropagation());
+        
         this.container.addChild(actionArea);
 
         // Create attack button
@@ -289,6 +338,38 @@ export class CombatUI {
      * @private
      */
     showAbilityMenu() {
+        // Create fullscreen overlay to catch all events
+        const overlay = new PIXI.Container();
+        overlay.zIndex = 1001;
+        
+        // Create overlay hit area
+        const overlayHitArea = new PIXI.Graphics();
+        overlayHitArea.beginFill(0x000000, 0.01);
+        overlayHitArea.drawRect(0, 0, 800, 600);
+        overlayHitArea.endFill();
+        overlay.addChild(overlayHitArea);
+        
+        // Block all events on overlay
+        overlay.eventMode = 'static';
+        overlay.interactive = true;
+        const blockEvent = e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        };
+        overlay.on('pointerdown', blockEvent);
+        overlay.on('pointermove', blockEvent);
+        overlay.on('pointerup', blockEvent);
+        overlay.on('click', blockEvent);
+        overlay.on('mousedown', blockEvent);
+        overlay.on('mousemove', blockEvent);
+        overlay.on('mouseup', blockEvent);
+        overlay.on('tap', blockEvent);
+        overlay.on('touchstart', blockEvent);
+        overlay.on('touchmove', blockEvent);
+        overlay.on('touchend', blockEvent);
+        
+        this.container.addChild(overlay);
+
         // Get player abilities
         const player = this.combatManager.playerParty[0];
         const abilities = player.abilities || [];
@@ -296,8 +377,9 @@ export class CombatUI {
         // Create ability menu
         const abilityMenu = new PIXI.Container();
         abilityMenu.position.set(50, 450);
-        this.container.addChild(abilityMenu);
-
+        abilityMenu.zIndex = 1002; // Above overlay
+        overlay.addChild(abilityMenu);
+        
         // Create background
         const background = new PIXI.Graphics();
         background.beginFill(0x333333, 0.8);
@@ -320,7 +402,7 @@ export class CombatUI {
         abilities.forEach((ability, index) => {
             const button = this.ui.createButton(ability.name, () => {
                 this.executePlayerAction('ability', { ability });
-                this.container.removeChild(abilityMenu);
+                this.container.removeChild(overlay);
             }, {
                 width: 180,
                 height: 30
@@ -355,7 +437,7 @@ export class CombatUI {
 
         // Create back button
         const backButton = this.ui.createButton('Back', () => {
-            this.container.removeChild(abilityMenu);
+            this.container.removeChild(overlay);
         }, {
             width: 80,
             height: 30
@@ -363,7 +445,8 @@ export class CombatUI {
         backButton.position.set(310, 110);
         abilityMenu.addChild(backButton);
 
-        // Store reference
+        // Store references with overlay
+        this.elements.set('abilityMenuOverlay', overlay);
         this.elements.set('abilityMenu', abilityMenu);
     }
 
@@ -372,19 +455,53 @@ export class CombatUI {
      * @private
      */
     showItemMenu() {
+        // Create fullscreen overlay to catch all events
+        const overlay = new PIXI.Container();
+        overlay.zIndex = 1001;
+        
+        // Create overlay hit area
+        const overlayHitArea = new PIXI.Graphics();
+        overlayHitArea.beginFill(0x000000, 0.01);
+        overlayHitArea.drawRect(0, 0, 800, 600);
+        overlayHitArea.endFill();
+        overlay.addChild(overlayHitArea);
+        
+        // Block all events on overlay
+        overlay.eventMode = 'static';
+        overlay.interactive = true;
+        const blockEvent = e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        };
+        overlay.on('pointerdown', blockEvent);
+        overlay.on('pointermove', blockEvent);
+        overlay.on('pointerup', blockEvent);
+        overlay.on('click', blockEvent);
+        overlay.on('mousedown', blockEvent);
+        overlay.on('mousemove', blockEvent);
+        overlay.on('mouseup', blockEvent);
+        overlay.on('tap', blockEvent);
+        overlay.on('touchstart', blockEvent);
+        overlay.on('touchmove', blockEvent);
+        overlay.on('touchend', blockEvent);
+        
+        this.container.addChild(overlay);
+
         // Get player inventory
         const player = this.combatManager.playerParty[0];
         const inventory = player.inventory;
 
         if (!inventory || inventory.items.length === 0) {
             this.showMessage('No items available!');
+            this.container.removeChild(overlay);
             return;
         }
 
         // Create item menu
         const itemMenu = new PIXI.Container();
         itemMenu.position.set(50, 450);
-        this.container.addChild(itemMenu);
+        itemMenu.zIndex = 1002; // Above overlay
+        overlay.addChild(itemMenu);
 
         // Create background
         const background = new PIXI.Graphics();
@@ -410,7 +527,7 @@ export class CombatUI {
         usableItems.forEach((item, index) => {
             const button = this.ui.createButton(`${item.name} (${item.quantity})`, () => {
                 this.executePlayerAction('item', { item });
-                this.container.removeChild(itemMenu);
+                this.container.removeChild(overlay);
             }, {
                 width: 180,
                 height: 30
@@ -431,7 +548,7 @@ export class CombatUI {
 
         // Create back button
         const backButton = this.ui.createButton('Back', () => {
-            this.container.removeChild(itemMenu);
+            this.container.removeChild(overlay);
         }, {
             width: 80,
             height: 30
@@ -439,7 +556,8 @@ export class CombatUI {
         backButton.position.set(310, 110);
         itemMenu.addChild(backButton);
 
-        // Store reference
+        // Store references with overlay
+        this.elements.set('itemMenuOverlay', overlay);
         this.elements.set('itemMenu', itemMenu);
     }
 
@@ -450,14 +568,43 @@ export class CombatUI {
      * @private
      */
     executePlayerAction(actionType, options = {}) {
-        // Get target
-        const target = options.target || this.combatManager.enemyParty[0];
+        // Validate that it's the player's turn
+        const currentActor = this.combatManager.currentTurnActor;
+        if (!currentActor || !this.combatManager.playerParty.includes(currentActor)) {
+            this.showMessage("It's not your turn!");
+            return;
+        }
+
+        // Default target is first enemy for attacks/abilities, self for items
+        const target = options.target || (
+            actionType === 'item' 
+                ? this.combatManager.playerParty[0] 
+                : this.combatManager.enemyParty[0]
+        );
 
         // Execute action
-        this.combatManager.executePlayerAction(actionType, {
+        const success = this.combatManager.executePlayerAction(actionType, {
             ...options,
             target
         });
+
+        // Show error message if action failed
+        if (!success) {
+            switch (actionType) {
+                case 'attack':
+                    this.showMessage('Cannot attack right now!');
+                    break;
+                case 'ability':
+                    this.showMessage(options.ability ? 'Not enough energy!' : 'No ability selected!');
+                    break;
+                case 'item':
+                    this.showMessage(options.item ? 'Cannot use that item!' : 'No item selected!');
+                    break;
+                case 'escape':
+                    this.showMessage('Cannot escape right now!');
+                    break;
+            }
+        }
     }
 
     /**
@@ -564,7 +711,22 @@ export class CombatUI {
         // Create ability effect
         const effect = new PIXI.Graphics();
         effect.beginFill(0x00FFFF);
-        effect.drawStar(0, 0, 5, 20, 10);
+        // Draw a star-like shape using lineTo
+        const points = 5;
+        const innerRadius = 10;
+        const outerRadius = 20;
+        for (let i = 0; i < points * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (i * Math.PI) / points;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            if (i === 0) {
+                effect.moveTo(x, y);
+            } else {
+                effect.lineTo(x, y);
+            }
+        }
+        effect.closePath();
         effect.endFill();
         effect.position.set(startX, startY);
         animation.addChild(effect);

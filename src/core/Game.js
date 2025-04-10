@@ -5,7 +5,7 @@ import { Character } from '../entities/Character.js';
 import { Structure } from '../entities/Structure.js';
 import { Item } from '../entities/Item.js';
 import { DayNightCycle } from './DayNightCycle.js';
-import { UI } from '../ui/UI.js';
+import { UI } from './UI.js';  // Updated import path
 import { Inventory } from './Inventory.js';
 import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
@@ -291,6 +291,58 @@ export class Game {
         } else {
             console.warn(`Cannot place ${type} structure at (${tile.gridX}, ${tile.gridY})`);
         }
+    }
+
+    /**
+     * Places a random enemy at the specified tile
+     * @param {IsometricTile} tile - Tile to place the enemy on
+     */
+    placeRandomEnemy(tile) {
+        if (!tile || !tile.walkable || tile.structure) {
+            console.warn('Cannot place enemy: invalid tile or tile is occupied');
+            return;
+        }
+
+        // Create enemy with random properties
+        const enemy = new Enemy({
+            name: 'Enemy',
+            health: 50 + Math.floor(Math.random() * 50),
+            maxHealth: 100,
+            energy: 100,
+            maxEnergy: 100,
+            speed: 2 + Math.random(),
+            color: 0xFF0000,
+            showName: true,
+            tags: ['enemy', 'hostile'],
+            active: true,
+            patrolRadius: 3,
+            stats: {
+                level: 1,
+                attack: 5 + Math.floor(Math.random() * 5),
+                defense: 3 + Math.floor(Math.random() * 3),
+                speed: 10,
+                criticalChance: 0.1,
+                evasion: 0.05
+            }
+        });
+
+        // Set position
+        const worldPos = this.world.gridToWorld(tile.gridX, tile.gridY);
+        enemy.x = worldPos.x;
+        enemy.y = worldPos.y;
+        enemy.gridX = tile.gridX;
+        enemy.gridY = tile.gridY;
+        enemy.world = this.world;
+
+        // Add to world
+        this.world.entityContainer.addChild(enemy);
+        tile.addEntity(enemy);
+        this.world.entities.add(enemy);
+
+        // Set spawn point for patrolling
+        enemy.spawnPoint = { x: worldPos.x, y: worldPos.y };
+
+        console.log(`Placed enemy at (${tile.gridX}, ${tile.gridY})`);
     }
 
     /**

@@ -231,44 +231,15 @@ export class Enemy extends Character {
      */
     onClick(event) {
         console.log(`Clicked on ${this.enemyType} enemy!`);
-
-        // Get the game instance
+        
+        // Get the game instance and player
         const world = this.parent?.parent;
         const game = world?.game;
+        const player = game?.player;
 
-        if (game) {
-            // Start combat with this enemy
-            this.startCombat(game);
-        }
-    }
-
-    /**
-     * Starts combat with this enemy
-     * @param {Game} game - The game instance
-     */
-    startCombat(game) {
-        console.log(`Starting combat with ${this.enemyType} enemy!`);
-
-        // Change AI state to combat
-        this.aiState = 'combat';
-
-        // Set player as target
-        this.aiTarget = game.player;
-
-        // Show combat UI
-        if (game.ui) {
-            // Display a simple combat message
-            const message = `Combat started with ${this.enemyType}!`;
-            game.ui.showMessage(message, 3000);
-
-            // TODO: Implement full combat system
-            // For now, just reduce enemy health to simulate combat
-            this.health -= 25;
-
-            // Check if enemy is defeated
-            if (this.health <= 0) {
-                this.defeat();
-            }
+        if (game && player) {
+            // Start combat with player
+            this.initiateCombat(player);
         }
     }
 

@@ -441,14 +441,12 @@ export class IsometricWorld extends Container {
         const isoY = localPoint.y / tileHeightHalf;
 
         // These formulas convert isometric screen coordinates to grid coordinates
-        const gridY = Math.floor((isoY - isoX) / 2);
-        const gridX = Math.floor((isoY + isoX) / 2);
+        let gridY = Math.floor((isoY - isoX) / 2);
+        let gridX = Math.floor((isoY + isoX) / 2);
 
-        // Early bounds check
-        if (gridX < 0 || gridX >= this.config.gridWidth ||
-            gridY < 0 || gridY >= this.config.gridHeight) {
-            return null;
-        }
+        // Clamp coordinates to valid range
+        gridX = Math.max(0, Math.min(gridX, this.config.gridWidth - 1));
+        gridY = Math.max(0, Math.min(gridY, this.config.gridHeight - 1));
 
         // Get the candidate tile
         const tile = this.getTile(gridX, gridY);
@@ -464,18 +462,23 @@ export class IsometricWorld extends Container {
         // If the precise hit test fails, test neighboring tiles
         const neighbors = [
             this.getTile(gridX - 1, gridY),
-            this.getTile(gridX + 1, gridY),
+            this.getTile(gridX + 1, gridY), 
             this.getTile(gridX, gridY - 1),
-            this.getTile(gridX, gridY + 1)
-        ];
+            this.getTile(gridX, gridY + 1),
+            this.getTile(gridX - 1, gridY - 1),
+            this.getTile(gridX + 1, gridY - 1),
+            this.getTile(gridX - 1, gridY + 1), 
+            this.getTile(gridX + 1, gridY + 1)
+        ].filter(t => t !== null);
 
+        // Find the closest valid tile that contains the point
         for (const neighbor of neighbors) {
             if (neighbor && neighbor.containsPoint(point)) {
                 return neighbor;
             }
         }
 
-        // If no precise hit was found, return the original tile as a fallback
+        // Return the original tile as fallback if no better match found
         return tile;
     }
 
