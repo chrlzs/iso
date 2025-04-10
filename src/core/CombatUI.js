@@ -21,32 +21,42 @@ export class CombatUI {
         this.container.eventMode = 'static';  // Use static mode to ensure it captures all events
         this.container.sortableChildren = true; // Enable z-index sorting
         this.container.zIndex = 1000; // Ensure combat UI is above game world
-        
+
         // Create full-screen hit area to catch all events
         const hitArea = new PIXI.Graphics();
         hitArea.beginFill(0x000000, 0.01); // Nearly transparent
-        hitArea.drawRect(0, 0, 800, 600);  // Full screen size
+        hitArea.drawRect(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);  // Use full screen size
         hitArea.endFill();
         hitArea.eventMode = 'static';
         hitArea.cursor = 'default';
+        hitArea.interactive = true;
         this.container.addChild(hitArea);
 
         // Block all types of events from reaching game world
         const blockEvent = e => {
+            console.log('Combat UI intercepted event:', e.type);
             e.stopPropagation();
             e.stopImmediatePropagation();
         };
-        this.container.on('pointerdown', blockEvent);
-        this.container.on('pointermove', blockEvent);
-        this.container.on('pointerup', blockEvent);
-        this.container.on('click', blockEvent);
-        this.container.on('mousedown', blockEvent);
-        this.container.on('mousemove', blockEvent);
-        this.container.on('mouseup', blockEvent);
-        this.container.on('tap', blockEvent);
-        this.container.on('touchstart', blockEvent);
-        this.container.on('touchmove', blockEvent);
-        this.container.on('touchend', blockEvent);
+
+        // Apply event handlers to both the container and the hit area
+        [this.container, hitArea].forEach(element => {
+            element.on('pointerdown', blockEvent);
+            element.on('pointermove', blockEvent);
+            element.on('pointerup', blockEvent);
+            element.on('click', blockEvent);
+            element.on('mousedown', blockEvent);
+            element.on('mousemove', blockEvent);
+            element.on('mouseup', blockEvent);
+            element.on('tap', blockEvent);
+            element.on('touchstart', blockEvent);
+            element.on('touchmove', blockEvent);
+            element.on('touchend', blockEvent);
+            element.on('rightclick', blockEvent);
+            element.on('rightdown', blockEvent);
+            element.on('rightup', blockEvent);
+            element.on('contextmenu', blockEvent);
+        });
 
         // UI elements
         this.elements = new Map();
@@ -93,18 +103,36 @@ export class CombatUI {
     createBackground() {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.7);
-        background.drawRect(0, 0, 800, 600);
+        background.drawRect(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);
         background.endFill();
-        
+
         // Make background interactive and stop event propagation
         background.interactive = true;
         background.eventMode = 'static';
-        background.on('pointerdown', e => e.stopPropagation());
-        background.on('pointermove', e => e.stopPropagation());
-        background.on('click', e => e.stopPropagation());
-        background.on('mousedown', e => e.stopPropagation());
-        background.on('mousemove', e => e.stopPropagation());
-        
+
+        // Block all events
+        const blockEvent = e => {
+            console.log('Background intercepted event:', e.type);
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        };
+
+        background.on('pointerdown', blockEvent);
+        background.on('pointermove', blockEvent);
+        background.on('pointerup', blockEvent);
+        background.on('click', blockEvent);
+        background.on('mousedown', blockEvent);
+        background.on('mousemove', blockEvent);
+        background.on('mouseup', blockEvent);
+        background.on('tap', blockEvent);
+        background.on('touchstart', blockEvent);
+        background.on('touchmove', blockEvent);
+        background.on('touchend', blockEvent);
+        background.on('rightclick', blockEvent);
+        background.on('rightdown', blockEvent);
+        background.on('rightup', blockEvent);
+        background.on('contextmenu', blockEvent);
+
         this.container.addChild(background);
         this.elements.set('background', background);
     }
@@ -170,14 +198,14 @@ export class CombatUI {
     createActionButtons() {
         const actionArea = new PIXI.Container();
         actionArea.position.set(50, 500);
-        
+
         // Make action area interactive to block events
         actionArea.interactive = true;
         actionArea.eventMode = 'static';
         actionArea.on('pointerdown', e => e.stopPropagation());
         actionArea.on('pointermove', e => e.stopPropagation());
         actionArea.on('click', e => e.stopPropagation());
-        
+
         this.container.addChild(actionArea);
 
         // Create attack button
@@ -341,14 +369,14 @@ export class CombatUI {
         // Create fullscreen overlay to catch all events
         const overlay = new PIXI.Container();
         overlay.zIndex = 1001;
-        
+
         // Create overlay hit area
         const overlayHitArea = new PIXI.Graphics();
         overlayHitArea.beginFill(0x000000, 0.01);
         overlayHitArea.drawRect(0, 0, 800, 600);
         overlayHitArea.endFill();
         overlay.addChild(overlayHitArea);
-        
+
         // Block all events on overlay
         overlay.eventMode = 'static';
         overlay.interactive = true;
@@ -367,7 +395,7 @@ export class CombatUI {
         overlay.on('touchstart', blockEvent);
         overlay.on('touchmove', blockEvent);
         overlay.on('touchend', blockEvent);
-        
+
         this.container.addChild(overlay);
 
         // Get player abilities
@@ -379,7 +407,7 @@ export class CombatUI {
         abilityMenu.position.set(50, 450);
         abilityMenu.zIndex = 1002; // Above overlay
         overlay.addChild(abilityMenu);
-        
+
         // Create background
         const background = new PIXI.Graphics();
         background.beginFill(0x333333, 0.8);
@@ -458,14 +486,14 @@ export class CombatUI {
         // Create fullscreen overlay to catch all events
         const overlay = new PIXI.Container();
         overlay.zIndex = 1001;
-        
+
         // Create overlay hit area
         const overlayHitArea = new PIXI.Graphics();
         overlayHitArea.beginFill(0x000000, 0.01);
         overlayHitArea.drawRect(0, 0, 800, 600);
         overlayHitArea.endFill();
         overlay.addChild(overlayHitArea);
-        
+
         // Block all events on overlay
         overlay.eventMode = 'static';
         overlay.interactive = true;
@@ -484,7 +512,7 @@ export class CombatUI {
         overlay.on('touchstart', blockEvent);
         overlay.on('touchmove', blockEvent);
         overlay.on('touchend', blockEvent);
-        
+
         this.container.addChild(overlay);
 
         // Get player inventory
@@ -577,8 +605,8 @@ export class CombatUI {
 
         // Default target is first enemy for attacks/abilities, self for items
         const target = options.target || (
-            actionType === 'item' 
-                ? this.combatManager.playerParty[0] 
+            actionType === 'item'
+                ? this.combatManager.playerParty[0]
                 : this.combatManager.enemyParty[0]
         );
 

@@ -318,15 +318,34 @@ export class UI {
 
         // Create container
         const container = new PIXI.Container();
-        
+
         // Make container interactive and stop event propagation
         container.interactive = true;
         container.eventMode = 'static';
-        container.on('pointerdown', e => e.stopPropagation());
-        container.on('pointermove', e => e.stopPropagation());
-        container.on('click', e => e.stopPropagation());
-        container.on('mousedown', e => e.stopPropagation());
-        container.on('mousemove', e => e.stopPropagation());
+
+        // Block all events
+        const blockEvent = e => {
+            console.log('Panel intercepted event:', e.type);
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        };
+
+        container.on('pointerdown', blockEvent);
+        container.on('pointermove', blockEvent);
+        container.on('pointerup', blockEvent);
+        container.on('click', blockEvent);
+        container.on('mousedown', blockEvent);
+        container.on('mousemove', blockEvent);
+        container.on('mouseup', blockEvent);
+        container.on('tap', blockEvent);
+        container.on('touchstart', blockEvent);
+        container.on('touchmove', blockEvent);
+        container.on('touchend', blockEvent);
+        container.on('rightclick', blockEvent);
+        container.on('rightdown', blockEvent);
+        container.on('rightup', blockEvent);
+        container.on('contextmenu', blockEvent);
 
         // Get panel style
         const style = { ...this.styles.panel, ...options.style };
@@ -356,8 +375,24 @@ export class UI {
         const contentContainer = new PIXI.Container();
         contentContainer.interactive = true;
         contentContainer.eventMode = 'static';
-        contentContainer.on('pointerdown', e => e.stopPropagation());
-        contentContainer.on('pointermove', e => e.stopPropagation());
+
+        // Block all events on content container
+        contentContainer.on('pointerdown', blockEvent);
+        contentContainer.on('pointermove', blockEvent);
+        contentContainer.on('pointerup', blockEvent);
+        contentContainer.on('click', blockEvent);
+        contentContainer.on('mousedown', blockEvent);
+        contentContainer.on('mousemove', blockEvent);
+        contentContainer.on('mouseup', blockEvent);
+        contentContainer.on('tap', blockEvent);
+        contentContainer.on('touchstart', blockEvent);
+        contentContainer.on('touchmove', blockEvent);
+        contentContainer.on('touchend', blockEvent);
+        contentContainer.on('rightclick', blockEvent);
+        contentContainer.on('rightdown', blockEvent);
+        contentContainer.on('rightup', blockEvent);
+        contentContainer.on('contextmenu', blockEvent);
+
         contentContainer.position.set(style.padding, contentY);
         container.addChild(contentContainer);
         container.contentContainer = contentContainer;
@@ -472,11 +507,32 @@ export class UI {
         // Ensure panel itself is interactive and blocks events
         panel.interactive = true;
         panel.eventMode = 'static';
-        panel.on('pointerdown', e => e.stopPropagation());
-        panel.on('pointermove', e => e.stopPropagation());
-        panel.on('click', e => e.stopPropagation());
-        panel.on('mousedown', e => e.stopPropagation());
-        panel.on('mousemove', e => e.stopPropagation());
+
+        // Block all events
+        const blockEvent = e => {
+            console.log('Combat panel intercepted event:', e.type);
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        };
+
+        panel.on('pointerdown', blockEvent);
+        panel.on('pointermove', blockEvent);
+        panel.on('pointerup', blockEvent);
+        panel.on('click', blockEvent);
+        panel.on('mousedown', blockEvent);
+        panel.on('mousemove', blockEvent);
+        panel.on('mouseup', blockEvent);
+        panel.on('tap', blockEvent);
+        panel.on('touchstart', blockEvent);
+        panel.on('touchmove', blockEvent);
+        panel.on('touchend', blockEvent);
+        panel.on('rightclick', blockEvent);
+        panel.on('rightdown', blockEvent);
+        panel.on('rightup', blockEvent);
+        panel.on('contextmenu', blockEvent);
+
+        // Set panel to be on top of everything
+        panel.zIndex = 1000;
 
         // Create combat UI
         const combatUI = new CombatUI({
