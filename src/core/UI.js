@@ -401,11 +401,16 @@ export class UI {
         container.width = width;
         container.height = height;
 
-        // Add to panels map
+        // Add to UI container first
+        this.container.addChild(container);
+
+        // Then add to panels map
         this.panels.set(id, container);
 
-        // Add to UI container
-        this.container.addChild(container);
+        // Make sure the container is properly set up for sorting
+        if (this.container.sortableChildren === undefined) {
+            this.container.sortableChildren = true;
+        }
 
         // Hide by default
         container.visible = false;
@@ -421,7 +426,10 @@ export class UI {
     showPanel(id, exclusive = false) {
         const panel = this.panels.get(id);
 
-        if (!panel) return;
+        if (!panel) {
+            console.warn(`Panel with ID '${id}' not found`);
+            return;
+        }
 
         // Hide other panels if exclusive
         if (exclusive) {
@@ -435,8 +443,36 @@ export class UI {
         this.activePanel = id;
 
         // Bring to front
-        this.container.removeChild(panel);
-        this.container.addChild(panel);
+        try {
+            // Set high z-index regardless of parent
+            panel.zIndex = 9999;
+
+            // Make sure the panel is in the container
+            if (!panel.parent) {
+                console.log(`Adding panel '${id}' to container`);
+                this.container.addChild(panel);
+            } else if (panel.parent !== this.container) {
+                // If it's in a different container, move it to this one
+                console.log(`Moving panel '${id}' to correct container`);
+                panel.parent.removeChild(panel);
+                this.container.addChild(panel);
+            }
+
+            // Sort children if supported
+            if (this.container.sortableChildren) {
+                this.container.sortChildren();
+            }
+        } catch (e) {
+            console.warn(`Error bringing panel '${id}' to front:`, e);
+            // Last resort - create a new panel
+            if (!panel.parent) {
+                try {
+                    this.container.addChild(panel);
+                } catch (e2) {
+                    console.error(`Failed to add panel '${id}' to container:`, e2);
+                }
+            }
+        }
     }
 
     /**
