@@ -295,7 +295,7 @@ export class UI {
         // Create background with border
         const background = new PIXI.Graphics();
         background.lineStyle(1, style.borderColor, 0.8);
-        
+
         // Create text with glow effect
         const textObj = new PIXI.Text(text, {
             fontFamily: 'Arial',
@@ -454,7 +454,7 @@ export class UI {
 
         // Create background with grid pattern
         const background = new PIXI.Graphics();
-        
+
         // Main dark background with gradient
         background.beginFill(style.fill, style.alpha);
         background.drawRect(0, 0, width, height);
@@ -462,13 +462,13 @@ export class UI {
 
         // Add cyberpunk grid pattern
         background.lineStyle(1, style.gridColor, style.gridAlpha);
-        
+
         // Vertical lines
         for (let x = 0; x <= width; x += style.gridSpacing) {
             background.moveTo(x, 0);
             background.lineTo(x, height);
         }
-        
+
         // Horizontal lines
         for (let y = 0; y <= height; y += style.gridSpacing) {
             background.moveTo(0, y);
@@ -654,48 +654,21 @@ export class UI {
      * @returns {CombatUI} Combat UI instance
      */
     createCombatUI(combatManager, options = {}) {
-        // Create combat panel
-        const panel = this.createPanel('combat', {
-            width: this.game.app.screen.width,
-            height: this.game.app.screen.height,
-            x: 0,
-            y: 0,
-            closable: false
-        });
-
-        // Ensure panel itself is interactive and blocks events
-        panel.interactive = true;
-        panel.eventMode = 'static';
-
-        // Block all events
-        const blockEvent = e => {
-            console.log('Combat panel intercepted event:', e.type);
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        };
-
-        panel.on('pointerdown', blockEvent);
-        panel.on('pointermove', blockEvent);
-        panel.on('pointerup', blockEvent);
-        panel.on('click', blockEvent);
-        panel.on('mousedown', blockEvent);
-        panel.on('mousemove', blockEvent);
-        panel.on('mouseup', blockEvent);
-        panel.on('tap', blockEvent);
-        panel.on('touchstart', blockEvent);
-        panel.on('touchmove', blockEvent);
-        panel.on('touchend', blockEvent);
-        panel.on('rightclick', blockEvent);
-        panel.on('rightdown', blockEvent);
-        panel.on('rightup', blockEvent);
-        panel.on('contextmenu', blockEvent);
+        // Create combat panel - only create a container, not a full-screen panel
+        const panel = new PIXI.Container();
+        panel.name = 'combat';
+        panel.position.set(0, 0);
 
         // Set panel to be on top of everything
         panel.zIndex = 1000;
 
+        // Add to UI container
+        this.container.addChild(panel);
+        this.panels.set('combat', panel);
+
         // Create combat UI
         const combatUI = new CombatUI({
-            container: panel.contentContainer,
+            container: panel,
             combatManager,
             ui: this
         });

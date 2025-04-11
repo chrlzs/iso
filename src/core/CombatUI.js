@@ -115,24 +115,25 @@ export class CombatUI {
      */
     createBackground() {
         const background = new PIXI.Graphics();
-        
-        // Semi-transparent dark overlay with reduced opacity
-        const gradient = this.container.addChild(new PIXI.Graphics());
-        gradient.beginFill(0x000811, 0.3); // Reduced opacity from 0.92 to 0.3
+
+        // Create panel background only (no full-screen overlay)
+        const gradient = new PIXI.Graphics();
+        gradient.beginFill(0x000811, 0.92); // Panel background with high opacity
         gradient.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
         gradient.endFill();
+        this.container.addChild(gradient);
 
         // Add subtle cyberpunk grid pattern
         const gridSpacing = 20;
         const gridAlpha = 0.1;
         background.lineStyle(1, 0x00AAFF, gridAlpha);
-        
+
         // Vertical lines
         for (let x = 0; x <= this.panelWidth; x += gridSpacing) {
             background.moveTo(this.panelX + x, 0);
             background.lineTo(this.panelX + x, this.panelHeight);
         }
-        
+
         // Horizontal lines
         for (let y = 0; y <= this.panelHeight; y += gridSpacing) {
             background.moveTo(this.panelX, y);
@@ -196,7 +197,7 @@ export class CombatUI {
 
         // Create header container with neon effect
         const headerContainer = new PIXI.Container();
-        
+
         // Create neon glow for header
         const headerGlow = new PIXI.Graphics();
         headerGlow.lineStyle(4, 0x00AAFF, 0.2);
@@ -231,12 +232,12 @@ export class CombatUI {
 
         // Create slots container with cyberpunk background
         const slotsBackground = new PIXI.Graphics();
-        
+
         // Main background
         slotsBackground.beginFill(0x000811, 0.92);
         slotsBackground.drawRect(0, 0, this.panelWidth - 20, 70);
         slotsBackground.endFill();
-        
+
         // Grid pattern
         slotsBackground.lineStyle(1, 0x00AAFF, 0.1);
         for (let x = 0; x < this.panelWidth - 20; x += 20) {
@@ -283,7 +284,7 @@ export class CombatUI {
             const frame = new PIXI.Graphics();
             const isPlayer = this.combatManager.playerParty.includes(character);
             const isCurrentTurn = character === this.combatManager.currentTurnActor;
-            
+
             // Glowing effect for current turn
             if (isCurrentTurn) {
                 frame.beginFill(isPlayer ? 0x00AAFF : 0xFF0000, 0.3);
@@ -489,7 +490,7 @@ export class CombatUI {
         // Create new effect displays
         const newEffects = effects.map((effect, index) => {
             const container = new PIXI.Container();
-            
+
             // Create icon
             const icon = new PIXI.Graphics();
             icon.beginFill(this.getStatusEffectColor(effect.type));
@@ -557,7 +558,7 @@ export class CombatUI {
      */
     showStatusTooltip(effect, container) {
         const tooltip = new PIXI.Container();
-        
+
         // Create background
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
@@ -613,7 +614,7 @@ export class CombatUI {
     createActionButtons() {
         const actionArea = new PIXI.Container();
         actionArea.position.set(this.panelX + 10, this.safeAreaBottom - 220);
-        
+
         // Button configurations
         const buttonConfig = {
             width: this.panelWidth - 20,
@@ -680,14 +681,14 @@ export class CombatUI {
                 background.beginFill(buttonStyle.hoverFill);
                 background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
                 background.endFill();
-                
+
                 // Add glow effect
                 const glow = new PIXI.Graphics();
                 glow.beginFill(buttonStyle.glowColor, 0.1);
                 glow.drawRect(-2, -2, buttonConfig.width + 4, buttonConfig.height + 4);
                 glow.endFill();
                 container.addChildAt(glow, 0);
-                
+
                 textObj.style.strokeThickness = 2;
             });
 
@@ -697,12 +698,12 @@ export class CombatUI {
                 background.beginFill(buttonStyle.fill);
                 background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
                 background.endFill();
-                
+
                 // Remove glow effect
                 if (container.children.length > 3) {
                     container.removeChildAt(0);
                 }
-                
+
                 textObj.style.strokeThickness = 1;
             });
 
@@ -867,7 +868,7 @@ export class CombatUI {
         background.beginFill(backgroundColor);
         background.drawRect(0, 0, width, height);
         background.endFill();
-        
+
         // Add subtle grid pattern
         background.lineStyle(1, color, 0.1);
         for (let x = 5; x < width; x += 10) {
@@ -881,7 +882,7 @@ export class CombatUI {
         foreground.beginFill(color, 0.8);
         foreground.drawRect(0, 0, width, height);
         foreground.endFill();
-        
+
         // Add highlight line
         foreground.lineStyle(1, 0xFFFFFF, 0.3);
         foreground.moveTo(0, 2);
@@ -1652,9 +1653,27 @@ export class CombatUI {
         const background = this.elements.get('background');
         if (background) {
             background.clear();
-            background.beginFill(0x000000, 0.7);
+            // Only draw the panel background, not a full-screen overlay
+            background.beginFill(0x000811, 0.92);
             background.drawRect(this.panelX, 0, this.panelWidth, height);
             background.endFill();
+
+            // Redraw grid pattern
+            const gridSpacing = 20;
+            const gridAlpha = 0.1;
+            background.lineStyle(1, 0x00AAFF, gridAlpha);
+
+            // Vertical lines
+            for (let x = 0; x <= this.panelWidth; x += gridSpacing) {
+                background.moveTo(this.panelX + x, 0);
+                background.lineTo(this.panelX + x, height);
+            }
+
+            // Horizontal lines
+            for (let y = 0; y <= height; y += gridSpacing) {
+                background.moveTo(this.panelX, y);
+                background.lineTo(this.panelX + this.panelWidth, y);
+            }
         }
 
         // Center message area
