@@ -16,57 +16,38 @@ export class CombatUI {
         this.combatManager = options.combatManager;
         this.ui = options.ui;
 
-        // Make container interactive to capture all events
-        this.container.interactive = true;
-        this.container.eventMode = 'static';  // Use static mode to ensure it captures all events
-        this.container.sortableChildren = true; // Enable z-index sorting
-        this.container.zIndex = 1000; // Ensure combat UI is above game world
-
-        // Create full-screen hit area to catch all events
-        const hitArea = new PIXI.Graphics();
-        hitArea.beginFill(0x000000, 0.01); // Nearly transparent
-        hitArea.drawRect(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);  // Use full screen size
-        hitArea.endFill();
-        hitArea.eventMode = 'static';
-        hitArea.cursor = 'default';
-        hitArea.interactive = true;
-        this.container.addChild(hitArea);
-
-        // Block all types of events from reaching game world
-        const blockEvent = e => {
-            console.log('Combat UI intercepted event:', e.type);
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        };
-
-        // Apply event handlers to both the container and the hit area
-        [this.container, hitArea].forEach(element => {
-            element.on('pointerdown', blockEvent);
-            element.on('pointermove', blockEvent);
-            element.on('pointerup', blockEvent);
-            element.on('click', blockEvent);
-            element.on('mousedown', blockEvent);
-            element.on('mousemove', blockEvent);
-            element.on('mouseup', blockEvent);
-            element.on('tap', blockEvent);
-            element.on('touchstart', blockEvent);
-            element.on('touchmove', blockEvent);
-            element.on('touchend', blockEvent);
-            element.on('rightclick', blockEvent);
-            element.on('rightdown', blockEvent);
-            element.on('rightup', blockEvent);
-            element.on('contextmenu', blockEvent);
-        });
-
-        // UI elements
+        // Initialize collections first
         this.elements = new Map();
-
-        // Animation properties
         this.animations = [];
-
-        // Message queue
         this.messages = [];
-        this.messageDisplayTime = 2000; // 2 seconds
+        this.turnOrder = [];
+        this.statusEffects = new Map();
+
+        // Combat panel dimensions
+        this.panelWidth = 300;
+        this.panelHeight = this.ui.game.app.screen.height;
+        this.panelX = this.ui.game.app.screen.width - this.panelWidth;
+
+        // Make container interactive but only for the panel area
+        this.container.interactive = true;
+        this.container.eventMode = 'static';
+        this.container.sortableChildren = true;
+        this.container.zIndex = 1000;
+
+        // Create semi-transparent panel background
+        const panelBackground = new PIXI.Graphics();
+        panelBackground.beginFill(0x222222, 0.85); // Slightly darker, more transparent
+        panelBackground.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
+        panelBackground.endFill();
+        this.container.addChild(panelBackground);
+        this.elements.set('background', panelBackground);
+
+        // Calculate safe area (accounting for version-info)
+        this.safeAreaBottom = this.panelHeight - 50; // Leave space for version-info
+
+        // Message display configuration
+        this.messageDisplayTime = 2000;
+        this.maxMessages = 3;
 
         // Initialize UI
         this.initialize();
@@ -77,14 +58,20 @@ export class CombatUI {
      * @private
      */
     initialize() {
-        // Create background
+        // Create panel background
         this.createBackground();
+
+        // Create turn order display (new!)
+        this.createTurnOrderDisplay();
 
         // Create player area
         this.createPlayerArea();
 
         // Create enemy area
         this.createEnemyArea();
+
+        // Create status effects area (new!)
+        this.createStatusEffectsArea();
 
         // Create action buttons
         this.createActionButtons();
@@ -102,9 +89,44 @@ export class CombatUI {
      */
     createBackground() {
         const background = new PIXI.Graphics();
-        background.beginFill(0x000000, 0.7);
-        background.drawRect(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);
-        background.endFill();
+        
+        // Semi-transparent dark background with gradient
+        const gradient = this.container.addChild(new PIXI.Graphics());
+        gradient.beginFill(0x000811, 0.92);
+        gradient.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
+        gradient.endFill();
+
+        // Add cyberpunk grid pattern
+        const gridSpacing = 20;
+        const gridAlpha = 0.15;
+        background.lineStyle(1, 0x00AAFF, gridAlpha);
+        
+        // Vertical lines
+        for (let x = 0; x <= this.panelWidth; x += gridSpacing) {
+            background.moveTo(this.panelX + x, 0);
+            background.lineTo(this.panelX + x, this.panelHeight);
+        }
+        
+        // Horizontal lines
+        for (let y = 0; y <= this.panelHeight; y += gridSpacing) {
+            background.moveTo(this.panelX, y);
+            background.lineTo(this.panelX + this.panelWidth, y);
+        }
+
+        // Add neon border
+        background.lineStyle(2, 0x00AAFF, 0.5);
+        background.moveTo(this.panelX, 0);
+        background.lineTo(this.panelX + this.panelWidth, 0);
+        background.lineTo(this.panelX + this.panelWidth, this.panelHeight);
+        background.lineTo(this.panelX, this.panelHeight);
+        background.lineTo(this.panelX, 0);
+
+        // Add diagonal accent lines
+        background.lineStyle(1, 0x00AAFF, 0.3);
+        background.moveTo(this.panelX, 0);
+        background.lineTo(this.panelX + 30, 30);
+        background.moveTo(this.panelX + this.panelWidth, 0);
+        background.lineTo(this.panelX + this.panelWidth - 30, 30);
 
         // Make background interactive and stop event propagation
         background.interactive = true;
@@ -112,7 +134,6 @@ export class CombatUI {
 
         // Block all events
         const blockEvent = e => {
-            console.log('Background intercepted event:', e.type);
             e.stopPropagation();
             e.stopImmediatePropagation();
         };
@@ -138,12 +159,230 @@ export class CombatUI {
     }
 
     /**
+     * Creates the turn order display
+     * @private
+     */
+    createTurnOrderDisplay() {
+        const turnOrderContainer = new PIXI.Container();
+        turnOrderContainer.position.set(this.panelX + 10, 10);
+        this.container.addChild(turnOrderContainer);
+
+        // Create header container with neon effect
+        const headerContainer = new PIXI.Container();
+        
+        // Create neon glow for header
+        const headerGlow = new PIXI.Graphics();
+        headerGlow.lineStyle(4, 0x00AAFF, 0.2);
+        headerGlow.moveTo(0, 0);
+        headerGlow.lineTo(this.panelWidth - 20, 0);
+        headerContainer.addChild(headerGlow);
+
+        // Create angular accent marks
+        const headerAccents = new PIXI.Graphics();
+        headerAccents.lineStyle(1, 0x00AAFF, 0.5);
+        // Left accent
+        headerAccents.moveTo(0, 0);
+        headerAccents.lineTo(15, 15);
+        // Right accent
+        headerAccents.moveTo(this.panelWidth - 20, 0);
+        headerAccents.lineTo(this.panelWidth - 35, 15);
+        headerContainer.addChild(headerAccents);
+
+        // Create title with neon effect
+        const title = new PIXI.Text('COMBAT SEQUENCE', {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fill: 0xFFFFFF,
+            stroke: 0x00AAFF,
+            strokeThickness: 1
+        });
+        title.position.set((this.panelWidth - 20) / 2, -2);
+        title.anchor.set(0.5, 0);
+        headerContainer.addChild(title);
+
+        turnOrderContainer.addChild(headerContainer);
+
+        // Create slots container with cyberpunk background
+        const slotsBackground = new PIXI.Graphics();
+        
+        // Main background
+        slotsBackground.beginFill(0x000811, 0.92);
+        slotsBackground.drawRect(0, 0, this.panelWidth - 20, 70);
+        slotsBackground.endFill();
+        
+        // Grid pattern
+        slotsBackground.lineStyle(1, 0x00AAFF, 0.1);
+        for (let x = 0; x < this.panelWidth - 20; x += 20) {
+            slotsBackground.moveTo(x, 0);
+            slotsBackground.lineTo(x, 70);
+        }
+        for (let y = 0; y < 70; y += 20) {
+            slotsBackground.moveTo(0, y);
+            slotsBackground.lineTo(this.panelWidth - 20, y);
+        }
+
+        // Neon border
+        slotsBackground.lineStyle(1, 0x00AAFF, 0.5);
+        slotsBackground.drawRect(0, 0, this.panelWidth - 20, 70);
+
+        slotsBackground.position.set(0, 25);
+        turnOrderContainer.addChild(slotsBackground);
+
+        const slots = new PIXI.Container();
+        slots.position.set(10, 30);
+        turnOrderContainer.addChild(slots);
+
+        this.elements.set('turnOrderContainer', turnOrderContainer);
+        this.elements.set('turnOrderSlots', slots);
+    }
+
+    /**
+     * Updates the turn order display
+     * @param {Array<Character>} turnOrder - Array of characters in turn order
+     */
+    updateTurnOrder(turnOrder) {
+        const slots = this.elements.get('turnOrderSlots');
+        if (!slots) return;
+
+        // Clear existing slots
+        slots.removeChildren();
+
+        // Show next 5 turns
+        turnOrder.slice(0, 5).forEach((character, index) => {
+            const slot = new PIXI.Container();
+            slot.position.set(index * 52, 0);
+
+            // Create portrait frame
+            const frame = new PIXI.Graphics();
+            const isPlayer = this.combatManager.playerParty.includes(character);
+            const isCurrentTurn = character === this.combatManager.currentTurnActor;
+            
+            // Glowing effect for current turn
+            if (isCurrentTurn) {
+                frame.beginFill(isPlayer ? 0x00AAFF : 0xFF0000, 0.3);
+                frame.drawRoundedRect(-2, -2, 44, 54, 5);
+                frame.endFill();
+            }
+
+            // Portrait background
+            frame.lineStyle(2, isPlayer ? 0x00AAFF : 0xFF0000);
+            frame.beginFill(0x333333);
+            frame.drawRoundedRect(0, 0, 40, 50, 5);
+            frame.endFill();
+            slot.addChild(frame);
+
+            // Create character portrait
+            const portrait = new PIXI.Graphics();
+            portrait.beginFill(isPlayer ? 0x3498db : 0xe74c3c);
+            portrait.drawRoundedRect(5, 5, 30, 30, 3);
+            portrait.endFill();
+
+            // Add character details (eyes, etc) to make it more personalized
+            if (isPlayer) {
+                // Player character details
+                portrait.beginFill(0xFFFFFF);
+                portrait.drawCircle(15, 15, 3);
+                portrait.drawCircle(25, 15, 3);
+                portrait.endFill();
+                portrait.beginFill(0x000000);
+                portrait.drawCircle(15, 15, 1);
+                portrait.drawCircle(25, 15, 1);
+                portrait.endFill();
+                portrait.lineStyle(1, 0x000000);
+                portrait.beginFill(0x000000, 0);
+                portrait.arc(20, 22, 5, 0, Math.PI);
+            } else {
+                // Enemy character details
+                portrait.beginFill(0xFFFFFF);
+                portrait.drawCircle(15, 15, 3);
+                portrait.drawCircle(25, 15, 3);
+                portrait.endFill();
+                portrait.beginFill(0xFF0000);
+                portrait.drawCircle(15, 15, 1);
+                portrait.drawCircle(25, 15, 1);
+                portrait.endFill();
+                portrait.lineStyle(1, 0xFF0000);
+                portrait.beginFill(0x000000, 0);
+                portrait.arc(20, 25, 5, Math.PI, 0);
+            }
+            slot.addChild(portrait);
+
+            // Add initiative number
+            const initiativeCircle = new PIXI.Graphics();
+            initiativeCircle.beginFill(0x000000, 0.7);
+            initiativeCircle.drawCircle(35, 40, 10);
+            initiativeCircle.endFill();
+            slot.addChild(initiativeCircle);
+
+            const initiativeText = new PIXI.Text((index + 1).toString(), {
+                fontFamily: 'Arial',
+                fontSize: 12,
+                fill: 0xFFFFFF,
+                align: 'center'
+            });
+            initiativeText.anchor.set(0.5);
+            initiativeText.position.set(35, 40);
+            slot.addChild(initiativeText);
+
+            // Add tooltip with character info
+            slot.eventMode = 'static';
+            slot.cursor = 'pointer';
+            slot.on('mouseover', () => {
+                const tooltip = new PIXI.Container();
+                const tooltipBg = new PIXI.Graphics();
+                tooltipBg.beginFill(0x000000, 0.9);
+                tooltipBg.drawRoundedRect(0, 0, 120, 70, 5);
+                tooltipBg.endFill();
+                tooltip.addChild(tooltipBg);
+
+                const nameText = new PIXI.Text(character.name, {
+                    fontFamily: 'Arial',
+                    fontSize: 12,
+                    fill: 0xFFFFFF
+                });
+                nameText.position.set(5, 5);
+                tooltip.addChild(nameText);
+
+                const healthText = new PIXI.Text(`HP: ${character.health}/${character.maxHealth}`, {
+                    fontFamily: 'Arial',
+                    fontSize: 10,
+                    fill: 0x2ecc71
+                });
+                healthText.position.set(5, 25);
+                tooltip.addChild(healthText);
+
+                const energyText = new PIXI.Text(`Energy: ${character.energy}/${character.maxEnergy}`, {
+                    fontFamily: 'Arial',
+                    fontSize: 10,
+                    fill: 0x00AAFF
+                });
+                energyText.position.set(5, 40);
+                tooltip.addChild(energyText);
+
+                tooltip.position.set(slot.x - 40, slot.y + 60);
+                slots.addChild(tooltip);
+                this.elements.set('turnOrderTooltip', tooltip);
+            });
+
+            slot.on('mouseout', () => {
+                const tooltip = this.elements.get('turnOrderTooltip');
+                if (tooltip && tooltip.parent) {
+                    tooltip.parent.removeChild(tooltip);
+                    this.elements.delete('turnOrderTooltip');
+                }
+            });
+
+            slots.addChild(slot);
+        });
+    }
+
+    /**
      * Creates the player area
      * @private
      */
     createPlayerArea() {
         const playerArea = new PIXI.Container();
-        playerArea.position.set(50, 400);
+        playerArea.position.set(this.panelX + 10, 400);
         this.container.addChild(playerArea);
 
         // Create player container
@@ -173,7 +412,7 @@ export class CombatUI {
      */
     createEnemyArea() {
         const enemyArea = new PIXI.Container();
-        enemyArea.position.set(550, 200);
+        enemyArea.position.set(this.panelX + 10, 200);
         this.container.addChild(enemyArea);
 
         // Create enemy container
@@ -192,62 +431,308 @@ export class CombatUI {
     }
 
     /**
+     * Creates the status effects area
+     * @private
+     */
+    createStatusEffectsArea() {
+        const statusContainer = new PIXI.Container();
+        statusContainer.position.set(this.panelX + 10, 150);
+        this.container.addChild(statusContainer);
+
+        this.elements.set('statusContainer', statusContainer);
+    }
+
+    /**
+     * Updates status effects for a character
+     * @param {Character} character - The character to update status effects for
+     * @param {Array<Object>} effects - Array of status effects
+     */
+    updateStatusEffects(character, effects) {
+        if (!effects || !character) return;
+
+        const statusContainer = this.elements.get('statusContainer');
+        if (!statusContainer) return;
+
+        // Clear existing effects for this character
+        const existingEffects = this.statusEffects.get(character.id);
+        if (existingEffects) {
+            existingEffects.forEach(effect => statusContainer.removeChild(effect));
+        }
+
+        // Create new effect displays
+        const newEffects = effects.map((effect, index) => {
+            const container = new PIXI.Container();
+            
+            // Create icon
+            const icon = new PIXI.Graphics();
+            icon.beginFill(this.getStatusEffectColor(effect.type));
+            icon.drawRect(0, 0, 20, 20);
+            icon.endFill();
+            container.addChild(icon);
+
+            // Create duration text
+            if (effect.duration > 0) {
+                const duration = new PIXI.Text(effect.duration, {
+                    fontFamily: 'Arial',
+                    fontSize: 10,
+                    fill: 0xFFFFFF
+                });
+                duration.position.set(15, 15);
+                container.addChild(duration);
+            }
+
+            // Position based on character and effect index
+            const isPlayer = this.combatManager.playerParty.includes(character);
+            container.position.set(
+                index * 25,
+                isPlayer ? 0 : 30
+            );
+
+            // Add tooltip
+            container.interactive = true;
+            container.eventMode = 'static';
+            container.on('mouseover', () => this.showStatusTooltip(effect, container));
+            container.on('mouseout', () => this.hideStatusTooltip());
+
+            return container;
+        });
+
+        // Add new effects to container
+        newEffects.forEach(effect => statusContainer.addChild(effect));
+
+        // Store reference
+        this.statusEffects.set(character.id, newEffects);
+    }
+
+    /**
+     * Gets the color for a status effect type
+     * @param {string} type - The type of status effect
+     * @returns {number} - The color in hex format
+     * @private
+     */
+    getStatusEffectColor(type) {
+        const colors = {
+            poison: 0x00FF00,
+            burn: 0xFF0000,
+            freeze: 0x00FFFF,
+            stun: 0xFFFF00,
+            buff: 0x00AAFF,
+            debuff: 0xFF00FF
+        };
+        return colors[type] || 0xFFFFFF;
+    }
+
+    /**
+     * Shows a tooltip for a status effect
+     * @param {Object} effect - The status effect
+     * @param {PIXI.Container} container - The effect container
+     * @private
+     */
+    showStatusTooltip(effect, container) {
+        const tooltip = new PIXI.Container();
+        
+        // Create background
+        const background = new PIXI.Graphics();
+        background.beginFill(0x000000, 0.8);
+        background.drawRoundedRect(0, 0, 150, 60, 5);
+        background.endFill();
+        tooltip.addChild(background);
+
+        // Create title
+        const title = new PIXI.Text(effect.name, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0xFFFFFF
+        });
+        title.position.set(5, 5);
+        tooltip.addChild(title);
+
+        // Create description
+        const description = new PIXI.Text(effect.description, {
+            fontFamily: 'Arial',
+            fontSize: 12,
+            fill: 0xCCCCCC,
+            wordWrap: true,
+            wordWrapWidth: 140
+        });
+        description.position.set(5, 25);
+        tooltip.addChild(description);
+
+        // Position tooltip
+        const globalPosition = container.getGlobalPosition();
+        tooltip.position.set(globalPosition.x + 25, globalPosition.y);
+
+        // Add to UI
+        this.container.addChild(tooltip);
+        this.elements.set('statusTooltip', tooltip);
+    }
+
+    /**
+     * Hides the status effect tooltip
+     * @private
+     */
+    hideStatusTooltip() {
+        const tooltip = this.elements.get('statusTooltip');
+        if (tooltip) {
+            this.container.removeChild(tooltip);
+            this.elements.delete('statusTooltip');
+        }
+    }
+
+    /**
      * Creates the action buttons
      * @private
      */
     createActionButtons() {
         const actionArea = new PIXI.Container();
-        actionArea.position.set(50, 500);
+        actionArea.position.set(this.panelX + 10, this.safeAreaBottom - 220);
+        
+        // Button configurations
+        const buttonConfig = {
+            width: this.panelWidth - 20,
+            height: 40,
+            spacing: 10
+        };
 
-        // Make action area interactive to block events
-        actionArea.interactive = true;
-        actionArea.eventMode = 'static';
-        actionArea.on('pointerdown', e => e.stopPropagation());
-        actionArea.on('pointermove', e => e.stopPropagation());
-        actionArea.on('click', e => e.stopPropagation());
+        // Create glowing container for all buttons
+        const glowContainer = new PIXI.Container();
+        actionArea.addChild(glowContainer);
 
-        this.container.addChild(actionArea);
+        // Common button style for cyberpunk theme
+        const buttonStyle = {
+            fill: 0x000811,
+            hoverFill: 0x001122,
+            disabledFill: 0x111111,
+            borderColor: 0x00AAFF,
+            glowColor: 0x00AAFF,
+            cornerRadius: 2
+        };
 
-        // Create attack button
-        const attackButton = this.ui.createButton('Attack', () => {
+        const createCyberpunkButton = (text, onClick, position) => {
+            const container = new PIXI.Container();
+            container.position.set(0, position);
+
+            // Create angular accents
+            const accents = new PIXI.Graphics();
+            accents.lineStyle(1, buttonStyle.borderColor, 0.5);
+            accents.moveTo(0, 0);
+            accents.lineTo(15, 15);
+            accents.moveTo(buttonConfig.width, 0);
+            accents.lineTo(buttonConfig.width - 15, 15);
+            container.addChild(accents);
+
+            // Create button background with border
+            const background = new PIXI.Graphics();
+            background.lineStyle(1, buttonStyle.borderColor, 0.8);
+            background.beginFill(buttonStyle.fill);
+            background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+            background.endFill();
+            container.addChild(background);
+
+            // Create text with glow effect
+            const textObj = new PIXI.Text(text, {
+                fontFamily: 'Arial',
+                fontSize: 16,
+                fill: 0xFFFFFF,
+                stroke: buttonStyle.glowColor,
+                strokeThickness: 1
+            });
+            textObj.anchor.set(0.5);
+            textObj.position.set(buttonConfig.width / 2, buttonConfig.height / 2);
+            container.addChild(textObj);
+
+            // Make interactive
+            container.eventMode = 'static';
+            container.cursor = 'pointer';
+            container.interactive = true;
+
+            // Hover effects
+            container.on('mouseover', () => {
+                background.clear();
+                background.lineStyle(1, buttonStyle.borderColor, 1);
+                background.beginFill(buttonStyle.hoverFill);
+                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                background.endFill();
+                
+                // Add glow effect
+                const glow = new PIXI.Graphics();
+                glow.beginFill(buttonStyle.glowColor, 0.1);
+                glow.drawRect(-2, -2, buttonConfig.width + 4, buttonConfig.height + 4);
+                glow.endFill();
+                container.addChildAt(glow, 0);
+                
+                textObj.style.strokeThickness = 2;
+            });
+
+            container.on('mouseout', () => {
+                background.clear();
+                background.lineStyle(1, buttonStyle.borderColor, 0.8);
+                background.beginFill(buttonStyle.fill);
+                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                background.endFill();
+                
+                // Remove glow effect
+                if (container.children.length > 3) {
+                    container.removeChildAt(0);
+                }
+                
+                textObj.style.strokeThickness = 1;
+            });
+
+            container.on('click', onClick);
+
+            // Add enable/disable methods
+            container.enable = () => {
+                container.interactive = true;
+                container.cursor = 'pointer';
+                background.clear();
+                background.lineStyle(1, buttonStyle.borderColor, 0.8);
+                background.beginFill(buttonStyle.fill);
+                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                background.endFill();
+                textObj.alpha = 1;
+                accents.alpha = 1;
+            };
+
+            container.disable = () => {
+                container.interactive = false;
+                container.cursor = 'default';
+                background.clear();
+                background.lineStyle(1, buttonStyle.borderColor, 0.3);
+                background.beginFill(buttonStyle.disabledFill);
+                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                background.endFill();
+                textObj.alpha = 0.5;
+                accents.alpha = 0.3;
+            };
+
+            return container;
+        };
+
+        // Create buttons with cyberpunk style
+        const attackButton = createCyberpunkButton('ATTACK', () => {
             this.executePlayerAction('attack');
-        }, {
-            width: 120,
-            height: 40
-        });
-        actionArea.addChild(attackButton);
+        }, 0);
 
-        // Create ability button
-        const abilityButton = this.ui.createButton('Ability', () => {
+        const abilityButton = createCyberpunkButton('ABILITY', () => {
             this.showAbilityMenu();
-        }, {
-            width: 120,
-            height: 40
-        });
-        abilityButton.position.set(130, 0);
-        actionArea.addChild(abilityButton);
+        }, buttonConfig.height + buttonConfig.spacing);
 
-        // Create item button
-        const itemButton = this.ui.createButton('Item', () => {
+        const itemButton = createCyberpunkButton('ITEM', () => {
             this.showItemMenu();
-        }, {
-            width: 120,
-            height: 40
-        });
-        itemButton.position.set(260, 0);
-        actionArea.addChild(itemButton);
+        }, (buttonConfig.height + buttonConfig.spacing) * 2);
 
-        // Create escape button
-        const escapeButton = this.ui.createButton('Escape', () => {
+        const escapeButton = createCyberpunkButton('ESCAPE', () => {
             this.executePlayerAction('escape');
-        }, {
-            width: 120,
-            height: 40
-        });
-        escapeButton.position.set(390, 0);
+        }, (buttonConfig.height + buttonConfig.spacing) * 3);
+
+        // Add buttons to action area
+        actionArea.addChild(attackButton);
+        actionArea.addChild(abilityButton);
+        actionArea.addChild(itemButton);
         actionArea.addChild(escapeButton);
 
-        // Store references
+        this.container.addChild(actionArea);
         this.elements.set('actionArea', actionArea);
         this.elements.set('attackButton', attackButton);
         this.elements.set('abilityButton', abilityButton);
@@ -261,7 +746,7 @@ export class CombatUI {
      */
     createMessageArea() {
         const messageArea = new PIXI.Container();
-        messageArea.position.set(400, 100);
+        messageArea.position.set(this.panelX + 150, 100);
         this.container.addChild(messageArea);
 
         // Create message text
@@ -287,7 +772,7 @@ export class CombatUI {
      */
     createTurnIndicator() {
         const turnIndicator = new PIXI.Container();
-        turnIndicator.position.set(400, 50);
+        turnIndicator.position.set(this.panelX + 150, 50);
         this.container.addChild(turnIndicator);
 
         // Create turn text
@@ -322,7 +807,7 @@ export class CombatUI {
     }
 
     /**
-     * Creates a progress bar
+     * Creates a progress bar with cyberpunk styling
      * @param {number} width - Bar width
      * @param {number} height - Bar height
      * @param {number} color - Bar color
@@ -330,32 +815,70 @@ export class CombatUI {
      * @returns {PIXI.Container} Bar container
      * @private
      */
-    createBar(width, height, color, backgroundColor = 0x000000) {
+    createBar(width, height, color, backgroundColor = 0x000811) {
         const container = new PIXI.Container();
 
-        // Background
+        // Create angular corners
+        const corners = new PIXI.Graphics();
+        corners.lineStyle(1, color, 0.5);
+        // Top left
+        corners.moveTo(0, 5);
+        corners.lineTo(5, 0);
+        // Top right
+        corners.moveTo(width - 5, 0);
+        corners.lineTo(width, 5);
+        // Bottom right
+        corners.moveTo(width, height - 5);
+        corners.lineTo(width - 5, height);
+        // Bottom left
+        corners.moveTo(5, height);
+        corners.lineTo(0, height - 5);
+        container.addChild(corners);
+
+        // Background with grid pattern
         const background = new PIXI.Graphics();
         background.beginFill(backgroundColor);
         background.drawRect(0, 0, width, height);
         background.endFill();
+        
+        // Add subtle grid pattern
+        background.lineStyle(1, color, 0.1);
+        for (let x = 5; x < width; x += 10) {
+            background.moveTo(x, 0);
+            background.lineTo(x, height);
+        }
         container.addChild(background);
 
-        // Foreground
+        // Foreground with gradient and glow
         const foreground = new PIXI.Graphics();
-        foreground.beginFill(color);
+        foreground.beginFill(color, 0.8);
         foreground.drawRect(0, 0, width, height);
         foreground.endFill();
+        
+        // Add highlight line
+        foreground.lineStyle(1, 0xFFFFFF, 0.3);
+        foreground.moveTo(0, 2);
+        foreground.lineTo(width, 2);
         container.addChild(foreground);
+
+        // Border
+        const border = new PIXI.Graphics();
+        border.lineStyle(1, color, 0.8);
+        border.drawRect(0, 0, width, height);
+        container.addChild(border);
 
         // Store references
         container.background = background;
         container.foreground = foreground;
         container.maxWidth = width;
 
-        // Add update method
+        // Add update method with smooth transition
+        let currentWidth = width;
         container.update = (value, max) => {
-            const percent = Math.max(0, Math.min(1, value / max));
-            foreground.width = width * percent;
+            const targetWidth = width * Math.max(0, Math.min(1, value / max));
+            // Smooth transition
+            currentWidth = currentWidth + (targetWidth - currentWidth) * 0.2;
+            foreground.width = currentWidth;
         };
 
         return container;
@@ -366,52 +889,18 @@ export class CombatUI {
      * @private
      */
     showAbilityMenu() {
-        // Create fullscreen overlay to catch all events
-        const overlay = new PIXI.Container();
-        overlay.zIndex = 1001;
-
-        // Create overlay hit area
-        const overlayHitArea = new PIXI.Graphics();
-        overlayHitArea.beginFill(0x000000, 0.01);
-        overlayHitArea.drawRect(0, 0, 800, 600);
-        overlayHitArea.endFill();
-        overlay.addChild(overlayHitArea);
-
-        // Block all events on overlay
-        overlay.eventMode = 'static';
-        overlay.interactive = true;
-        const blockEvent = e => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        };
-        overlay.on('pointerdown', blockEvent);
-        overlay.on('pointermove', blockEvent);
-        overlay.on('pointerup', blockEvent);
-        overlay.on('click', blockEvent);
-        overlay.on('mousedown', blockEvent);
-        overlay.on('mousemove', blockEvent);
-        overlay.on('mouseup', blockEvent);
-        overlay.on('tap', blockEvent);
-        overlay.on('touchstart', blockEvent);
-        overlay.on('touchmove', blockEvent);
-        overlay.on('touchend', blockEvent);
-
-        this.container.addChild(overlay);
+        // Create ability menu directly in the panel
+        const abilityMenu = new PIXI.Container();
+        abilityMenu.position.set(this.panelX + 10, 150);
 
         // Get player abilities
         const player = this.combatManager.playerParty[0];
         const abilities = player.abilities || [];
 
-        // Create ability menu
-        const abilityMenu = new PIXI.Container();
-        abilityMenu.position.set(50, 450);
-        abilityMenu.zIndex = 1002; // Above overlay
-        overlay.addChild(abilityMenu);
-
         // Create background
         const background = new PIXI.Graphics();
-        background.beginFill(0x333333, 0.8);
-        background.drawRect(0, 0, 400, 150);
+        background.beginFill(0x222222, 0.9);
+        background.drawRect(0, 0, this.panelWidth - 20, 200);
         background.endFill();
         abilityMenu.addChild(background);
 
@@ -428,53 +917,129 @@ export class CombatUI {
 
         // Create ability buttons
         abilities.forEach((ability, index) => {
-            const button = this.ui.createButton(ability.name, () => {
-                this.executePlayerAction('ability', { ability });
-                this.container.removeChild(overlay);
-            }, {
-                width: 180,
-                height: 30
-            });
+            const container = new PIXI.Container();
+            container.position.set(10, 40 + index * 45);
+            abilityMenu.addChild(container);
 
-            button.position.set(10, 40 + index * 40);
-            abilityMenu.addChild(button);
+            // Create button background
+            const buttonBg = new PIXI.Graphics();
+            const width = this.panelWidth - 40;
+            const height = 40;
+            const canUse = player.energy >= (ability.energyCost || 0);
+            const baseFill = canUse ? 0x444444 : 0x666666;
+            buttonBg.beginFill(baseFill);
+            buttonBg.drawRoundedRect(0, 0, width, height, 5);
+            buttonBg.endFill();
+            container.addChild(buttonBg);
 
-            // Add description
-            const description = new PIXI.Text(ability.description, {
+            // Add ability name
+            const nameText = new PIXI.Text(ability.name, {
                 fontFamily: 'Arial',
-                fontSize: 12,
-                fill: 0xCCCCCC
+                fontSize: 14,
+                fill: canUse ? 0xFFFFFF : 0x999999
             });
-            description.position.set(200, 45 + index * 40);
-            abilityMenu.addChild(description);
+            nameText.position.set(10, 5);
+            container.addChild(nameText);
 
             // Add energy cost
-            const energyCost = new PIXI.Text(`Energy: ${ability.energyCost}`, {
+            if (ability.energyCost > 0) {
+                const energyText = new PIXI.Text(`${ability.energyCost} Energy`, {
+                    fontFamily: 'Arial',
+                    fontSize: 12,
+                    fill: canUse ? 0x00AAFF : 0x666666
+                });
+                energyText.position.set(width - 10, 5);
+                energyText.anchor.set(1, 0);
+                container.addChild(energyText);
+            }
+
+            // Add cooldown if applicable
+            if (ability.cooldown > 0) {
+                const cooldownText = new PIXI.Text(`${ability.cooldown}t CD`, {
+                    fontFamily: 'Arial',
+                    fontSize: 12,
+                    fill: 0xFFAA00
+                });
+                cooldownText.position.set(width - 10, height - 17);
+                cooldownText.anchor.set(1, 0);
+                container.addChild(cooldownText);
+            }
+
+            // Add tooltip container
+            const tooltip = new PIXI.Container();
+            tooltip.visible = false;
+            abilityMenu.addChild(tooltip);
+
+            // Tooltip background
+            const tooltipBg = new PIXI.Graphics();
+            tooltipBg.beginFill(0x000000, 0.9);
+            tooltipBg.drawRoundedRect(0, 0, 200, 80, 5);
+            tooltipBg.endFill();
+            tooltip.addChild(tooltipBg);
+
+            // Tooltip text
+            const tooltipText = new PIXI.Text(ability.description, {
                 fontFamily: 'Arial',
                 fontSize: 12,
-                fill: 0x00AAFF
+                fill: 0xFFFFFF,
+                wordWrap: true,
+                wordWrapWidth: 190
             });
-            energyCost.position.set(200, 60 + index * 40);
-            abilityMenu.addChild(energyCost);
+            tooltipText.position.set(5, 5);
+            tooltip.addChild(tooltipText);
 
-            // Disable if not enough energy
-            if (player.energy < ability.energyCost) {
-                button.disable();
-            }
+            // Make button interactive
+            container.eventMode = 'static';
+            container.cursor = canUse ? 'pointer' : 'not-allowed';
+            container.interactive = true;
+
+            // Hover effects
+            container.on('mouseover', () => {
+                if (canUse) {
+                    buttonBg.clear();
+                    buttonBg.beginFill(0x666666);
+                    buttonBg.drawRoundedRect(0, 0, width, height, 5);
+                    buttonBg.endFill();
+                }
+                tooltip.position.set(container.x + width + 20, container.y);
+                tooltip.visible = true;
+            });
+
+            container.on('mouseout', () => {
+                if (canUse) {
+                    buttonBg.clear();
+                    buttonBg.beginFill(baseFill);
+                    buttonBg.drawRoundedRect(0, 0, width, height, 5);
+                    buttonBg.endFill();
+                }
+                tooltip.visible = false;
+            });
+
+            container.on('click', () => {
+                if (canUse) {
+                    this.executePlayerAction('ability', { ability });
+                    this.container.removeChild(abilityMenu);
+                } else {
+                    this.showMessage('Not enough energy!', 1500);
+                }
+            });
         });
 
         // Create back button
         const backButton = this.ui.createButton('Back', () => {
-            this.container.removeChild(overlay);
+            this.container.removeChild(abilityMenu);
         }, {
             width: 80,
-            height: 30
+            height: 30,
+            style: {
+                fill: 0x444444,
+                hoverFill: 0x666666
+            }
         });
-        backButton.position.set(310, 110);
+        backButton.position.set(this.panelWidth - 100, 160);
         abilityMenu.addChild(backButton);
 
-        // Store references with overlay
-        this.elements.set('abilityMenuOverlay', overlay);
+        this.container.addChild(abilityMenu);
         this.elements.set('abilityMenu', abilityMenu);
     }
 
@@ -483,37 +1048,9 @@ export class CombatUI {
      * @private
      */
     showItemMenu() {
-        // Create fullscreen overlay to catch all events
-        const overlay = new PIXI.Container();
-        overlay.zIndex = 1001;
-
-        // Create overlay hit area
-        const overlayHitArea = new PIXI.Graphics();
-        overlayHitArea.beginFill(0x000000, 0.01);
-        overlayHitArea.drawRect(0, 0, 800, 600);
-        overlayHitArea.endFill();
-        overlay.addChild(overlayHitArea);
-
-        // Block all events on overlay
-        overlay.eventMode = 'static';
-        overlay.interactive = true;
-        const blockEvent = e => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        };
-        overlay.on('pointerdown', blockEvent);
-        overlay.on('pointermove', blockEvent);
-        overlay.on('pointerup', blockEvent);
-        overlay.on('click', blockEvent);
-        overlay.on('mousedown', blockEvent);
-        overlay.on('mousemove', blockEvent);
-        overlay.on('mouseup', blockEvent);
-        overlay.on('tap', blockEvent);
-        overlay.on('touchstart', blockEvent);
-        overlay.on('touchmove', blockEvent);
-        overlay.on('touchend', blockEvent);
-
-        this.container.addChild(overlay);
+        // Create item menu directly in the panel
+        const itemMenu = new PIXI.Container();
+        itemMenu.position.set(this.panelX + 10, 150);
 
         // Get player inventory
         const player = this.combatManager.playerParty[0];
@@ -521,20 +1058,13 @@ export class CombatUI {
 
         if (!inventory || inventory.items.length === 0) {
             this.showMessage('No items available!');
-            this.container.removeChild(overlay);
             return;
         }
 
-        // Create item menu
-        const itemMenu = new PIXI.Container();
-        itemMenu.position.set(50, 450);
-        itemMenu.zIndex = 1002; // Above overlay
-        overlay.addChild(itemMenu);
-
-        // Create background
+        // Create background for item menu
         const background = new PIXI.Graphics();
-        background.beginFill(0x333333, 0.8);
-        background.drawRect(0, 0, 400, 150);
+        background.beginFill(0x222222, 0.9);
+        background.drawRect(0, 0, this.panelWidth - 20, 200);
         background.endFill();
         itemMenu.addChild(background);
 
@@ -551,41 +1081,41 @@ export class CombatUI {
 
         // Create item buttons
         const usableItems = inventory.items.filter(item => item.consumable);
-
         usableItems.forEach((item, index) => {
             const button = this.ui.createButton(`${item.name} (${item.quantity})`, () => {
                 this.executePlayerAction('item', { item });
-                this.container.removeChild(overlay);
+                this.container.removeChild(itemMenu);
             }, {
-                width: 180,
+                width: this.panelWidth - 40,
                 height: 30
             });
 
-            button.position.set(10, 40 + index * 40);
+            button.position.set(10, 40 + index * 35);
             itemMenu.addChild(button);
 
             // Add description
             const description = new PIXI.Text(item.description || '', {
                 fontFamily: 'Arial',
-                fontSize: 12,
-                fill: 0xCCCCCC
+                fontSize: 10,
+                fill: 0xCCCCCC,
+                wordWrap: true,
+                wordWrapWidth: this.panelWidth - 60
             });
-            description.position.set(200, 45 + index * 40);
+            description.position.set(15, 40 + index * 35 + 30);
             itemMenu.addChild(description);
         });
 
         // Create back button
         const backButton = this.ui.createButton('Back', () => {
-            this.container.removeChild(overlay);
+            this.container.removeChild(itemMenu);
         }, {
             width: 80,
             height: 30
         });
-        backButton.position.set(310, 110);
+        backButton.position.set(this.panelWidth - 100, 160);
         itemMenu.addChild(backButton);
 
-        // Store references with overlay
-        this.elements.set('itemMenuOverlay', overlay);
+        this.container.addChild(itemMenu);
         this.elements.set('itemMenu', itemMenu);
     }
 
@@ -1096,20 +1626,20 @@ export class CombatUI {
         if (background) {
             background.clear();
             background.beginFill(0x000000, 0.7);
-            background.drawRect(0, 0, width, height);
+            background.drawRect(this.panelX, 0, this.panelWidth, height);
             background.endFill();
         }
 
         // Center message area
         const messageArea = this.elements.get('messageArea');
         if (messageArea) {
-            messageArea.position.set(width / 2, 100);
+            messageArea.position.set(this.panelX + 150, 100);
         }
 
         // Center turn indicator
         const turnIndicator = this.elements.get('turnIndicator');
         if (turnIndicator) {
-            turnIndicator.position.set(width / 2, 50);
+            turnIndicator.position.set(this.panelX + 150, 50);
         }
     }
 }
