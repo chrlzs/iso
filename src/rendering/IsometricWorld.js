@@ -51,7 +51,6 @@ export class IsometricWorld extends Container {
         this.structureLayer = new Container();
         this.selectionContainer = new Container(); // Container for tile selection/highlights
         this.entityContainer = new Container(); // Container for game entities like players, enemies, etc.
-        this.debugGridOverlay = new Container();
 
         // Make tile container interactive
         this.groundLayer.eventMode = 'dynamic';
@@ -64,7 +63,6 @@ export class IsometricWorld extends Container {
         this.addChild(this.structureLayer);
         this.addChild(this.entityContainer);
         this.addChild(this.selectionContainer);
-        this.addChild(this.debugGridOverlay);
 
         // Initialize tiles array
         this.tiles = [];
@@ -418,7 +416,6 @@ export class IsometricWorld extends Container {
      */
     updateCoordinates(config) {
         this.config.updateCoordinates(config);
-        this.drawDebugGrid();
     }
 
     /**
@@ -462,12 +459,12 @@ export class IsometricWorld extends Container {
         // If the precise hit test fails, test neighboring tiles
         const neighbors = [
             this.getTile(gridX - 1, gridY),
-            this.getTile(gridX + 1, gridY), 
+            this.getTile(gridX + 1, gridY),
             this.getTile(gridX, gridY - 1),
             this.getTile(gridX, gridY + 1),
             this.getTile(gridX - 1, gridY - 1),
             this.getTile(gridX + 1, gridY - 1),
-            this.getTile(gridX - 1, gridY + 1), 
+            this.getTile(gridX - 1, gridY + 1),
             this.getTile(gridX + 1, gridY + 1)
         ].filter(t => t !== null);
 
@@ -803,43 +800,7 @@ export class IsometricWorld extends Container {
         this.entities.clear();
     }
 
-    /**
-     * Draws the debug grid overlay
-     * @private
-     */
-    drawDebugGrid() {
-        this.debugGridOverlay.removeChildren();
 
-        const { gridWidth, gridHeight, tileWidth, tileHeight, gridOffsetX, gridOffsetY, gridScale } = this.config;
-
-        for (let x = 0; x < gridWidth; x++) {
-            for (let y = 0; y < gridHeight; y++) {
-                const worldPos = this.gridToWorld(x, y);
-                const isoX = worldPos.x + gridOffsetX * gridScale;
-                const isoY = worldPos.y + gridOffsetY * gridScale;
-
-                // Draw a small dot at each intersection
-                const marker = new PIXI.Graphics();
-                marker.beginFill(0xFF0000, 0.5);
-                marker.drawCircle(0, 0, 2);
-                marker.endFill();
-                marker.position.set(isoX, isoY);
-                marker.scale.set(gridScale);
-                this.debugGridOverlay.addChild(marker);
-
-                // Add larger markers at major intersections
-                if (x % 5 === 0 && y % 5 === 0) {
-                    const majorMarker = new PIXI.Graphics();
-                    majorMarker.beginFill(0xFF0000, 0.7);
-                    majorMarker.drawCircle(0, 0, 4);
-                    majorMarker.endFill();
-                    majorMarker.position.set(isoX, isoY);
-                    majorMarker.scale.set(gridScale);
-                    this.debugGridOverlay.addChild(majorMarker);
-                }
-            }
-        }
-    }
 
     /**
      * Sorts tiles by depth (back to front)
@@ -911,12 +872,7 @@ export class IsometricWorld extends Container {
             this.sortTilesByDepth = false; // Only sort when needed
         }
 
-        // Always draw debug grid if it's visible
-        if (this.debugGridOverlay && this.debugGridOverlay.visible) {
-            this.drawDebugGrid();
-            // Log that we're drawing the grid
-            //console.log('Drawing debug grid in update cycle');
-        }
+
     }
 
     /**

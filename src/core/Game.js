@@ -122,9 +122,7 @@ export class Game {
                 zoom: ['q', 'e'],
                 inventory: ['i'],
                 timeControls: ['t', 'p'],
-                debug: {
-                    toggleGrid: 'g'
-                },
+                // Debug options removed
                 placement: {
                     tree: 't',
                     rock: 'r',
@@ -210,8 +208,7 @@ export class Game {
         if (this.options.debug) {
             this.setupPerformanceMonitoring();
 
-            // Show debug grid reminder
-            console.log('%c DEBUG GRID: Press G to toggle grid visibility ', 'background: #222; color: #bada55; font-size: 16px;');
+            // Debug grid has been removed
         }
 
         // Create inventory panel
