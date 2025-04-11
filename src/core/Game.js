@@ -230,6 +230,87 @@ export class Game {
     handleKeyAction = undefined;
 
     /**
+     * Handles input events from the InputManager
+     * @param {string} type - Type of input event
+     * @param {Object} data - Input event data
+     */
+    handleInput(type, data) {
+        // Handle different input types
+        switch (type) {
+            case 'mousemove':
+                // Handle mouse movement
+                if (this.world) {
+                    // Update hover state for tiles
+                    const tile = this.world.getTileAtScreen(data.x, data.y);
+
+                    if (tile && this.input) {
+                        if (this.input.hoveredTile && this.input.hoveredTile !== tile) {
+                            // Unhighlight previous tile if it's not selected
+                            if (!this.input.hoveredTile.selected) {
+                                this.input.hoveredTile.unhighlight();
+                            }
+                        }
+
+                        this.input.hoveredTile = tile;
+                        // Highlight new tile if it's not already selected
+                        if (!tile.selected) {
+                            tile.highlight();
+                        }
+                    }
+                }
+                break;
+
+            case 'mousedown':
+                // Handle mouse down
+                if (this.world) {
+                    const tile = this.world.getTileAtScreen(data.x, data.y);
+
+                    if (tile) {
+                        tile.emit('tileSelected', { tile });
+                    }
+                }
+                break;
+
+            case 'rightmousedown':
+                // Handle right mouse down for player movement
+                if (this.world && this.player) {
+                    const tile = this.world.getTileAtScreen(data.x, data.y);
+
+                    if (tile) {
+                        // Move player to the clicked tile
+                        this.movePlayerToTile(tile);
+                    }
+                }
+                break;
+
+            case 'tileSelected':
+                // Handle tile selection
+                if (this.debugElements.selectedTile) {
+                    const tile = data.tile;
+                    this.debugElements.selectedTile.textContent = `${tile.gridX}, ${tile.gridY}`;
+                }
+                break;
+
+            case 'mouseheld':
+            case 'rightmouseheld':
+                // Handle continuous mouse input
+                break;
+
+            default:
+                // Handle other input types
+                if (this.options.debug) {
+                    console.log(`[Game] Unhandled input type: ${type}`, data);
+                }
+                break;
+        }
+
+        // Call user input handler if provided
+        if (this.options.onInput) {
+            this.options.onInput(type, data, this);
+        }
+    }
+
+    /**
      * Handles placement of objects in the world
      * @param {string} key - The pressed key
      * @private
@@ -291,6 +372,47 @@ export class Game {
         } else {
             console.warn(`Cannot place ${type} structure at (${tile.gridX}, ${tile.gridY})`);
         }
+    }
+
+    /**
+     * Places a random item at the specified tile
+     * @param {IsometricTile} tile - Tile to place the item on
+     */
+    placeRandomItem(tile) {
+        if (!tile || !tile.walkable || tile.structure) {
+            console.warn('Cannot place item: invalid tile or tile is occupied');
+            return;
+        }
+
+        // Define possible item types
+        const itemTypes = [
+            { name: 'Health Potion', type: 'potion', subtype: 'health', rarity: 'common', value: 20, stackable: true, quantity: 1, consumable: true },
+            { name: 'Energy Potion', type: 'potion', subtype: 'energy', rarity: 'common', value: 25, stackable: true, quantity: 1, consumable: true },
+            { name: 'Iron Sword', type: 'weapon', subtype: 'sword', rarity: 'common', value: 40, equippable: true, equipSlot: 'weapon', stats: { damage: 8 } },
+            { name: 'Steel Shield', type: 'armor', subtype: 'shield', rarity: 'uncommon', value: 60, equippable: true, equipSlot: 'offhand', stats: { defense: 5 } },
+            { name: 'Gold Coin', type: 'currency', subtype: 'gold', rarity: 'common', value: 1, stackable: true, quantity: Math.floor(Math.random() * 10) + 1 }
+        ];
+
+        // Select a random item type
+        const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+
+        // Create the item
+        const item = new Item(itemType);
+
+        // Set position
+        const worldPos = this.world.gridToWorld(tile.gridX, tile.gridY);
+        item.x = worldPos.x;
+        item.y = worldPos.y;
+        item.gridX = tile.gridX;
+        item.gridY = tile.gridY;
+        item.world = this.world;
+
+        // Add to world
+        this.world.entityContainer.addChild(item);
+        tile.addEntity(item);
+        this.world.entities.add(item);
+
+        console.log(`Placed ${item.name} at (${tile.gridX}, ${tile.gridY})`);
     }
 
     /**
@@ -721,6 +843,64 @@ export class Game {
     }
 
     /**
+     * Moves the player character to the specified tile
+     * @param {IsometricTile} tile - The destination tile
+     */
+    movePlayerToTile(tile) {
+        if (!this.player || !tile) {
+            return;
+        }
+
+        // Check if the tile is walkable
+        if (!tile.walkable || tile.structure) {
+            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
+            return;
+        }
+
+        // Clear any previous destination highlight
+        if (this.destinationTile && this.destinationTile !== tile) {
+            this.destinationTile.unhighlight();
+        }
+
+        // Highlight the destination tile with a different color
+        tile.highlight(0x00FFFF, 0.5); // Cyan color with 50% opacity
+        this.destinationTile = tile;
+
+        // Get the center position of the tile
+        const targetPos = tile.getCenter();
+
+        // Set the player's move target
+        this.player.setMoveTarget(targetPos);
+
+        // Update the player's grid position immediately for pathfinding purposes
+        this.player.targetGridX = tile.gridX;
+        this.player.targetGridY = tile.gridY;
+
+        // Make the camera follow the player
+        this.world.setCameraTarget(this.player);
+
+        console.log(`Moving player to tile (${tile.gridX}, ${tile.gridY})`);
+
+        // Clear the destination highlight after the player reaches the tile
+        const checkDestinationReached = () => {
+            if (!this.player.isMoving && this.destinationTile) {
+                this.destinationTile.unhighlight();
+                this.destinationTile = null;
+                clearInterval(this.destinationCheckInterval);
+                this.destinationCheckInterval = null;
+            }
+        };
+
+        // Clear any existing interval
+        if (this.destinationCheckInterval) {
+            clearInterval(this.destinationCheckInterval);
+        }
+
+        // Set up a new interval to check if the player has reached the destination
+        this.destinationCheckInterval = setInterval(checkDestinationReached, 100);
+    }
+
+    /**
      * Destroys the game instance
      */
     destroy() {
@@ -730,6 +910,12 @@ export class Game {
         // Clear any timeouts or intervals
         if (this.player && this.player.healthBarTimeout) {
             clearTimeout(this.player.healthBarTimeout);
+        }
+
+        // Clear destination check interval
+        if (this.destinationCheckInterval) {
+            clearInterval(this.destinationCheckInterval);
+            this.destinationCheckInterval = null;
         }
 
         // Dispose world
