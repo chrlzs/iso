@@ -256,10 +256,10 @@ export class IsometricTile extends Container {
 
     /**
      * Highlights the tile
-     * @param {number} color - Highlight color (default: 0xFFFF00)
-     * @param {number} alpha - Highlight alpha (default: 0.7)
+     * @param {number} color - Highlight color (default: 0x00FFAA)
+     * @param {number} alpha - Highlight alpha (default: 0.5)
      */
-    highlight(color = 0xFFFF00, alpha = 0.7) {
+    highlight(color = 0x00FFAA, alpha = 0.5) {
         // Strict boundary check - don't highlight if outside world bounds
         if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
             this.gridY < 0 || this.gridY >= this.world.gridHeight) {
@@ -290,7 +290,7 @@ export class IsometricTile extends Container {
         const worldPos = this.getParentPosition();
         this.highlightGraphics.position.set(worldPos.x, worldPos.y);
 
-        // Draw the highlight
+        // Draw the highlight with cyberpunk effects
         this.drawHighlight(color, alpha);
         this.highlighted = true;
     }
@@ -316,26 +316,55 @@ export class IsometricTile extends Container {
         if (!this.highlightGraphics) return;
 
         this.highlightGraphics.clear();
-
-        // Draw filled diamond with transparency
-        this.highlightGraphics.beginFill(color, alpha);
         
-        // Draw the diamond shape matching the visual position of the tile
         const visualCenterY = -this.tileHeight / 2;
-        this.highlightGraphics.moveTo(0, visualCenterY); // Top point
-        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2); // Right point
-        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight); // Bottom point
-        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2); // Left point
-        this.highlightGraphics.closePath();
-        this.highlightGraphics.endFill();
-
-        // Draw outline for better visibility
-        this.highlightGraphics.lineStyle(2, color, Math.min(1, alpha + 0.3));
+        
+        // Outer glow
+        const glowSize = 6;
+        this.highlightGraphics.lineStyle(glowSize, color, 0.2);
         this.highlightGraphics.moveTo(0, visualCenterY);
         this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
         this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
         this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
         this.highlightGraphics.closePath();
+
+        // Main highlight
+        this.highlightGraphics.beginFill(color, alpha * 0.3);
+        this.highlightGraphics.lineStyle(2, color, alpha * 0.8);
+        this.highlightGraphics.moveTo(0, visualCenterY);
+        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
+        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.closePath();
+        this.highlightGraphics.endFill();
+
+        // Add scanning line effect
+        const scanLineSpacing = 4;
+        this.highlightGraphics.lineStyle(1, color, alpha * 0.2);
+        for (let y = visualCenterY; y <= visualCenterY + this.tileHeight; y += scanLineSpacing) {
+            this.highlightGraphics.moveTo(-this.tileWidth/2, y);
+            this.highlightGraphics.lineTo(this.tileWidth/2, y);
+        }
+
+        // Add corner accents
+        const accentLength = 10;
+        this.highlightGraphics.lineStyle(2, color, alpha);
+        
+        // Top corner
+        this.highlightGraphics.moveTo(0, visualCenterY);
+        this.highlightGraphics.lineTo(0, visualCenterY + accentLength);
+        
+        // Right corner
+        this.highlightGraphics.moveTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(this.tileWidth/2 - accentLength, visualCenterY + this.tileHeight/2);
+        
+        // Bottom corner
+        this.highlightGraphics.moveTo(0, visualCenterY + this.tileHeight);
+        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight - accentLength);
+        
+        // Left corner
+        this.highlightGraphics.moveTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(-this.tileWidth/2 + accentLength, visualCenterY + this.tileHeight/2);
     }
 
     /**

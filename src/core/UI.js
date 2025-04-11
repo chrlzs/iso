@@ -15,6 +15,10 @@ export class UI {
         this.container = options.container || new PIXI.Container();
         this.game = options.game || null;
 
+        // Don't make the main UI container interactive
+        this.container.interactive = false;
+        this.container.eventMode = 'none';
+
         // UI elements
         this.elements = new Map();
 
@@ -24,38 +28,76 @@ export class UI {
         // Active panel
         this.activePanel = null;
 
-        // Default styles
+        // Cyberpunk color scheme
+        const colors = {
+            primary: 0x00AAFF,    // Neon blue
+            secondary: 0x00FFAA,   // Neon cyan
+            dark: 0x000811,       // Dark blue-black
+            accent: 0xFF00AA,     // Neon pink
+            warning: 0xFFAA00,    // Neon orange
+            success: 0x33FF66,    // Neon green
+            error: 0xFF3366,      // Neon red
+            text: 0xFFFFFF,       // White
+            healthBar: 0xFF3366,  // Health bar color
+            energyBar: 0x33FFAA,  // Energy bar color
+            expBar: 0xFF00AA      // Experience bar color
+        };
+
+        // Default styles with enhanced cyberpunk theme
         this.styles = {
             text: new PIXI.TextStyle({
                 fontFamily: 'Arial',
                 fontSize: 14,
-                fill: 0xFFFFFF,
-                stroke: 0x000000,
+                fill: colors.text,
+                stroke: colors.dark,
                 strokeThickness: 2
             }),
             heading: new PIXI.TextStyle({
                 fontFamily: 'Arial',
                 fontSize: 18,
                 fontWeight: 'bold',
-                fill: 0xFFFFFF,
-                stroke: 0x000000,
-                strokeThickness: 3
+                fill: colors.text,
+                stroke: colors.primary,
+                strokeThickness: 3,
+                dropShadow: true,
+                dropShadowColor: colors.primary,
+                dropShadowBlur: 4,
+                dropShadowDistance: 0
             }),
             button: {
-                fill: 0x4444AA,
-                hoverFill: 0x6666CC,
-                disabledFill: 0x666666,
-                textColor: 0xFFFFFF,
-                cornerRadius: 5,
+                fill: colors.dark,
+                hoverFill: 0x001122,
+                disabledFill: 0x111111,
+                textColor: colors.text,
+                borderColor: colors.primary,
+                glowColor: colors.primary,
+                cornerRadius: 2,
                 padding: 10
             },
             panel: {
-                fill: 0x333333,
-                alpha: 0.8,
-                borderColor: 0x666666,
-                borderWidth: 2,
-                cornerRadius: 5,
-                padding: 10
+                fill: colors.dark,
+                alpha: 0.92,
+                borderColor: colors.primary,
+                borderWidth: 1,
+                cornerRadius: 2,
+                padding: 10,
+                gridColor: colors.primary,
+                gridAlpha: 0.1,
+                gridSpacing: 20
+            },
+            notification: {
+                success: {
+                    fill: colors.success,
+                    background: colors.dark
+                },
+                warning: {
+                    fill: colors.warning,
+                    background: colors.dark
+                },
+                error: {
+                    fill: colors.error,
+                    background: colors.dark
+                }
             }
         };
 
@@ -161,32 +203,70 @@ export class UI {
      * @returns {PIXI.Container} Bar container
      * @private
      */
-    createBar(width, height, color, backgroundColor = 0x000000) {
+    createBar(width, height, color, backgroundColor = 0x000811) {
         const container = new PIXI.Container();
 
-        // Background
+        // Create angular corners
+        const corners = new PIXI.Graphics();
+        corners.lineStyle(1, color, 0.5);
+        // Top left
+        corners.moveTo(0, 5);
+        corners.lineTo(5, 0);
+        // Top right
+        corners.moveTo(width - 5, 0);
+        corners.lineTo(width, 5);
+        // Bottom right
+        corners.moveTo(width, height - 5);
+        corners.lineTo(width - 5, height);
+        // Bottom left
+        corners.moveTo(5, height);
+        corners.lineTo(0, height - 5);
+        container.addChild(corners);
+
+        // Background with grid pattern
         const background = new PIXI.Graphics();
         background.beginFill(backgroundColor);
         background.drawRect(0, 0, width, height);
         background.endFill();
+
+        // Add subtle grid pattern
+        background.lineStyle(1, color, 0.1);
+        for (let x = 5; x < width; x += 10) {
+            background.moveTo(x, 0);
+            background.lineTo(x, height);
+        }
         container.addChild(background);
 
-        // Foreground
+        // Foreground with gradient and glow
         const foreground = new PIXI.Graphics();
-        foreground.beginFill(color);
+        foreground.beginFill(color, 0.8);
         foreground.drawRect(0, 0, width, height);
         foreground.endFill();
+
+        // Add highlight line
+        foreground.lineStyle(1, 0xFFFFFF, 0.3);
+        foreground.moveTo(0, 2);
+        foreground.lineTo(width, 2);
         container.addChild(foreground);
+
+        // Border
+        const border = new PIXI.Graphics();
+        border.lineStyle(1, color, 0.8);
+        border.drawRect(0, 0, width, height);
+        container.addChild(border);
 
         // Store references
         container.background = background;
         container.foreground = foreground;
         container.maxWidth = width;
 
-        // Add update method
+        // Add update method with smooth transition
+        let currentWidth = width;
         container.update = (value, max) => {
-            const percent = Math.max(0, Math.min(1, value / max));
-            foreground.width = width * percent;
+            const targetWidth = width * Math.max(0, Math.min(1, value / max));
+            // Smooth transition
+            currentWidth = currentWidth + (targetWidth - currentWidth) * 0.2;
+            foreground.width = currentWidth;
         };
 
         return container;
@@ -202,60 +282,99 @@ export class UI {
     createButton(text, onClick, options = {}) {
         const container = new PIXI.Container();
         container.interactive = true;
+        container.eventMode = 'static';
         container.buttonMode = true;
 
         // Get button style
         const style = { ...this.styles.button, ...options.style };
 
-        // Create background
-        const background = new PIXI.Graphics();
-        container.addChild(background);
+        // Create angular accents
+        const accents = new PIXI.Graphics();
+        accents.lineStyle(1, style.borderColor, 0.5);
 
-        // Create text
-        const textObj = new PIXI.Text(text, options.textStyle || this.styles.text);
+        // Create background with border
+        const background = new PIXI.Graphics();
+        background.lineStyle(1, style.borderColor, 0.8);
+        
+        // Create text with glow effect
+        const textObj = new PIXI.Text(text, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: style.textColor,
+            stroke: style.glowColor,
+            strokeThickness: 1,
+            align: 'center'
+        });
         textObj.anchor.set(0.5);
-        container.addChild(textObj);
 
         // Calculate size
-        const width = options.width || textObj.width + style.padding * 2;
-        const height = options.height || textObj.height + style.padding * 2;
+        const width = options.width || Math.max(100, textObj.width + style.padding * 2);
+        const height = options.height || Math.max(30, textObj.height + style.padding * 2);
 
-        // Position text
-        textObj.position.set(width / 2, height / 2);
+        // Add angular accents
+        accents.moveTo(0, 5);
+        accents.lineTo(5, 0);
+        accents.moveTo(width - 5, 0);
+        accents.lineTo(width, 5);
+        accents.moveTo(width, height - 5);
+        accents.lineTo(width - 5, height);
+        accents.moveTo(5, height);
+        accents.lineTo(0, height - 5);
+        container.addChild(accents);
 
         // Draw background
         background.beginFill(style.fill);
-        background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+        background.drawRect(0, 0, width, height);
         background.endFill();
+        container.addChild(background);
 
-        // Set container size
-        container.width = width;
-        container.height = height;
+        // Position text
+        textObj.position.set(width / 2, height / 2);
+        container.addChild(textObj);
 
-        // Add event listeners
+        // Add event listeners with cyberpunk effects
         container.on('pointerover', () => {
             if (container.enabled !== false) {
                 background.clear();
+                background.lineStyle(1, style.borderColor, 1);
                 background.beginFill(style.hoverFill);
-                background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+                background.drawRect(0, 0, width, height);
                 background.endFill();
+
+                // Add glow effect
+                const glow = new PIXI.Graphics();
+                glow.beginFill(style.glowColor, 0.1);
+                glow.drawRect(-2, -2, width + 4, height + 4);
+                glow.endFill();
+                container.addChildAt(glow, 0);
+
+                textObj.style.strokeThickness = 2;
             }
         });
 
         container.on('pointerout', () => {
             if (container.enabled !== false) {
                 background.clear();
+                background.lineStyle(1, style.borderColor, 0.8);
                 background.beginFill(style.fill);
-                background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+                background.drawRect(0, 0, width, height);
                 background.endFill();
+
+                // Remove glow effect
+                if (container.children.length > 3) {
+                    container.removeChildAt(0);
+                }
+
+                textObj.style.strokeThickness = 1;
             }
         });
 
         container.on('pointerdown', () => {
             if (container.enabled !== false) {
                 background.clear();
+                background.lineStyle(1, style.borderColor, 0.8);
                 background.beginFill(style.fill);
-                background.drawRoundedRect(2, 2, width - 4, height - 4, style.cornerRadius);
+                background.drawRect(2, 2, width - 4, height - 4);
                 background.endFill();
             }
         });
@@ -263,8 +382,9 @@ export class UI {
         container.on('pointerup', () => {
             if (container.enabled !== false) {
                 background.clear();
+                background.lineStyle(1, style.borderColor, 1);
                 background.beginFill(style.hoverFill);
-                background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+                background.drawRect(0, 0, width, height);
                 background.endFill();
 
                 if (onClick) {
@@ -279,10 +399,12 @@ export class UI {
             container.interactive = true;
             container.buttonMode = true;
             background.clear();
+            background.lineStyle(1, style.borderColor, 0.8);
             background.beginFill(style.fill);
-            background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+            background.drawRect(0, 0, width, height);
             background.endFill();
             textObj.alpha = 1;
+            accents.alpha = 1;
         };
 
         container.disable = () => {
@@ -290,10 +412,12 @@ export class UI {
             container.interactive = false;
             container.buttonMode = false;
             background.clear();
+            background.lineStyle(1, style.borderColor, 0.3);
             background.beginFill(style.disabledFill);
-            background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+            background.drawRect(0, 0, width, height);
             background.endFill();
             textObj.alpha = 0.5;
+            accents.alpha = 0.3;
         };
 
         // Set initial state
@@ -318,96 +442,95 @@ export class UI {
 
         // Create container
         const container = new PIXI.Container();
-
-        // Make container interactive and stop event propagation
         container.interactive = true;
         container.eventMode = 'static';
 
-        // Block all events
-        const blockEvent = e => {
-            console.log('Panel intercepted event:', e.type);
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        };
-
-        container.on('pointerdown', blockEvent);
-        container.on('pointermove', blockEvent);
-        container.on('pointerup', blockEvent);
-        container.on('click', blockEvent);
-        container.on('mousedown', blockEvent);
-        container.on('mousemove', blockEvent);
-        container.on('mouseup', blockEvent);
-        container.on('tap', blockEvent);
-        container.on('touchstart', blockEvent);
-        container.on('touchmove', blockEvent);
-        container.on('touchend', blockEvent);
-        container.on('rightclick', blockEvent);
-        container.on('rightdown', blockEvent);
-        container.on('rightup', blockEvent);
-        container.on('contextmenu', blockEvent);
-
         // Get panel style
         const style = { ...this.styles.panel, ...options.style };
-
-        // Set position
-        container.position.set(
-            options.x || 0,
-            options.y || 0
-        );
-
-        // Create background
-        const background = new PIXI.Graphics();
-        container.addChild(background);
 
         // Calculate size
         const width = options.width || 200;
         const height = options.height || 200;
 
-        // Draw background
+        // Create background with grid pattern
+        const background = new PIXI.Graphics();
+        
+        // Main dark background with gradient
         background.beginFill(style.fill, style.alpha);
-        background.lineStyle(style.borderWidth, style.borderColor);
-        background.drawRoundedRect(0, 0, width, height, style.cornerRadius);
+        background.drawRect(0, 0, width, height);
         background.endFill();
 
-        // Create content container with event handling
+        // Add cyberpunk grid pattern
+        background.lineStyle(1, style.gridColor, style.gridAlpha);
+        
+        // Vertical lines
+        for (let x = 0; x <= width; x += style.gridSpacing) {
+            background.moveTo(x, 0);
+            background.lineTo(x, height);
+        }
+        
+        // Horizontal lines
+        for (let y = 0; y <= height; y += style.gridSpacing) {
+            background.moveTo(0, y);
+            background.lineTo(width, y);
+        }
+
+        // Add neon border
+        background.lineStyle(style.borderWidth, style.borderColor, 1);
+        background.drawRect(0, 0, width, height);
+
+        // Add angular accents in corners
+        const accentSize = 15;
+        background.lineStyle(1, style.borderColor, 0.5);
+        // Top left
+        background.moveTo(0, accentSize);
+        background.lineTo(accentSize, 0);
+        // Top right
+        background.moveTo(width - accentSize, 0);
+        background.lineTo(width, accentSize);
+        // Bottom right
+        background.moveTo(width, height - accentSize);
+        background.lineTo(width - accentSize, height);
+        // Bottom left
+        background.moveTo(accentSize, height);
+        background.lineTo(0, height - accentSize);
+
+        container.addChild(background);
+
+        // Create content container
         const contentY = options.title ? 40 : style.padding;
         const contentContainer = new PIXI.Container();
-        contentContainer.interactive = true;
-        contentContainer.eventMode = 'static';
-
-        // Block all events on content container
-        contentContainer.on('pointerdown', blockEvent);
-        contentContainer.on('pointermove', blockEvent);
-        contentContainer.on('pointerup', blockEvent);
-        contentContainer.on('click', blockEvent);
-        contentContainer.on('mousedown', blockEvent);
-        contentContainer.on('mousemove', blockEvent);
-        contentContainer.on('mouseup', blockEvent);
-        contentContainer.on('tap', blockEvent);
-        contentContainer.on('touchstart', blockEvent);
-        contentContainer.on('touchmove', blockEvent);
-        contentContainer.on('touchend', blockEvent);
-        contentContainer.on('rightclick', blockEvent);
-        contentContainer.on('rightdown', blockEvent);
-        contentContainer.on('rightup', blockEvent);
-        contentContainer.on('contextmenu', blockEvent);
-
         contentContainer.position.set(style.padding, contentY);
         container.addChild(contentContainer);
         container.contentContainer = contentContainer;
 
-        // Set container size
+        // Add title if specified
+        if (options.title) {
+            const title = new PIXI.Text(options.title, {
+                ...this.styles.heading,
+                fontSize: 16,
+                stroke: style.borderColor,
+                strokeThickness: 2,
+                dropShadow: true,
+                dropShadowColor: style.borderColor,
+                dropShadowBlur: 4,
+                dropShadowDistance: 0
+            });
+            title.position.set(width / 2, style.padding);
+            title.anchor.set(0.5, 0);
+            container.addChild(title);
+        }
+
+        // Set position and size
+        container.position.set(options.x || 0, options.y || 0);
         container.width = width;
         container.height = height;
 
-        // Add to UI container first
+        // Add to UI container and panels map
         this.container.addChild(container);
-
-        // Then add to panels map
         this.panels.set(id, container);
 
-        // Make sure the container is properly set up for sorting
+        // Enable sorting
         if (this.container.sortableChildren === undefined) {
             this.container.sortableChildren = true;
         }

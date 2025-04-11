@@ -15,42 +15,68 @@ export class CombatUI {
         this.container = options.container || new PIXI.Container();
         this.combatManager = options.combatManager;
         this.ui = options.ui;
-
-        // Initialize collections first
         this.elements = new Map();
-        this.animations = [];
         this.messages = [];
-        this.turnOrder = [];
-        this.statusEffects = new Map();
+        this.animations = [];
 
-        // Combat panel dimensions
+        // Panel dimensions
+        this.panelX = this.ui.game.app.screen.width - 300;
         this.panelWidth = 300;
         this.panelHeight = this.ui.game.app.screen.height;
-        this.panelX = this.ui.game.app.screen.width - this.panelWidth;
+        this.safeAreaBottom = this.panelHeight - 20;
 
-        // Make container interactive but only for the panel area
-        this.container.interactive = true;
-        this.container.eventMode = 'static';
-        this.container.sortableChildren = true;
-        this.container.zIndex = 1000;
-
-        // Create semi-transparent panel background
-        const panelBackground = new PIXI.Graphics();
-        panelBackground.beginFill(0x222222, 0.85); // Slightly darker, more transparent
-        panelBackground.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
-        panelBackground.endFill();
-        this.container.addChild(panelBackground);
-        this.elements.set('background', panelBackground);
-
-        // Calculate safe area (accounting for version-info)
-        this.safeAreaBottom = this.panelHeight - 50; // Leave space for version-info
-
-        // Message display configuration
+        // Message display time
         this.messageDisplayTime = 2000;
-        this.maxMessages = 3;
 
-        // Initialize UI
-        this.initialize();
+        // Cyberpunk theme
+        this.theme = {
+            colors: {
+                primary: 0x00AAFF,    // Neon blue
+                secondary: 0x00FFAA,   // Neon cyan
+                dark: 0x000811,       // Dark blue-black
+                accent: 0xFF00AA,     // Neon pink
+                warning: 0xFFAA00,    // Neon orange
+                text: 0xFFFFFF,       // White
+                healthBar: 0xFF3366,  // Health bar color
+                energyBar: 0x33FFAA   // Energy bar color
+            },
+            styles: {
+                text: {
+                    fontFamily: 'Arial',
+                    fontSize: 14,
+                    fill: 0xFFFFFF,
+                    stroke: 0x000811,
+                    strokeThickness: 2
+                },
+                heading: {
+                    fontFamily: 'Arial',
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    fill: 0xFFFFFF,
+                    stroke: 0x00AAFF,
+                    strokeThickness: 3,
+                    dropShadow: true,
+                    dropShadowColor: 0x00AAFF,
+                    dropShadowBlur: 4,
+                    dropShadowDistance: 0
+                },
+                gridPattern: {
+                    color: 0x00AAFF,
+                    alpha: 0.1,
+                    spacing: 20
+                }
+            }
+        };
+
+        // Create UI elements
+        this.createBackground();
+        this.createTurnOrderDisplay();
+        this.createPlayerArea();
+        this.createEnemyArea();
+        this.createStatusEffectsArea();
+        this.createActionButtons();
+        this.createMessageArea();
+        this.createTurnIndicator();
     }
 
     /**
@@ -90,15 +116,15 @@ export class CombatUI {
     createBackground() {
         const background = new PIXI.Graphics();
         
-        // Semi-transparent dark background with gradient
+        // Semi-transparent dark overlay with reduced opacity
         const gradient = this.container.addChild(new PIXI.Graphics());
-        gradient.beginFill(0x000811, 0.92);
+        gradient.beginFill(0x000811, 0.3); // Reduced opacity from 0.92 to 0.3
         gradient.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
         gradient.endFill();
 
-        // Add cyberpunk grid pattern
+        // Add subtle cyberpunk grid pattern
         const gridSpacing = 20;
-        const gridAlpha = 0.15;
+        const gridAlpha = 0.1;
         background.lineStyle(1, 0x00AAFF, gridAlpha);
         
         // Vertical lines
@@ -113,8 +139,8 @@ export class CombatUI {
             background.lineTo(this.panelX + this.panelWidth, y);
         }
 
-        // Add neon border
-        background.lineStyle(2, 0x00AAFF, 0.5);
+        // Add neon border with reduced opacity
+        background.lineStyle(2, 0x00AAFF, 0.3);
         background.moveTo(this.panelX, 0);
         background.lineTo(this.panelX + this.panelWidth, 0);
         background.lineTo(this.panelX + this.panelWidth, this.panelHeight);
@@ -122,17 +148,18 @@ export class CombatUI {
         background.lineTo(this.panelX, 0);
 
         // Add diagonal accent lines
-        background.lineStyle(1, 0x00AAFF, 0.3);
+        background.lineStyle(1, 0x00AAFF, 0.2);
         background.moveTo(this.panelX, 0);
         background.lineTo(this.panelX + 30, 30);
         background.moveTo(this.panelX + this.panelWidth, 0);
         background.lineTo(this.panelX + this.panelWidth - 30, 30);
 
-        // Make background interactive and stop event propagation
+        // Make background interactive while still allowing see-through
         background.interactive = true;
         background.eventMode = 'static';
+        background.hitArea = new PIXI.Rectangle(this.panelX, 0, this.panelWidth, this.panelHeight);
 
-        // Block all events
+        // Block combat-related events but allow map visibility
         const blockEvent = e => {
             e.stopPropagation();
             e.stopImmediatePropagation();

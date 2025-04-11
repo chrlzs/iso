@@ -678,28 +678,42 @@ export class IsometricWorld extends Container {
         // Create a graphics object
         const graphics = new PIXI.Graphics();
 
-        // Set color based on type
-        let color;
+        // Cyberpunk color scheme
+        let mainColor, glowColor;
         switch (type) {
             case 'grass':
-                color = 0x44AA44;
+                mainColor = 0x00FFAA;  // Neon cyan
+                glowColor = 0x33FF66;  // Neon green
                 break;
             case 'dirt':
-                color = 0x8B4513;
+                mainColor = 0xFF00AA;  // Neon pink
+                glowColor = 0xFF3366;  // Neon red
                 break;
             case 'sand':
-                color = 0xF0E68C;
+                mainColor = 0xFFAA00;  // Neon orange
+                glowColor = 0xFFFF00;  // Neon yellow
                 break;
             case 'water':
-                color = 0x4444AA;
+                mainColor = 0x00AAFF;  // Neon blue
+                glowColor = 0x0066FF;  // Electric blue
                 break;
             default:
-                color = 0xAAAAAA;
+                mainColor = 0x00AAFF;  // Default neon blue
+                glowColor = 0x0066FF;  // Default electric blue
                 break;
         }
 
-        // Draw diamond shape
-        graphics.beginFill(color);
+        // Add glow effect
+        graphics.lineStyle(4, glowColor, 0.2);
+        graphics.moveTo(0, -this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.lineTo(-this.config.tileWidth / 2, 0);
+        graphics.closePath();
+
+        // Draw main shape
+        graphics.beginFill(mainColor, 0.8);
+        graphics.lineStyle(2, glowColor, 0.6);
         graphics.moveTo(0, -this.config.tileHeight / 2);
         graphics.lineTo(this.config.tileWidth / 2, 0);
         graphics.lineTo(0, this.config.tileHeight / 2);
@@ -707,25 +721,30 @@ export class IsometricWorld extends Container {
         graphics.closePath();
         graphics.endFill();
 
-        // Draw outline
-        graphics.lineStyle(1, 0x000000, 0.3);
-        graphics.moveTo(0, -this.config.tileHeight / 2);
-        graphics.lineTo(this.config.tileWidth / 2, 0);
-        graphics.lineTo(0, this.config.tileHeight / 2);
-        graphics.lineTo(-this.config.tileWidth / 2, 0);
-        graphics.closePath();
+        // Add grid pattern
+        graphics.lineStyle(1, glowColor, 0.1);
+        for (let i = -this.config.tileWidth/2; i <= this.config.tileWidth/2; i += 10) {
+            graphics.moveTo(i, -this.config.tileHeight/2);
+            graphics.lineTo(i, this.config.tileHeight/2);
+        }
+        for (let i = -this.config.tileHeight/2; i <= this.config.tileHeight/2; i += 10) {
+            graphics.moveTo(-this.config.tileWidth/2, i);
+            graphics.lineTo(this.config.tileWidth/2, i);
+        }
 
         // Generate texture
         if (this.app && this.app.renderer) {
             return this.app.renderer.generateTexture(graphics);
         } else {
             console.error('Cannot generate texture: app or renderer is not available');
-            // Create a fallback texture
+            // Create a fallback texture with basic cyberpunk style
             const canvas = document.createElement('canvas');
             canvas.width = this.config.tileWidth;
             canvas.height = this.config.tileHeight;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            ctx.fillStyle = `#${mainColor.toString(16).padStart(6, '0')}`;
+            ctx.strokeStyle = `#${glowColor.toString(16).padStart(6, '0')}`;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(canvas.width / 2, 0);
             ctx.lineTo(canvas.width, canvas.height / 2);
@@ -733,6 +752,7 @@ export class IsometricWorld extends Container {
             ctx.lineTo(0, canvas.height / 2);
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
             return PIXI.Texture.from(canvas);
         }
     }
