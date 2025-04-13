@@ -68,6 +68,54 @@ export class CombatUI {
             }
         };
 
+        // Ensure the entire CombatUI container blocks events
+        this.container.interactive = true;
+        this.container.eventMode = 'static';
+        this.container.hitArea = new PIXI.Rectangle(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);
+
+        // Ensure CombatUI container is rendered above all other elements
+        this.container.zIndex = 9999;
+
+        // Enable sorting of children in the parent container
+        if (this.container.parent && this.container.parent.sortableChildren === undefined) {
+            this.container.parent.sortableChildren = true;
+        }
+
+        // Enhanced event blocking to ensure no propagation to game input manager
+        const blockEvent = e => {
+            e.preventDefault(); // Prevent default browser behavior
+            e.stopPropagation(); // Stop event propagation
+            e.stopImmediatePropagation(); // Stop immediate propagation
+        };
+
+        // Block all relevant events
+        const eventsToBlock = [
+            'pointerdown', 'pointermove', 'pointerup', 'click',
+            'mousedown', 'mousemove', 'mouseup', 'tap',
+            'touchstart', 'touchmove', 'touchend',
+            'rightclick', 'rightdown', 'rightup', 'contextmenu'
+        ];
+
+        eventsToBlock.forEach(event => {
+            this.container.on(event, blockEvent);
+        });
+
+        // Ensure CombatUI intercepts all relevant events
+        const interceptEvents = [
+            'pointerdown', 'pointermove', 'pointerup', 'click',
+            'mousedown', 'mousemove', 'mouseup', 'tap',
+            'touchstart', 'touchmove', 'touchend',
+            'rightclick', 'rightdown', 'rightup', 'contextmenu'
+        ];
+
+        interceptEvents.forEach(event => {
+            this.container.on(event, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            });
+        });
+
         // Create UI elements
         this.createBackground();
         this.createTurnOrderDisplay();
@@ -162,6 +210,10 @@ export class CombatUI {
 
         // Block combat-related events but allow map visibility
         const blockEvent = e => {
+            // Allow interactions for specific elements
+            if (e.target !== background) {
+                return;
+            }
             e.stopPropagation();
             e.stopImmediatePropagation();
         };
