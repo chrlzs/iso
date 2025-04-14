@@ -241,6 +241,12 @@ export class Game {
         // If in combat, only process non-tile related inputs
         const inCombat = this.combatManager && this.combatManager.inCombat;
 
+        // During combat, let the UI handle all mouse events
+        if (inCombat && (type.includes('mouse') || type.includes('pointer'))) {
+            // Don't log unhandled events during combat to avoid console spam
+            return;
+        }
+
         // Handle different input types
         switch (type) {
             case 'mousemove':
@@ -303,7 +309,7 @@ export class Game {
 
             default:
                 // Handle other input types
-                if (this.options.debug) {
+                if (this.options.debug && !inCombat) {
                     console.log(`[Game] Unhandled input type: ${type}`, data);
                 }
                 break;

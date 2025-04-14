@@ -33,10 +33,11 @@ export class CombatUI {
         this.container.eventMode = 'static';
         this.container.cursor = 'default';
         this.container.sortableChildren = true; // Enable z-index sorting
+        this.container.interactiveChildren = true; // Ensure child elements can receive events
 
         // Create a full-screen hit area that covers the entire viewport
         this.updateHitArea();
-        
+
         // Listen for game resize events to update the hit area
         if (this.ui.game.app) {
             this.ui.game.app.renderer.on('resize', this.updateHitArea.bind(this));
@@ -581,7 +582,10 @@ export class CombatUI {
     createActionButtons() {
         const actionArea = new PIXI.Container();
         actionArea.position.set(this.panelX + 10, this.safeAreaBottom - 220);
-        actionArea.zIndex = 10; // Ensure buttons are above background
+        actionArea.zIndex = 100; // Increased z-index to ensure buttons are above all other UI elements
+        actionArea.sortableChildren = true; // Enable sorting of children by zIndex
+        actionArea.eventMode = 'static'; // Make sure the area can receive events
+        actionArea.interactiveChildren = true; // Ensure child elements can receive events
 
         // Button configurations
         const buttonConfig = {
@@ -592,6 +596,8 @@ export class CombatUI {
 
         // Create glowing container for all buttons
         const glowContainer = new PIXI.Container();
+        glowContainer.eventMode = 'static'; // Make sure events pass through
+        glowContainer.zIndex = 99; // Just below buttons
         actionArea.addChild(glowContainer);
 
         // Common button style for cyberpunk theme
@@ -610,7 +616,7 @@ export class CombatUI {
             container.eventMode = 'static';
             container.cursor = 'pointer';
             container.interactive = true;
-            container.zIndex = 1; // Ensure button is above its parent container
+            container.zIndex = 100; // Increased z-index to ensure visibility
 
             // Create angular accents
             const accents = new PIXI.Graphics();
@@ -641,8 +647,11 @@ export class CombatUI {
             textObj.position.set(buttonConfig.width / 2, buttonConfig.height / 2);
             container.addChild(textObj);
 
+            // Create a hitArea to improve click detection
+            container.hitArea = new PIXI.Rectangle(0, 0, buttonConfig.width, buttonConfig.height);
+
             // Hover effects
-            container.on('mouseover', () => {
+            container.on('pointerover', () => {
                 if (container.enabled !== false) {
                     background.clear();
                     background.lineStyle(1, buttonStyle.borderColor, 1);
@@ -658,10 +667,13 @@ export class CombatUI {
                     container.addChildAt(glow, 0);
 
                     textObj.style.strokeThickness = 2;
+
+                    // Debug log
+                    console.log(`Button hover: ${text}`);
                 }
             });
 
-            container.on('mouseout', () => {
+            container.on('pointerout', () => {
                 if (container.enabled !== false) {
                     background.clear();
                     background.lineStyle(1, buttonStyle.borderColor, 0.8);
@@ -678,11 +690,43 @@ export class CombatUI {
                 }
             });
 
-            // Add click handler with stopPropagation to prevent event bubbling
-            container.on('click', (e) => {
-                e.stopPropagation();
-                if (container.enabled !== false && onClick) {
-                    onClick();
+            // Use pointerdown and pointerup for more reliable click handling
+            container.on('pointerdown', (e) => {
+                if (container.enabled !== false) {
+                    // Visual feedback
+                    background.clear();
+                    background.lineStyle(1, buttonStyle.borderColor, 0.8);
+                    background.beginFill(buttonStyle.fill);
+                    background.drawRect(2, 2, buttonConfig.width - 4, buttonConfig.height - 4);
+                    background.endFill();
+
+                    // Debug log
+                    console.log(`Button down: ${text}`);
+
+                    // Stop propagation
+                    e.stopPropagation();
+                }
+            });
+
+            container.on('pointerup', (e) => {
+                if (container.enabled !== false) {
+                    // Visual feedback
+                    background.clear();
+                    background.lineStyle(1, buttonStyle.borderColor, 1);
+                    background.beginFill(buttonStyle.hoverFill);
+                    background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    background.endFill();
+
+                    // Debug log
+                    console.log(`Button click: ${text}`);
+
+                    // Execute callback
+                    if (onClick) {
+                        onClick();
+                    }
+
+                    // Stop propagation
+                    e.stopPropagation();
                 }
             });
 
@@ -690,6 +734,7 @@ export class CombatUI {
             container.enable = () => {
                 container.enabled = true;
                 container.interactive = true;
+                container.eventMode = 'static';
                 container.cursor = 'pointer';
                 background.clear();
                 background.lineStyle(1, buttonStyle.borderColor, 0.8);
@@ -698,11 +743,13 @@ export class CombatUI {
                 background.endFill();
                 textObj.alpha = 1;
                 accents.alpha = 1;
+                console.log(`Button enabled: ${text}`);
             };
 
             container.disable = () => {
                 container.enabled = false;
                 container.interactive = false;
+                container.eventMode = 'none';
                 container.cursor = 'default';
                 background.clear();
                 background.lineStyle(1, buttonStyle.borderColor, 0.3);
@@ -711,6 +758,7 @@ export class CombatUI {
                 background.endFill();
                 textObj.alpha = 0.5;
                 accents.alpha = 0.3;
+                console.log(`Button disabled: ${text}`);
             };
 
             return container;
@@ -1133,9 +1181,12 @@ export class CombatUI {
      * @private
      */
     executePlayerAction(actionType, options = {}) {
+        console.log(`Executing player action: ${actionType}`, options);
+
         // Validate that it's the player's turn
         const currentActor = this.combatManager.currentTurnActor;
         if (!currentActor || !this.combatManager.playerParty.includes(currentActor)) {
+            console.warn("Cannot execute action: It's not the player's turn");
             this.showMessage("It's not your turn!");
             return;
         }
@@ -1148,27 +1199,34 @@ export class CombatUI {
         );
 
         // Execute action
+        console.log(`Attempting to execute ${actionType} on target:`, target);
         const success = this.combatManager.executePlayerAction(actionType, {
             ...options,
             target
         });
+        console.log(`Action execution ${success ? 'succeeded' : 'failed'}`);
 
         // Show error message if action failed
         if (!success) {
+            let errorMessage = '';
             switch (actionType) {
                 case 'attack':
-                    this.showMessage('Cannot attack right now!');
+                    errorMessage = 'Cannot attack right now!';
                     break;
                 case 'ability':
-                    this.showMessage(options.ability ? 'Not enough energy!' : 'No ability selected!');
+                    errorMessage = options.ability ? 'Not enough energy!' : 'No ability selected!';
                     break;
                 case 'item':
-                    this.showMessage(options.item ? 'Cannot use that item!' : 'No item selected!');
+                    errorMessage = options.item ? 'Cannot use that item!' : 'No item selected!';
                     break;
                 case 'escape':
-                    this.showMessage('Cannot escape right now!');
+                    errorMessage = 'Cannot escape right now!';
                     break;
+                default:
+                    errorMessage = 'Action failed!';
             }
+            console.warn(`Action failed: ${errorMessage}`);
+            this.showMessage(errorMessage);
         }
     }
 
@@ -1535,6 +1593,8 @@ export class CombatUI {
      * @param {number} turn - Current turn number
      */
     updateTurnIndicator(actor, turn) {
+        console.log(`Updating turn indicator: Turn ${turn}, Actor: ${actor?.name || 'unknown'}`);
+
         // Get turn text element
         const turnText = this.elements.get('turnText');
         if (turnText) {
@@ -1545,7 +1605,7 @@ export class CombatUI {
         const actorText = this.elements.get('actorText');
         if (actorText) {
             const isPlayerTurn = this.combatManager.playerParty.includes(actor);
-            actorText.text = isPlayerTurn ? 'Your Turn' : `${actor.name}'s Turn`;
+            actorText.text = isPlayerTurn ? 'Your Turn' : `${actor?.name || 'Enemy'}'s Turn`;
             actorText.style.fill = isPlayerTurn ? 0x00AAFF : 0xFF0000;
         }
 
@@ -1557,13 +1617,18 @@ export class CombatUI {
             this.elements.get('escapeButton')
         ];
 
+        const isPlayerTurn = this.combatManager.playerParty.includes(actor);
+        console.log(`Is player turn: ${isPlayerTurn}`);
+
         actionButtons.forEach(button => {
             if (button) {
-                if (this.combatManager.playerParty.includes(actor)) {
+                if (isPlayerTurn) {
                     button.enable();
                 } else {
                     button.disable();
                 }
+            } else {
+                console.warn('Button not found in elements map');
             }
         });
     }
@@ -1619,6 +1684,28 @@ export class CombatUI {
         while (this.messages.length > 0 && now - this.messages[0].startTime > this.messages[0].duration) {
             this.messages.shift();
             this.updateMessageDisplay();
+        }
+
+        // Ensure buttons are properly enabled/disabled based on current turn
+        if (this.combatManager && this.combatManager.currentTurnActor) {
+            const actionButtons = [
+                this.elements.get('attackButton'),
+                this.elements.get('abilityButton'),
+                this.elements.get('itemButton'),
+                this.elements.get('escapeButton')
+            ];
+
+            const isPlayerTurn = this.combatManager.playerParty.includes(this.combatManager.currentTurnActor);
+
+            actionButtons.forEach(button => {
+                if (button) {
+                    if (isPlayerTurn && button.enabled === false) {
+                        button.enable();
+                    } else if (!isPlayerTurn && button.enabled !== false) {
+                        button.disable();
+                    }
+                }
+            });
         }
     }
 

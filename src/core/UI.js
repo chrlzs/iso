@@ -283,7 +283,7 @@ export class UI {
         const container = new PIXI.Container();
         container.interactive = true;
         container.eventMode = 'static';
-        container.buttonMode = true;
+        container.zIndex = options.zIndex || 10; // Set a default z-index
 
         // Get button style
         const style = { ...this.styles.button, ...options.style };
@@ -310,6 +310,9 @@ export class UI {
         // Calculate size
         const width = options.width || Math.max(100, textObj.width + style.padding * 2);
         const height = options.height || Math.max(30, textObj.height + style.padding * 2);
+
+        // Create a hitArea to improve click detection
+        container.hitArea = new PIXI.Rectangle(0, 0, width, height);
 
         // Add angular accents
         accents.moveTo(0, 5);
@@ -369,17 +372,21 @@ export class UI {
             }
         });
 
-        container.on('pointerdown', () => {
+        // Use pointerdown and pointerup for more reliable click handling
+        container.on('pointerdown', (e) => {
             if (container.enabled !== false) {
                 background.clear();
                 background.lineStyle(1, style.borderColor, 0.8);
                 background.beginFill(style.fill);
                 background.drawRect(2, 2, width - 4, height - 4);
                 background.endFill();
+
+                // Stop propagation
+                e.stopPropagation();
             }
         });
 
-        container.on('pointerup', () => {
+        container.on('pointerup', (e) => {
             if (container.enabled !== false) {
                 background.clear();
                 background.lineStyle(1, style.borderColor, 1);
@@ -390,6 +397,9 @@ export class UI {
                 if (onClick) {
                     onClick();
                 }
+
+                // Stop propagation
+                e.stopPropagation();
             }
         });
 
@@ -397,7 +407,8 @@ export class UI {
         container.enable = () => {
             container.enabled = true;
             container.interactive = true;
-            container.buttonMode = true;
+            container.eventMode = 'static';
+            container.cursor = 'pointer';
             background.clear();
             background.lineStyle(1, style.borderColor, 0.8);
             background.beginFill(style.fill);
@@ -410,7 +421,8 @@ export class UI {
         container.disable = () => {
             container.enabled = false;
             container.interactive = false;
-            container.buttonMode = false;
+            container.eventMode = 'none';
+            container.cursor = 'default';
             background.clear();
             background.lineStyle(1, style.borderColor, 0.3);
             background.beginFill(style.disabledFill);
@@ -423,6 +435,8 @@ export class UI {
         // Set initial state
         if (options.enabled === false) {
             container.disable();
+        } else {
+            container.cursor = 'pointer';
         }
 
         return container;
@@ -665,9 +679,11 @@ export class UI {
         panel.interactive = true;
         panel.eventMode = 'static';
         panel.hitArea = new PIXI.Rectangle(0, 0, panel.width, panel.height);
+        panel.interactiveChildren = true; // Ensure child elements can receive events
 
         // Set panel to be on top of everything
         panel.zIndex = 1000;
+        panel.sortableChildren = true; // Enable sorting of children by zIndex
 
         // Make sure parent container can sort children
         if (this.container.sortableChildren === undefined) {
@@ -687,6 +703,9 @@ export class UI {
 
         // Store reference
         panel.combatUI = combatUI;
+
+        // Force the panel to be on top
+        this.container.sortChildren();
 
         return combatUI;
     }
