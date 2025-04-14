@@ -27,7 +27,9 @@ export class CombatUI {
         this.safeAreaBottom = this.panelHeight - 20;
 
         // Message display time
-        this.messageDisplayTime = 2000;
+        this.messageDisplayTime = 3000; // Increased from 2000ms to 3000ms
+        this.minReadingTime = 1500; // Minimum time in ms to read a message
+        this.readingTimePerChar = 50; // Additional ms per character for reading
 
         // Set up container for full-screen event blocking
         this.container.eventMode = 'static';
@@ -1149,29 +1151,122 @@ export class CombatUI {
     }
 
     /**
-     * Creates the message area
+     * Creates the message area with cyberpunk styling
      * @private
      */
     createMessageArea() {
         const messageArea = new PIXI.Container();
-        messageArea.position.set(this.panelX + 150, 100);
+        // Position the message area at the top center of the screen
+        messageArea.position.set(this.ui.game.app.screen.width / 2, 60);
+        messageArea.zIndex = 1000; // Ensure it's on top of everything
         this.container.addChild(messageArea);
 
-        // Create message text
+        // Create cyberpunk-styled message background
+        const messageBg = new PIXI.Graphics();
+
+        // Main background - dark with slight transparency
+        messageBg.beginFill(0x000811, 0.85);
+        messageBg.drawRect(-300, -25, 600, 80); // Increased width from 440 to 600 and height from 70 to 80
+        messageBg.endFill();
+
+        // Neon border with angular corners
+        messageBg.lineStyle(2, 0x00AAFF, 0.9);
+
+        // Top border with angular corners
+        messageBg.moveTo(-300, -25);
+        messageBg.lineTo(-280, -25);
+        messageBg.moveTo(-260, -25);
+        messageBg.lineTo(260, -25);
+        messageBg.moveTo(280, -25);
+        messageBg.lineTo(300, -25);
+
+        // Right border with angular corners
+        messageBg.moveTo(300, -25);
+        messageBg.lineTo(300, -5);
+        messageBg.moveTo(300, 15);
+        messageBg.lineTo(300, 55); // Adjusted y-position from 45 to 55
+
+        // Bottom border with angular corners
+        messageBg.moveTo(300, 55); // Adjusted y-position from 45 to 55
+        messageBg.lineTo(280, 55);
+        messageBg.moveTo(260, 55);
+        messageBg.lineTo(-260, 55);
+        messageBg.moveTo(-280, 55);
+        messageBg.lineTo(-300, 55);
+
+        // Left border with angular corners
+        messageBg.moveTo(-300, 55); // Adjusted y-position from 45 to 55
+        messageBg.lineTo(-300, 15);
+        messageBg.moveTo(-300, -5);
+        messageBg.lineTo(-300, -25);
+
+        // Add diagonal accent lines
+        messageBg.lineStyle(1, 0x00AAFF, 0.5);
+        messageBg.moveTo(-300, -25);
+        messageBg.lineTo(-285, -10);
+        messageBg.moveTo(300, -25);
+        messageBg.lineTo(285, -10);
+        messageBg.moveTo(-300, 55); // Adjusted y-position from 45 to 55
+        messageBg.lineTo(-285, 40);
+        messageBg.moveTo(300, 55); // Adjusted y-position from 45 to 55
+        messageBg.lineTo(285, 40);
+
+        messageArea.addChild(messageBg);
+
+        // Add a scanline effect for cyberpunk feel
+        const scanlines = new PIXI.Graphics();
+        scanlines.beginFill(0x00AAFF, 0.03);
+        for (let i = -25; i < 55; i += 4) { // Adjusted max height from 45 to 55
+            scanlines.drawRect(-300, i, 600, 1); // Increased width from 440 to 600
+        }
+        scanlines.endFill();
+        messageArea.addChild(scanlines);
+
+        // Create glitch container for text
+        const glitchContainer = new PIXI.Container();
+        messageArea.addChild(glitchContainer);
+
+        // Create message text with cyberpunk styling
         const messageText = new PIXI.Text('', {
-            fontFamily: 'Arial',
+            fontFamily: 'monospace', // More tech-looking font
             fontSize: 24,
-            fill: 0xFFFFFF,
-            stroke: 0x000000,
-            strokeThickness: 4,
-            align: 'center'
+            fontWeight: 'bold',
+            fill: 0x00FFFF, // Cyan color for cyberpunk feel
+            stroke: 0x0088AA,
+            strokeThickness: 2,
+            align: 'center',
+            dropShadow: true,
+            dropShadowColor: 0x00AAFF,
+            dropShadowDistance: 2,
+            dropShadowBlur: 4,
+            wordWrap: true,
+            wordWrapWidth: 580 // Set word wrap width to fit within the message box
         });
         messageText.anchor.set(0.5);
-        messageArea.addChild(messageText);
+        glitchContainer.addChild(messageText);
+
+        // Create shadow text for glitch effect
+        const shadowText = new PIXI.Text('', {
+            fontFamily: 'monospace',
+            fontSize: 24,
+            fontWeight: 'bold',
+            fill: 0xFF00FF, // Magenta for glitch effect
+            align: 'center',
+            alpha: 0.4,
+            wordWrap: true,
+            wordWrapWidth: 580 // Match the main text's word wrap width
+        });
+        shadowText.anchor.set(0.5);
+        shadowText.position.set(2, 2); // Slight offset
+        glitchContainer.addChild(shadowText);
+        glitchContainer.addChildAt(shadowText, 0); // Put behind main text
 
         // Store references
         this.elements.set('messageArea', messageArea);
         this.elements.set('messageText', messageText);
+        this.elements.set('shadowText', shadowText);
+        this.elements.set('messageBg', messageBg);
+        this.elements.set('scanlines', scanlines);
     }
 
     /**
@@ -1837,41 +1932,240 @@ export class CombatUI {
     }
 
     /**
-     * Shows a message
+     * Shows a message with cyberpunk glitch effects
      * @param {string} text - Message text
-     * @param {number} duration - Message duration in ms (default: 2000)
+     * @param {number} duration - Message duration in ms (default: calculated based on text length)
      */
-    showMessage(text, duration = this.messageDisplayTime) {
-        // Add message to queue
+    showMessage(text, duration = null) {
+        console.log(`Combat message: ${text}`);
+
+        // Calculate appropriate duration based on message length if not specified
+        if (duration === null) {
+            // Base duration plus additional time per character
+            const calculatedDuration = this.messageDisplayTime + (text.length * this.readingTimePerChar);
+            // Ensure it's at least the minimum reading time
+            duration = Math.max(calculatedDuration, this.minReadingTime);
+            console.log(`Calculated message duration: ${duration}ms for ${text.length} characters`);
+        }
+
+        // Add message to queue with typing effect
         this.messages.push({
             text,
+            displayText: '', // Start with empty text for typing effect
+            fullText: text, // Store the full text
             duration,
-            startTime: Date.now()
+            startTime: Date.now(),
+            lastTypingUpdate: Date.now(),
+            typingSpeed: 20, // Faster typing speed (was 30ms per character)
+            typingIndex: 0,
+            // Ensure typing completes in a reasonable time for longer messages
+            maxTypingTime: Math.min(1000, duration * 0.3), // Max 1 second or 30% of duration for typing
+            glitchTime: Date.now() + Math.random() * 300, // Random time for glitch effect
+            glitchDuration: 150 + Math.random() * 100 // Random duration for glitch
         });
 
         // Update message display
         this.updateMessageDisplay();
+
+        // Get message area and ensure it's visible
+        const messageArea = this.elements.get('messageArea');
+        const messageBg = this.elements.get('messageBg');
+
+        if (messageArea && messageBg) {
+            // Make sure the message area is on top
+            messageArea.zIndex = 1000;
+            this.container.sortChildren();
+
+            // Add a cyberpunk-style animation
+            messageArea.scale.set(1.1);
+
+            // Flash the border with neon color
+            const originalColor = 0x00AAFF;
+            const flashColor = 0x00FFFF;
+
+            // Flash border
+            messageBg.tint = flashColor;
+
+            // Create a sequence of animations
+            setTimeout(() => {
+                messageArea.scale.set(1.0);
+                messageBg.tint = originalColor;
+
+                // Add random glitch offsets
+                const glitchContainer = messageArea.children[2]; // The glitch container
+                if (glitchContainer) {
+                    const glitchSequence = () => {
+                        // Random glitch positions
+                        const offsetX = (Math.random() * 6) - 3;
+                        const offsetY = (Math.random() * 4) - 2;
+
+                        glitchContainer.position.set(offsetX, offsetY);
+
+                        // Reset after a short time
+                        setTimeout(() => {
+                            glitchContainer.position.set(0, 0);
+                        }, 50 + Math.random() * 50);
+                    };
+
+                    // Run glitch effect a few times
+                    glitchSequence();
+                    setTimeout(glitchSequence, 100 + Math.random() * 100);
+                    setTimeout(glitchSequence, 300 + Math.random() * 200);
+                }
+            }, 100);
+        }
     }
 
     /**
-     * Updates the message display
+     * Updates the message display with cyberpunk effects
      * @private
      */
     updateMessageDisplay() {
-        // Get message text element
+        // Get message elements
         const messageText = this.elements.get('messageText');
-        if (!messageText) return;
+        const shadowText = this.elements.get('shadowText');
+        const messageArea = this.elements.get('messageArea');
+        const scanlines = this.elements.get('scanlines');
+        if (!messageText || !messageArea || !shadowText) return;
 
         // Get current message
         const currentMessage = this.messages[0];
 
         if (currentMessage) {
-            // Show message
-            messageText.text = currentMessage.text;
-            messageText.alpha = 1;
+            // Handle typing effect
+            const now = Date.now();
+
+            // Check if we need to update the typing effect
+            if (currentMessage.typingIndex < currentMessage.fullText.length) {
+                // Calculate elapsed time since message started
+                const typingElapsed = now - currentMessage.startTime;
+
+                // Check if we need to speed up typing to meet maxTypingTime
+                if (typingElapsed > currentMessage.maxTypingTime) {
+                    // We've exceeded max typing time, complete the text immediately
+                    currentMessage.typingIndex = currentMessage.fullText.length;
+                    currentMessage.displayText = currentMessage.fullText;
+                    console.log('Typing accelerated to complete text');
+                }
+                // Normal typing speed
+                else if (now - currentMessage.lastTypingUpdate > currentMessage.typingSpeed) {
+                    // Add the next character
+                    currentMessage.typingIndex++;
+                    currentMessage.displayText = currentMessage.fullText.substring(0, currentMessage.typingIndex);
+                    currentMessage.lastTypingUpdate = now;
+                }
+            }
+
+            // Show message with current typing progress
+            messageText.text = currentMessage.displayText || '';
+            shadowText.text = currentMessage.displayText || '';
+
+            // Calculate how long the message has been displayed
+            const elapsed = now - currentMessage.startTime;
+
+            // Fade in during the first 200ms
+            if (elapsed < 200) {
+                const fadeInProgress = elapsed / 200;
+                messageArea.alpha = fadeInProgress;
+
+                // Add digital transition effect during fade-in
+                const digitizeProgress = 1 - fadeInProgress;
+                if (digitizeProgress > 0) {
+                    // Replace some characters with digital noise during fade-in
+                    const originalText = currentMessage.displayText;
+                    let digitizedText = '';
+                    for (let i = 0; i < originalText.length; i++) {
+                        if (Math.random() < digitizeProgress * 0.5) {
+                            // Replace with a random character
+                            const chars = '01_!@#$%^&*()-=+[]{}|;:,.<>/?';
+                            digitizedText += chars.charAt(Math.floor(Math.random() * chars.length));
+                        } else {
+                            digitizedText += originalText.charAt(i);
+                        }
+                    }
+                    messageText.text = digitizedText;
+                }
+            }
+            // Fade out during the last 800ms (increased from 500ms)
+            else if (elapsed > currentMessage.duration - 800) {
+                const fadeOutProgress = (currentMessage.duration - elapsed) / 800;
+                messageArea.alpha = Math.max(0, fadeOutProgress);
+
+                // Add digital breakdown effect during fade-out
+                const breakdownProgress = 1 - fadeOutProgress;
+                if (breakdownProgress > 0.3) {
+                    // Replace some characters with digital noise during fade-out
+                    const originalText = currentMessage.displayText;
+                    let digitizedText = '';
+                    for (let i = 0; i < originalText.length; i++) {
+                        if (Math.random() < breakdownProgress * 0.7) {
+                            // Replace with a random character
+                            const chars = '01_!@#$%^&*()-=+[]{}|;:,.<>/?';
+                            digitizedText += chars.charAt(Math.floor(Math.random() * chars.length));
+                        } else {
+                            digitizedText += originalText.charAt(i);
+                        }
+                    }
+                    messageText.text = digitizedText;
+                }
+            }
+            // Full opacity in the middle with occasional glitch effects
+            else {
+                messageArea.alpha = 1;
+
+                // Check if it's time for a glitch effect
+                if (currentMessage.glitchTime && now >= currentMessage.glitchTime &&
+                    now <= currentMessage.glitchTime + currentMessage.glitchDuration) {
+
+                    // Apply glitch effect to shadow text
+                    shadowText.position.set(
+                        2 + (Math.random() * 6 - 3),
+                        2 + (Math.random() * 4 - 2)
+                    );
+
+                    // Occasionally apply color shift
+                    if (Math.random() < 0.3) {
+                        messageText.style.fill = 0xFF00FF; // Magenta
+                        shadowText.style.fill = 0x00FFFF; // Cyan
+                    }
+
+                    // Occasionally apply text distortion
+                    if (Math.random() < 0.2) {
+                        const originalText = currentMessage.displayText;
+                        let glitchedText = '';
+                        for (let i = 0; i < originalText.length; i++) {
+                            if (Math.random() < 0.1) {
+                                // Replace with a glitch character
+                                const chars = '!@#$%^&*()-=+[]{}|;:,.<>/?';
+                                glitchedText += chars.charAt(Math.floor(Math.random() * chars.length));
+                            } else {
+                                glitchedText += originalText.charAt(i);
+                            }
+                        }
+                        messageText.text = glitchedText;
+                    }
+                } else {
+                    // Reset to normal state
+                    shadowText.position.set(2, 2);
+                    messageText.style.fill = 0x00FFFF; // Cyan
+                    shadowText.style.fill = 0xFF00FF; // Magenta
+
+                    // Schedule next glitch if needed
+                    if (!currentMessage.nextGlitchTime || now > currentMessage.nextGlitchTime) {
+                        currentMessage.glitchTime = now + 500 + Math.random() * 1000;
+                        currentMessage.glitchDuration = 100 + Math.random() * 150;
+                        currentMessage.nextGlitchTime = currentMessage.glitchTime + currentMessage.glitchDuration + 500;
+                    }
+                }
+
+                // Animate scanlines
+                if (scanlines) {
+                    scanlines.position.y = (now % 40) / 10;
+                }
+            }
         } else {
-            // No messages, hide text
-            messageText.alpha = 0;
+            // No messages, hide message area
+            messageArea.alpha = 0;
         }
     }
 
@@ -2033,11 +2327,28 @@ export class CombatUI {
         // Update messages
         const now = Date.now();
 
+        // Check if we need to add a delay between messages
+        if (this.messages.length > 1) {
+            const currentMessage = this.messages[0];
+            const nextMessage = this.messages[1];
+
+            // If the current message is about to expire, add a small delay before showing the next one
+            const timeRemaining = (currentMessage.startTime + currentMessage.duration) - now;
+            if (timeRemaining < 500 && !nextMessage.delayApplied) {
+                // Add a small delay to the next message to prevent overlap
+                nextMessage.startTime = now + 500; // 500ms delay between messages
+                nextMessage.delayApplied = true;
+                console.log('Added delay between messages');
+            }
+        }
+
         // Remove expired messages
         while (this.messages.length > 0 && now - this.messages[0].startTime > this.messages[0].duration) {
             this.messages.shift();
-            this.updateMessageDisplay();
         }
+
+        // Always update message display to handle fade effects
+        this.updateMessageDisplay();
 
         // Ensure buttons are properly enabled/disabled based on current turn
         if (this.combatManager && this.combatManager.currentTurnActor) {
@@ -2076,6 +2387,12 @@ export class CombatUI {
             background.beginFill(0x000811, 0.92);
             background.drawRect(this.panelX, 0, this.panelWidth, height);
             background.endFill();
+
+            // Reposition message area to center of screen
+            const messageArea = this.elements.get('messageArea');
+            if (messageArea) {
+                messageArea.position.set(width / 2, 50);
+            }
 
             // Redraw grid pattern
             const gridSpacing = 20;
