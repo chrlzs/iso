@@ -92,12 +92,22 @@ export class CombatManager {
 
         // Show combat UI
         if (this.game.ui) {
+            console.log('Creating combat UI...');
             // Create and show combat UI
             this.ui = this.game.ui.createCombatUI(this);
             this.game.ui.showPanel('combat', true);
 
             // The UI.showPanel method will handle bringing the panel to the front
-            // No need to do anything else here
+            console.log('Combat UI created and panel shown');
+
+            // Force a redraw of the UI
+            setTimeout(() => {
+                if (this.ui) {
+                    console.log('Forcing UI update...');
+                    // Update turn indicator to ensure buttons are properly enabled
+                    this.ui.updateTurnIndicator(this.currentTurnActor, this.combatTurn);
+                }
+            }, 100);
         }
 
         // Call combat start callback

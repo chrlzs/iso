@@ -35,6 +35,16 @@ export class CombatUI {
         this.container.sortableChildren = true; // Enable z-index sorting
         this.container.interactiveChildren = true; // Ensure child elements can receive events
 
+        // Debug log to verify container setup
+        console.log('CombatUI container setup:', {
+            eventMode: this.container.eventMode,
+            interactiveChildren: this.container.interactiveChildren,
+            sortableChildren: this.container.sortableChildren,
+            width: this.panelWidth,
+            height: this.panelHeight,
+            panelX: this.panelX
+        });
+
         // Create a full-screen hit area that covers the entire viewport
         this.updateHitArea();
 
@@ -42,6 +52,195 @@ export class CombatUI {
         if (this.ui.game.app) {
             this.ui.game.app.renderer.on('resize', this.updateHitArea.bind(this));
         }
+
+        // Add ALL possible interaction events to the container for maximum compatibility
+        const containerEvents = ['pointertap', 'pointerdown', 'pointerup', 'click', 'mousedown', 'mouseup', 'tap'];
+
+        // Define button config here for reference in event handlers
+        const buttonConfig = {
+            width: this.panelWidth - 20,
+            height: 40,
+            spacing: 10
+        };
+
+        containerEvents.forEach(eventName => {
+            this.container.on(eventName, (e) => {
+                console.log(`Combat UI container ${eventName} at:`, { x: e.global.x, y: e.global.y });
+
+                // Check if this is within the action area
+                if (this.elements.has('actionArea')) {
+                    const actionArea = this.elements.get('actionArea');
+                    const actionAreaBounds = {
+                        x: actionArea.x,
+                        y: actionArea.y,
+                        width: this.panelWidth - 20,
+                        height: 4 * (buttonConfig.height + buttonConfig.spacing)
+                    };
+
+                    if (e.global.x >= actionAreaBounds.x &&
+                        e.global.x <= actionAreaBounds.x + actionAreaBounds.width &&
+                        e.global.y >= actionAreaBounds.y &&
+                        e.global.y <= actionAreaBounds.y + actionAreaBounds.height) {
+                        console.log(`${eventName} detected within action area bounds`);
+
+                        // Check which button was clicked
+                        const buttons = [
+                            this.elements.get('attackButton'),
+                            this.elements.get('abilityButton'),
+                            this.elements.get('itemButton'),
+                            this.elements.get('escapeButton')
+                        ];
+                        const buttonNames = ['ATTACK', 'ABILITY', 'ITEM', 'ESCAPE'];
+
+                        buttons.forEach((button, index) => {
+                            if (!button) return;
+
+                            const buttonBounds = {
+                                x: button.x + actionArea.x,
+                                y: button.y + actionArea.y,
+                                width: this.panelWidth - 20,
+                                height: buttonConfig.height
+                            };
+
+                            if (e.global.x >= buttonBounds.x &&
+                                e.global.x <= buttonBounds.x + buttonBounds.width &&
+                                e.global.y >= buttonBounds.y &&
+                                e.global.y <= buttonBounds.y + buttonBounds.height) {
+                                console.log(`${eventName} detected on ${buttonNames[index]} button bounds`);
+
+                                // Manually trigger the button action for click-like events
+                                if (['pointertap', 'pointerup', 'click', 'mouseup', 'tap'].includes(eventName)) {
+                                    if (buttonNames[index] === 'ATTACK') {
+                                        this.executePlayerAction('attack');
+                                    } else if (buttonNames[index] === 'ABILITY') {
+                                        this.showAbilityMenu();
+                                    } else if (buttonNames[index] === 'ITEM') {
+                                        this.showItemMenu();
+                                    } else if (buttonNames[index] === 'ESCAPE') {
+                                        this.executePlayerAction('escape');
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+        // Add a direct document click handler that will manually check for button clicks
+        document.addEventListener('click', (e) => {
+            console.log('Document clicked at:', { x: e.clientX, y: e.clientY });
+
+            // Convert document coordinates to canvas coordinates
+            const rect = this.ui.game.app.view.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+
+            console.log('Canvas coordinates:', { x: canvasX, y: canvasY });
+
+            // Check if this is within the action area
+            if (this.elements.has('actionArea')) {
+                const actionArea = this.elements.get('actionArea');
+
+                // Check which button was clicked
+                const buttons = [
+                    this.elements.get('attackButton'),
+                    this.elements.get('abilityButton'),
+                    this.elements.get('itemButton'),
+                    this.elements.get('escapeButton')
+                ];
+                const buttonNames = ['ATTACK', 'ABILITY', 'ITEM', 'ESCAPE'];
+                const buttonActions = [
+                    () => this.executePlayerAction('attack'),
+                    () => this.showAbilityMenu(),
+                    () => this.showItemMenu(),
+                    () => this.executePlayerAction('escape')
+                ];
+
+                buttons.forEach((button, index) => {
+                    if (!button) return;
+
+                    // Calculate global position of the button
+                    const buttonGlobalX = button.x + actionArea.x;
+                    const buttonGlobalY = button.y + actionArea.y;
+
+                    // Define button bounds
+                    const buttonBounds = {
+                        x: buttonGlobalX,
+                        y: buttonGlobalY,
+                        width: this.panelWidth - 20, // Use the actual width from the button config
+                        height: 60 // Use the actual height from the button config
+                    };
+
+                    // Log the button position in the action area
+                    console.log(`${buttonNames[index]} button position in action area: x=${button.x}, y=${button.y}`);
+                    console.log(`Action area position: x=${actionArea.x}, y=${actionArea.y}`);
+
+                    console.log(`${buttonNames[index]} button bounds:`, buttonBounds);
+
+                    // Check if click is within button bounds with a larger hit area for better usability
+                    // Add 10px padding to the hit area
+                    const hitPadding = 10;
+                    if (canvasX >= buttonBounds.x - hitPadding &&
+                        canvasX <= buttonBounds.x + buttonBounds.width + hitPadding &&
+                        canvasY >= buttonBounds.y - hitPadding &&
+                        canvasY <= buttonBounds.y + buttonBounds.height + hitPadding) {
+
+                        console.log(`Click detected on ${buttonNames[index]} button!`);
+                        console.log(`Click position: (${canvasX}, ${canvasY})`);
+                        console.log(`Button bounds: (${buttonBounds.x}, ${buttonBounds.y}) to (${buttonBounds.x + buttonBounds.width}, ${buttonBounds.y + buttonBounds.height})`);
+
+                        // Only execute if button is enabled
+                        if (button.enabled !== false) {
+                            console.log(`Executing ${buttonNames[index]} action...`);
+                            buttonActions[index]();
+
+                            // Provide visual feedback
+                            button.clear();
+                            button.lineStyle(1, 0x00AAFF, 1);
+                            button.beginFill(0x003366);
+                            button.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                            button.endFill();
+
+                            // Redraw accents
+                            button.lineStyle(1, 0x00AAFF, 0.5);
+                            button.moveTo(0, 0);
+                            button.lineTo(15, 15);
+                            button.moveTo(buttonConfig.width, 0);
+                            button.lineTo(buttonConfig.width - 15, 15);
+                            button.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                            button.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                            button.moveTo(0, buttonConfig.height - 5);
+                            button.lineTo(15, buttonConfig.height);
+
+                            // Reset button after a short delay
+                            setTimeout(() => {
+                                if (button.enabled !== false) {
+                                    button.clear();
+                                    button.lineStyle(1, 0x00AAFF, 0.8);
+                                    button.beginFill(0x000811);
+                                    button.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                                    button.endFill();
+
+                                    // Redraw accents
+                                    button.lineStyle(1, 0x00AAFF, 0.5);
+                                    button.moveTo(0, 0);
+                                    button.lineTo(15, 15);
+                                    button.moveTo(buttonConfig.width, 0);
+                                    button.lineTo(buttonConfig.width - 15, 15);
+                                    button.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                                    button.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                                    button.moveTo(0, buttonConfig.height - 5);
+                                    button.lineTo(15, buttonConfig.height);
+                                }
+                            }, 200);
+                        } else {
+                            console.log(`${buttonNames[index]} button is disabled.`);
+                        }
+                    }
+                });
+            }
+        });
 
         // Create UI elements
         this.createBackground();
@@ -590,9 +789,11 @@ export class CombatUI {
         // Button configurations
         const buttonConfig = {
             width: this.panelWidth - 20,
-            height: 40,
-            spacing: 10
+            height: 60, // Increased height for easier clicking
+            spacing: 20  // Increased spacing for better separation
         };
+
+        console.log('Creating action buttons with config:', buttonConfig);
 
         // Create glowing container for all buttons
         const glowContainer = new PIXI.Container();
@@ -603,45 +804,50 @@ export class CombatUI {
         // Common button style for cyberpunk theme
         const buttonStyle = {
             fill: 0x000811,
-            hoverFill: 0x001122,
+            hoverFill: 0x003366, // Brighter hover color for better feedback
             disabledFill: 0x111111,
             borderColor: 0x00AAFF,
             glowColor: 0x00AAFF,
             cornerRadius: 2
         };
 
+        console.log('Button style:', buttonStyle);
+
         const createCyberpunkButton = (text, onClick, position) => {
-            const container = new PIXI.Container();
+            // Create a Graphics object for the button instead of a Container
+            // This can improve interaction in PIXI v7
+            const container = new PIXI.Graphics();
             container.position.set(0, position);
             container.eventMode = 'static';
             container.cursor = 'pointer';
             container.interactive = true;
             container.zIndex = 100; // Increased z-index to ensure visibility
 
-            // Create angular accents
-            const accents = new PIXI.Graphics();
-            accents.lineStyle(1, buttonStyle.borderColor, 0.5);
-            accents.moveTo(0, 0);
-            accents.lineTo(15, 15);
-            accents.moveTo(buttonConfig.width, 0);
-            accents.lineTo(buttonConfig.width - 15, 15);
-            container.addChild(accents);
+            // Draw the button background directly on the graphics object
+            container.lineStyle(1, buttonStyle.borderColor, 0.8);
+            container.beginFill(buttonStyle.fill);
+            container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+            container.endFill();
 
-            // Create button background with border
-            const background = new PIXI.Graphics();
-            background.lineStyle(1, buttonStyle.borderColor, 0.8);
-            background.beginFill(buttonStyle.fill);
-            background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-            background.endFill();
-            container.addChild(background);
+            // Create angular accents
+            container.lineStyle(1, buttonStyle.borderColor, 0.5);
+            container.moveTo(0, 0);
+            container.lineTo(15, 15);
+            container.moveTo(buttonConfig.width, 0);
+            container.lineTo(buttonConfig.width - 15, 15);
+            container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+            container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+            container.moveTo(0, buttonConfig.height - 5);
+            container.lineTo(15, buttonConfig.height);
 
             // Create text with glow effect
             const textObj = new PIXI.Text(text, {
                 fontFamily: 'Arial',
-                fontSize: 16,
+                fontSize: 24, // Increased font size for better visibility
+                fontWeight: 'bold', // Make text bold
                 fill: 0xFFFFFF,
                 stroke: buttonStyle.glowColor,
-                strokeThickness: 1
+                strokeThickness: 2 // Increased stroke thickness for better visibility
             });
             textObj.anchor.set(0.5);
             textObj.position.set(buttonConfig.width / 2, buttonConfig.height / 2);
@@ -690,43 +896,90 @@ export class CombatUI {
                 }
             });
 
-            // Use pointerdown and pointerup for more reliable click handling
-            container.on('pointerdown', (e) => {
+            // Add ALL possible interaction events for maximum compatibility
+            const allEvents = ['pointertap', 'pointerdown', 'pointerup', 'click', 'mousedown', 'mouseup', 'tap'];
+
+            allEvents.forEach(eventName => {
+                container.on(eventName, (e) => {
+                    if (container.enabled !== false) {
+                        // Debug log
+                        console.log(`Button ${eventName}: ${text}`);
+
+                        // Visual feedback
+                        container.clear();
+                        container.lineStyle(1, buttonStyle.borderColor, 1);
+                        container.beginFill(buttonStyle.hoverFill);
+                        container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                        container.endFill();
+
+                        // Redraw accents
+                        container.lineStyle(1, buttonStyle.borderColor, 0.5);
+                        container.moveTo(0, 0);
+                        container.lineTo(15, 15);
+                        container.moveTo(buttonConfig.width, 0);
+                        container.lineTo(buttonConfig.width - 15, 15);
+                        container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                        container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                        container.moveTo(0, buttonConfig.height - 5);
+                        container.lineTo(15, buttonConfig.height);
+
+                        // Execute callback for click-like events
+                        if (['pointertap', 'pointerup', 'click', 'mouseup', 'tap'].includes(eventName)) {
+                            if (onClick) {
+                                onClick();
+                            }
+                        }
+
+                        // Stop propagation
+                        e.stopPropagation();
+                    }
+                });
+            });
+
+            // Add hover effects
+            container.on('pointerover', () => {
                 if (container.enabled !== false) {
                     // Visual feedback
-                    background.clear();
-                    background.lineStyle(1, buttonStyle.borderColor, 0.8);
-                    background.beginFill(buttonStyle.fill);
-                    background.drawRect(2, 2, buttonConfig.width - 4, buttonConfig.height - 4);
-                    background.endFill();
+                    container.clear();
+                    container.lineStyle(1, buttonStyle.borderColor, 1);
+                    container.beginFill(buttonStyle.hoverFill);
+                    container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    container.endFill();
 
-                    // Debug log
-                    console.log(`Button down: ${text}`);
+                    // Redraw accents
+                    container.lineStyle(1, buttonStyle.borderColor, 0.5);
+                    container.moveTo(0, 0);
+                    container.lineTo(15, 15);
+                    container.moveTo(buttonConfig.width, 0);
+                    container.lineTo(buttonConfig.width - 15, 15);
+                    container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                    container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                    container.moveTo(0, buttonConfig.height - 5);
+                    container.lineTo(15, buttonConfig.height);
 
-                    // Stop propagation
-                    e.stopPropagation();
+                    console.log(`Button hover: ${text}`);
                 }
             });
 
-            container.on('pointerup', (e) => {
+            container.on('pointerout', () => {
                 if (container.enabled !== false) {
                     // Visual feedback
-                    background.clear();
-                    background.lineStyle(1, buttonStyle.borderColor, 1);
-                    background.beginFill(buttonStyle.hoverFill);
-                    background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-                    background.endFill();
+                    container.clear();
+                    container.lineStyle(1, buttonStyle.borderColor, 0.8);
+                    container.beginFill(buttonStyle.fill);
+                    container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    container.endFill();
 
-                    // Debug log
-                    console.log(`Button click: ${text}`);
-
-                    // Execute callback
-                    if (onClick) {
-                        onClick();
-                    }
-
-                    // Stop propagation
-                    e.stopPropagation();
+                    // Redraw accents
+                    container.lineStyle(1, buttonStyle.borderColor, 0.5);
+                    container.moveTo(0, 0);
+                    container.lineTo(15, 15);
+                    container.moveTo(buttonConfig.width, 0);
+                    container.lineTo(buttonConfig.width - 15, 15);
+                    container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                    container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                    container.moveTo(0, buttonConfig.height - 5);
+                    container.lineTo(15, buttonConfig.height);
                 }
             });
 
@@ -736,13 +989,24 @@ export class CombatUI {
                 container.interactive = true;
                 container.eventMode = 'static';
                 container.cursor = 'pointer';
-                background.clear();
-                background.lineStyle(1, buttonStyle.borderColor, 0.8);
-                background.beginFill(buttonStyle.fill);
-                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-                background.endFill();
+                container.clear();
+                container.lineStyle(1, buttonStyle.borderColor, 0.8);
+                container.beginFill(buttonStyle.fill);
+                container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                container.endFill();
+
+                // Redraw accents
+                container.lineStyle(1, buttonStyle.borderColor, 0.5);
+                container.moveTo(0, 0);
+                container.lineTo(15, 15);
+                container.moveTo(buttonConfig.width, 0);
+                container.lineTo(buttonConfig.width - 15, 15);
+                container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                container.moveTo(0, buttonConfig.height - 5);
+                container.lineTo(15, buttonConfig.height);
+
                 textObj.alpha = 1;
-                accents.alpha = 1;
                 console.log(`Button enabled: ${text}`);
             };
 
@@ -751,13 +1015,24 @@ export class CombatUI {
                 container.interactive = false;
                 container.eventMode = 'none';
                 container.cursor = 'default';
-                background.clear();
-                background.lineStyle(1, buttonStyle.borderColor, 0.3);
-                background.beginFill(buttonStyle.disabledFill);
-                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-                background.endFill();
+                container.clear();
+                container.lineStyle(1, buttonStyle.borderColor, 0.3);
+                container.beginFill(buttonStyle.disabledFill);
+                container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                container.endFill();
+
+                // Redraw accents
+                container.lineStyle(1, buttonStyle.borderColor, 0.3);
+                container.moveTo(0, 0);
+                container.lineTo(15, 15);
+                container.moveTo(buttonConfig.width, 0);
+                container.lineTo(buttonConfig.width - 15, 15);
+                container.moveTo(buttonConfig.width, buttonConfig.height - 5);
+                container.lineTo(buttonConfig.width - 15, buttonConfig.height);
+                container.moveTo(0, buttonConfig.height - 5);
+                container.lineTo(15, buttonConfig.height);
+
                 textObj.alpha = 0.5;
-                accents.alpha = 0.3;
                 console.log(`Button disabled: ${text}`);
             };
 
@@ -766,26 +1041,76 @@ export class CombatUI {
 
         // Create buttons with cyberpunk style
         const attackButton = createCyberpunkButton('ATTACK', () => {
+            console.log('ATTACK button clicked, executing action...');
             this.executePlayerAction('attack');
         }, 0);
 
         const abilityButton = createCyberpunkButton('ABILITY', () => {
+            console.log('ABILITY button clicked, showing menu...');
             this.showAbilityMenu();
         }, buttonConfig.height + buttonConfig.spacing);
 
         const itemButton = createCyberpunkButton('ITEM', () => {
+            console.log('ITEM button clicked, showing menu...');
             this.showItemMenu();
         }, (buttonConfig.height + buttonConfig.spacing) * 2);
 
         const escapeButton = createCyberpunkButton('ESCAPE', () => {
+            console.log('ESCAPE button clicked, executing action...');
             this.executePlayerAction('escape');
         }, (buttonConfig.height + buttonConfig.spacing) * 3);
+
+        // Log the actual button positions for debugging
+        console.log('Button positions in action area:');
+        console.log(`ATTACK: y=${attackButton.y}`);
+        console.log(`ABILITY: y=${abilityButton.y}`);
+        console.log(`ITEM: y=${itemButton.y}`);
+        console.log(`ESCAPE: y=${escapeButton.y}`);
+
+        // Add direct click handlers for debugging
+        attackButton.on('click', () => console.log('Native click on ATTACK button'));
+        abilityButton.on('click', () => console.log('Native click on ABILITY button'));
+        itemButton.on('click', () => console.log('Native click on ITEM button'));
+        escapeButton.on('click', () => console.log('Native click on ESCAPE button'));
 
         // Add buttons to action area
         actionArea.addChild(attackButton);
         actionArea.addChild(abilityButton);
         actionArea.addChild(itemButton);
         actionArea.addChild(escapeButton);
+
+        // Log button positions for debugging
+        console.log('Button positions:', {
+            attack: { x: attackButton.x + actionArea.x, y: attackButton.y + actionArea.y },
+            ability: { x: abilityButton.x + actionArea.x, y: abilityButton.y + actionArea.y },
+            item: { x: itemButton.x + actionArea.x, y: itemButton.y + actionArea.y },
+            escape: { x: escapeButton.x + actionArea.x, y: escapeButton.y + actionArea.y }
+        });
+
+        // Add direct click handlers to the action area for debugging
+        actionArea.on('click', (e) => {
+            console.log('Action area clicked at:', { x: e.global.x, y: e.global.y });
+
+            // Check if click is within any button bounds
+            const buttons = [attackButton, abilityButton, itemButton, escapeButton];
+            const buttonNames = ['ATTACK', 'ABILITY', 'ITEM', 'ESCAPE'];
+
+            buttons.forEach((button, index) => {
+                const buttonBounds = {
+                    x: button.x + actionArea.x,
+                    y: button.y + actionArea.y,
+                    width: buttonConfig.width,
+                    height: buttonConfig.height
+                };
+
+                if (e.global.x >= buttonBounds.x &&
+                    e.global.x <= buttonBounds.x + buttonBounds.width &&
+                    e.global.y >= buttonBounds.y &&
+                    e.global.y <= buttonBounds.y + buttonBounds.height) {
+                    console.log(`Click detected on ${buttonNames[index]} button bounds`);
+                }
+            });
+        });
 
         this.container.addChild(actionArea);
         this.elements.set('actionArea', actionArea);

@@ -372,21 +372,8 @@ export class UI {
             }
         });
 
-        // Use pointerdown and pointerup for more reliable click handling
-        container.on('pointerdown', (e) => {
-            if (container.enabled !== false) {
-                background.clear();
-                background.lineStyle(1, style.borderColor, 0.8);
-                background.beginFill(style.fill);
-                background.drawRect(2, 2, width - 4, height - 4);
-                background.endFill();
-
-                // Stop propagation
-                e.stopPropagation();
-            }
-        });
-
-        container.on('pointerup', (e) => {
+        // Use pointertap for more reliable click handling in PIXI v7
+        container.on('pointertap', (e) => {
             if (container.enabled !== false) {
                 background.clear();
                 background.lineStyle(1, style.borderColor, 1);
@@ -394,9 +381,24 @@ export class UI {
                 background.drawRect(0, 0, width, height);
                 background.endFill();
 
+                // Execute callback
                 if (onClick) {
                     onClick();
                 }
+
+                // Stop propagation
+                e.stopPropagation();
+            }
+        });
+
+        // Also keep pointerdown for visual feedback
+        container.on('pointerdown', (e) => {
+            if (container.enabled !== false) {
+                background.clear();
+                background.lineStyle(1, style.borderColor, 0.8);
+                background.beginFill(style.fill);
+                background.drawRect(2, 2, width - 4, height - 4);
+                background.endFill();
 
                 // Stop propagation
                 e.stopPropagation();
