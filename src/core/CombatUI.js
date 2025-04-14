@@ -30,9 +30,9 @@ export class CombatUI {
         this.messageDisplayTime = 2000;
 
         // Set up container for full-screen event blocking
-        this.container.interactive = true;
         this.container.eventMode = 'static';
-        this.container.zIndex = 9999;
+        this.container.cursor = 'default';
+        this.container.sortableChildren = true; // Enable z-index sorting
 
         // Create a full-screen hit area that covers the entire viewport
         this.updateHitArea();
@@ -41,26 +41,6 @@ export class CombatUI {
         if (this.ui.game.app) {
             this.ui.game.app.renderer.on('resize', this.updateHitArea.bind(this));
         }
-
-        // Block all events from passing through
-        const blockEvent = (e) => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            return false;
-        };
-
-        const eventsToBlock = [
-            'pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'pointerover', 'pointerout',
-            'mousedown', 'mousemove', 'mouseup', 'mouseupoutside', 'mouseover', 'mouseout',
-            'click', 'rightclick', 'rightdown', 'rightup', 'rightupoutside',
-            'tap', 'touchstart', 'touchmove', 'touchend', 'touchendoutside', 'touchcancel',
-            'wheel', 'contextmenu'
-        ];
-
-        eventsToBlock.forEach(event => {
-            this.container.on(event, blockEvent, true);
-        });
 
         // Create UI elements
         this.createBackground();
@@ -124,35 +104,17 @@ export class CombatUI {
 
         // Create semi-transparent panel background
         const gradient = new PIXI.Graphics();
-        gradient.beginFill(0x000811, 0.95); // Increased opacity to better block content underneath
+        gradient.beginFill(0x000811, 0.95);
         gradient.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
         gradient.endFill();
 
-        // Make the panel fully interactive to block all events
+        // Make the panel block events in the panel area only
         gradient.eventMode = 'static';
         gradient.cursor = 'default';
-        gradient.interactive = true;
         gradient.hitArea = new PIXI.Rectangle(0, 0, this.panelWidth, this.panelHeight);
 
-        // Block ALL events in the panel area with useCapture to ensure they don't propagate
-        const blockEvent = e => {
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            e.preventDefault();
-        };
-
-        const eventsToBlock = [
-            'pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'pointerover', 'pointerout',
-            'mousedown', 'mousemove', 'mouseup', 'mouseupoutside', 'mouseover', 'mouseout',
-            'click', 'rightclick', 'rightdown', 'rightup', 'rightupoutside',
-            'tap', 'touchstart', 'touchmove', 'touchend', 'touchendoutside', 'touchcancel',
-            'wheel', 'contextmenu'
-        ];
-
-        eventsToBlock.forEach(event => {
-            gradient.on(event, blockEvent, true);
-        });
-
+        // Add the background to container with a lower z-index
+        gradient.zIndex = 1;
         this.container.addChild(gradient);
 
         // Add cyberpunk grid pattern on top of the blocking gradient
@@ -185,6 +147,8 @@ export class CombatUI {
         background.moveTo(this.panelX + this.panelWidth, 0);
         background.lineTo(this.panelX + this.panelWidth - 30, 30);
 
+        // Add background with a lower z-index than UI elements
+        background.zIndex = 2;
         this.container.addChild(background);
         this.elements.set('background', background);
     }
@@ -617,6 +581,7 @@ export class CombatUI {
     createActionButtons() {
         const actionArea = new PIXI.Container();
         actionArea.position.set(this.panelX + 10, this.safeAreaBottom - 220);
+        actionArea.zIndex = 10; // Ensure buttons are above background
 
         // Button configurations
         const buttonConfig = {
@@ -642,6 +607,10 @@ export class CombatUI {
         const createCyberpunkButton = (text, onClick, position) => {
             const container = new PIXI.Container();
             container.position.set(0, position);
+            container.eventMode = 'static';
+            container.cursor = 'pointer';
+            container.interactive = true;
+            container.zIndex = 1; // Ensure button is above its parent container
 
             // Create angular accents
             const accents = new PIXI.Graphics();
@@ -672,48 +641,54 @@ export class CombatUI {
             textObj.position.set(buttonConfig.width / 2, buttonConfig.height / 2);
             container.addChild(textObj);
 
-            // Make interactive
-            container.eventMode = 'static';
-            container.cursor = 'pointer';
-            container.interactive = true;
-
             // Hover effects
             container.on('mouseover', () => {
-                background.clear();
-                background.lineStyle(1, buttonStyle.borderColor, 1);
-                background.beginFill(buttonStyle.hoverFill);
-                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-                background.endFill();
+                if (container.enabled !== false) {
+                    background.clear();
+                    background.lineStyle(1, buttonStyle.borderColor, 1);
+                    background.beginFill(buttonStyle.hoverFill);
+                    background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    background.endFill();
 
-                // Add glow effect
-                const glow = new PIXI.Graphics();
-                glow.beginFill(buttonStyle.glowColor, 0.1);
-                glow.drawRect(-2, -2, buttonConfig.width + 4, buttonConfig.height + 4);
-                glow.endFill();
-                container.addChildAt(glow, 0);
+                    // Add glow effect
+                    const glow = new PIXI.Graphics();
+                    glow.beginFill(buttonStyle.glowColor, 0.1);
+                    glow.drawRect(-2, -2, buttonConfig.width + 4, buttonConfig.height + 4);
+                    glow.endFill();
+                    container.addChildAt(glow, 0);
 
-                textObj.style.strokeThickness = 2;
+                    textObj.style.strokeThickness = 2;
+                }
             });
 
             container.on('mouseout', () => {
-                background.clear();
-                background.lineStyle(1, buttonStyle.borderColor, 0.8);
-                background.beginFill(buttonStyle.fill);
-                background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
-                background.endFill();
+                if (container.enabled !== false) {
+                    background.clear();
+                    background.lineStyle(1, buttonStyle.borderColor, 0.8);
+                    background.beginFill(buttonStyle.fill);
+                    background.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    background.endFill();
 
-                // Remove glow effect
-                if (container.children.length > 3) {
-                    container.removeChildAt(0);
+                    // Remove glow effect
+                    if (container.children.length > 3) {
+                        container.removeChildAt(0);
+                    }
+
+                    textObj.style.strokeThickness = 1;
                 }
-
-                textObj.style.strokeThickness = 1;
             });
 
-            container.on('click', onClick);
+            // Add click handler with stopPropagation to prevent event bubbling
+            container.on('click', (e) => {
+                e.stopPropagation();
+                if (container.enabled !== false && onClick) {
+                    onClick();
+                }
+            });
 
             // Add enable/disable methods
             container.enable = () => {
+                container.enabled = true;
                 container.interactive = true;
                 container.cursor = 'pointer';
                 background.clear();
@@ -726,6 +701,7 @@ export class CombatUI {
             };
 
             container.disable = () => {
+                container.enabled = false;
                 container.interactive = false;
                 container.cursor = 'default';
                 background.clear();
