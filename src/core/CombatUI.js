@@ -169,7 +169,7 @@ export class CombatUI {
                         x: buttonGlobalX,
                         y: buttonGlobalY,
                         width: this.panelWidth - 20, // Use the actual width from the button config
-                        height: 60 // Use the actual height from the button config
+                        height: 45 // Use the actual height from the button config (updated)
                     };
 
                     // Log the button position in the action area
@@ -199,7 +199,7 @@ export class CombatUI {
                             button.clear();
                             button.lineStyle(1, 0x00AAFF, 1);
                             button.beginFill(0x003366);
-                            button.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                            button.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, 5);
                             button.endFill();
 
                             // Redraw accents
@@ -218,8 +218,8 @@ export class CombatUI {
                                 if (button.enabled !== false) {
                                     button.clear();
                                     button.lineStyle(1, 0x00AAFF, 0.8);
-                                    button.beginFill(0x000811);
-                                    button.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                                    button.beginFill(0x001122);
+                                    button.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, 5);
                                     button.endFill();
 
                                     // Redraw accents
@@ -780,17 +780,45 @@ export class CombatUI {
      */
     createActionButtons() {
         const actionArea = new PIXI.Container();
-        actionArea.position.set(this.panelX + 10, this.safeAreaBottom - 220);
+        // Position the action area to ensure all buttons are visible
+        // Calculate position to ensure buttons are centered in the available space at the bottom
+        const totalButtonsHeight = 4 * 45 + 3 * 10; // Using the new button height and spacing
+        const actionAreaY = this.safeAreaBottom - totalButtonsHeight - 20; // 20px padding at the bottom
+
+        actionArea.position.set(this.panelX + 10, actionAreaY);
         actionArea.zIndex = 100; // Increased z-index to ensure buttons are above all other UI elements
         actionArea.sortableChildren = true; // Enable sorting of children by zIndex
         actionArea.eventMode = 'static'; // Make sure the area can receive events
         actionArea.interactiveChildren = true; // Ensure child elements can receive events
 
-        // Button configurations
+        console.log(`Action area positioned at y=${actionAreaY}, safeAreaBottom=${this.safeAreaBottom}`);
+
+        // Add a background to the action area to make it more visible
+        const actionAreaBackground = new PIXI.Graphics();
+        actionAreaBackground.beginFill(0x000000, 0.5); // Semi-transparent black background
+        actionAreaBackground.drawRect(-5, -5, this.panelWidth - 10, totalButtonsHeight + 30); // Add some padding and space for title
+        actionAreaBackground.endFill();
+        actionAreaBackground.zIndex = 0; // Ensure it's behind the buttons
+        actionArea.addChild(actionAreaBackground);
+
+        // Add a title to the action area
+        const actionAreaTitle = new PIXI.Text('ACTIONS', {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fontWeight: 'bold',
+            fill: 0x00AAFF,
+            stroke: 0x000000,
+            strokeThickness: 1
+        });
+        actionAreaTitle.position.set(this.panelWidth / 2 - 40, -25); // Position above the buttons
+        actionAreaTitle.zIndex = 1; // Ensure it's above the background
+        actionArea.addChild(actionAreaTitle);
+
+        // Button configurations - adjusted to fit within available space
         const buttonConfig = {
             width: this.panelWidth - 20,
-            height: 60, // Increased height for easier clicking
-            spacing: 20  // Increased spacing for better separation
+            height: 45, // Adjusted height to fit all buttons
+            spacing: 10  // Reduced spacing to fit all buttons
         };
 
         console.log('Creating action buttons with config:', buttonConfig);
@@ -803,12 +831,12 @@ export class CombatUI {
 
         // Common button style for cyberpunk theme
         const buttonStyle = {
-            fill: 0x000811,
+            fill: 0x001122, // Slightly brighter base color
             hoverFill: 0x003366, // Brighter hover color for better feedback
             disabledFill: 0x111111,
             borderColor: 0x00AAFF,
             glowColor: 0x00AAFF,
-            cornerRadius: 2
+            cornerRadius: 5 // Increased corner radius for a more modern look
         };
 
         console.log('Button style:', buttonStyle);
@@ -826,7 +854,7 @@ export class CombatUI {
             // Draw the button background directly on the graphics object
             container.lineStyle(1, buttonStyle.borderColor, 0.8);
             container.beginFill(buttonStyle.fill);
-            container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+            container.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, buttonStyle.cornerRadius);
             container.endFill();
 
             // Create angular accents
@@ -843,7 +871,7 @@ export class CombatUI {
             // Create text with glow effect
             const textObj = new PIXI.Text(text, {
                 fontFamily: 'Arial',
-                fontSize: 24, // Increased font size for better visibility
+                fontSize: 20, // Adjusted font size to match new button height
                 fontWeight: 'bold', // Make text bold
                 fill: 0xFFFFFF,
                 stroke: buttonStyle.glowColor,
@@ -943,7 +971,7 @@ export class CombatUI {
                     container.clear();
                     container.lineStyle(1, buttonStyle.borderColor, 1);
                     container.beginFill(buttonStyle.hoverFill);
-                    container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    container.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, buttonStyle.cornerRadius);
                     container.endFill();
 
                     // Redraw accents
@@ -967,7 +995,7 @@ export class CombatUI {
                     container.clear();
                     container.lineStyle(1, buttonStyle.borderColor, 0.8);
                     container.beginFill(buttonStyle.fill);
-                    container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                    container.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, buttonStyle.cornerRadius);
                     container.endFill();
 
                     // Redraw accents
@@ -992,7 +1020,7 @@ export class CombatUI {
                 container.clear();
                 container.lineStyle(1, buttonStyle.borderColor, 0.8);
                 container.beginFill(buttonStyle.fill);
-                container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                container.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, buttonStyle.cornerRadius);
                 container.endFill();
 
                 // Redraw accents
@@ -1018,7 +1046,7 @@ export class CombatUI {
                 container.clear();
                 container.lineStyle(1, buttonStyle.borderColor, 0.3);
                 container.beginFill(buttonStyle.disabledFill);
-                container.drawRect(0, 0, buttonConfig.width, buttonConfig.height);
+                container.drawRoundedRect(0, 0, buttonConfig.width, buttonConfig.height, buttonStyle.cornerRadius);
                 container.endFill();
 
                 // Redraw accents
