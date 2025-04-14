@@ -654,13 +654,25 @@ export class UI {
      * @returns {CombatUI} Combat UI instance
      */
     createCombatUI(combatManager, options = {}) {
-        // Create combat panel - only create a container, not a full-screen panel
+        // Create combat panel as a full-screen container
         const panel = new PIXI.Container();
         panel.name = 'combat';
         panel.position.set(0, 0);
+        panel.width = this.game.app.screen.width;
+        panel.height = this.game.app.screen.height;
+
+        // Make panel interactive and ensure it blocks all events
+        panel.interactive = true;
+        panel.eventMode = 'static';
+        panel.hitArea = new PIXI.Rectangle(0, 0, panel.width, panel.height);
 
         // Set panel to be on top of everything
         panel.zIndex = 1000;
+
+        // Make sure parent container can sort children
+        if (this.container.sortableChildren === undefined) {
+            this.container.sortableChildren = true;
+        }
 
         // Add to UI container
         this.container.addChild(panel);

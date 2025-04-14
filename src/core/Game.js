@@ -61,6 +61,9 @@ export class Game {
         this.app.stage.interactive = true;
         this.app.stage.hitArea = this.app.screen;
 
+        // Ensure the stage supports sorting by zIndex
+        this.app.stage.sortableChildren = true;
+
         // Add canvas to container
         this.container.appendChild(this.app.view);
 
@@ -97,6 +100,9 @@ export class Game {
         // Create UI container
         this.uiContainer = new PIXI.Container();
         this.app.stage.addChild(this.uiContainer);
+
+        // Set zIndex for the uiContainer to ensure it is above the world
+        this.uiContainer.zIndex = 1000;
 
         // Create UI manager
         this.ui = new UI({
@@ -232,11 +238,14 @@ export class Game {
      * @param {Object} data - Input event data
      */
     handleInput(type, data) {
+        // If in combat, only process non-tile related inputs
+        const inCombat = this.combatManager && this.combatManager.inCombat;
+
         // Handle different input types
         switch (type) {
             case 'mousemove':
-                // Handle mouse movement
-                if (this.world) {
+                // Only update tile hover states if not in combat
+                if (this.world && !inCombat) {
                     // Update hover state for tiles
                     const tile = this.world.getTileAtScreen(data.x, data.y);
 
@@ -258,10 +267,9 @@ export class Game {
                 break;
 
             case 'mousedown':
-                // Handle mouse down
-                if (this.world) {
+                // Only process tile selection if not in combat
+                if (this.world && !inCombat) {
                     const tile = this.world.getTileAtScreen(data.x, data.y);
-
                     if (tile) {
                         tile.emit('tileSelected', { tile });
                     }
@@ -269,28 +277,28 @@ export class Game {
                 break;
 
             case 'rightmousedown':
-                // Handle right mouse down for player movement
-                if (this.world && this.player) {
+                // Only allow player movement if not in combat
+                if (this.world && this.player && !inCombat) {
                     const tile = this.world.getTileAtScreen(data.x, data.y);
-
                     if (tile) {
-                        // Move player to the clicked tile
                         this.movePlayerToTile(tile);
                     }
                 }
                 break;
 
             case 'tileSelected':
-                // Handle tile selection
-                if (this.debugElements.selectedTile) {
-                    const tile = data.tile;
-                    this.debugElements.selectedTile.textContent = `${tile.gridX}, ${tile.gridY}`;
+                // Only process tile selection if not in combat
+                if (!inCombat) {
+                    if (this.debugElements.selectedTile) {
+                        const tile = data.tile;
+                        this.debugElements.selectedTile.textContent = `${tile.gridX}, ${tile.gridY}`;
+                    }
                 }
                 break;
 
             case 'mouseheld':
             case 'rightmouseheld':
-                // Handle continuous mouse input
+                // Handle continuous mouse input (if needed)
                 break;
 
             default:
@@ -301,8 +309,8 @@ export class Game {
                 break;
         }
 
-        // Call user input handler if provided
-        if (this.options.onInput) {
+        // Call user input handler if provided and not in combat
+        if (this.options.onInput && !inCombat) {
             this.options.onInput(type, data, this);
         }
     }

@@ -18,6 +18,7 @@ export class CombatUI {
         this.elements = new Map();
         this.messages = [];
         this.animations = [];
+        this.statusEffects = new Map();
 
         // Panel dimensions
         this.panelX = this.ui.game.app.screen.width - 300;
@@ -28,92 +29,37 @@ export class CombatUI {
         // Message display time
         this.messageDisplayTime = 2000;
 
-        // Cyberpunk theme
-        this.theme = {
-            colors: {
-                primary: 0x00AAFF,    // Neon blue
-                secondary: 0x00FFAA,   // Neon cyan
-                dark: 0x000811,       // Dark blue-black
-                accent: 0xFF00AA,     // Neon pink
-                warning: 0xFFAA00,    // Neon orange
-                text: 0xFFFFFF,       // White
-                healthBar: 0xFF3366,  // Health bar color
-                energyBar: 0x33FFAA   // Energy bar color
-            },
-            styles: {
-                text: {
-                    fontFamily: 'Arial',
-                    fontSize: 14,
-                    fill: 0xFFFFFF,
-                    stroke: 0x000811,
-                    strokeThickness: 2
-                },
-                heading: {
-                    fontFamily: 'Arial',
-                    fontSize: 18,
-                    fontWeight: 'bold',
-                    fill: 0xFFFFFF,
-                    stroke: 0x00AAFF,
-                    strokeThickness: 3,
-                    dropShadow: true,
-                    dropShadowColor: 0x00AAFF,
-                    dropShadowBlur: 4,
-                    dropShadowDistance: 0
-                },
-                gridPattern: {
-                    color: 0x00AAFF,
-                    alpha: 0.1,
-                    spacing: 20
-                }
-            }
-        };
-
-        // Ensure the entire CombatUI container blocks events
+        // Set up container for full-screen event blocking
         this.container.interactive = true;
         this.container.eventMode = 'static';
-        this.container.hitArea = new PIXI.Rectangle(0, 0, this.ui.game.app.screen.width, this.ui.game.app.screen.height);
-
-        // Ensure CombatUI container is rendered above all other elements
         this.container.zIndex = 9999;
 
-        // Enable sorting of children in the parent container
-        if (this.container.parent && this.container.parent.sortableChildren === undefined) {
-            this.container.parent.sortableChildren = true;
+        // Create a full-screen hit area that covers the entire viewport
+        this.updateHitArea();
+        
+        // Listen for game resize events to update the hit area
+        if (this.ui.game.app) {
+            this.ui.game.app.renderer.on('resize', this.updateHitArea.bind(this));
         }
 
-        // Enhanced event blocking to ensure no propagation to game input manager
-        const blockEvent = e => {
-            e.preventDefault(); // Prevent default browser behavior
-            e.stopPropagation(); // Stop event propagation
-            e.stopImmediatePropagation(); // Stop immediate propagation
+        // Block all events from passing through
+        const blockEvent = (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            return false;
         };
 
-        // Block all relevant events
         const eventsToBlock = [
-            'pointerdown', 'pointermove', 'pointerup', 'click',
-            'mousedown', 'mousemove', 'mouseup', 'tap',
-            'touchstart', 'touchmove', 'touchend',
-            'rightclick', 'rightdown', 'rightup', 'contextmenu'
+            'pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'pointerover', 'pointerout',
+            'mousedown', 'mousemove', 'mouseup', 'mouseupoutside', 'mouseover', 'mouseout',
+            'click', 'rightclick', 'rightdown', 'rightup', 'rightupoutside',
+            'tap', 'touchstart', 'touchmove', 'touchend', 'touchendoutside', 'touchcancel',
+            'wheel', 'contextmenu'
         ];
 
         eventsToBlock.forEach(event => {
-            this.container.on(event, blockEvent);
-        });
-
-        // Ensure CombatUI intercepts all relevant events
-        const interceptEvents = [
-            'pointerdown', 'pointermove', 'pointerup', 'click',
-            'mousedown', 'mousemove', 'mouseup', 'tap',
-            'touchstart', 'touchmove', 'touchend',
-            'rightclick', 'rightdown', 'rightup', 'contextmenu'
-        ];
-
-        interceptEvents.forEach(event => {
-            this.container.on(event, e => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-            });
+            this.container.on(event, blockEvent, true);
         });
 
         // Create UI elements
@@ -125,6 +71,18 @@ export class CombatUI {
         this.createActionButtons();
         this.createMessageArea();
         this.createTurnIndicator();
+    }
+
+    /**
+     * Updates the container's hit area to match the current viewport size
+     * @private
+     */
+    updateHitArea() {
+        if (this.ui && this.ui.game && this.ui.game.app) {
+            const width = this.ui.game.app.screen.width;
+            const height = this.ui.game.app.screen.height;
+            this.container.hitArea = new PIXI.Rectangle(0, 0, width, height);
+        }
     }
 
     /**
@@ -164,26 +122,50 @@ export class CombatUI {
     createBackground() {
         const background = new PIXI.Graphics();
 
-        // Create panel background only (no full-screen overlay)
+        // Create semi-transparent panel background
         const gradient = new PIXI.Graphics();
-        gradient.beginFill(0x000811, 0.92); // Panel background with high opacity
+        gradient.beginFill(0x000811, 0.95); // Increased opacity to better block content underneath
         gradient.drawRect(this.panelX, 0, this.panelWidth, this.panelHeight);
         gradient.endFill();
+
+        // Make the panel fully interactive to block all events
+        gradient.eventMode = 'static';
+        gradient.cursor = 'default';
+        gradient.interactive = true;
+        gradient.hitArea = new PIXI.Rectangle(0, 0, this.panelWidth, this.panelHeight);
+
+        // Block ALL events in the panel area with useCapture to ensure they don't propagate
+        const blockEvent = e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
+        };
+
+        const eventsToBlock = [
+            'pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'pointerover', 'pointerout',
+            'mousedown', 'mousemove', 'mouseup', 'mouseupoutside', 'mouseover', 'mouseout',
+            'click', 'rightclick', 'rightdown', 'rightup', 'rightupoutside',
+            'tap', 'touchstart', 'touchmove', 'touchend', 'touchendoutside', 'touchcancel',
+            'wheel', 'contextmenu'
+        ];
+
+        eventsToBlock.forEach(event => {
+            gradient.on(event, blockEvent, true);
+        });
+
         this.container.addChild(gradient);
 
-        // Add subtle cyberpunk grid pattern
-        const gridSpacing = 20;
-        const gridAlpha = 0.1;
-        background.lineStyle(1, 0x00AAFF, gridAlpha);
+        // Add cyberpunk grid pattern on top of the blocking gradient
+        background.lineStyle(1, 0x00AAFF, 0.1);
 
         // Vertical lines
-        for (let x = 0; x <= this.panelWidth; x += gridSpacing) {
+        for (let x = 0; x <= this.panelWidth; x += 20) {
             background.moveTo(this.panelX + x, 0);
             background.lineTo(this.panelX + x, this.panelHeight);
         }
 
         // Horizontal lines
-        for (let y = 0; y <= this.panelHeight; y += gridSpacing) {
+        for (let y = 0; y <= this.panelHeight; y += 20) {
             background.moveTo(this.panelX, y);
             background.lineTo(this.panelX + this.panelWidth, y);
         }
@@ -202,37 +184,6 @@ export class CombatUI {
         background.lineTo(this.panelX + 30, 30);
         background.moveTo(this.panelX + this.panelWidth, 0);
         background.lineTo(this.panelX + this.panelWidth - 30, 30);
-
-        // Make background interactive while still allowing see-through
-        background.interactive = true;
-        background.eventMode = 'static';
-        background.hitArea = new PIXI.Rectangle(this.panelX, 0, this.panelWidth, this.panelHeight);
-
-        // Block combat-related events but allow map visibility
-        const blockEvent = e => {
-            // Allow interactions for specific elements
-            if (e.target !== background) {
-                return;
-            }
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        };
-
-        background.on('pointerdown', blockEvent);
-        background.on('pointermove', blockEvent);
-        background.on('pointerup', blockEvent);
-        background.on('click', blockEvent);
-        background.on('mousedown', blockEvent);
-        background.on('mousemove', blockEvent);
-        background.on('mouseup', blockEvent);
-        background.on('tap', blockEvent);
-        background.on('touchstart', blockEvent);
-        background.on('touchmove', blockEvent);
-        background.on('touchend', blockEvent);
-        background.on('rightclick', blockEvent);
-        background.on('rightdown', blockEvent);
-        background.on('rightup', blockEvent);
-        background.on('contextmenu', blockEvent);
 
         this.container.addChild(background);
         this.elements.set('background', background);
