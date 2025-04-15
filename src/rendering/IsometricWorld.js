@@ -729,7 +729,7 @@ export class IsometricWorld extends Container {
         const defaultOptions = {
             seed: this.seed,
             terrainTypes: ['grass', 'dirt', 'sand', 'water'],
-            terrainWeights: [0.8, 0.15, 0.04, 0.01], // Increased chance of walkable tiles
+            terrainWeights: [0.85, 0.1, 0.04, 0.01], // Further increased chance of walkable tiles, reduced water
             elevationScale: 0.1,
             elevationOctaves: 2
         };
@@ -1567,16 +1567,41 @@ export class IsometricWorld extends Container {
                     this.game.player.gridX = worldState.playerPosition.x;
                     this.game.player.gridY = worldState.playerPosition.y;
 
-                    // Check if the tile at player position is walkable
+                    // Check if the tile at player position is walkable and not water
                     const tile = this.getTile(this.game.player.gridX, this.game.player.gridY);
-                    if (!tile || !tile.walkable) {
-                        console.warn(`Tile at player position (${this.game.player.gridX}, ${this.game.player.gridY}) is not walkable, finding alternative`);
+                    if (!tile || !tile.walkable || tile.type === 'water') {
+                        console.warn(`Tile at player position (${this.game.player.gridX}, ${this.game.player.gridY}) is not suitable (walkable: ${tile?.walkable}, type: ${tile?.type}), finding alternative`);
 
-                        // Find a walkable tile nearby
+                        // Find a walkable non-water tile nearby
                         const centerX = Math.floor(this.config.gridWidth / 2);
                         const centerY = Math.floor(this.config.gridHeight / 2);
-                        this.game.player.gridX = centerX;
-                        this.game.player.gridY = centerY;
+
+                        // Try to find a suitable tile
+                        const suitableTile = this.findWalkableTile(centerX, centerY, 20);
+
+                        if (suitableTile) {
+                            // Use the found tile's coordinates
+                            this.game.player.gridX = suitableTile.gridX;
+                            this.game.player.gridY = suitableTile.gridY;
+                            console.log(`Found suitable tile at (${suitableTile.gridX}, ${suitableTile.gridY}) for player placement`);
+                        } else {
+                            // Fallback to center coordinates
+                            this.game.player.gridX = centerX;
+                            this.game.player.gridY = centerY;
+                            console.warn(`No suitable tile found, using center coordinates (${centerX}, ${centerY})`);
+
+                            // Force create a walkable grass tile at the center
+                            const forceTile = this.createTileInternal(centerX, centerY, 'grass',
+                                this.createPlaceholderTexture('grass'), {
+                                elevation: 0,
+                                walkable: true,
+                                type: 'grass'
+                            });
+
+                            if (forceTile) {
+                                console.log(`Created forced walkable grass tile at (${centerX}, ${centerY})`);
+                            }
+                        }
                     }
 
                     // Ensure player has world reference
@@ -1683,6 +1708,47 @@ export class IsometricWorld extends Container {
         if (this.config.worldLimitMaxY !== null && chunkY > this.config.worldLimitMaxY + buffer) return true;
 
         return false;
+    }
+
+    /**
+     * Finds a walkable tile that's not water, starting from the given position and spiraling outward
+     * @param {number} startX - Starting X position
+     * @param {number} startY - Starting Y position
+     * @param {number} maxRadius - Maximum search radius
+     * @returns {IsometricTile|null} A walkable non-water tile, or null if none found
+     */
+    findWalkableTile(startX, startY, maxRadius = 10) {
+        console.log(`Finding walkable non-water tile starting from (${startX}, ${startY})`);
+
+        // Check the starting tile first
+        const startTile = this.getTile(startX, startY);
+        if (startTile && startTile.walkable && startTile.type !== 'water' && !startTile.structure) {
+            console.log(`Found suitable tile at starting position (${startX}, ${startY})`);
+            return startTile;
+        }
+
+        // Spiral search pattern
+        for (let radius = 1; radius <= maxRadius; radius++) {
+            // Check each position in the current radius
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dy = -radius; dy <= radius; dy++) {
+                    // Skip positions that aren't on the edge of the current radius
+                    if (Math.abs(dx) < radius && Math.abs(dy) < radius) continue;
+
+                    const x = startX + dx;
+                    const y = startY + dy;
+                    const tile = this.getTile(x, y);
+
+                    if (tile && tile.walkable && tile.type !== 'water' && !tile.structure) {
+                        console.log(`Found suitable tile at (${x}, ${y}) during spiral search`);
+                        return tile;
+                    }
+                }
+            }
+        }
+
+        console.warn(`No suitable walkable non-water tile found within radius ${maxRadius} of (${startX}, ${startY})`);
+        return null;
     }
 
     /**

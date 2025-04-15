@@ -803,24 +803,28 @@ export class Game {
         });
 
         if (this.world) {
-            // Start searching from center and spiral outward
+            // Start from center
             const centerX = Math.floor(this.world.config.gridWidth / 2);
             const centerY = Math.floor(this.world.config.gridHeight / 2);
 
-            // Try center tile first
-            const centerTile = this.world.getTile(centerX, centerY);
-            if (centerTile && centerTile.walkable && !centerTile.structure) {
-                const center = centerTile.getCenter();
-                player.x = center.x;
-                player.y = center.y;
-                player.gridX = centerX;
-                player.gridY = centerY;
+            console.log(`Finding suitable tile for player placement starting from center (${centerX}, ${centerY})`);
+
+            // Use the findWalkableTile method to find a suitable tile
+            const suitableTile = this.world.findWalkableTile(centerX, centerY, 20);
+
+            if (suitableTile) {
+                // Use the found suitable tile
+                const pos = suitableTile.getCenter();
+                player.x = pos.x;
+                player.y = pos.y;
+                player.gridX = suitableTile.gridX;
+                player.gridY = suitableTile.gridY;
                 player.world = this.world;
 
                 // Add player to the world's entity container
-                console.log(`Adding player to world at position (${centerX}, ${centerY})`);
+                console.log(`Adding player to world at position (${suitableTile.gridX}, ${suitableTile.gridY})`);
                 this.world.entityContainer.addChild(player);
-                centerTile.addEntity(player);
+                suitableTile.addEntity(player);
                 this.world.entities.add(player);
 
                 // Ensure player is visible
@@ -830,76 +834,36 @@ export class Game {
                 // Update player position
                 player.updatePosition();
             } else {
-                // Spiral search pattern
-                let found = false;
-                let layer = 1;
-                while (!found && layer < Math.max(this.world.config.gridWidth, this.world.config.gridHeight)) {
-                    // Check each direction in the current layer
-                    for (let dx = -layer; dx <= layer && !found; dx++) {
-                        for (let dy = -layer; dy <= layer && !found; dy++) {
-                            const x = centerX + dx;
-                            const y = centerY + dy;
-                            const tile = this.world.getTile(x, y);
+                console.warn('Could not find any suitable tile for player placement');
 
-                            if (tile && tile.walkable && !tile.structure) {
-                                const pos = tile.getCenter();
-                                player.x = pos.x;
-                                player.y = pos.y;
-                                player.gridX = x;
-                                player.gridY = y;
-                                player.world = this.world;
+                // Force create a walkable grass tile at the center as a fallback
+                console.log('Creating a fallback walkable grass tile at center');
+                const forceTile = this.world.createTileInternal(centerX, centerY, 'grass',
+                    this.world.createPlaceholderTexture('grass'), {
+                    elevation: 0,
+                    walkable: true,
+                    type: 'grass' // Explicitly set type to grass to ensure it's not water
+                });
 
-                                // Add player to the world's entity container
-                                console.log(`Adding player to world at position (${x}, ${y})`);
-                                this.world.entityContainer.addChild(player);
-                                tile.addEntity(player);
-                                this.world.entities.add(player);
+                if (forceTile) {
+                    const pos = forceTile.getCenter();
+                    player.x = pos.x;
+                    player.y = pos.y;
+                    player.gridX = centerX;
+                    player.gridY = centerY;
+                    player.world = this.world;
 
-                                // Ensure player is visible
-                                player.visible = true;
-                                player.alpha = 1.0;
+                    console.log(`Adding player to world at forced position (${centerX}, ${centerY})`);
+                    this.world.entityContainer.addChild(player);
+                    forceTile.addEntity(player);
+                    this.world.entities.add(player);
 
-                                // Update player position
-                                player.updatePosition();
-                                found = true;
-                            }
-                        }
-                    }
-                    layer++;
-                }
-
-                if (!found) {
-                    console.warn('Could not find any valid tile to place player after spiral search');
-
-                    // Force create a walkable tile at the center as a fallback
-                    console.log('Creating a fallback walkable tile at center');
-                    const forceTile = this.world.createTileInternal(centerX, centerY, 'grass',
-                        this.world.createPlaceholderTexture('grass'), {
-                        elevation: 0,
-                        walkable: true
-                    });
-
-                    if (forceTile) {
-                        const pos = forceTile.getCenter();
-                        player.x = pos.x;
-                        player.y = pos.y;
-                        player.gridX = centerX;
-                        player.gridY = centerY;
-                        player.world = this.world;
-
-                        console.log(`Adding player to world at forced position (${centerX}, ${centerY})`);
-                        this.world.entityContainer.addChild(player);
-                        forceTile.addEntity(player);
-                        this.world.entities.add(player);
-
-                        player.visible = true;
-                        player.alpha = 1.0;
-                        player.updatePosition();
-                        found = true;
-                    } else {
-                        console.error('Failed to create fallback tile, cannot place player');
-                        return null;
-                    }
+                    player.visible = true;
+                    player.alpha = 1.0;
+                    player.updatePosition();
+                } else {
+                    console.error('Failed to create fallback tile, cannot place player');
+                    return null;
                 }
             }
 
