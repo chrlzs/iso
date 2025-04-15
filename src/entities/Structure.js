@@ -159,9 +159,14 @@ export class Structure extends Entity {
     canPlaceAt(world, gridX, gridY) {
         if (!world) return false;
 
-        // Check world bounds
-        if (gridX < 0 || gridX >= world.config.gridWidth ||
-            gridY < 0 || gridY >= world.config.gridHeight) {
+        // For chunk-based worlds, we don't need to do a strict boundary check
+        // This allows structures to be placed in new chunks
+
+        // Only apply a very loose boundary check to prevent extreme values
+        const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+        if (gridX < -maxDistance || gridX >= world.config.gridWidth + maxDistance ||
+            gridY < -maxDistance || gridY >= world.config.gridHeight + maxDistance) {
+            console.log(`Cannot place structure at (${gridX}, ${gridY}): far outside world bounds`);
             return false;
         }
 

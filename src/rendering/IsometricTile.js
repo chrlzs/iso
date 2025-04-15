@@ -90,9 +90,16 @@ export class IsometricTile extends Container {
      */
     containsPoint(point) {
         try {
-            // First do a strict boundary check
-            if (!this.world || this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
-                this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
+            // For chunk-based worlds, we don't need to do a strict boundary check
+            // This allows the player to navigate to new chunks
+            if (!this.world) {
+                return false;
+            }
+
+            // Only apply a very loose boundary check to prevent extreme values
+            const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+            if (this.gridX < -maxDistance || this.gridX >= this.world.config.gridWidth + maxDistance ||
+                this.gridY < -maxDistance || this.gridY >= this.world.config.gridHeight + maxDistance) {
                 return false;
             }
 
@@ -220,12 +227,18 @@ export class IsometricTile extends Container {
      * @param {Object} structure - The structure to add
      */
     addStructure(structure) {
-        // Strict validation to prevent phantom structure placement
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight ||
-            // Special check for bottom row
-            this.gridY === this.world.gridHeight - 1) {
-            console.log(`Prevented structure placement on invalid tile at (${this.gridX}, ${this.gridY})`);
+        // For chunk-based worlds, we don't need to do a strict boundary check
+        // This allows structures to be placed in new chunks
+        if (!this.world) {
+            console.log(`Prevented structure placement on tile without world reference at (${this.gridX}, ${this.gridY})`);
+            return;
+        }
+
+        // Only apply a very loose boundary check to prevent extreme values
+        const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+        if (this.gridX < -maxDistance || this.gridX >= this.world.config.gridWidth + maxDistance ||
+            this.gridY < -maxDistance || this.gridY >= this.world.config.gridHeight + maxDistance) {
+            console.log(`Prevented structure placement on tile far outside world bounds at (${this.gridX}, ${this.gridY})`);
             return;
         }
 

@@ -274,20 +274,32 @@ export class IsometricWorld extends Container {
         const gridX = Math.floor(x);
         const gridY = Math.floor(y);
 
-        // Check if position is valid
-        if (gridX < 0 || gridX >= this.config.gridWidth || gridY < 0 || gridY >= this.config.gridHeight) {
-            // Return null for invalid coordinates
-            return null;
+        // For chunk-based worlds, we need to handle coordinates outside the original world bounds
+        // This allows the player to navigate to new chunks
+
+        // First, check if the coordinates are within the original world bounds
+        if (gridX >= 0 && gridX < this.config.gridWidth && gridY >= 0 && gridY < this.config.gridHeight) {
+            // If within original bounds, use the tiles array
+            if (this.tiles && this.tiles[gridX] && this.tiles[gridX][gridY]) {
+                return this.tiles[gridX][gridY];
+            }
         }
 
-        // Ensure tiles array exists
-        if (!this.tiles || !this.tiles[gridX]) {
-            console.warn('Tiles array not properly initialized at position:', gridX, gridY);
-            return null;
+        // If outside original bounds or tile not found in original array, try to get from chunk system
+        const chunkCoords = this.config.gridToChunk(gridX, gridY);
+        const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+
+        if (chunk && chunk.isLoaded) {
+            // Convert to local chunk coordinates
+            const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
+            const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
+
+            // Get the tile from the chunk
+            return chunk.getTile(localX, localY);
         }
 
-        // Get tile from grid
-        return this.tiles[gridX][gridY];
+        // If no chunk found or chunk not loaded, return null
+        return null;
     }
 
     /**
@@ -471,9 +483,14 @@ export class IsometricWorld extends Container {
 
         console.log(`Screen (${screenX}, ${screenY}) -> Local (${localPoint.x.toFixed(2)}, ${localPoint.y.toFixed(2)}) -> Grid (${gridX}, ${gridY})`);
 
-        // Clamp coordinates to valid range
-        gridX = Math.max(0, Math.min(gridX, this.config.gridWidth - 1));
-        gridY = Math.max(0, Math.min(gridY, this.config.gridHeight - 1));
+        // For chunk-based worlds, we don't need to clamp coordinates to the original world bounds
+        // Instead, we'll let the chunk system handle coordinates outside the original world bounds
+        // This allows the player to navigate to new chunks
+
+        // Only apply a very loose clamping to prevent extreme values
+        const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+        gridX = Math.max(-maxDistance, Math.min(gridX, this.config.gridWidth + maxDistance));
+        gridY = Math.max(-maxDistance, Math.min(gridY, this.config.gridHeight + maxDistance));
 
         // For chunk-based world, we need to find the chunk that contains this grid position
         const chunkCoords = this.config.gridToChunk(gridX, gridY);
@@ -531,8 +548,13 @@ export class IsometricWorld extends Container {
             const nx = gridX + dir.dx;
             const ny = gridY + dir.dy;
 
-            // Skip if outside world bounds
-            if (nx < 0 || nx >= this.config.gridWidth || ny < 0 || ny >= this.config.gridHeight) {
+            // For chunk-based worlds, we don't need to check world bounds
+            // This allows the player to navigate to new chunks
+
+            // Only apply a very loose boundary check to prevent extreme values
+            const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+            if (nx < -maxDistance || nx >= this.config.gridWidth + maxDistance ||
+                ny < -maxDistance || ny >= this.config.gridHeight + maxDistance) {
                 continue;
             }
 
