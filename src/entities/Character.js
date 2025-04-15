@@ -53,7 +53,7 @@ export class Character extends Entity {
                 energyCost: 0,
                 cooldown: 0,
                 targetType: 'enemy',
-                execute: (user, target, combatManager) => {
+                execute: (_user, _target, _combatManager) => {
                     // Basic attack logic is handled by combat manager
                     return true;
                 }
@@ -66,7 +66,7 @@ export class Character extends Entity {
                 energyCost: 20,
                 cooldown: 3,
                 targetType: 'self',
-                execute: (user, target, combatManager) => {
+                execute: (user, target, _combatManager) => {
                     const healAmount = Math.round(user.stats.level * 10 + Math.random() * 10);
                     target.heal(healAmount);
                     console.log(`${user.name} healed ${target.name} for ${healAmount} health`);
@@ -177,8 +177,10 @@ export class Character extends Entity {
         // Set zIndex to ensure character is above tiles
         this.zIndex = 10;
 
-        // Log sprite creation
-        console.log(`Created character sprite: ${options.name}, isPlayer: ${options.isPlayer}`);
+        // Only log sprite creation in debug mode
+        if (options.debug) {
+            console.log(`Created character sprite: ${options.name}, isPlayer: ${options.isPlayer}`);
+        }
     }
 
     /**
@@ -236,10 +238,15 @@ export class Character extends Entity {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
+        // Skip update if character is not active or not visible
+        if (!this.active || !this.visible) {
+            return;
+        }
+
         super.update(deltaTime);
 
-        // Debug log for player character
-        if (this.isPlayer && Math.random() < 0.01) {
+        // Debug log for player character only in debug mode and at a reduced frequency
+        if (this.isPlayer && this.game && this.game.options.debug && Math.random() < 0.001) {
             console.log(`Player character update:`);
             console.log(`  Position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
             console.log(`  Grid: (${this.gridX}, ${this.gridY})`);
@@ -248,14 +255,20 @@ export class Character extends Entity {
             console.log(`  moveTarget: ${this.moveTarget ? `(${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})` : 'null'}`);
         }
 
-        // Update animation
-        this.updateAnimation(deltaTime);
+        // Update movement first if moving (most important)
+        if (this.isMoving) {
+            this.updateMovement(deltaTime);
+        }
 
-        // Update movement
-        this.updateMovement(deltaTime);
+        // Update animation (only if moving)
+        if (this.isMoving) {
+            this.updateAnimation(deltaTime);
+        }
 
-        // Update health bar
-        this.updateHealthBar();
+        // Update health bar (only if visible)
+        if (this.healthBar && this.healthBar.visible) {
+            this.updateHealthBar();
+        }
     }
 
     /**
@@ -293,13 +306,12 @@ export class Character extends Entity {
     updateMovement(deltaTime) {
         // If we have a target, move towards it
         if (this.moveTarget) {
-            // Debug log every 30 frames to avoid console spam
-            if (Math.random() < 0.03) {
+            // Debug log only in debug mode and at a reduced frequency
+            if (this.game && this.game.options.debug && Math.random() < 0.005) {
                 console.log(`Character ${this.name} updating movement:`);
                 console.log(`  Current position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
                 console.log(`  Target position: (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
                 console.log(`  isMoving: ${this.isMoving}`);
-                console.log(`  deltaTime: ${deltaTime}`);
                 if (this.path) {
                     console.log(`  Following path, current index: ${this.pathIndex}/${this.path.length - 1}`);
                 }
@@ -354,7 +366,7 @@ export class Character extends Entity {
                     // Update facing direction
                     this.updateFacingDirection(normalizedDx, normalizedDy);
 
-                    if (Math.random() < 0.03) {
+                    if (this.game && this.game.options.debug && Math.random() < 0.005) {
                         console.log(`  Moving to next path point: (${nextPoint.x}, ${nextPoint.y})`);
                         console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
                     }
@@ -370,7 +382,7 @@ export class Character extends Entity {
                     // Update facing direction
                     this.updateFacingDirection(normalizedDx, normalizedDy);
 
-                    if (Math.random() < 0.03) {
+                    if (this.game && this.game.options.debug && Math.random() < 0.005) {
                         console.log(`  Moving to path point ${this.pathIndex}: (${currentPoint.x}, ${currentPoint.y})`);
                         console.log(`  Distance: ${distance.toFixed(2)}`);
                         console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
@@ -407,7 +419,7 @@ export class Character extends Entity {
                 this.velocity.x = normalizedDx * this.speed * deltaTime * 60; // Scale by 60 to normalize for 60 FPS
                 this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
 
-                if (Math.random() < 0.03) {
+                if (this.game && this.game.options.debug && Math.random() < 0.005) {
                     console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
                 }
 
@@ -541,15 +553,13 @@ export class Character extends Entity {
             this.updateFacingDirection(normalizedDx, normalizedDy);
         }
 
-        // Debug log
-        console.log(`Character ${this.name} moveTarget set to (${this.moveTarget.x}, ${this.moveTarget.y})`);
-        console.log(`Character isMoving set to ${this.isMoving}`);
-        console.log(`Character current position: (${this.x}, ${this.y})`);
-        console.log(`Character grid position: (${this.gridX}, ${this.gridY})`);
-        console.log(`Character velocity: (${this.velocity.x}, ${this.velocity.y})`);
-        console.log(`Character speed: ${this.speed}`);
-
-        console.log(`Character ${this.name} moving to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
+        // Debug log only in debug mode
+        if (this.game && this.game.options.debug) {
+            console.log(`Character ${this.name} moveTarget set to (${this.moveTarget.x}, ${this.moveTarget.y})`);
+            console.log(`Character isMoving set to ${this.isMoving}`);
+            console.log(`Character current position: (${this.x}, ${this.y})`);
+            console.log(`Character grid position: (${this.gridX}, ${this.gridY})`);
+        }
 
         // Ensure character is visible
         this.visible = true;
@@ -622,7 +632,10 @@ export class Character extends Entity {
         this.path = path;
         this.pathIndex = 0;
 
-        console.log(`Path calculated with ${path.length} points:`, path);
+        // Log path details only in debug mode
+        if (this.game && this.game.options.debug) {
+            console.log(`Path calculated with ${path.length} points`);
+        }
 
         // Set initial velocity towards first path point
         if (path.length > 1) {
@@ -673,8 +686,10 @@ export class Character extends Entity {
         this.visible = true;
         this.alpha = 1.0;
 
-        // Log position update
-        console.log(`Character position updated: Grid(${this.gridX}, ${this.gridY}), World(${this.x}, ${this.y})`);
+        // Log position update only in debug mode
+        if (this.game && this.game.options.debug) {
+            console.log(`Character position updated: Grid(${this.gridX}, ${this.gridY}), World(${this.x}, ${this.y})`);
+        }
     }
 
     /**
