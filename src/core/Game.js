@@ -1213,11 +1213,14 @@ export class Game {
             this.player.game = this;
         }
 
-        // Set the player's move target
-        console.log('Setting player move target to:', targetPos);
-        this.player.setMoveTarget(targetPos);
+        // Set the player's move target with pathfinding
+        console.log('Setting player move target to:', targetPos, 'with pathfinding to grid position:', tile.gridX, tile.gridY);
+        this.player.setMoveTarget(targetPos, {
+            targetGridX: tile.gridX,
+            targetGridY: tile.gridY
+        });
 
-        // Update the player's grid position immediately for pathfinding purposes
+        // Store target grid position for reference
         this.player.targetGridX = tile.gridX;
         this.player.targetGridY = tile.gridY;
 

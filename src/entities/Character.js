@@ -1,5 +1,6 @@
 import { Entity } from './Entity.js';
 import { PIXI } from '../utils/PixiWrapper.js';
+import { PathFinder } from '../utils/PathFinder.js';
 
 /**
  * Character - Represents a character in the game world
@@ -299,43 +300,120 @@ export class Character extends Entity {
                 console.log(`  Target position: (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
                 console.log(`  isMoving: ${this.isMoving}`);
                 console.log(`  deltaTime: ${deltaTime}`);
-            }
-
-            const dx = this.moveTarget.x - this.x;
-            const dy = this.moveTarget.y - this.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            // If we're close enough to the target, stop moving and update grid position
-            if (distance < 2) {
-                console.log(`Character ${this.name} reached target, stopping movement`);
-                this.x = this.moveTarget.x;
-                this.y = this.moveTarget.y;
-                this.stopMoving();
-
-                // Update grid position using world's coordinate system
-                if (this.world) {
-                    const gridPos = this.world.worldToGrid(this.x, this.y);
-                    this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
-                    this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
-                    console.log(`  Updated grid position to (${this.gridX}, ${this.gridY})`);
+                if (this.path) {
+                    console.log(`  Following path, current index: ${this.pathIndex}/${this.path.length - 1}`);
                 }
-                return;
             }
 
-            // Calculate normalized movement direction
-            const normalizedDx = dx / distance;
-            const normalizedDy = dy / distance;
+            // Check if we're following a path
+            if (this.path && this.path.length > 0 && this.pathIndex < this.path.length) {
+                // Get current path point
+                const currentPoint = this.path[this.pathIndex];
 
-            // Update velocity with proper scaling for deltaTime
-            this.velocity.x = normalizedDx * this.speed * deltaTime * 60; // Scale by 60 to normalize for 60 FPS
-            this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
+                // Convert grid coordinates to world coordinates
+                const worldPos = this.world.gridToWorld(currentPoint.x, currentPoint.y);
 
-            if (Math.random() < 0.03) {
-                console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+                // Calculate distance to current path point
+                const dx = worldPos.x - this.x;
+                const dy = worldPos.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // If we're close enough to the current path point, move to the next one
+                if (distance < 2) {
+                    // Update grid position to match the path point
+                    this.gridX = currentPoint.x;
+                    this.gridY = currentPoint.y;
+
+                    // Move to next path point
+                    this.pathIndex++;
+
+                    // If we've reached the end of the path, stop moving
+                    if (this.pathIndex >= this.path.length) {
+                        console.log(`Character ${this.name} reached end of path, stopping movement`);
+                        this.x = worldPos.x;
+                        this.y = worldPos.y;
+                        this.stopMoving();
+                        return;
+                    }
+
+                    // Get next path point
+                    const nextPoint = this.path[this.pathIndex];
+                    const nextWorldPos = this.world.gridToWorld(nextPoint.x, nextPoint.y);
+
+                    // Calculate direction to next path point
+                    const nextDx = nextWorldPos.x - this.x;
+                    const nextDy = nextWorldPos.y - this.y;
+                    const nextDistance = Math.sqrt(nextDx * nextDx + nextDy * nextDy);
+
+                    // Update velocity
+                    const normalizedDx = nextDx / nextDistance;
+                    const normalizedDy = nextDy / nextDistance;
+                    this.velocity.x = normalizedDx * this.speed * deltaTime * 60;
+                    this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
+
+                    // Update facing direction
+                    this.updateFacingDirection(normalizedDx, normalizedDy);
+
+                    if (Math.random() < 0.03) {
+                        console.log(`  Moving to next path point: (${nextPoint.x}, ${nextPoint.y})`);
+                        console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+                    }
+                } else {
+                    // Continue moving towards current path point
+                    const normalizedDx = dx / distance;
+                    const normalizedDy = dy / distance;
+
+                    // Update velocity
+                    this.velocity.x = normalizedDx * this.speed * deltaTime * 60;
+                    this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
+
+                    // Update facing direction
+                    this.updateFacingDirection(normalizedDx, normalizedDy);
+
+                    if (Math.random() < 0.03) {
+                        console.log(`  Moving to path point ${this.pathIndex}: (${currentPoint.x}, ${currentPoint.y})`);
+                        console.log(`  Distance: ${distance.toFixed(2)}`);
+                        console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+                    }
+                }
+            } else {
+                // Direct movement (no path)
+                const dx = this.moveTarget.x - this.x;
+                const dy = this.moveTarget.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // If we're close enough to the target, stop moving and update grid position
+                if (distance < 2) {
+                    console.log(`Character ${this.name} reached target, stopping movement`);
+                    this.x = this.moveTarget.x;
+                    this.y = this.moveTarget.y;
+                    this.stopMoving();
+
+                    // Update grid position using world's coordinate system
+                    if (this.world) {
+                        const gridPos = this.world.worldToGrid(this.x, this.y);
+                        this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
+                        this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
+                        console.log(`  Updated grid position to (${this.gridX}, ${this.gridY})`);
+                    }
+                    return;
+                }
+
+                // Calculate normalized movement direction
+                const normalizedDx = dx / distance;
+                const normalizedDy = dy / distance;
+
+                // Update velocity with proper scaling for deltaTime
+                this.velocity.x = normalizedDx * this.speed * deltaTime * 60; // Scale by 60 to normalize for 60 FPS
+                this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
+
+                if (Math.random() < 0.03) {
+                    console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+                }
+
+                // Update facing direction
+                this.updateFacingDirection(normalizedDx, normalizedDy);
             }
-
-            // Update facing direction
-            this.updateFacingDirection(normalizedDx, normalizedDy);
 
             // Update grid position continuously during movement
             if (this.world) {
@@ -414,8 +492,9 @@ export class Character extends Entity {
     /**
      * Sets the character's move target
      * @param {Object} target - Target position {x, y}
+     * @param {Object} options - Movement options
      */
-    setMoveTarget(target) {
+    setMoveTarget(target, options = {}) {
         if (!target) {
             console.warn('Attempted to set null move target');
             return;
@@ -444,11 +523,23 @@ export class Character extends Entity {
         // Set moving flag
         this.isMoving = true;
 
-        // Initialize velocity based on direction
-        const normalizedDx = dx / distance;
-        const normalizedDy = dy / distance;
-        this.velocity.x = normalizedDx * this.speed * 0.16; // Initial velocity (scaled for 60 FPS)
-        this.velocity.y = normalizedDy * this.speed * 0.16;
+        // Calculate path if we have a world reference and target grid coordinates
+        if (this.world && options.targetGridX !== undefined && options.targetGridY !== undefined) {
+            this.calculatePath(options.targetGridX, options.targetGridY);
+        } else {
+            // No pathfinding, just direct movement
+            this.path = null;
+            this.pathIndex = 0;
+
+            // Initialize velocity based on direction
+            const normalizedDx = dx / distance;
+            const normalizedDy = dy / distance;
+            this.velocity.x = normalizedDx * this.speed * 0.16; // Initial velocity (scaled for 60 FPS)
+            this.velocity.y = normalizedDy * this.speed * 0.16;
+
+            // Update facing direction immediately
+            this.updateFacingDirection(normalizedDx, normalizedDy);
+        }
 
         // Debug log
         console.log(`Character ${this.name} moveTarget set to (${this.moveTarget.x}, ${this.moveTarget.y})`);
@@ -465,9 +556,6 @@ export class Character extends Entity {
         this.alpha = 1.0;
         this.active = true;
 
-        // Update facing direction immediately
-        this.updateFacingDirection(normalizedDx, normalizedDy);
-
         // Show health bar when moving
         if (this.healthBar) {
             this.healthBar.visible = true;
@@ -483,6 +571,81 @@ export class Character extends Entity {
                 this.healthBar.visible = false;
             }
         }, 3000);
+    }
+
+    /**
+     * Calculates a path to the target using A* pathfinding
+     * @param {number} targetGridX - Target grid X position
+     * @param {number} targetGridY - Target grid Y position
+     * @private
+     */
+    calculatePath(targetGridX, targetGridY) {
+        if (!this.world) {
+            console.warn('Cannot calculate path: no world reference');
+            return;
+        }
+
+        // Create pathfinder if needed
+        const pathFinder = new PathFinder(this.world);
+
+        // Find path
+        const path = pathFinder.findPath(
+            this.gridX,
+            this.gridY,
+            targetGridX,
+            targetGridY,
+            { ignoreWater: true }
+        );
+
+        if (!path) {
+            console.warn(`No path found from (${this.gridX}, ${this.gridY}) to (${targetGridX}, ${targetGridY})`);
+            // Fall back to direct movement
+            this.path = null;
+            this.pathIndex = 0;
+
+            // Initialize velocity based on direction to target
+            const dx = this.moveTarget.x - this.x;
+            const dy = this.moveTarget.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            const normalizedDx = dx / distance;
+            const normalizedDy = dy / distance;
+            this.velocity.x = normalizedDx * this.speed * 0.16;
+            this.velocity.y = normalizedDy * this.speed * 0.16;
+
+            // Update facing direction immediately
+            this.updateFacingDirection(normalizedDx, normalizedDy);
+            return;
+        }
+
+        // Store path and reset index
+        this.path = path;
+        this.pathIndex = 0;
+
+        console.log(`Path calculated with ${path.length} points:`, path);
+
+        // Set initial velocity towards first path point
+        if (path.length > 1) {
+            // Skip the first point (current position) and move to the second point
+            this.pathIndex = 1;
+            const nextPoint = path[this.pathIndex];
+
+            // Convert grid coordinates to world coordinates
+            const worldPos = this.world.gridToWorld(nextPoint.x, nextPoint.y);
+
+            // Calculate direction to next point
+            const dx = worldPos.x - this.x;
+            const dy = worldPos.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            const normalizedDx = dx / distance;
+            const normalizedDy = dy / distance;
+            this.velocity.x = normalizedDx * this.speed * 0.16;
+            this.velocity.y = normalizedDy * this.speed * 0.16;
+
+            // Update facing direction immediately
+            this.updateFacingDirection(normalizedDx, normalizedDy);
+        }
     }
 
     /**
