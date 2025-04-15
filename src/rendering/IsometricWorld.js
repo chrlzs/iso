@@ -2,6 +2,7 @@ import { IsometricTile } from './IsometricTile.js';
 import { EntityPool } from '../utils/EntityPool.js';
 import { PIXI, Container } from '../utils/PixiWrapper.js';
 import { WorldConfig } from '../core/WorldConfig.js';
+import { WorldChunk } from './WorldChunk.js';
 
 /**
  * IsometricWorld - Manages the isometric game world
@@ -30,11 +31,25 @@ export class IsometricWorld extends Container {
             height: options.height || 32,
             tileWidth: options.tileWidth || 64,
             tileHeight: options.tileHeight || 32,
+            chunkSize: options.chunkSize || 16,
+            loadDistance: options.loadDistance || 2,
+            unloadDistance: options.unloadDistance || 3,
+            generateDistance: options.generateDistance || 1,
             cameraBoundsMinX: options.cameraBoundsMinX || -1000,
             cameraBoundsMaxX: options.cameraBoundsMaxX || 1000,
             cameraBoundsMinY: options.cameraBoundsMinY || -1000,
             cameraBoundsMaxY: options.cameraBoundsMaxY || 1000
         });
+
+        // Set world seed for consistent generation
+        this.seed = options.seed || Math.floor(Math.random() * 1000000);
+
+        // Set world ID for persistence
+        this.worldId = options.worldId || 'default';
+
+        // Chunk persistence
+        this.persistChunks = options.persistChunks !== false;
+        this.chunkStorage = options.chunkStorage || null;
 
         // Initialize entity tracking first
         this.entities = new Set();
@@ -57,6 +72,10 @@ export class IsometricWorld extends Container {
         this.groundLayer.interactiveChildren = true;
         this.groundLayer.sortableChildren = true;
 
+        // Make entity container sortable and ensure it's visible
+        this.entityContainer.sortableChildren = true;
+        this.entityContainer.zIndex = 100; // Ensure entities are above tiles
+
         // Add layers in correct order
         this.addChild(this.groundLayer);
         this.addChild(this.entityLayer);
@@ -64,7 +83,16 @@ export class IsometricWorld extends Container {
         this.addChild(this.entityContainer);
         this.addChild(this.selectionContainer);
 
-        // Initialize tiles array
+        // Initialize chunk management
+        this.chunks = new Map(); // Map of chunk coordinates to chunk objects
+        this.activeChunks = new Set(); // Set of currently loaded chunk keys
+
+        // Create chunk container
+        this.chunkContainer = new Container();
+        this.chunkContainer.sortableChildren = true;
+        this.addChild(this.chunkContainer);
+
+        // Keep tiles array for backward compatibility during transition
         this.tiles = [];
         this.tilesByCoord = new Map();
 
@@ -441,41 +469,132 @@ export class IsometricWorld extends Container {
         let gridY = Math.floor((isoY - isoX) / 2);
         let gridX = Math.floor((isoY + isoX) / 2);
 
+        console.log(`Screen (${screenX}, ${screenY}) -> Local (${localPoint.x.toFixed(2)}, ${localPoint.y.toFixed(2)}) -> Grid (${gridX}, ${gridY})`);
+
         // Clamp coordinates to valid range
         gridX = Math.max(0, Math.min(gridX, this.config.gridWidth - 1));
         gridY = Math.max(0, Math.min(gridY, this.config.gridHeight - 1));
 
-        // Get the candidate tile
-        const tile = this.getTile(gridX, gridY);
-        if (!tile) {
+        // For chunk-based world, we need to find the chunk that contains this grid position
+        const chunkCoords = this.config.gridToChunk(gridX, gridY);
+        const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+
+        if (!chunk || !chunk.isLoaded) {
+            console.log(`No loaded chunk found at (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) for grid (${gridX}, ${gridY})`);
             return null;
         }
 
+        // Convert to local chunk coordinates
+        const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
+        const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
+
+        // Get the tile from the chunk
+        const tile = chunk.getTile(localX, localY);
+        if (!tile) {
+            console.log(`No tile found in chunk at local (${localX}, ${localY})`);
+            return null;
+        }
+
+        // Ensure tile has proper references
+        if (tile.world !== this) {
+            console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.world = this;
+        }
+
+        if (tile.game !== this.game) {
+            console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.game = this.game;
+        }
+
         // If the precise hit test passes, use this tile
-        if (tile.containsPoint(point)) {
-            return tile;
+        try {
+            if (tile.containsPoint(point)) {
+                console.log(`Found tile at grid (${tile.gridX}, ${tile.gridY}) with hit test`);
+                return tile;
+            }
+        } catch (error) {
+            console.error(`Error testing containsPoint for tile (${tile.gridX}, ${tile.gridY}):`, error);
+            // Continue with neighbor checks
         }
 
         // If the precise hit test fails, test neighboring tiles
-        const neighbors = [
-            this.getTile(gridX - 1, gridY),
-            this.getTile(gridX + 1, gridY),
-            this.getTile(gridX, gridY - 1),
-            this.getTile(gridX, gridY + 1),
-            this.getTile(gridX - 1, gridY - 1),
-            this.getTile(gridX + 1, gridY - 1),
-            this.getTile(gridX - 1, gridY + 1),
-            this.getTile(gridX + 1, gridY + 1)
-        ].filter(t => t !== null);
+        // We need to check neighboring chunks as well
+        const neighbors = [];
+
+        // Check all 8 surrounding positions
+        const directions = [
+            {dx: -1, dy: 0}, {dx: 1, dy: 0}, {dx: 0, dy: -1}, {dx: 0, dy: 1},
+            {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}
+        ];
+
+        for (const dir of directions) {
+            const nx = gridX + dir.dx;
+            const ny = gridY + dir.dy;
+
+            // Skip if outside world bounds
+            if (nx < 0 || nx >= this.config.gridWidth || ny < 0 || ny >= this.config.gridHeight) {
+                continue;
+            }
+
+            // Get the chunk for this neighbor
+            const neighborChunkCoords = this.config.gridToChunk(nx, ny);
+            const neighborChunk = this.getChunk(neighborChunkCoords.chunkX, neighborChunkCoords.chunkY);
+
+            if (!neighborChunk || !neighborChunk.isLoaded) {
+                continue;
+            }
+
+            // Convert to local chunk coordinates
+            const neighborLocalX = nx - (neighborChunkCoords.chunkX * this.config.chunkSize);
+            const neighborLocalY = ny - (neighborChunkCoords.chunkY * this.config.chunkSize);
+
+            // Get the tile from the chunk
+            const neighborTile = neighborChunk.getTile(neighborLocalX, neighborLocalY);
+            if (neighborTile) {
+                neighbors.push(neighborTile);
+            }
+        }
 
         // Find the closest valid tile that contains the point
         for (const neighbor of neighbors) {
-            if (neighbor && neighbor.containsPoint(point)) {
-                return neighbor;
+            if (neighbor) {
+                // Ensure neighbor has proper references
+                if (neighbor.world !== this) {
+                    console.log(`Setting world reference for neighbor tile at (${neighbor.gridX}, ${neighbor.gridY})`);
+                    neighbor.world = this;
+                }
+
+                if (neighbor.game !== this.game) {
+                    console.log(`Setting game reference for neighbor tile at (${neighbor.gridX}, ${neighbor.gridY})`);
+                    neighbor.game = this.game;
+                }
+
+                try {
+                    if (neighbor.containsPoint(point)) {
+                        console.log(`Found neighboring tile at grid (${neighbor.gridX}, ${neighbor.gridY}) with hit test`);
+                        return neighbor;
+                    }
+                } catch (error) {
+                    console.error(`Error testing containsPoint for neighbor tile (${neighbor.gridX}, ${neighbor.gridY}):`, error);
+                    // Continue with other neighbors
+                }
             }
         }
 
         // Return the original tile as fallback if no better match found
+        console.log(`Using original tile at grid (${tile.gridX}, ${tile.gridY}) as fallback`);
+
+        // Ensure tile has proper references one more time before returning
+        if (tile.world !== this) {
+            console.log(`Setting world reference for fallback tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.world = this;
+        }
+
+        if (tile.game !== this.game) {
+            console.log(`Setting game reference for fallback tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.game = this.game;
+        }
+
         return tile;
     }
 
@@ -577,12 +696,16 @@ export class IsometricWorld extends Container {
     generateWorld(options = {}) {
         console.log('Generating world with options:', options);
 
-        // Clear existing world
-        this.clearWorld();
+        // Clear existing world and optionally clear storage
+        const clearStorage = options.clearStorage !== false;
+        this.clearWorld(clearStorage);
+
+        // Set world seed
+        this.seed = options.seed || Math.floor(Math.random() * 1000000);
 
         // Default options
         const defaultOptions = {
-            seed: Math.random() * 1000,
+            seed: this.seed,
             terrainTypes: ['grass', 'dirt', 'sand', 'water'],
             terrainWeights: [0.8, 0.15, 0.04, 0.01], // Increased chance of walkable tiles
             elevationScale: 0.1,
@@ -592,9 +715,40 @@ export class IsometricWorld extends Container {
         // Merge options
         const genOptions = { ...defaultOptions, ...options };
 
-        console.log('World dimensions:', this.config.gridWidth, 'x', this.config.gridHeight);
+        console.log('Using chunk-based world generation');
 
-        // Initialize tiles array if needed
+        // If player exists, generate chunks around player
+        if (this.game.player) {
+            const playerPos = {
+                gridX: this.game.player.gridX,
+                gridY: this.game.player.gridY
+            };
+
+            // Convert to chunk coordinates
+            const playerChunk = this.config.gridToChunk(playerPos.gridX, playerPos.gridY);
+
+            // Generate chunks around player
+            const genDistance = this.config.generateDistance;
+            for (let dx = -genDistance; dx <= genDistance; dx++) {
+                for (let dy = -genDistance; dy <= genDistance; dy++) {
+                    const chunkX = playerChunk.chunkX + dx;
+                    const chunkY = playerChunk.chunkY + dy;
+
+                    // Skip if outside world limits
+                    if (this.config.isChunkOutsideWorldLimits(chunkX, chunkY)) {
+                        continue;
+                    }
+
+                    // Generate and load chunk
+                    this.loadChunk(chunkX, chunkY);
+                }
+            }
+        } else {
+            // No player, generate center chunk
+            this.loadChunk(0, 0);
+        }
+
+        // Initialize tiles array for backward compatibility
         if (!this.tiles || this.tiles.length === 0) {
             this.createEmptyGrid();
         }
@@ -782,9 +936,26 @@ export class IsometricWorld extends Container {
 
     /**
      * Clears the world
+     * @param {boolean} clearStorage - Whether to clear stored chunks
      */
-    clearWorld() {
-        // Remove all tiles
+    clearWorld(clearStorage = false) {
+        // Unload all chunks
+        for (const key of this.activeChunks) {
+            const [chunkX, chunkY] = key.split(',').map(Number);
+            this.unloadChunk(chunkX, chunkY);
+        }
+
+        // Clear chunks map
+        this.chunks.clear();
+        this.activeChunks.clear();
+
+        // Clear storage if requested
+        if (clearStorage && this.persistChunks && this.chunkStorage) {
+            console.log(`Clearing all stored chunks for world ${this.worldId}`);
+            this.chunkStorage.clearWorld(this.worldId);
+        }
+
+        // Remove all tiles (for backward compatibility)
         for (let x = 0; x < this.config.gridWidth; x++) {
             for (let y = 0; y < this.config.gridHeight; y++) {
                 this.removeTile(x, y);
@@ -857,6 +1028,9 @@ export class IsometricWorld extends Container {
         if (this.camera.target) {
             //console.log('Updating camera because target is set');
             this.updateCamera();
+
+            // Update chunk loading based on player position
+            this.updateChunks();
         }
 
         // Update entities
@@ -872,13 +1046,632 @@ export class IsometricWorld extends Container {
             this.sortTilesByDepth = false; // Only sort when needed
         }
 
+        // Update chunk visibility based on camera position
+        this.updateChunkVisibility();
+    }
 
+    /**
+     * Updates chunk loading/unloading based on player position
+     */
+    updateChunks() {
+        // Get player position
+        const player = this.game.player;
+        if (!player) return;
+
+        // Ensure player is visible
+        if (!player.visible) {
+            console.log('Making player visible');
+            player.visible = true;
+            player.alpha = 1.0;
+
+            // Ensure player is in the entity container
+            if (!this.entityContainer.children.includes(player)) {
+                console.log('Re-adding player to entity container');
+                this.entityContainer.addChild(player);
+            }
+        }
+
+        // Convert player position to chunk coordinates
+        const playerChunkCoords = this.config.gridToChunk(
+            player.gridX,
+            player.gridY
+        );
+
+        // Determine chunks to load
+        const chunksToLoad = [];
+        const loadDistance = this.config.loadDistance;
+
+        for (let dx = -loadDistance; dx <= loadDistance; dx++) {
+            for (let dy = -loadDistance; dy <= loadDistance; dy++) {
+                const chunkX = playerChunkCoords.chunkX + dx;
+                const chunkY = playerChunkCoords.chunkY + dy;
+
+                // Skip if far outside world limits
+                if (this.isFarOutsideWorldLimits(chunkX, chunkY)) {
+                    continue;
+                }
+
+                chunksToLoad.push({ chunkX, chunkY });
+            }
+        }
+
+        // Load chunks that should be loaded
+        for (const { chunkX, chunkY } of chunksToLoad) {
+            this.loadChunk(chunkX, chunkY);
+        }
+
+        // Unload chunks that are too far away
+        const unloadDistance = this.config.unloadDistance;
+        for (const key of this.activeChunks) {
+            const [chunkX, chunkY] = key.split(',').map(Number);
+
+            const dx = Math.abs(chunkX - playerChunkCoords.chunkX);
+            const dy = Math.abs(chunkY - playerChunkCoords.chunkY);
+
+            if (dx > unloadDistance || dy > unloadDistance) {
+                this.unloadChunk(chunkX, chunkY);
+            }
+        }
+    }
+
+    /**
+     * Updates chunk visibility based on camera position
+     */
+    updateChunkVisibility() {
+        // Get camera bounds
+        const cameraBounds = this.getCameraBounds();
+
+        // Update visibility of chunks
+        for (const key of this.activeChunks) {
+            const [chunkX, chunkY] = key.split(',').map(Number);
+            const chunk = this.getChunk(chunkX, chunkY);
+
+            if (chunk && chunk.isLoaded) {
+                // Check if chunk is visible in camera
+                const chunkBounds = this.getChunkBounds(chunkX, chunkY);
+                const isVisible = this.boundsIntersect(cameraBounds, chunkBounds);
+
+                // Update visibility
+                chunk.container.visible = isVisible;
+            }
+        }
+    }
+
+    /**
+     * Gets the camera bounds
+     * @param {number} padding - Additional padding to add to the bounds (default: 200)
+     * @returns {Object} Camera bounds {minX, minY, maxX, maxY}
+     */
+    getCameraBounds(padding = 200) {
+        // Get camera position and screen dimensions
+        const cameraX = this.camera.x;
+        const cameraY = this.camera.y;
+        const screenWidth = this.app.screen.width / this.camera.zoom;
+        const screenHeight = this.app.screen.height / this.camera.zoom;
+
+        // Calculate camera bounds with padding
+        return {
+            minX: cameraX - screenWidth/2 - padding,
+            maxX: cameraX + screenWidth/2 + padding,
+            minY: cameraY - screenHeight/2 - padding,
+            maxY: cameraY + screenHeight/2 + padding
+        };
+    }
+
+    /**
+     * Gets the bounds of a chunk
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {Object} Chunk bounds {minX, minY, maxX, maxY}
+     */
+    getChunkBounds(chunkX, chunkY) {
+        // Get grid coordinates of chunk corners
+        const topLeft = this.config.chunkToGrid(chunkX, chunkY);
+        const bottomRight = {
+            gridX: topLeft.gridX + this.config.chunkSize - 1,
+            gridY: topLeft.gridY + this.config.chunkSize - 1
+        };
+
+        // Convert to world coordinates
+        const worldTopLeft = this.gridToWorld(topLeft.gridX, topLeft.gridY);
+        const worldBottomRight = this.gridToWorld(bottomRight.gridX, bottomRight.gridY);
+
+        // Calculate bounds
+        return {
+            minX: Math.min(worldTopLeft.x, worldBottomRight.x) - 100,
+            maxX: Math.max(worldTopLeft.x, worldBottomRight.x) + 100,
+            minY: Math.min(worldTopLeft.y, worldBottomRight.y) - 100,
+            maxY: Math.max(worldTopLeft.y, worldBottomRight.y) + 100
+        };
+    }
+
+    /**
+     * Checks if two bounds intersect
+     * @param {Object} bounds1 - First bounds {minX, minY, maxX, maxY}
+     * @param {Object} bounds2 - Second bounds {minX, minY, maxX, maxY}
+     * @returns {boolean} True if bounds intersect
+     */
+    boundsIntersect(bounds1, bounds2) {
+        return (
+            bounds1.minX <= bounds2.maxX &&
+            bounds1.maxX >= bounds2.minX &&
+            bounds1.minY <= bounds2.maxY &&
+            bounds1.maxY >= bounds2.minY
+        );
+    }
+
+    /**
+     * Gets a chunk at the specified position
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @param {boolean} createIfMissing - Whether to create the chunk if it doesn't exist
+     * @returns {WorldChunk} The chunk at the specified position
+     */
+    getChunk(chunkX, chunkY, createIfMissing = false) {
+        const key = `${chunkX},${chunkY}`;
+
+        if (!this.chunks.has(key) && createIfMissing) {
+            const chunk = new WorldChunk({
+                chunkX,
+                chunkY,
+                size: this.config.chunkSize,
+                world: this
+            });
+            this.chunks.set(key, chunk);
+            return chunk;
+        }
+
+        return this.chunks.get(key) || null;
+    }
+
+    /**
+     * Loads a chunk at the specified position
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {WorldChunk} The loaded chunk
+     */
+    loadChunk(chunkX, chunkY) {
+        // Get or create chunk
+        const chunk = this.getChunk(chunkX, chunkY, true);
+
+        // If chunk is not generated, try to load from storage first
+        if (!chunk.isGenerated && this.persistChunks && this.chunkStorage) {
+            const storedData = this.chunkStorage.loadChunk(this.worldId, chunkX, chunkY);
+
+            if (storedData) {
+                console.log(`Loading chunk (${chunkX}, ${chunkY}) from storage`);
+                chunk.deserialize(storedData);
+            } else {
+                // No stored data, generate new chunk
+                console.log(`Generating new chunk (${chunkX}, ${chunkY})`);
+                chunk.generate();
+            }
+        } else if (!chunk.isGenerated) {
+            // Not using persistence or no storage available, generate new chunk
+            chunk.generate();
+        }
+
+        // Load chunk into memory if not already loaded
+        if (!chunk.isLoaded) {
+            chunk.load();
+            this.chunkContainer.addChild(chunk.container);
+            this.activeChunks.add(`${chunkX},${chunkY}`);
+        }
+
+        return chunk;
+    }
+
+    /**
+     * Unloads a chunk at the specified position
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     */
+    unloadChunk(chunkX, chunkY) {
+        const key = `${chunkX},${chunkY}`;
+        const chunk = this.chunks.get(key);
+
+        if (chunk && chunk.isLoaded) {
+            // Save chunk to storage if it's dirty and persistence is enabled
+            if (chunk.isDirty && this.persistChunks && this.chunkStorage) {
+                console.log(`Saving chunk (${chunkX}, ${chunkY}) to storage`);
+                const serializedData = chunk.serialize();
+                this.chunkStorage.saveChunk(this.worldId, chunkX, chunkY, serializedData);
+                chunk.isDirty = false;
+            }
+
+            // Unload chunk from memory
+            chunk.unload();
+            this.chunkContainer.removeChild(chunk.container);
+            this.activeChunks.delete(key);
+        }
+    }
+
+    /**
+     * Creates a placeholder texture for a terrain type
+     * @param {string} terrainType - Terrain type
+     * @returns {PIXI.Texture} The created texture
+     */
+    createPlaceholderTexture(terrainType) {
+        // Define colors for different terrain types
+        const colors = {
+            grass: 0x33AA33,
+            dirt: 0x8B4513,
+            sand: 0xF0E68C,
+            water: 0x0099FF,
+            stone: 0x888888,
+            snow: 0xFFFFFF,
+            lava: 0xFF4500,
+            void: 0x000000
+        };
+
+        // Get color for terrain type or use a default
+        const mainColor = colors[terrainType] || 0x888888;
+
+        // Create a graphics object for the texture
+        const graphics = new PIXI.Graphics();
+
+        // Draw isometric tile shape
+        graphics.beginFill(mainColor);
+        graphics.lineStyle(1, 0x000000, 0.5);
+        graphics.moveTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(this.config.tileWidth, this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, this.config.tileHeight);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.closePath();
+        graphics.endFill();
+
+        // Generate texture
+        if (this.app && this.app.renderer) {
+            return this.app.renderer.generateTexture(graphics);
+        } else {
+            console.error('Cannot generate texture: app or renderer is not available');
+            return null;
+        }
+    }
+
+    /**
+     * Creates a tile at the specified position (internal method)
+     * This is used by WorldChunk to create tiles
+     * @param {number} x - Grid X position
+     * @param {number} y - Grid Y position
+     * @param {string} type - Tile type
+     * @param {PIXI.Texture} texture - Tile texture
+     * @param {Object} options - Additional tile options
+     * @returns {IsometricTile} The created tile
+     */
+    createTileInternal(x, y, type, texture, options = {}) {
+        try {
+            // For chunk-based worlds, we need to be more flexible with boundaries
+            // Only log a warning if we're far outside the world bounds
+            if (x < -this.config.chunkSize || x >= this.config.gridWidth + this.config.chunkSize ||
+                y < -this.config.chunkSize || y >= this.config.gridHeight + this.config.chunkSize) {
+                console.warn(`Tile position far out of bounds in createTileInternal: ${x}, ${y}`);
+                return null;
+            }
+
+            // For positions slightly outside bounds, just log a debug message
+            if (x < 0 || x >= this.config.gridWidth || y < 0 || y >= this.config.gridHeight) {
+                console.debug(`Tile position slightly out of bounds in createTileInternal: ${x}, ${y}`);
+                // Continue creating the tile anyway for chunk-based worlds
+            }
+
+            // Create new tile with explicit grid coordinates
+            const tile = new IsometricTile({
+                x: x,  // Explicitly use the provided grid coordinates
+                y: y,  // Explicitly use the provided grid coordinates
+                type,
+                width: this.config.tileWidth,
+                height: this.config.tileHeight,
+                texture,
+                world: this,
+                game: this.game,
+                ...options
+            });
+
+            // Explicitly set game reference
+            tile.game = this.game;
+            tile.world = this;
+
+            // Double-check that the grid coordinates are set correctly
+            if (tile.gridX !== x || tile.gridY !== y) {
+                console.warn(`Grid coordinate mismatch in createTileInternal: Expected (${x}, ${y}), got (${tile.gridX}, ${tile.gridY})`);
+                // Force the correct grid coordinates
+                tile.gridX = x;
+                tile.gridY = y;
+            }
+
+            // Store the world position of this tile
+            const worldPos = this.gridToWorld(x, y);
+            tile.worldX = worldPos.x;
+            tile.worldY = worldPos.y;
+
+            // Set texture if not already set
+            if (!tile.sprite && texture) {
+                tile.setTexture(texture);
+            }
+
+            // Update the main world's tile grid for backward compatibility
+            if (this.tiles && x >= 0 && x < this.config.gridWidth && y >= 0 && y < this.config.gridHeight) {
+                this.tiles[x][y] = tile;
+            }
+
+            return tile;
+        } catch (error) {
+            console.error(`Error creating tile at (${x}, ${y}):`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Saves the world state
+     * @returns {Object} The serialized world state
+     */
+    saveWorldState() {
+        // Save all active chunks first
+        for (const key of this.activeChunks) {
+            const [chunkX, chunkY] = key.split(',').map(Number);
+            const chunk = this.getChunk(chunkX, chunkY);
+
+            if (chunk && chunk.isDirty && this.persistChunks && this.chunkStorage) {
+                const serializedData = chunk.serialize();
+                this.chunkStorage.saveChunk(this.worldId, chunkX, chunkY, serializedData);
+                chunk.isDirty = false;
+            }
+        }
+
+        // Create world state object
+        const worldState = {
+            worldId: this.worldId,
+            seed: this.seed,
+            timestamp: Date.now(),
+            playerPosition: this.game && this.game.player ? {
+                x: this.game.player.gridX,
+                y: this.game.player.gridY
+            } : null,
+            cameraPosition: {
+                x: this.camera.x,
+                y: this.camera.y,
+                zoom: this.camera.zoom
+            }
+        };
+
+        // Save world state to localStorage
+        try {
+            localStorage.setItem(`isogame_world_${this.worldId}`, JSON.stringify(worldState));
+            console.log(`World state saved for world ${this.worldId}`);
+        } catch (error) {
+            console.error('Failed to save world state:', error);
+        }
+
+        return worldState;
+    }
+
+    /**
+     * Loads the world state
+     * @returns {boolean} True if the world state was loaded successfully
+     */
+    loadWorldState() {
+        try {
+            // Load world state from localStorage
+            const serializedState = localStorage.getItem(`isogame_world_${this.worldId}`);
+
+            if (!serializedState) {
+                console.log(`No saved state found for world ${this.worldId}`);
+                return false;
+            }
+
+            const worldState = JSON.parse(serializedState);
+            console.log(`Loading world state for world ${this.worldId}`);
+
+            // Clear existing world but don't clear storage
+            console.log('Clearing existing world before loading saved state');
+            this.clearWorld(false);
+
+            // Set seed
+            this.seed = worldState.seed;
+            console.log(`Setting world seed to ${this.seed}`);
+
+            // Set camera position
+            if (worldState.cameraPosition) {
+                this.camera.x = worldState.cameraPosition.x;
+                this.camera.y = worldState.cameraPosition.y;
+                this.camera.zoom = worldState.cameraPosition.zoom;
+                this.updateCamera();
+                console.log(`Set camera position to (${this.camera.x}, ${this.camera.y}, zoom: ${this.camera.zoom})`);
+            }
+
+            // Load chunks first to ensure we have walkable tiles
+            console.log('Pre-loading chunks before positioning player');
+
+            // First, load all chunks that were saved
+            console.log('Loading all saved chunks');
+            const savedChunks = this.chunkStorage.getWorldChunks(this.worldId);
+            console.log(`Found ${savedChunks.length} saved chunks`);
+
+            // Load saved chunks first
+            for (const chunkCoord of savedChunks) {
+                try {
+                    // Skip if far outside world limits
+                    if (this.isFarOutsideWorldLimits(chunkCoord.chunkX, chunkCoord.chunkY)) {
+                        console.debug(`Skipping chunk outside world limits: (${chunkCoord.chunkX}, ${chunkCoord.chunkY})`);
+                        continue;
+                    }
+
+                    // Load chunk
+                    console.log(`Loading saved chunk: (${chunkCoord.chunkX}, ${chunkCoord.chunkY})`);
+                    this.loadChunk(chunkCoord.chunkX, chunkCoord.chunkY);
+                } catch (error) {
+                    console.error(`Error loading chunk (${chunkCoord.chunkX}, ${chunkCoord.chunkY}):`, error);
+                }
+            }
+
+            // If we have player position in saved state, load chunks around that position
+            if (worldState.playerPosition) {
+                console.log(`Loading chunks around player position: (${worldState.playerPosition.x}, ${worldState.playerPosition.y})`);
+                const playerChunk = this.config.gridToChunk(
+                    worldState.playerPosition.x,
+                    worldState.playerPosition.y
+                );
+
+                // Load chunks around saved player position
+                const loadDistance = this.config.loadDistance;
+                for (let dx = -loadDistance; dx <= loadDistance; dx++) {
+                    for (let dy = -loadDistance; dy <= loadDistance; dy++) {
+                        const chunkX = playerChunk.chunkX + dx;
+                        const chunkY = playerChunk.chunkY + dy;
+
+                        // Skip if far outside world limits
+                        if (this.isFarOutsideWorldLimits(chunkX, chunkY)) {
+                            continue;
+                        }
+
+                        // Load chunk if not already loaded
+                        const key = `${chunkX},${chunkY}`;
+                        if (!this.activeChunks.has(key)) {
+                            console.log(`Loading chunk around player: (${chunkX}, ${chunkY})`);
+                            this.loadChunk(chunkX, chunkY);
+                        }
+                    }
+                }
+            } else {
+                // No player position, load center chunk
+                console.log('No player position, loading center chunk');
+                this.loadChunk(0, 0);
+            }
+
+            // Now set player position if player exists
+            if (worldState.playerPosition && this.game && this.game.player) {
+                try {
+                    this.game.player.gridX = worldState.playerPosition.x;
+                    this.game.player.gridY = worldState.playerPosition.y;
+
+                    // Check if the tile at player position is walkable
+                    const tile = this.getTile(this.game.player.gridX, this.game.player.gridY);
+                    if (!tile || !tile.walkable) {
+                        console.warn(`Tile at player position (${this.game.player.gridX}, ${this.game.player.gridY}) is not walkable, finding alternative`);
+
+                        // Find a walkable tile nearby
+                        const centerX = Math.floor(this.config.gridWidth / 2);
+                        const centerY = Math.floor(this.config.gridHeight / 2);
+                        this.game.player.gridX = centerX;
+                        this.game.player.gridY = centerY;
+                    }
+
+                    // Ensure player has world reference
+                    if (!this.game.player.world) {
+                        console.log('Setting player world reference');
+                        this.game.player.world = this;
+                    }
+
+                    this.game.player.updatePosition();
+                    console.log(`Set player position to (${this.game.player.gridX}, ${this.game.player.gridY})`);
+
+                    // Ensure player is visible
+                    this.game.player.visible = true;
+                    this.game.player.alpha = 1.0;
+
+                    // Make sure player is in the entity container
+                    if (!this.entityContainer.children.includes(this.game.player)) {
+                        console.log('Re-adding player to entity container during world load');
+                        this.entityContainer.addChild(this.game.player);
+                    }
+
+                    // Ensure player is active
+                    this.game.player.active = true;
+
+                    // Reset player creation flag in game
+                    if (this.game.playerCreationAttempted) {
+                        this.game.playerCreationAttempted = false;
+                    }
+                } catch (error) {
+                    console.error('Error setting player position:', error);
+                }
+            }
+
+            // Update chunks to ensure proper loading/unloading
+            console.log('Updating chunks after player positioning');
+            this.updateChunks();
+
+            // Force a redraw of all active chunks
+            console.log('Forcing redraw of all active chunks');
+            for (const key of this.activeChunks) {
+                const [chunkX, chunkY] = key.split(',').map(Number);
+                const chunk = this.getChunk(chunkX, chunkY);
+
+                if (chunk && chunk.isLoaded) {
+                    // Ensure all tiles in this chunk are properly set up
+                    for (let localX = 0; localX < chunk.size; localX++) {
+                        for (let localY = 0; localY < chunk.size; localY++) {
+                            const tile = chunk.getTile(localX, localY);
+                            if (tile) {
+                                // Ensure tile has proper references
+                                tile.world = this;
+                                tile.game = this.game;
+
+                                // Ensure tile is in the container
+                                if (!chunk.container.children.includes(tile)) {
+                                    chunk.container.addChild(tile);
+                                }
+
+                                // Update the main world's tile grid
+                                const worldX = (chunk.chunkX * chunk.size) + localX;
+                                const worldY = (chunk.chunkY * chunk.size) + localY;
+
+                                if (worldX >= 0 && worldX < this.config.gridWidth &&
+                                    worldY >= 0 && worldY < this.config.gridHeight) {
+                                    this.tiles[worldX][worldY] = tile;
+                                }
+                            }
+                        }
+                    }
+
+                    // Ensure chunk container is in the world container
+                    if (!this.chunkContainer.children.includes(chunk.container)) {
+                        this.chunkContainer.addChild(chunk.container);
+                    }
+                }
+            }
+
+            // Make sure the chunk container is visible
+            this.chunkContainer.visible = true;
+            this.chunkContainer.alpha = 1.0;
+
+            return true;
+        } catch (error) {
+            console.error('Failed to load world state:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a chunk is far outside the world limits
+     * This is more lenient than the standard isChunkOutsideWorldLimits
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {boolean} True if the chunk is far outside world limits
+     */
+    isFarOutsideWorldLimits(chunkX, chunkY) {
+        // Allow chunks that are slightly outside the world limits
+        const buffer = 5; // Allow chunks up to 5 chunks outside the world limits
+
+        // If any limit is null, that direction is infinite
+        if (this.config.worldLimitMinX !== null && chunkX < this.config.worldLimitMinX - buffer) return true;
+        if (this.config.worldLimitMaxX !== null && chunkX > this.config.worldLimitMaxX + buffer) return true;
+        if (this.config.worldLimitMinY !== null && chunkY < this.config.worldLimitMinY - buffer) return true;
+        if (this.config.worldLimitMaxY !== null && chunkY > this.config.worldLimitMaxY + buffer) return true;
+
+        return false;
     }
 
     /**
      * Disposes of the world
      */
     dispose() {
+        // Save world state before clearing
+        if (this.persistChunks && this.chunkStorage) {
+            this.saveWorldState();
+        }
+
         // Clear world
         this.clearWorld();
 

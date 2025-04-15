@@ -10,6 +10,7 @@ import { Inventory } from './Inventory.js';
 import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
 import { InputManager } from './InputManager.js';
+import { ChunkStorage } from './ChunkStorage.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -34,8 +35,24 @@ export class Game {
             worldHeight: options.worldHeight || 32,
             tileWidth: options.tileWidth || 64,
             tileHeight: options.tileHeight || 32,
+            chunkSize: options.chunkSize || 16,
+            loadDistance: options.loadDistance || 2,
+            unloadDistance: options.unloadDistance || 3,
+            generateDistance: options.generateDistance || 1,
+            worldId: options.worldId || 'default',
+            persistChunks: options.persistChunks !== false,
+            maxStoredChunks: options.maxStoredChunks || 100,
             ...options
         };
+
+        // Create chunk storage for persistence
+        this.chunkStorage = new ChunkStorage({
+            storagePrefix: 'isogame_chunk_',
+            maxChunks: this.options.maxStoredChunks
+        });
+
+        // Flag to prevent infinite player recreation loop
+        this.playerCreationAttempted = false;
 
         // Container element
         this.container = options.container || document.body;
@@ -76,15 +93,23 @@ export class Game {
             app: this.app
         });
 
-        // Create world
+        // Create world with chunk support and persistence
         this.world = new IsometricWorld({
             width: this.options.worldWidth,
             height: this.options.worldHeight,
             tileWidth: this.options.tileWidth,
             tileHeight: this.options.tileHeight,
+            chunkSize: this.options.chunkSize,
+            loadDistance: this.options.loadDistance,
+            unloadDistance: this.options.unloadDistance,
+            generateDistance: this.options.generateDistance,
             app: this.app,
             game: this,
-            generateWorld: this.options.generateWorld !== false
+            generateWorld: this.options.generateWorld !== false,
+            seed: this.options.seed || Math.floor(Math.random() * 1000000),
+            worldId: this.options.worldId,
+            persistChunks: this.options.persistChunks,
+            chunkStorage: this.chunkStorage
         });
 
         // Add world to stage
@@ -203,11 +228,31 @@ export class Game {
         // Set up window resize handler
         window.addEventListener('resize', this.handleResize.bind(this));
 
-        // World is generated in the IsometricWorld constructor if requested
+        // Try to load saved world state if persistence is enabled
+        if (this.options.persistChunks && !this.options.skipLoadSavedState) {
+            const loaded = this.loadWorldState();
+
+            // If no saved state was found, generate a new world
+            if (!loaded && this.options.generateWorld !== false) {
+                console.log('No saved state found, generating new world...');
+                this.world.generateWorld();
+            }
+        }
+        // Otherwise, world is generated in the IsometricWorld constructor if requested
 
         // Create player character if requested
         if (this.options.createPlayer !== false) {
             this.createPlayer();
+        }
+
+        // Set up auto-save if enabled
+        if (this.options.autoSave) {
+            const autoSaveInterval = this.options.autoSaveInterval || 60000; // Default: 1 minute
+            console.log(`Setting up auto-save every ${autoSaveInterval / 1000} seconds`);
+
+            this.autoSaveTimer = setInterval(() => {
+                this.saveWorldState();
+            }, autoSaveInterval);
         }
 
         // Set up performance monitoring
@@ -252,22 +297,52 @@ export class Game {
             case 'mousemove':
                 // Only update tile hover states if not in combat
                 if (this.world && !inCombat) {
-                    // Update hover state for tiles
-                    const tile = this.world.getTileAtScreen(data.x, data.y);
+                    try {
+                        // Update hover state for tiles
+                        let tile = null;
+                        try {
+                            tile = this.world.getTileAtScreen(data.x, data.y);
+                        } catch (error) {
+                            console.error('Error getting tile at screen position:', error);
+                        }
 
-                    if (tile && this.input) {
-                        if (this.input.hoveredTile && this.input.hoveredTile !== tile) {
-                            // Unhighlight previous tile if it's not selected
-                            if (!this.input.hoveredTile.selected) {
-                                this.input.hoveredTile.unhighlight();
+                        if (tile && this.input) {
+                            // Ensure tile has proper references
+                            if (tile.world !== this.world) {
+                                console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.world = this.world;
+                            }
+
+                            if (tile.game !== this) {
+                                console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.game = this;
+                            }
+
+                            if (this.input.hoveredTile && this.input.hoveredTile !== tile) {
+                                // Unhighlight previous tile if it's not selected
+                                if (!this.input.hoveredTile.selected) {
+                                    try {
+                                        this.input.hoveredTile.unhighlight();
+                                    } catch (error) {
+                                        console.error('Error unhighlighting previous tile:', error);
+                                        // Force reset hover state
+                                        this.input.hoveredTile = null;
+                                    }
+                                }
+                            }
+
+                            this.input.hoveredTile = tile;
+                            // Highlight new tile if it's not already selected
+                            if (!tile.selected) {
+                                try {
+                                    tile.highlight();
+                                } catch (error) {
+                                    console.error('Error highlighting tile:', error);
+                                }
                             }
                         }
-
-                        this.input.hoveredTile = tile;
-                        // Highlight new tile if it's not already selected
-                        if (!tile.selected) {
-                            tile.highlight();
-                        }
+                    } catch (error) {
+                        console.error('Error handling mousemove:', error);
                     }
                 }
                 break;
@@ -275,20 +350,72 @@ export class Game {
             case 'mousedown':
                 // Only process tile selection if not in combat
                 if (this.world && !inCombat) {
-                    const tile = this.world.getTileAtScreen(data.x, data.y);
-                    if (tile) {
-                        tile.emit('tileSelected', { tile });
+                    try {
+                        let tile = null;
+                        try {
+                            tile = this.world.getTileAtScreen(data.x, data.y);
+                        } catch (error) {
+                            console.error('Error getting tile at screen position:', error);
+                        }
+
+                        if (tile) {
+                            // Ensure tile has proper references
+                            if (tile.world !== this.world) {
+                                console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.world = this.world;
+                            }
+
+                            if (tile.game !== this) {
+                                console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.game = this;
+                            }
+
+                            tile.emit('tileSelected', { tile });
+                        }
+                    } catch (error) {
+                        console.error('Error handling mousedown:', error);
                     }
                 }
                 break;
 
             case 'rightmousedown':
                 // Only allow player movement if not in combat
+                console.log('Right mouse down event received');
                 if (this.world && this.player && !inCombat) {
-                    const tile = this.world.getTileAtScreen(data.x, data.y);
-                    if (tile) {
-                        this.movePlayerToTile(tile);
+                    try {
+                        console.log('Checking for tile at screen position:', data.x, data.y);
+                        let tile = null;
+                        try {
+                            tile = this.world.getTileAtScreen(data.x, data.y);
+                        } catch (error) {
+                            console.error('Error getting tile at screen position:', error);
+                        }
+
+                        if (tile) {
+                            // Ensure tile has proper references
+                            if (tile.world !== this.world) {
+                                console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.world = this.world;
+                            }
+
+                            if (tile.game !== this) {
+                                console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                                tile.game = this;
+                            }
+
+                            console.log('Tile found, moving player to:', tile.gridX, tile.gridY);
+                            this.movePlayerToTile(tile);
+                        } else {
+                            console.warn('No tile found at screen position');
+                        }
+                    } catch (error) {
+                        console.error('Error handling rightmousedown:', error);
                     }
+                } else {
+                    console.warn('Cannot move player: world or player missing, or in combat');
+                    console.log('World exists:', !!this.world);
+                    console.log('Player exists:', !!this.player);
+                    console.log('In combat:', inCombat);
                 }
                 break;
 
@@ -637,6 +764,8 @@ export class Game {
      * @returns {Character} The player character
      */
     createPlayer() {
+        console.log('Creating player character...');
+
         // Create player character
         const player = new Character({
             name: 'Player',
@@ -668,7 +797,7 @@ export class Game {
             init: function(entity) {
                 this.entity = entity;
             },
-            update: function(deltaTime) {
+            update: function() {
                 // Nothing to update
             }
         });
@@ -687,9 +816,19 @@ export class Game {
                 player.gridX = centerX;
                 player.gridY = centerY;
                 player.world = this.world;
+
+                // Add player to the world's entity container
+                console.log(`Adding player to world at position (${centerX}, ${centerY})`);
                 this.world.entityContainer.addChild(player);
                 centerTile.addEntity(player);
                 this.world.entities.add(player);
+
+                // Ensure player is visible
+                player.visible = true;
+                player.alpha = 1.0;
+
+                // Update player position
+                player.updatePosition();
             } else {
                 // Spiral search pattern
                 let found = false;
@@ -709,9 +848,19 @@ export class Game {
                                 player.gridX = x;
                                 player.gridY = y;
                                 player.world = this.world;
+
+                                // Add player to the world's entity container
+                                console.log(`Adding player to world at position (${x}, ${y})`);
                                 this.world.entityContainer.addChild(player);
                                 tile.addEntity(player);
                                 this.world.entities.add(player);
+
+                                // Ensure player is visible
+                                player.visible = true;
+                                player.alpha = 1.0;
+
+                                // Update player position
+                                player.updatePosition();
                                 found = true;
                             }
                         }
@@ -720,8 +869,37 @@ export class Game {
                 }
 
                 if (!found) {
-                    console.error('Could not find any valid tile to place player after spiral search');
-                    return null;
+                    console.warn('Could not find any valid tile to place player after spiral search');
+
+                    // Force create a walkable tile at the center as a fallback
+                    console.log('Creating a fallback walkable tile at center');
+                    const forceTile = this.world.createTileInternal(centerX, centerY, 'grass',
+                        this.world.createPlaceholderTexture('grass'), {
+                        elevation: 0,
+                        walkable: true
+                    });
+
+                    if (forceTile) {
+                        const pos = forceTile.getCenter();
+                        player.x = pos.x;
+                        player.y = pos.y;
+                        player.gridX = centerX;
+                        player.gridY = centerY;
+                        player.world = this.world;
+
+                        console.log(`Adding player to world at forced position (${centerX}, ${centerY})`);
+                        this.world.entityContainer.addChild(player);
+                        forceTile.addEntity(player);
+                        this.world.entities.add(player);
+
+                        player.visible = true;
+                        player.alpha = 1.0;
+                        player.updatePosition();
+                        found = true;
+                    } else {
+                        console.error('Failed to create fallback tile, cannot place player');
+                        return null;
+                    }
                 }
             }
 
@@ -803,11 +981,39 @@ export class Game {
             if (!this.player.world && this.world) {
                 this.player.world = this.world;
             }
+
+            // Ensure player is visible
+            if (!this.player.visible) {
+                console.log('Making player visible in update');
+                this.player.visible = true;
+                this.player.alpha = 1.0;
+
+                // Ensure player is in the entity container
+                if (this.world && !this.world.entityContainer.children.includes(this.player)) {
+                    console.log('Re-adding player to entity container in update');
+                    this.world.entityContainer.addChild(this.player);
+                }
+            }
         } else {
             // If player is missing but should exist, recreate it
-            if (this.options.createPlayer !== false && this.world) {
-                console.warn('Player reference lost, recreating player');
-                this.createPlayer();
+            if (this.options.createPlayer !== false && this.world && !this.playerCreationAttempted) {
+                console.warn('Player reference lost, attempting to recreate player');
+                this.playerCreationAttempted = true;
+
+                // Make sure we have at least one chunk loaded
+                if (this.world.activeChunks.size === 0) {
+                    console.log('No active chunks, loading center chunk before creating player');
+                    this.world.loadChunk(0, 0);
+                }
+
+                const player = this.createPlayer();
+
+                if (player) {
+                    console.log('Player successfully recreated');
+                    this.playerCreationAttempted = false; // Reset for future attempts if needed
+                } else {
+                    console.error('Failed to recreate player, will not attempt again this session');
+                }
             }
         }
 
@@ -827,7 +1033,122 @@ export class Game {
      * @param {Object} options - Generation options
      */
     generateWorld(options = {}) {
+        console.log('Generating new world...');
+
+        // Temporarily disable input handling to prevent errors during world generation
+        if (this.input) {
+            this.input.enabled = false;
+        }
+
+        // Generate the world
         this.world.generateWorld(options);
+
+        // Make sure we have at least one chunk loaded
+        if (this.world.activeChunks.size === 0) {
+            console.log('No active chunks after world generation, loading center chunk');
+            this.world.loadChunk(0, 0);
+        }
+
+        // Reset player reference
+        if (this.player) {
+            console.log('Removing existing player');
+            if (this.player.parent) {
+                this.player.parent.removeChild(this.player);
+            }
+            this.player = null;
+        }
+
+        // Create player if needed
+        if (this.options.createPlayer !== false) {
+            console.log('Creating player after world generation');
+            this.createPlayer();
+
+            // Ensure player has proper references
+            if (this.player) {
+                this.player.world = this.world;
+                this.player.game = this;
+
+                // Make sure player is visible and active
+                this.player.visible = true;
+                this.player.alpha = 1.0;
+                this.player.active = true;
+
+                // Update player position
+                this.player.updatePosition();
+
+                // Set camera to follow player
+                this.world.setCameraTarget(this.player);
+
+                console.log(`Player created at position (${this.player.gridX}, ${this.player.gridY})`);
+            }
+        }
+
+        // Re-enable input handling after world is fully generated
+        setTimeout(() => {
+            if (this.input) {
+                this.input.enabled = true;
+                console.log('Input handling re-enabled after world generation');
+
+                // Reset hover state
+                if (this.input.hoveredTile) {
+                    try {
+                        this.input.hoveredTile.unhighlight();
+                    } catch (error) {
+                        console.error('Error unhighlighting hovered tile:', error);
+                    }
+                    this.input.hoveredTile = null;
+                }
+
+                // Reset selection state
+                if (this.input.selectedTile) {
+                    try {
+                        this.input.selectedTile.unhighlight();
+                    } catch (error) {
+                        console.error('Error unhighlighting selected tile:', error);
+                    }
+                    this.input.selectedTile = null;
+                }
+            }
+        }, 1000); // Longer delay to ensure world is fully initialized
+
+        console.log('World generation complete');
+    }
+
+    /**
+     * Saves the current world state
+     * @returns {Object} The serialized world state
+     */
+    saveWorldState() {
+        if (this.world) {
+            return this.world.saveWorldState();
+        }
+        return null;
+    }
+
+    /**
+     * Loads a saved world state
+     * @returns {boolean} True if the world state was loaded successfully
+     */
+    loadWorldState() {
+        if (this.world) {
+            return this.world.loadWorldState();
+        }
+        return false;
+    }
+
+    /**
+     * Clears all saved data for the current world
+     * @returns {boolean} True if the data was cleared successfully
+     */
+    clearSavedData() {
+        if (this.world && this.chunkStorage) {
+            // Clear world state
+            localStorage.removeItem(`isogame_world_${this.options.worldId}`);
+
+            // Clear all chunks
+            return this.chunkStorage.clearWorld(this.options.worldId);
+        }
+        return false;
     }
 
     /**
@@ -859,7 +1180,19 @@ export class Game {
      */
     movePlayerToTile(tile) {
         if (!this.player || !tile) {
+            console.warn('Cannot move player: player or tile is null');
             return;
+        }
+
+        // Ensure tile has proper references
+        if (tile.world !== this.world) {
+            console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.world = this.world;
+        }
+
+        if (tile.game !== this) {
+            console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+            tile.game = this;
         }
 
         // Check if the tile is walkable
@@ -870,17 +1203,54 @@ export class Game {
 
         // Clear any previous destination highlight
         if (this.destinationTile && this.destinationTile !== tile) {
-            this.destinationTile.unhighlight();
+            try {
+                this.destinationTile.unhighlight();
+            } catch (error) {
+                console.error('Error unhighlighting previous destination tile:', error);
+                // Force reset destination tile
+                this.destinationTile = null;
+            }
         }
 
         // Highlight the destination tile with a different color
-        tile.highlight(0x00FFFF, 0.5); // Cyan color with 50% opacity
-        this.destinationTile = tile;
+        try {
+            tile.highlight(0x00FFFF, 0.5); // Cyan color with 50% opacity
+            this.destinationTile = tile;
+        } catch (error) {
+            console.error('Error highlighting destination tile:', error);
+            // Continue with movement even if highlighting fails
+        }
 
         // Get the center position of the tile
         const targetPos = tile.getCenter();
 
+        // Ensure we have valid coordinates
+        if (typeof targetPos.x !== 'number' || typeof targetPos.y !== 'number' ||
+            isNaN(targetPos.x) || isNaN(targetPos.y)) {
+            console.error(`Invalid target position: (${targetPos.x}, ${targetPos.y})`);
+            return;
+        }
+
+        console.log(`Setting move target to world position (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)})`);
+
+        // Ensure player is visible and active
+        this.player.visible = true;
+        this.player.alpha = 1.0;
+        this.player.active = true;
+
+        // Ensure player has proper references
+        if (!this.player.world || this.player.world !== this.world) {
+            console.log('Setting player world reference');
+            this.player.world = this.world;
+        }
+
+        if (!this.player.game || this.player.game !== this) {
+            console.log('Setting player game reference');
+            this.player.game = this;
+        }
+
         // Set the player's move target
+        console.log('Setting player move target to:', targetPos);
         this.player.setMoveTarget(targetPos);
 
         // Update the player's grid position immediately for pathfinding purposes
@@ -915,6 +1285,17 @@ export class Game {
      * Destroys the game instance
      */
     destroy() {
+        // Save world state before destroying
+        if (this.options.persistChunks) {
+            this.saveWorldState();
+        }
+
+        // Clear auto-save timer if it exists
+        if (this.autoSaveTimer) {
+            clearInterval(this.autoSaveTimer);
+            this.autoSaveTimer = null;
+        }
+
         // Remove event listeners
         window.removeEventListener('resize', this.handleResize);
 

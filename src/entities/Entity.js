@@ -190,9 +190,14 @@ export class Entity extends Container {
             this.x += this.velocity.x;
             this.y += this.velocity.y;
 
-            // Log position change if significant
-            if (Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) {
-                //console.log(`Entity ${this.id} moved from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+            // Log position change if significant and this is the player
+            if ((Math.abs(this.x - oldX) > 0.1 || Math.abs(this.y - oldY) > 0.1) && this.isPlayer) {
+                console.log(`Player moved from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+                console.log(`Player velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+                console.log(`Player is active: ${this.active}, is visible: ${this.visible}`);
+                console.log(`Player world reference exists: ${!!this.world}`);
+                console.log(`Player moveTarget: ${this.moveTarget ? `(${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})` : 'null'}`);
+                console.log(`Player isMoving: ${this.isMoving}`);
             }
         }
     }

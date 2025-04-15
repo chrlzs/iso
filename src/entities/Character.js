@@ -153,6 +153,12 @@ export class Character extends Entity {
             graphics.moveTo(0, 10);   // Bottom of body
             graphics.lineTo(10, 25);  // Right leg
 
+            // Add glow effect for better visibility
+            if (options.isPlayer) {
+                graphics.lineStyle(6, 0x00FFFF, 0.5);
+                graphics.drawCircle(0, -24, 25);
+            }
+
             // Add to container
             this.addChild(graphics);
             this.sprite = graphics;
@@ -162,6 +168,16 @@ export class Character extends Entity {
             this.sprite.anchor.set(0.5, 1);
             this.addChild(this.sprite);
         }
+
+        // Ensure sprite is visible
+        this.sprite.visible = true;
+        this.sprite.alpha = 1.0;
+
+        // Set zIndex to ensure character is above tiles
+        this.zIndex = 10;
+
+        // Log sprite creation
+        console.log(`Created character sprite: ${options.name}, isPlayer: ${options.isPlayer}`);
     }
 
     /**
@@ -221,6 +237,16 @@ export class Character extends Entity {
     update(deltaTime) {
         super.update(deltaTime);
 
+        // Debug log for player character
+        if (this.isPlayer && Math.random() < 0.01) {
+            console.log(`Player character update:`);
+            console.log(`  Position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+            console.log(`  Grid: (${this.gridX}, ${this.gridY})`);
+            console.log(`  Active: ${this.active}, Visible: ${this.visible}`);
+            console.log(`  isMoving: ${this.isMoving}`);
+            console.log(`  moveTarget: ${this.moveTarget ? `(${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})` : 'null'}`);
+        }
+
         // Update animation
         this.updateAnimation(deltaTime);
 
@@ -266,12 +292,22 @@ export class Character extends Entity {
     updateMovement(deltaTime) {
         // If we have a target, move towards it
         if (this.moveTarget) {
+            // Debug log every 30 frames to avoid console spam
+            if (Math.random() < 0.03) {
+                console.log(`Character ${this.name} updating movement:`);
+                console.log(`  Current position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+                console.log(`  Target position: (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
+                console.log(`  isMoving: ${this.isMoving}`);
+                console.log(`  deltaTime: ${deltaTime}`);
+            }
+
             const dx = this.moveTarget.x - this.x;
             const dy = this.moveTarget.y - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             // If we're close enough to the target, stop moving and update grid position
             if (distance < 2) {
+                console.log(`Character ${this.name} reached target, stopping movement`);
                 this.x = this.moveTarget.x;
                 this.y = this.moveTarget.y;
                 this.stopMoving();
@@ -281,6 +317,7 @@ export class Character extends Entity {
                     const gridPos = this.world.worldToGrid(this.x, this.y);
                     this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, Math.round(gridPos.x)));
                     this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
+                    console.log(`  Updated grid position to (${this.gridX}, ${this.gridY})`);
                 }
                 return;
             }
@@ -293,6 +330,10 @@ export class Character extends Entity {
             this.velocity.x = normalizedDx * this.speed * deltaTime * 60; // Scale by 60 to normalize for 60 FPS
             this.velocity.y = normalizedDy * this.speed * deltaTime * 60;
 
+            if (Math.random() < 0.03) {
+                console.log(`  New velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
+            }
+
             // Update facing direction
             this.updateFacingDirection(normalizedDx, normalizedDy);
 
@@ -303,6 +344,7 @@ export class Character extends Entity {
                 const newGridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, Math.round(gridPos.y)));
 
                 if (newGridX !== this.gridX || newGridY !== this.gridY) {
+                    console.log(`  Grid position changed from (${this.gridX}, ${this.gridY}) to (${newGridX}, ${newGridY})`);
                     this.gridX = newGridX;
                     this.gridY = newGridY;
                 }
@@ -380,14 +422,51 @@ export class Character extends Entity {
         }
 
         // Ensure we have valid coordinates
-        if (typeof target.x !== 'number' || typeof target.y !== 'number') {
+        if (typeof target.x !== 'number' || typeof target.y !== 'number' ||
+            isNaN(target.x) || isNaN(target.y)) {
             console.warn('Invalid move target coordinates:', target);
             return;
         }
 
         // Create a new target object to prevent reference issues
         this.moveTarget = { x: Number(target.x), y: Number(target.y) };
+
+        // Ensure we're not already at the target
+        const dx = this.moveTarget.x - this.x;
+        const dy = this.moveTarget.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 2) {
+            console.log(`Character ${this.name} already at target position, not moving`);
+            return;
+        }
+
+        // Set moving flag
         this.isMoving = true;
+
+        // Initialize velocity based on direction
+        const normalizedDx = dx / distance;
+        const normalizedDy = dy / distance;
+        this.velocity.x = normalizedDx * this.speed * 0.16; // Initial velocity (scaled for 60 FPS)
+        this.velocity.y = normalizedDy * this.speed * 0.16;
+
+        // Debug log
+        console.log(`Character ${this.name} moveTarget set to (${this.moveTarget.x}, ${this.moveTarget.y})`);
+        console.log(`Character isMoving set to ${this.isMoving}`);
+        console.log(`Character current position: (${this.x}, ${this.y})`);
+        console.log(`Character grid position: (${this.gridX}, ${this.gridY})`);
+        console.log(`Character velocity: (${this.velocity.x}, ${this.velocity.y})`);
+        console.log(`Character speed: ${this.speed}`);
+
+        console.log(`Character ${this.name} moving to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
+
+        // Ensure character is visible
+        this.visible = true;
+        this.alpha = 1.0;
+        this.active = true;
+
+        // Update facing direction immediately
+        this.updateFacingDirection(normalizedDx, normalizedDy);
 
         // Show health bar when moving
         if (this.healthBar) {
@@ -414,6 +493,25 @@ export class Character extends Entity {
         this.isMoving = false;
         this.velocity.x = 0;
         this.velocity.y = 0;
+    }
+
+    /**
+     * Updates the character's position based on grid coordinates
+     */
+    updatePosition() {
+        if (!this.world) return;
+
+        // Convert grid coordinates to world coordinates
+        const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+        this.x = worldPos.x;
+        this.y = worldPos.y;
+
+        // Ensure character is visible
+        this.visible = true;
+        this.alpha = 1.0;
+
+        // Log position update
+        console.log(`Character position updated: Grid(${this.gridX}, ${this.gridY}), World(${this.x}, ${this.y})`);
     }
 
     /**

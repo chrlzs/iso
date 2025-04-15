@@ -83,33 +83,67 @@ export class IsometricTile extends Container {
         event.stopPropagation();
     }
 
+    /**
+     * Checks if a point is inside this tile
+     * @param {PIXI.Point} point - The point to check
+     * @returns {boolean} True if the point is inside the tile
+     */
     containsPoint(point) {
-        // First do a strict boundary check
-        if (!this.world || this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
+        try {
+            // First do a strict boundary check
+            if (!this.world || this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
+                this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
+                return false;
+            }
+
+            // Check if the tile is in the display list
+            if (!this.parent || !this.worldTransform) {
+                // If not in display list, use a simpler hit test based on world coordinates
+                if (this.world) {
+                    // Get the world position of this tile
+                    const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+
+                    // Calculate distance from point to tile center
+                    const dx = Math.abs(point.x - worldPos.x);
+                    const dy = Math.abs(point.y - worldPos.y);
+
+                    // Use a simple diamond hit test with the tile dimensions
+                    const halfWidth = this.tileWidth / 2;
+                    const halfHeight = this.tileHeight / 2;
+
+                    // Add some padding for better hit detection
+                    const padding = 8;
+
+                    return (dx / (halfWidth + padding) + dy / (halfHeight + padding)) <= 1.0;
+                }
+                return false;
+            }
+
+            // Normal case - tile is in display list
+            // Convert point to local tile coordinates
+            const localPoint = new PIXI.Point();
+            this.worldTransform.applyInverse(point, localPoint);
+
+            // Adjust point for visual center - tiles are drawn from their bottom center
+            const visualCenterY = -this.tileHeight / 2;
+            localPoint.y -= visualCenterY;
+
+            // Add some padding to the hit area for better click detection
+            const padding = 4;
+            const adjustedWidth = this.tileWidth + padding * 2;
+            const adjustedHeight = this.tileHeight + padding * 2;
+
+            // Get point relative to tile center with padding adjustment
+            const dx = Math.abs(localPoint.x);
+            const dy = Math.abs(localPoint.y);
+
+            // Use diamond equation for hit testing with adjusted dimensions
+            // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
+            return (dx / adjustedWidth + dy / adjustedHeight) <= 0.5;
+        } catch (error) {
+            console.error(`Error in containsPoint for tile (${this.gridX}, ${this.gridY}):`, error);
             return false;
         }
-
-        // Convert point to local tile coordinates
-        const localPoint = new PIXI.Point();
-        this.worldTransform.applyInverse(point, localPoint);
-
-        // Adjust point for visual center - tiles are drawn from their bottom center
-        const visualCenterY = -this.tileHeight / 2;
-        localPoint.y -= visualCenterY;
-
-        // Add some padding to the hit area for better click detection
-        const padding = 4;
-        const adjustedWidth = this.tileWidth + padding * 2;
-        const adjustedHeight = this.tileHeight + padding * 2;
-
-        // Get point relative to tile center with padding adjustment
-        const dx = Math.abs(localPoint.x);
-        const dy = Math.abs(localPoint.y);
-
-        // Use diamond equation for hit testing with adjusted dimensions
-        // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
-        return (dx / adjustedWidth + dy / adjustedHeight) <= 0.5;
     }
 
     /**
@@ -260,39 +294,68 @@ export class IsometricTile extends Container {
      * @param {number} alpha - Highlight alpha (default: 0.5)
      */
     highlight(color = 0x00FFAA, alpha = 0.5) {
-        // Strict boundary check - don't highlight if outside world bounds
-        if (this.gridX < 0 || this.gridX >= this.world.gridWidth ||
-            this.gridY < 0 || this.gridY >= this.world.gridHeight) {
-            console.log(`Prevented highlight of out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
-            return;
+        try {
+            // Strict boundary check - don't highlight if outside world bounds
+            if (!this.world) {
+                console.warn(`Cannot highlight tile at (${this.gridX}, ${this.gridY}): world reference missing`);
+                return;
+            }
+
+            if (this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
+                this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
+                console.log(`Prevented highlight of out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
+                return;
+            }
+
+            // Ensure we have a selection container
+            if (!this.world.selectionContainer) {
+                console.warn('Cannot highlight tile: selectionContainer not available');
+                return;
+            }
+
+            // Create highlight graphics if needed
+            if (!this.highlightGraphics) {
+                this.highlightGraphics = new PIXI.Graphics();
+            }
+
+            // Remove from previous parent if any
+            if (this.highlightGraphics.parent) {
+                this.highlightGraphics.parent.removeChild(this.highlightGraphics);
+            }
+
+            // Add highlight graphics to the world's selection container
+            this.world.selectionContainer.addChild(this.highlightGraphics);
+
+            // Get position in world space
+            let worldPos;
+
+            // If the tile is not in the display list, use world coordinates directly
+            if (!this.parent) {
+                console.log(`Tile (${this.gridX}, ${this.gridY}) not in display list, using world coordinates`);
+
+                // If we have world coordinates, use them
+                if (typeof this.worldX === 'number' && typeof this.worldY === 'number') {
+                    worldPos = { x: this.worldX, y: this.worldY };
+                } else {
+                    // Otherwise, convert grid coordinates to world coordinates
+                    worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+                }
+            } else {
+                // Normal case - tile is in display list
+                worldPos = this.getParentPosition();
+            }
+
+            // Position the highlight graphics
+            this.highlightGraphics.position.set(worldPos.x, worldPos.y);
+
+            // Draw the highlight with cyberpunk effects
+            this.drawHighlight(color, alpha);
+            this.highlighted = true;
+
+            console.log(`Highlighted tile at (${this.gridX}, ${this.gridY}) with color ${color.toString(16)}`);
+        } catch (error) {
+            console.error(`Error highlighting tile (${this.gridX}, ${this.gridY}):`, error);
         }
-
-        // Ensure we have a world reference and selection container
-        if (!this.world || !this.world.selectionContainer) {
-            console.warn('Cannot highlight tile: world or selectionContainer not available');
-            return;
-        }
-
-        // Create highlight graphics if needed
-        if (!this.highlightGraphics) {
-            this.highlightGraphics = new PIXI.Graphics();
-        }
-
-        // Remove from previous parent if any
-        if (this.highlightGraphics.parent) {
-            this.highlightGraphics.parent.removeChild(this.highlightGraphics);
-        }
-
-        // Add highlight graphics to the world's selection container
-        this.world.selectionContainer.addChild(this.highlightGraphics);
-
-        // Position in world space
-        const worldPos = this.getParentPosition();
-        this.highlightGraphics.position.set(worldPos.x, worldPos.y);
-
-        // Draw the highlight with cyberpunk effects
-        this.drawHighlight(color, alpha);
-        this.highlighted = true;
     }
 
     /**
@@ -301,9 +364,46 @@ export class IsometricTile extends Container {
      * @returns {Object} Position {x, y}
      */
     getParentPosition() {
-        const point = new PIXI.Point(this.x, this.y);
-        const newPoint = this.parent.toGlobal(point);
-        return this.world.selectionContainer.toLocal(newPoint);
+        // Check if parent and world exist
+        if (!this.parent || !this.world || !this.world.selectionContainer) {
+            console.warn(`Cannot get parent position for tile (${this.gridX}, ${this.gridY}): parent or world missing`);
+
+            // If we have world coordinates, use them as fallback
+            if (this.world && typeof this.worldX === 'number' && typeof this.worldY === 'number') {
+                return { x: this.worldX, y: this.worldY };
+            }
+
+            // If we have grid coordinates, convert them to world coordinates
+            if (this.world && typeof this.gridX === 'number' && typeof this.gridY === 'number') {
+                const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+                return worldPos;
+            }
+
+            // Return a default position as last resort fallback
+            return { x: this.x, y: this.y };
+        }
+
+        try {
+            const point = new PIXI.Point(this.x, this.y);
+            const newPoint = this.parent.toGlobal(point);
+            return this.world.selectionContainer.toLocal(newPoint);
+        } catch (error) {
+            console.error(`Error getting parent position for tile (${this.gridX}, ${this.gridY}):`, error);
+
+            // If we have world coordinates, use them as fallback
+            if (this.world && typeof this.worldX === 'number' && typeof this.worldY === 'number') {
+                return { x: this.worldX, y: this.worldY };
+            }
+
+            // If we have grid coordinates, convert them to world coordinates
+            if (this.world && typeof this.gridX === 'number' && typeof this.gridY === 'number') {
+                const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
+                return worldPos;
+            }
+
+            // Return a default position as last resort fallback
+            return { x: this.x, y: this.y };
+        }
     }
 
     /**
@@ -316,9 +416,9 @@ export class IsometricTile extends Container {
         if (!this.highlightGraphics) return;
 
         this.highlightGraphics.clear();
-        
+
         const visualCenterY = -this.tileHeight / 2;
-        
+
         // Outer glow
         const glowSize = 6;
         this.highlightGraphics.lineStyle(glowSize, color, 0.2);
@@ -349,19 +449,19 @@ export class IsometricTile extends Container {
         // Add corner accents
         const accentLength = 10;
         this.highlightGraphics.lineStyle(2, color, alpha);
-        
+
         // Top corner
         this.highlightGraphics.moveTo(0, visualCenterY);
         this.highlightGraphics.lineTo(0, visualCenterY + accentLength);
-        
+
         // Right corner
         this.highlightGraphics.moveTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
         this.highlightGraphics.lineTo(this.tileWidth/2 - accentLength, visualCenterY + this.tileHeight/2);
-        
+
         // Bottom corner
         this.highlightGraphics.moveTo(0, visualCenterY + this.tileHeight);
         this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight - accentLength);
-        
+
         // Left corner
         this.highlightGraphics.moveTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
         this.highlightGraphics.lineTo(-this.tileWidth/2 + accentLength, visualCenterY + this.tileHeight/2);
@@ -373,17 +473,26 @@ export class IsometricTile extends Container {
     unhighlight() {
         if (!this.highlighted || !this.highlightGraphics) return;
 
-        // Clear and remove the highlight graphics
-        this.highlightGraphics.clear();
+        try {
+            // Clear and remove the highlight graphics
+            this.highlightGraphics.clear();
 
-        // Remove from parent container
-        if (this.highlightGraphics.parent) {
-            this.highlightGraphics.parent.removeChild(this.highlightGraphics);
+            // Remove from parent container
+            if (this.highlightGraphics.parent) {
+                this.highlightGraphics.parent.removeChild(this.highlightGraphics);
+            }
+
+            // Clean up reference
+            this.highlightGraphics = null;
+            this.highlighted = false;
+
+            console.log(`Unhighlighted tile at (${this.gridX}, ${this.gridY})`);
+        } catch (error) {
+            console.error(`Error unhighlighting tile (${this.gridX}, ${this.gridY}):`, error);
+            // Force cleanup even if there was an error
+            this.highlightGraphics = null;
+            this.highlighted = false;
         }
-
-        // Clean up reference
-        this.highlightGraphics = null;
-        this.highlighted = false;
     }
 
     /**
@@ -423,15 +532,24 @@ export class IsometricTile extends Container {
         // If we have a world reference, return world coordinates
         if (this.world) {
             const worldPos = this.world.gridToWorld(this.gridX, this.gridY);
-            console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
-            return worldPos;
+
+            // Ensure we have valid coordinates
+            if (typeof worldPos.x === 'number' && typeof worldPos.y === 'number' &&
+                !isNaN(worldPos.x) && !isNaN(worldPos.y)) {
+                console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
+                return worldPos;
+            } else {
+                console.warn(`Invalid world position for tile (${this.gridX}, ${this.gridY}): (${worldPos.x}, ${worldPos.y})`);
+            }
         }
 
         // Fallback to local coordinates
-        return {
+        const localPos = {
             x: this.x,
             y: this.y - (this.elevation || 0)
         };
+        console.log(`Using local position for tile (${this.gridX}, ${this.gridY}): (${localPos.x.toFixed(2)}, ${localPos.y.toFixed(2)})`);
+        return localPos;
     }
 
     /**

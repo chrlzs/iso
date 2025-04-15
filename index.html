@@ -63,12 +63,53 @@
     <div id="loading">Loading game...</div>
   </div>
   <div id="fps-counter">FPS: 0</div>
-  <div id="version-info">v1.0.0</div>
+
+  <!-- Chunk Debug Panel -->
+  <div id="chunk-debug" style="position: absolute; top: 40px; right: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 8px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 1000;">
+    <div style="margin-bottom: 5px; font-weight: bold; border-bottom: 1px solid #00aaff;">Chunk Debug</div>
+    <div id="player-pos">Player: (0, 0)</div>
+    <div id="chunk-pos">Chunk: (0, 0)</div>
+    <div id="active-chunks">Active Chunks: 0</div>
+    <div id="total-chunks">Total Chunks: 0</div>
+    <div id="stored-chunks">Stored Chunks: 0</div>
+    <div id="world-id">World ID: main</div>
+    <div id="world-seed">Seed: 0</div>
+  </div>
+  <div id="version-info">v1.1.0 - Chunk-Based World</div>
+
+  <!-- World Management UI -->
+  <div id="world-management" style="position: absolute; top: 10px; left: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; border-radius: 5px; z-index: 1000; display: none;">
+    <h3 style="margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #00aaff;">World Management</h3>
+    <div style="margin-bottom: 10px;">
+      <label for="world-id-input">World ID:</label>
+      <input type="text" id="world-id-input" value="main" style="background-color: #333; color: white; border: 1px solid #555; padding: 3px; margin-left: 5px;">
+    </div>
+    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+      <button id="save-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">Save</button>
+      <button id="load-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">Load</button>
+      <button id="new-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">New</button>
+      <button id="clear-world" style="background-color: #660000; color: white; border: 1px solid #ff0000; padding: 5px 10px; cursor: pointer;">Clear</button>
+    </div>
+    <div id="world-info" style="margin-bottom: 10px; font-size: 12px; background-color: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 3px;">
+      <div>Current World: <span id="current-world-id">main</span></div>
+      <div>Seed: <span id="current-world-seed">0</span></div>
+      <div>Stored Chunks: <span id="current-world-chunks">0</span></div>
+      <div>Storage Size: <span id="current-world-storage">0 KB</span></div>
+      <div>Last Saved: <span id="current-world-timestamp">Never</span></div>
+    </div>
+    <div id="world-status" style="font-size: 12px; color: #aaffaa; min-height: 16px;"></div>
+    <div style="margin-top: 10px; text-align: right;">
+      <button id="close-world-management" style="background-color: #333; color: white; border: 1px solid #555; padding: 3px 8px; cursor: pointer; font-size: 12px;">Close</button>
+    </div>
+  </div>
+
+  <!-- World Management Toggle Button -->
+  <button id="toggle-world-management" style="position: absolute; top: 10px; left: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 3px; cursor: pointer; z-index: 1000;">Worlds</button>
 
   <!-- Load PIXI.js -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
 
   <!-- Load our game -->
-  <script type="module" src="/src/index.js?v=1.0.0"></script>
+  <script type="module" src="/src/index.js?v=1.1.0"></script>
 </body>
 </html>
