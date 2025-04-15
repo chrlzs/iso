@@ -462,22 +462,30 @@ export class Game {
 
         console.log(`Handling placement action for key ${key} on tile (${tile.gridX}, ${tile.gridY})`);
         const { placement } = this.inputConfig.keys;
+        let objectPlaced = false;
 
         switch (key) {
             case placement.tree:
                 if (!this.input.keys.has('shift')) {
-                    this.placeStructure('tree', tile);
+                    objectPlaced = this.placeStructure('tree', tile);
                 }
                 break;
             case placement.rock:
-                this.placeStructure('rock', tile);
+                objectPlaced = this.placeStructure('rock', tile);
                 break;
             case placement.item:
-                this.placeRandomItem(tile);
+                objectPlaced = this.placeRandomItem(tile);
                 break;
             case placement.enemy:
-                this.placeRandomEnemy(tile);
+                objectPlaced = this.placeRandomEnemy(tile);
                 break;
+        }
+
+        // Reset the selected tile after placing an object
+        // This ensures we can select other tiles after placement
+        if (objectPlaced) {
+            console.log('Resetting selected tile after object placement');
+            this.input.resetSelectedTile();
         }
     }
 
@@ -485,11 +493,12 @@ export class Game {
      * Places a structure at the specified tile
      * @param {string} type - Type of structure to place
      * @param {IsometricTile} tile - Tile to place the structure on
+     * @returns {boolean} Whether the structure was successfully placed
      */
     placeStructure(type, tile) {
         if (!tile || !tile.walkable || tile.structure) {
             console.warn('Cannot place structure: invalid tile or tile already has structure');
-            return;
+            return false;
         }
 
         // Create structure with appropriate options based on type
@@ -507,19 +516,22 @@ export class Game {
         if (structure.canPlaceAt(this.world, tile.gridX, tile.gridY)) {
             structure.placeInWorld(this.world, tile.gridX, tile.gridY);
             console.log(`Placed ${type} structure at (${tile.gridX}, ${tile.gridY})`);
+            return true;
         } else {
             console.warn(`Cannot place ${type} structure at (${tile.gridX}, ${tile.gridY})`);
+            return false;
         }
     }
 
     /**
      * Places a random item at the specified tile
      * @param {IsometricTile} tile - Tile to place the item on
+     * @returns {boolean} Whether the item was successfully placed
      */
     placeRandomItem(tile) {
         if (!tile || !tile.walkable || tile.structure) {
             console.warn('Cannot place item: invalid tile or tile is occupied');
-            return;
+            return false;
         }
 
         // Define possible item types
@@ -551,16 +563,18 @@ export class Game {
         this.world.entities.add(item);
 
         console.log(`Placed ${item.name} at (${tile.gridX}, ${tile.gridY})`);
+        return true;
     }
 
     /**
      * Places a random enemy at the specified tile
      * @param {IsometricTile} tile - Tile to place the enemy on
+     * @returns {boolean} Whether the enemy was successfully placed
      */
     placeRandomEnemy(tile) {
         if (!tile || !tile.walkable || tile.structure) {
             console.warn('Cannot place enemy: invalid tile or tile is occupied');
-            return;
+            return false;
         }
 
         // Create enemy with random properties
@@ -603,6 +617,7 @@ export class Game {
         enemy.spawnPoint = { x: worldPos.x, y: worldPos.y };
 
         console.log(`Placed enemy at (${tile.gridX}, ${tile.gridY})`);
+        return true;
     }
 
     /**
