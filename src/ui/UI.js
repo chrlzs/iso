@@ -35,6 +35,9 @@ export class UI {
         this.panels = {};
         this.panelsContainer = new PIXI.Container();
         this.container.addChild(this.panelsContainer);
+
+        // Create quality settings button
+        this.createQualityButton();
     }
 
     /**
@@ -280,6 +283,214 @@ export class UI {
     }
 
     /**
+     * Creates a quality settings button and panel
+     */
+    createQualityButton() {
+        // Create quality button
+        const button = new PIXI.Container();
+        button.position.set(10, this.game.app.screen.height - 40);
+
+        // Button background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000000, 0.7);
+        bg.lineStyle(2, 0x00FFFF, 1);
+        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.endFill();
+        button.addChild(bg);
+
+        // Button text
+        const text = new PIXI.Text('Q', {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fill: 0x00FFFF
+        });
+        text.position.set(15, 5);
+        button.addChild(text);
+
+        // Make button interactive
+        button.interactive = true;
+        button.buttonMode = true;
+        button.on('pointerdown', () => this.togglePanel('quality'));
+
+        this.container.addChild(button);
+        this.qualityButton = button;
+
+        // Create quality panel
+        this.createQualityPanel();
+    }
+
+    /**
+     * Creates the quality settings panel
+     */
+    createQualityPanel() {
+        // Create panel container
+        const panel = new PIXI.Container();
+        panel.visible = false; // Hidden by default
+
+        // Create background
+        const background = new PIXI.Graphics();
+        background.beginFill(0x000000, 0.8);
+        background.lineStyle(2, 0x00FFFF, 1);
+        background.drawRoundedRect(0, 0, 200, 180, 10);
+        background.endFill();
+        panel.addChild(background);
+
+        // Create title
+        const title = new PIXI.Text('Quality Settings', {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fill: 0x00FFFF,
+            align: 'center'
+        });
+        title.position.set(100, 10);
+        title.anchor.set(0.5, 0);
+        panel.addChild(title);
+
+        // Create close button
+        const closeButton = new PIXI.Text('X', {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0xFFFFFF
+        });
+        closeButton.position.set(180, 10);
+        closeButton.interactive = true;
+        closeButton.buttonMode = true;
+        closeButton.on('pointerdown', () => this.togglePanel('quality'));
+        panel.addChild(closeButton);
+
+        // Create quality options
+        const options = ['low', 'medium', 'high'];
+        const currentQuality = this.game.options.quality || 'medium';
+
+        options.forEach((quality, index) => {
+            // Create option container
+            const option = new PIXI.Container();
+            option.position.set(20, 40 + index * 40);
+
+            // Create radio button
+            const radio = new PIXI.Graphics();
+            radio.beginFill(0x333333, 1);
+            radio.lineStyle(2, 0x00FFFF, 1);
+            radio.drawCircle(10, 10, 8);
+            radio.endFill();
+
+            // Add selected indicator
+            if (quality === currentQuality) {
+                const selected = new PIXI.Graphics();
+                selected.beginFill(0x00FFFF, 1);
+                selected.drawCircle(10, 10, 4);
+                selected.endFill();
+                radio.addChild(selected);
+            }
+
+            option.addChild(radio);
+
+            // Create label
+            const label = new PIXI.Text(quality.charAt(0).toUpperCase() + quality.slice(1), {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFFFFF
+            });
+            label.position.set(30, 3);
+            option.addChild(label);
+
+            // Make option interactive
+            option.interactive = true;
+            option.buttonMode = true;
+            option.on('pointerdown', () => {
+                this.setQuality(quality);
+                this.updateQualityPanel();
+            });
+
+            panel.addChild(option);
+        });
+
+        // Add auto-adjust checkbox
+        const autoContainer = new PIXI.Container();
+        autoContainer.position.set(20, 160 - 30);
+
+        const autoBox = new PIXI.Graphics();
+        autoBox.beginFill(0x333333, 1);
+        autoBox.lineStyle(2, 0x00FFFF, 1);
+        autoBox.drawRect(0, 0, 16, 16);
+        autoBox.endFill();
+
+        // Add checkmark if auto-adjust is enabled
+        if (this.game.autoAdjustQuality) {
+            const check = new PIXI.Graphics();
+            check.lineStyle(2, 0x00FFFF, 1);
+            check.moveTo(3, 8);
+            check.lineTo(7, 12);
+            check.lineTo(13, 4);
+            autoBox.addChild(check);
+        }
+
+        autoContainer.addChild(autoBox);
+
+        const autoLabel = new PIXI.Text('Auto-adjust', {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0xFFFFFF
+        });
+        autoLabel.position.set(25, 0);
+        autoContainer.addChild(autoLabel);
+
+        autoContainer.interactive = true;
+        autoContainer.buttonMode = true;
+        autoContainer.on('pointerdown', () => {
+            this.game.autoAdjustQuality = !this.game.autoAdjustQuality;
+            this.updateQualityPanel();
+        });
+
+        panel.addChild(autoContainer);
+
+        // Position panel above the quality button
+        panel.position.set(10, this.game.app.screen.height - 190);
+
+        // Add to panels container
+        this.panelsContainer.addChild(panel);
+
+        // Store reference
+        this.panels.quality = panel;
+    }
+
+    /**
+     * Updates the quality panel to reflect current settings
+     */
+    updateQualityPanel() {
+        const panel = this.panels.quality;
+        if (!panel) return;
+
+        // Remove existing panel
+        this.panelsContainer.removeChild(panel);
+
+        // Create updated panel
+        this.createQualityPanel();
+    }
+
+    /**
+     * Sets the quality level
+     * @param {string} quality - Quality level ('low', 'medium', 'high')
+     */
+    setQuality(quality) {
+        if (!this.game) return;
+
+        // Update game quality setting
+        this.game.options.quality = quality;
+
+        // Update synthwave effect quality
+        if (this.game.synthwaveEffect) {
+            this.game.synthwaveEffect.quality = quality;
+        }
+
+        // Show message
+        this.showMessage(`Quality set to ${quality}`, 2000, {
+            backgroundColor: 0x000000,
+            textColor: 0x00FFFF
+        });
+    }
+
+    /**
      * Resizes all UI elements
      * @param {number} width - New width
      * @param {number} height - New height
@@ -293,9 +504,17 @@ export class UI {
                     width - 320, // Assuming panel width is 320
                     20
                 );
+            } else if (panel === this.panels.quality) {
+                // Reposition quality panel
+                panel.position.set(10, height - 190);
             }
             // Add other panel-specific resize logic here
         });
+
+        // Reposition quality button
+        if (this.qualityButton) {
+            this.qualityButton.position.set(10, height - 40);
+        }
 
         // Resize message container
         if (this.messageContainer) {

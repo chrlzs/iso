@@ -153,8 +153,6 @@ export class IsometricWorld extends Container {
      * @private
      */
     createEmptyGrid() {
-        console.log('Creating empty grid with dimensions:', this.config.gridWidth, 'x', this.config.gridHeight);
-
         // Initialize 2D array
         this.tiles = new Array(this.config.gridWidth);
 
@@ -207,7 +205,6 @@ export class IsometricWorld extends Container {
 
         // Double-check that the grid coordinates are set correctly
         if (tile.gridX !== x || tile.gridY !== y) {
-            console.warn(`Grid coordinate mismatch in createTile: Expected (${x}, ${y}), got (${tile.gridX}, ${tile.gridY})`);
             // Force the correct grid coordinates
             tile.gridX = x;
             tile.gridY = y;
@@ -217,8 +214,6 @@ export class IsometricWorld extends Container {
         const worldPos = this.gridToWorld(x, y);
         tile.worldX = worldPos.x;
         tile.worldY = worldPos.y;
-
-        console.log(`Created tile at grid (${x}, ${y}), world (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
 
         // Add to grid
         this.tiles[x][y] = tile;
@@ -481,7 +476,6 @@ export class IsometricWorld extends Container {
         let gridY = Math.floor((isoY - isoX) / 2);
         let gridX = Math.floor((isoY + isoX) / 2);
 
-        console.log(`Screen (${screenX}, ${screenY}) -> Local (${localPoint.x.toFixed(2)}, ${localPoint.y.toFixed(2)}) -> Grid (${gridX}, ${gridY})`);
 
         // For chunk-based worlds, we don't need to clamp coordinates to the original world bounds
         // Instead, we'll let the chunk system handle coordinates outside the original world bounds
@@ -514,19 +508,16 @@ export class IsometricWorld extends Container {
 
         // Ensure tile has proper references
         if (tile.world !== this) {
-            console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
             tile.world = this;
         }
 
         if (tile.game !== this.game) {
-            console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
             tile.game = this.game;
         }
 
         // If the precise hit test passes, use this tile
         try {
             if (tile.containsPoint(point)) {
-                console.log(`Found tile at grid (${tile.gridX}, ${tile.gridY}) with hit test`);
                 return tile;
             }
         } catch (error) {
@@ -582,18 +573,15 @@ export class IsometricWorld extends Container {
             if (neighbor) {
                 // Ensure neighbor has proper references
                 if (neighbor.world !== this) {
-                    console.log(`Setting world reference for neighbor tile at (${neighbor.gridX}, ${neighbor.gridY})`);
                     neighbor.world = this;
                 }
 
                 if (neighbor.game !== this.game) {
-                    console.log(`Setting game reference for neighbor tile at (${neighbor.gridX}, ${neighbor.gridY})`);
                     neighbor.game = this.game;
                 }
 
                 try {
                     if (neighbor.containsPoint(point)) {
-                        console.log(`Found neighboring tile at grid (${neighbor.gridX}, ${neighbor.gridY}) with hit test`);
                         return neighbor;
                     }
                 } catch (error) {
@@ -604,16 +592,13 @@ export class IsometricWorld extends Container {
         }
 
         // Return the original tile as fallback if no better match found
-        console.log(`Using original tile at grid (${tile.gridX}, ${tile.gridY}) as fallback`);
 
         // Ensure tile has proper references one more time before returning
         if (tile.world !== this) {
-            console.log(`Setting world reference for fallback tile at (${tile.gridX}, ${tile.gridY})`);
             tile.world = this;
         }
 
         if (tile.game !== this.game) {
-            console.log(`Setting game reference for fallback tile at (${tile.gridX}, ${tile.gridY})`);
             tile.game = this.game;
         }
 
@@ -625,7 +610,6 @@ export class IsometricWorld extends Container {
      * @param {Object} target - The target to follow
      */
     setCameraTarget(target) {
-        console.log('Setting camera target:', target ? 'target set' : 'target cleared');
         this.camera.target = target;
 
         // Immediately update camera to center on target
@@ -716,7 +700,6 @@ export class IsometricWorld extends Container {
      * @param {Object} options - Generation options
      */
     generateWorld(options = {}) {
-        console.log('Generating world with options:', options);
 
         // Clear existing world and optionally clear storage
         const clearStorage = options.clearStorage !== false;
@@ -838,7 +821,6 @@ export class IsometricWorld extends Container {
             }
         }
 
-        console.log('World generation complete. Created', this.groundLayer.children.length, 'tiles,', walkableTiles.length, 'walkable');
     }
 
     /**
@@ -959,10 +941,14 @@ export class IsometricWorld extends Container {
      * Adds water effect to tile
      * @private
      */
-    addWaterEffect(graphics, colors) {
-        // Add wave lines
+    addWaterEffect(graphics, colors, quality = 'medium') {
+        // Add wave lines - adjust detail based on quality
         graphics.lineStyle(1, colors.accent, 0.4);
-        for (let y = this.config.tileHeight / 4; y < this.config.tileHeight; y += 4) {
+
+        // Adjust wave density based on quality
+        const spacing = quality === 'low' ? 8 : (quality === 'medium' ? 6 : 4);
+
+        for (let y = this.config.tileHeight / 4; y < this.config.tileHeight; y += spacing) {
             graphics.moveTo(this.config.tileWidth / 4, y);
             graphics.quadraticCurveTo(
                 this.config.tileWidth / 2, y + 2,
@@ -975,12 +961,16 @@ export class IsometricWorld extends Container {
      * Adds grass effect to tile
      * @private
      */
-    addGrassEffect(graphics, colors) {
-        // Add diagonal lines for grass texture
+    addGrassEffect(graphics, colors, quality = 'medium') {
+        // Add diagonal lines for grass texture - adjust detail based on quality
         graphics.lineStyle(1, colors.accent, 0.3);
-        for (let i = 0; i < this.config.tileWidth; i += 8) {
+
+        // Adjust line density based on quality
+        const spacing = quality === 'low' ? 16 : (quality === 'medium' ? 12 : 8);
+
+        for (let i = 0; i < this.config.tileWidth; i += spacing) {
             graphics.moveTo(i, 0);
-            graphics.lineTo(i + 8, this.config.tileHeight);
+            graphics.lineTo(i + spacing, this.config.tileHeight);
         }
     }
 
@@ -988,11 +978,15 @@ export class IsometricWorld extends Container {
      * Adds lava effect to tile
      * @private
      */
-    addLavaEffect(graphics, colors) {
-        // Add glowing patterns
+    addLavaEffect(graphics, colors, quality = 'medium') {
+        // Add glowing patterns - adjust detail based on quality
         graphics.lineStyle(2, colors.accent, 0.6);
-        for (let i = 1; i <= 3; i++) {
-            const offset = i * this.config.tileHeight / 4;
+
+        // Adjust number of lines based on quality
+        const lines = quality === 'low' ? 2 : (quality === 'medium' ? 3 : 4);
+
+        for (let i = 1; i <= lines; i++) {
+            const offset = i * this.config.tileHeight / (lines + 1);
             graphics.moveTo(this.config.tileWidth / 4, offset);
             graphics.lineTo(this.config.tileWidth * 3/4, offset);
         }
@@ -1103,7 +1097,6 @@ export class IsometricWorld extends Container {
             this.groundLayer.addChild(tile);
         }
 
-        console.log('Sorted tiles by depth');
     }
 
     /**
@@ -1111,16 +1104,25 @@ export class IsometricWorld extends Container {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        //console.log('World update called');
-
         // Update camera - ONLY if we have a camera target
         // This prevents the camera from being updated unnecessarily
         if (this.camera.target) {
-            //console.log('Updating camera because target is set');
             this.updateCamera();
 
-            // Update chunk loading based on player position
-            this.updateChunks();
+            // Only update chunks every few frames to improve performance
+            this.frameCount = (this.frameCount || 0) + 1;
+            if (this.frameCount % 10 === 0) {
+                // Update chunk loading based on player position
+                this.updateChunks();
+
+                // Update chunk visibility based on camera position
+                this.updateChunkVisibility();
+
+                // Reset frame counter after a while to prevent overflow
+                if (this.frameCount > 1000) {
+                    this.frameCount = 0;
+                }
+            }
         }
 
         // Update entities
@@ -1135,9 +1137,6 @@ export class IsometricWorld extends Container {
             this.sortTiles();
             this.sortTilesByDepth = false; // Only sort when needed
         }
-
-        // Update chunk visibility based on camera position
-        this.updateChunkVisibility();
     }
 
     /**
@@ -1211,6 +1210,9 @@ export class IsometricWorld extends Container {
         // Get camera bounds
         const cameraBounds = this.getCameraBounds();
 
+        // Cache camera bounds for quick access
+        this._lastCameraBounds = cameraBounds;
+
         // Update visibility of chunks
         for (const key of this.activeChunks) {
             const [chunkX, chunkY] = key.split(',').map(Number);
@@ -1219,10 +1221,16 @@ export class IsometricWorld extends Container {
             if (chunk && chunk.isLoaded) {
                 // Check if chunk is visible in camera
                 const chunkBounds = this.getChunkBounds(chunkX, chunkY);
+
+                // Cache chunk bounds for reuse
+                chunk._bounds = chunkBounds;
+
                 const isVisible = this.boundsIntersect(cameraBounds, chunkBounds);
 
-                // Update visibility
-                chunk.container.visible = isVisible;
+                // Only update visibility if it changed
+                if (chunk.container.visible !== isVisible) {
+                    chunk.container.visible = isVisible;
+                }
             }
         }
     }
@@ -1233,11 +1241,24 @@ export class IsometricWorld extends Container {
      * @returns {Object} Camera bounds {minX, minY, maxX, maxY}
      */
     getCameraBounds(padding = 200) {
+        // Use cached bounds if camera hasn't moved significantly
+        if (this._lastCameraBounds &&
+            Math.abs(this._lastCameraX - this.camera.x) < 10 &&
+            Math.abs(this._lastCameraY - this.camera.y) < 10 &&
+            this._lastCameraZoom === this.camera.zoom) {
+            return this._lastCameraBounds;
+        }
+
         // Get camera position and screen dimensions
         const cameraX = this.camera.x;
         const cameraY = this.camera.y;
         const screenWidth = this.app.screen.width / this.camera.zoom;
         const screenHeight = this.app.screen.height / this.camera.zoom;
+
+        // Store current camera position for future comparison
+        this._lastCameraX = cameraX;
+        this._lastCameraY = cameraY;
+        this._lastCameraZoom = this.camera.zoom;
 
         // Calculate camera bounds with padding
         return {
@@ -1255,6 +1276,14 @@ export class IsometricWorld extends Container {
      * @returns {Object} Chunk bounds {minX, minY, maxX, maxY}
      */
     getChunkBounds(chunkX, chunkY) {
+        // Get the chunk
+        const chunk = this.getChunk(chunkX, chunkY);
+
+        // Use cached bounds if available
+        if (chunk && chunk._bounds) {
+            return chunk._bounds;
+        }
+
         // Get grid coordinates of chunk corners
         const topLeft = this.config.chunkToGrid(chunkX, chunkY);
         const bottomRight = {
@@ -1267,12 +1296,19 @@ export class IsometricWorld extends Container {
         const worldBottomRight = this.gridToWorld(bottomRight.gridX, bottomRight.gridY);
 
         // Calculate bounds
-        return {
+        const bounds = {
             minX: Math.min(worldTopLeft.x, worldBottomRight.x) - 100,
             maxX: Math.max(worldTopLeft.x, worldBottomRight.x) + 100,
             minY: Math.min(worldTopLeft.y, worldBottomRight.y) - 100,
             maxY: Math.max(worldTopLeft.y, worldBottomRight.y) + 100
         };
+
+        // Cache bounds if chunk exists
+        if (chunk) {
+            chunk._bounds = bounds;
+        }
+
+        return bounds;
     }
 
     /**
@@ -1282,11 +1318,16 @@ export class IsometricWorld extends Container {
      * @returns {boolean} True if bounds intersect
      */
     boundsIntersect(bounds1, bounds2) {
+        // Fast rejection test
+        if (!bounds1 || !bounds2) return false;
+
+        // Use a slightly simplified test for better performance
+        // This avoids edge cases where bounds just barely touch
         return (
-            bounds1.minX <= bounds2.maxX &&
-            bounds1.maxX >= bounds2.minX &&
-            bounds1.minY <= bounds2.maxY &&
-            bounds1.maxY >= bounds2.minY
+            bounds1.minX < bounds2.maxX &&
+            bounds1.maxX > bounds2.minX &&
+            bounds1.minY < bounds2.maxY &&
+            bounds1.maxY > bounds2.minY
         );
     }
 
@@ -1382,6 +1423,22 @@ export class IsometricWorld extends Container {
      * @returns {PIXI.Texture} The created texture
      */
     createPlaceholderTexture(terrainType) {
+        // Initialize texture cache if it doesn't exist
+        if (!this.textureCache) {
+            this.textureCache = new Map();
+        }
+
+        // Get quality setting from game if available
+        const quality = (this.game && this.game.options && this.game.options.quality) || 'medium';
+
+        // Create a cache key that includes quality
+        const cacheKey = `${terrainType}_${quality}`;
+
+        // Return cached texture if available
+        if (this.textureCache.has(cacheKey)) {
+            return this.textureCache.get(cacheKey);
+        }
+
         // Synthwave color palette
         const colors = {
             grass: {
@@ -1445,9 +1502,25 @@ export class IsometricWorld extends Container {
         this.drawIsometricTileShape(graphics);
         graphics.endFill();
 
-        // Add grid lines for depth
+        // Adjust detail level based on quality
+        let gridSpacing;
+        switch(quality) {
+            case 'low':
+                gridSpacing = 8;
+                break;
+            case 'medium':
+                gridSpacing = 6;
+                break;
+            case 'high':
+                gridSpacing = 4;
+                break;
+            default:
+                gridSpacing = 6;
+        }
+
+        // Add grid lines for depth - reduced for performance in lower quality settings
         graphics.lineStyle(1, terrainColors.grid, 0.3);
-        for (let y = 0; y < this.config.tileHeight; y += 4) {
+        for (let y = 0; y < this.config.tileHeight; y += gridSpacing) {
             graphics.moveTo(0, y);
             graphics.lineTo(this.config.tileWidth, y);
         }
@@ -1456,31 +1529,38 @@ export class IsometricWorld extends Container {
         graphics.lineStyle(2, terrainColors.main, 1);
         this.drawIsometricTileShape(graphics);
 
-        // Add highlight/glow effect
-        graphics.lineStyle(1, terrainColors.accent, 0.5);
-        for (let i = 0; i < 3; i++) {
-            const offset = i * 2;
-            graphics.moveTo(this.config.tileWidth/2, offset);
-            graphics.lineTo(this.config.tileWidth - offset, this.config.tileHeight/2);
+        // Add highlight/glow effect - simplified for low quality
+        if (quality !== 'low') {
+            graphics.lineStyle(1, terrainColors.accent, 0.5);
+            for (let i = 0; i < (quality === 'high' ? 3 : 2); i++) {
+                const offset = i * 2;
+                graphics.moveTo(this.config.tileWidth/2, offset);
+                graphics.lineTo(this.config.tileWidth - offset, this.config.tileHeight/2);
+            }
         }
 
         // Add terrain-specific details
         switch (terrainType) {
             case 'water':
-                this.addWaterEffect(graphics, terrainColors);
+                this.addWaterEffect(graphics, terrainColors, quality);
                 break;
             case 'grass':
-                this.addGrassEffect(graphics, terrainColors);
+                this.addGrassEffect(graphics, terrainColors, quality);
                 break;
             case 'lava':
-                this.addLavaEffect(graphics, terrainColors);
+                this.addLavaEffect(graphics, terrainColors, quality);
                 break;
             // Add more terrain-specific effects as needed
         }
 
         // Generate texture
         if (this.app && this.app.renderer) {
-            return this.app.renderer.generateTexture(graphics);
+            const texture = this.app.renderer.generateTexture(graphics);
+
+            // Cache the texture
+            this.textureCache.set(cacheKey, texture);
+
+            return texture;
         } else {
             console.error('Cannot generate texture: app or renderer is not available');
             return null;

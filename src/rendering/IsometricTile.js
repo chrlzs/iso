@@ -126,14 +126,18 @@ export class IsometricTile extends Container {
                 return false;
             }
 
+            // Use cached local point if available to avoid creating new objects
+            if (!this._localPoint) {
+                this._localPoint = new PIXI.Point();
+            }
+
             // Normal case - tile is in display list
             // Convert point to local tile coordinates
-            const localPoint = new PIXI.Point();
-            this.worldTransform.applyInverse(point, localPoint);
+            this.worldTransform.applyInverse(point, this._localPoint);
 
             // Adjust point for visual center - tiles are drawn from their bottom center
             const visualCenterY = -this.tileHeight / 2;
-            localPoint.y -= visualCenterY;
+            this._localPoint.y -= visualCenterY;
 
             // Add some padding to the hit area for better click detection
             const padding = 4;
@@ -141,14 +145,13 @@ export class IsometricTile extends Container {
             const adjustedHeight = this.tileHeight + padding * 2;
 
             // Get point relative to tile center with padding adjustment
-            const dx = Math.abs(localPoint.x);
-            const dy = Math.abs(localPoint.y);
+            const dx = Math.abs(this._localPoint.x);
+            const dy = Math.abs(this._localPoint.y);
 
             // Use diamond equation for hit testing with adjusted dimensions
             // A point (x,y) is inside a diamond if |x/w| + |y/h| <= 0.5
             return (dx / adjustedWidth + dy / adjustedHeight) <= 0.5;
         } catch (error) {
-            console.error(`Error in containsPoint for tile (${this.gridX}, ${this.gridY}):`, error);
             return false;
         }
     }
@@ -308,21 +311,28 @@ export class IsometricTile extends Container {
      */
     highlight(color = 0x00FFAA, alpha = 0.5) {
         try {
-            // Strict boundary check - don't highlight if outside world bounds
-            if (!this.world) {
-                console.warn(`Cannot highlight tile at (${this.gridX}, ${this.gridY}): world reference missing`);
+            // Skip if already highlighted with the same color
+            if (this.highlighted && this.highlightColor === color) {
                 return;
             }
 
-            if (this.gridX < 0 || this.gridX >= this.world.config.gridWidth ||
-                this.gridY < 0 || this.gridY >= this.world.config.gridHeight) {
-                console.log(`Prevented highlight of out-of-bounds tile at (${this.gridX}, ${this.gridY})`);
+            // Store highlight color for future reference
+            this.highlightColor = color;
+
+            // Strict boundary check - don't highlight if outside world bounds
+            if (!this.world) {
+                return;
+            }
+
+            // Use a more relaxed boundary check for chunk-based worlds
+            const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
+            if (this.gridX < -maxDistance || this.gridX >= this.world.config.gridWidth + maxDistance ||
+                this.gridY < -maxDistance || this.gridY >= this.world.config.gridHeight + maxDistance) {
                 return;
             }
 
             // Ensure we have a selection container
             if (!this.world.selectionContainer) {
-                console.warn('Cannot highlight tile: selectionContainer not available');
                 return;
             }
 
@@ -344,8 +354,6 @@ export class IsometricTile extends Container {
 
             // If the tile is not in the display list, use world coordinates directly
             if (!this.parent) {
-                console.log(`Tile (${this.gridX}, ${this.gridY}) not in display list, using world coordinates`);
-
                 // If we have world coordinates, use them
                 if (typeof this.worldX === 'number' && typeof this.worldY === 'number') {
                     worldPos = { x: this.worldX, y: this.worldY };
@@ -364,8 +372,6 @@ export class IsometricTile extends Container {
             // Draw the highlight with cyberpunk effects
             this.drawHighlight(color, alpha);
             this.highlighted = true;
-
-            console.log(`Highlighted tile at (${this.gridX}, ${this.gridY}) with color ${color.toString(16)}`);
         } catch (error) {
             console.error(`Error highlighting tile (${this.gridX}, ${this.gridY}):`, error);
         }
@@ -431,20 +437,46 @@ export class IsometricTile extends Container {
         this.highlightGraphics.clear();
         const visualCenterY = -this.tileHeight / 2;
 
-        // Synthwave grid effect
-        const gridColor = 0xFF00FF; // Hot pink
-        this.highlightGraphics.lineStyle(1, gridColor, 0.3);
-        
-        // Horizontal grid lines
-        for (let y = visualCenterY; y <= visualCenterY + this.tileHeight; y += 4) {
-            this.highlightGraphics.moveTo(-this.tileWidth/2, y);
-            this.highlightGraphics.lineTo(this.tileWidth/2, y);
+        // Get quality setting from game if available
+        const quality = (this.game && this.game.options && this.game.options.quality) || 'medium';
+
+        // Adjust detail level based on quality
+        let gridSpacing, glowLayers;
+        switch(quality) {
+            case 'low':
+                gridSpacing = 8;
+                glowLayers = [0.3];
+                break;
+            case 'medium':
+                gridSpacing = 6;
+                glowLayers = [0.2, 0.3];
+                break;
+            case 'high':
+                gridSpacing = 4;
+                glowLayers = [0.1, 0.2, 0.3];
+                break;
+            default:
+                gridSpacing = 6;
+                glowLayers = [0.2, 0.3];
         }
 
-        // Main tile highlight with neon glow
-        const glowSize = 8;
-        // Outer glow layers
-        [0.1, 0.2, 0.3].forEach(glowAlpha => {
+        // Synthwave grid effect - only in medium/high quality
+        if (quality !== 'low') {
+            const gridColor = 0xFF00FF; // Hot pink
+            this.highlightGraphics.lineStyle(1, gridColor, 0.3);
+
+            // Horizontal grid lines with reduced density
+            for (let y = visualCenterY; y <= visualCenterY + this.tileHeight; y += gridSpacing) {
+                this.highlightGraphics.moveTo(-this.tileWidth/2, y);
+                this.highlightGraphics.lineTo(this.tileWidth/2, y);
+            }
+        }
+
+        // Main tile highlight with neon glow - simplified for performance
+        const glowSize = quality === 'low' ? 6 : 8;
+
+        // Outer glow layers - reduced for performance
+        glowLayers.forEach(glowAlpha => {
             this.highlightGraphics.lineStyle(glowSize * (1 + glowAlpha), color, glowAlpha);
             this.drawTileShape();
         });
@@ -455,25 +487,29 @@ export class IsometricTile extends Container {
         this.drawTileShape();
         this.highlightGraphics.endFill();
 
-        // Add chrome/metallic reflection
-        const gradient = new PIXI.Graphics();
-        gradient.beginFill(0xFFFFFF, 0.1);
-        gradient.moveTo(0, visualCenterY);
-        gradient.lineTo(this.tileWidth/4, visualCenterY + this.tileHeight/4);
-        gradient.lineTo(0, visualCenterY + this.tileHeight/2);
-        gradient.lineTo(-this.tileWidth/4, visualCenterY + this.tileHeight/4);
-        gradient.endFill();
-        this.highlightGraphics.addChild(gradient);
+        // Add chrome/metallic reflection - only in medium/high quality
+        if (quality !== 'low') {
+            const gradient = new PIXI.Graphics();
+            gradient.beginFill(0xFFFFFF, 0.1);
+            gradient.moveTo(0, visualCenterY);
+            gradient.lineTo(this.tileWidth/4, visualCenterY + this.tileHeight/4);
+            gradient.lineTo(0, visualCenterY + this.tileHeight/2);
+            gradient.lineTo(-this.tileWidth/4, visualCenterY + this.tileHeight/4);
+            gradient.endFill();
+            this.highlightGraphics.addChild(gradient);
+        }
 
-        // Neon corner accents
+        // Neon corner accents - simplified for performance
         const accentLength = 15;
         const accentColor = 0x00FFFF; // Cyan
         this.highlightGraphics.lineStyle(2, accentColor, alpha);
 
-        // Animated corner effects
-        const time = performance.now() / 1000;
-        const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
-        
+        // Animated corner effects - only animate in high quality
+        const pulseScale = quality === 'high'
+            ? 0.7 + Math.sin(performance.now() / 500) * 0.3
+            : 0.8; // Static value for low/medium quality
+
+        // Simplified corner accents
         [
             [0, visualCenterY, 0, visualCenterY + accentLength * pulseScale],
             [this.tileWidth/2, visualCenterY + this.tileHeight/2, this.tileWidth/2 - accentLength * pulseScale, visualCenterY + this.tileHeight/2],
@@ -509,16 +545,15 @@ export class IsometricTile extends Container {
                 this.highlightGraphics.parent.removeChild(this.highlightGraphics);
             }
 
-            // Clean up reference
+            // Clean up references
             this.highlightGraphics = null;
             this.highlighted = false;
-
-            console.log(`Unhighlighted tile at (${this.gridX}, ${this.gridY})`);
+            this.highlightColor = undefined;
         } catch (error) {
-            console.error(`Error unhighlighting tile (${this.gridX}, ${this.gridY}):`, error);
             // Force cleanup even if there was an error
             this.highlightGraphics = null;
             this.highlighted = false;
+            this.highlightColor = undefined;
         }
     }
 

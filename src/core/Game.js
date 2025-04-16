@@ -43,8 +43,15 @@ export class Game {
             worldId: options.worldId || 'default',
             persistChunks: options.persistChunks !== false,
             maxStoredChunks: options.maxStoredChunks || 100,
+            quality: options.quality || 'medium', // 'low', 'medium', 'high'
             ...options
         };
+
+        // Set quality settings based on FPS
+        this.autoAdjustQuality = options.autoAdjustQuality !== false;
+        this.qualityCheckInterval = options.qualityCheckInterval || 5000; // Check every 5 seconds
+        this.lastQualityCheck = performance.now();
+        this.qualityCheckCounter = 0;
 
         // Create chunk storage for persistence
         this.chunkStorage = new ChunkStorage({
@@ -147,7 +154,8 @@ export class Game {
             app: this.app,
             width: this.options.width,
             height: this.options.height,
-            enabled: true
+            enabled: true,
+            quality: this.options.quality // Pass quality setting
         });
 
         // Add synthwave effect to stage (behind UI but above world)
@@ -393,10 +401,8 @@ export class Game {
 
             case 'rightmousedown':
                 // Only allow player movement if not in combat
-                console.log('Right mouse down event received');
                 if (this.world && this.player && !inCombat) {
                     try {
-                        console.log('Checking for tile at screen position:', data.x, data.y);
                         let tile = null;
                         try {
                             tile = this.world.getTileAtScreen(data.x, data.y);
@@ -407,16 +413,13 @@ export class Game {
                         if (tile) {
                             // Ensure tile has proper references
                             if (tile.world !== this.world) {
-                                console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
                                 tile.world = this.world;
                             }
 
                             if (tile.game !== this) {
-                                console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
                                 tile.game = this;
                             }
 
-                            console.log('Tile found, moving player to:', tile.gridX, tile.gridY);
                             this.movePlayerToTile(tile);
                         } else {
                             console.warn('No tile found at screen position');
@@ -426,9 +429,6 @@ export class Game {
                     }
                 } else {
                     console.warn('Cannot move player: world or player missing, or in combat');
-                    console.log('World exists:', !!this.world);
-                    console.log('Player exists:', !!this.player);
-                    console.log('In combat:', inCombat);
                 }
                 break;
 
@@ -450,7 +450,6 @@ export class Game {
             default:
                 // Handle other input types
                 if (this.options.debug && !inCombat) {
-                    console.log(`[Game] Unhandled input type: ${type}`, data);
                 }
                 break;
         }
@@ -473,7 +472,6 @@ export class Game {
             return;
         }
 
-        console.log(`Handling placement action for key ${key} on tile (${tile.gridX}, ${tile.gridY})`);
         const { placement } = this.inputConfig.keys;
         let objectPlaced = false;
 
@@ -497,7 +495,6 @@ export class Game {
         // Reset the selected tile after placing an object
         // This ensures we can select other tiles after placement
         if (objectPlaced) {
-            console.log('Resetting selected tile after object placement');
             this.input.resetSelectedTile();
         }
     }
@@ -528,7 +525,6 @@ export class Game {
         // Try to place the structure in the world
         if (structure.canPlaceAt(this.world, tile.gridX, tile.gridY)) {
             structure.placeInWorld(this.world, tile.gridX, tile.gridY);
-            console.log(`Placed ${type} structure at (${tile.gridX}, ${tile.gridY})`);
             return true;
         } else {
             console.warn(`Cannot place ${type} structure at (${tile.gridX}, ${tile.gridY})`);
@@ -575,7 +571,6 @@ export class Game {
         tile.addEntity(item);
         this.world.entities.add(item);
 
-        console.log(`Placed ${item.name} at (${tile.gridX}, ${tile.gridY})`);
         return true;
     }
 
@@ -629,7 +624,6 @@ export class Game {
         // Set spawn point for patrolling
         enemy.spawnPoint = { x: worldPos.x, y: worldPos.y };
 
-        console.log(`Placed enemy at (${tile.gridX}, ${tile.gridY})`);
         return true;
     }
 
@@ -681,7 +675,6 @@ export class Game {
 
         // Always disable camera target when using keyboard controls
         if (cameraChanged) {
-            console.log('Camera changed due to keyboard input, disabling camera target');
             this.world.camera.target = null;
         }
 
@@ -728,63 +721,75 @@ export class Game {
             });
         }
 
-        // Update debug info periodically
-        setInterval(() => {
+        // Update debug info periodically - less frequently to reduce performance impact
+        this.performance.fpsUpdateInterval = 1000; // Update once per second
+
+        // Use requestAnimationFrame for smoother updates
+        const updatePerformanceInfo = () => {
             const now = performance.now();
             const elapsed = now - this.performance.lastUpdate;
 
-            // Calculate FPS
-            this.performance.fps = Math.round((this.performance.frames * 1000) / elapsed);
+            // Only update if enough time has passed
+            if (elapsed >= this.performance.fpsUpdateInterval) {
+                // Calculate FPS
+                this.performance.fps = Math.round((this.performance.frames * 1000) / elapsed);
 
-            // Update FPS counters
-            if (this.debugElements.fpsCounter) {
-                this.debugElements.fpsCounter.textContent = `FPS: ${this.performance.fps}`;
-            }
+                // Update UI elements only if they exist and are visible
+                if (this.debugElements.debugPanel && this.debugElements.debugPanel.style.display !== 'none') {
+                    // Update FPS counters
+                    if (this.debugElements.fpsCounter) {
+                        this.debugElements.fpsCounter.textContent = `FPS: ${this.performance.fps}`;
+                    }
 
-            if (this.debugElements.fps) {
-                this.debugElements.fps.textContent = this.performance.fps;
-            }
+                    if (this.debugElements.fps) {
+                        this.debugElements.fps.textContent = this.performance.fps;
+                    }
 
-            // Get memory usage if available
-            if (window.performance && window.performance.memory) {
-                this.performance.memoryUsage = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
+                    // Get memory usage if available - only if debug panel is visible
+                    if (window.performance && window.performance.memory) {
+                        this.performance.memoryUsage = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
 
-                // Update memory usage
-                if (this.debugElements.memory) {
-                    this.debugElements.memory.textContent = `${this.performance.memoryUsage} MB`;
+                        if (this.debugElements.memory) {
+                            this.debugElements.memory.textContent = `${this.performance.memoryUsage} MB`;
+                        }
+                    }
+
+                    // Update camera information
+                    if (this.world && this.world.camera) {
+                        if (this.debugElements.cameraPos) {
+                            const x = Math.round(this.world.camera.x);
+                            const y = Math.round(this.world.camera.y);
+                            this.debugElements.cameraPos.textContent = `${x}, ${y}`;
+                        }
+
+                        if (this.debugElements.cameraZoom) {
+                            this.debugElements.cameraZoom.textContent = this.world.camera.zoom.toFixed(2);
+                        }
+                    }
+
+                    // Update entity count
+                    if (this.world && this.debugElements.entityCount) {
+                        this.debugElements.entityCount.textContent = this.world.entities.size;
+                    }
+
+                    // Update draw calls (if available from renderer)
+                    if (this.app && this.app.renderer && this.debugElements.drawCalls) {
+                        const drawCalls = this.app.renderer.renderCounter || 0;
+                        this.debugElements.drawCalls.textContent = drawCalls;
+                    }
                 }
+
+                // Reset frame counter
+                this.performance.frames = 0;
+                this.performance.lastUpdate = now;
             }
 
-            // Update camera information
-            if (this.world && this.world.camera) {
-                if (this.debugElements.cameraPos) {
-                    const x = Math.round(this.world.camera.x);
-                    const y = Math.round(this.world.camera.y);
-                    this.debugElements.cameraPos.textContent = `${x}, ${y}`;
-                }
+            // Schedule next update
+            requestAnimationFrame(updatePerformanceInfo);
+        };
 
-                if (this.debugElements.cameraZoom) {
-                    this.debugElements.cameraZoom.textContent = this.world.camera.zoom.toFixed(2);
-                }
-            }
-
-            // Update entity count
-            if (this.world && this.debugElements.entityCount) {
-                this.debugElements.entityCount.textContent = this.world.entities.size;
-            }
-
-            // Update draw calls (if available from renderer)
-            if (this.app && this.app.renderer && this.debugElements.drawCalls) {
-                // Note: This might not be directly available in all PIXI versions
-                // Using a placeholder value for now
-                const drawCalls = this.app.renderer.renderCounter || 0;
-                this.debugElements.drawCalls.textContent = drawCalls;
-            }
-
-            // Reset frame counter
-            this.performance.frames = 0;
-            this.performance.lastUpdate = now;
-        }, this.performance.fpsUpdateInterval);
+        // Start the update loop
+        updatePerformanceInfo();
     }
 
     /**
@@ -792,7 +797,6 @@ export class Game {
      * @returns {Character} The player character
      */
     createPlayer() {
-        console.log('Creating player character...');
 
         // Create player character
         const player = new Character({
@@ -835,7 +839,6 @@ export class Game {
             const centerX = Math.floor(this.world.config.gridWidth / 2);
             const centerY = Math.floor(this.world.config.gridHeight / 2);
 
-            console.log(`Finding suitable tile for player placement starting from center (${centerX}, ${centerY})`);
 
             // Use the findWalkableTile method to find a suitable tile
             const suitableTile = this.world.findWalkableTile(centerX, centerY, 20);
@@ -850,7 +853,6 @@ export class Game {
                 player.world = this.world;
 
                 // Add player to the world's entity container
-                console.log(`Adding player to world at position (${suitableTile.gridX}, ${suitableTile.gridY})`);
                 this.world.entityContainer.addChild(player);
                 suitableTile.addEntity(player);
                 this.world.entities.add(player);
@@ -865,7 +867,6 @@ export class Game {
                 console.warn('Could not find any suitable tile for player placement');
 
                 // Force create a walkable grass tile at the center as a fallback
-                console.log('Creating a fallback walkable grass tile at center');
                 const forceTile = this.world.createTileInternal(centerX, centerY, 'grass',
                     this.world.createPlaceholderTexture('grass'), {
                     elevation: 0,
@@ -881,7 +882,6 @@ export class Game {
                     player.gridY = centerY;
                     player.world = this.world;
 
-                    console.log(`Adding player to world at forced position (${centerX}, ${centerY})`);
                     this.world.entityContainer.addChild(player);
                     forceTile.addEntity(player);
                     this.world.entities.add(player);
@@ -1018,6 +1018,11 @@ export class Game {
 
         // Update performance monitoring
         this.performance.frames++;
+
+        // Auto-adjust quality based on FPS if enabled
+        if (this.autoAdjustQuality) {
+            this.checkPerformance();
+        }
     }
 
     /**
@@ -1279,6 +1284,69 @@ export class Game {
 
         // Set up a new interval to check if the player has reached the destination
         this.destinationCheckInterval = setInterval(checkDestinationReached, 100);
+    }
+
+    /**
+     * Checks performance and adjusts quality settings if needed
+     * @private
+     */
+    checkPerformance() {
+        const now = performance.now();
+
+        // Only check every few seconds to avoid frequent quality changes
+        if (now - this.lastQualityCheck < this.qualityCheckInterval) {
+            return;
+        }
+
+        // Get current FPS
+        const currentFPS = this.performance.fps;
+        this.qualityCheckCounter++;
+
+        // Only adjust after a few checks to ensure stability
+        if (this.qualityCheckCounter < 3) {
+            this.lastQualityCheck = now;
+            return;
+        }
+
+        // Reset counter
+        this.qualityCheckCounter = 0;
+
+        // Adjust quality based on FPS
+        let newQuality = this.options.quality;
+
+        if (currentFPS < 15) {
+            // Very low FPS, drop to low quality
+            newQuality = 'low';
+        } else if (currentFPS < 30 && this.options.quality !== 'low') {
+            // Below 30 FPS, drop one quality level
+            if (this.options.quality === 'high') {
+                newQuality = 'medium';
+            } else {
+                newQuality = 'low';
+            }
+        } else if (currentFPS > 55 && this.options.quality !== 'high') {
+            // Above 55 FPS, increase one quality level
+            if (this.options.quality === 'low') {
+                newQuality = 'medium';
+            } else {
+                newQuality = 'high';
+            }
+        }
+
+        // Apply quality change if needed
+        if (newQuality !== this.options.quality) {
+            console.log(`Adjusting quality from ${this.options.quality} to ${newQuality} (FPS: ${currentFPS})`);
+            this.options.quality = newQuality;
+
+            // Update synthwave effect quality
+            if (this.synthwaveEffect) {
+                this.synthwaveEffect.quality = newQuality;
+            }
+
+            // Could update other quality-dependent systems here
+        }
+
+        this.lastQualityCheck = now;
     }
 
     /**
