@@ -114,32 +114,47 @@ export class Character extends Entity {
         if (!options.texture) {
             const graphics = new PIXI.Graphics();
 
-            // Body
-            graphics.beginFill(options.color || 0x3498db);
+            // Synthwave color palette
+            const mainColor = options.isPlayer ? 0x00FFFF : (options.color || 0xFF00FF); // Cyan for player, pink for others
+            const outlineColor = 0xFF00FF; // Neon pink outline
+            const glowColor = options.isPlayer ? 0x00FFFF : 0xFF00FF; // Cyan glow for player, pink for others
+            const accentColor = options.isPlayer ? 0xFF00FF : 0x00FFFF; // Pink accents for player, cyan for others
+
+            // Create glow effect
+            const glowSize = 8;
+            [0.1, 0.2, 0.3].forEach(glowAlpha => {
+                graphics.lineStyle(glowSize * (1 + glowAlpha), glowColor, glowAlpha);
+                graphics.drawCircle(0, -24, 20);
+            });
+
+            // Body - with grid pattern
+            graphics.beginFill(mainColor, 0.7);
             graphics.drawCircle(0, -24, 20);
             graphics.endFill();
 
-            // Add outline for better visibility
-            graphics.lineStyle(3, 0x000000);
+            // Add neon outline
+            graphics.lineStyle(2, outlineColor, 1);
             graphics.drawCircle(0, -24, 20);
 
-            // Add face details
+            // Add face details with neon effect
+            // Eyes
             graphics.beginFill(0xFFFFFF);
             graphics.drawCircle(-6, -30, 4); // Left eye
             graphics.drawCircle(6, -30, 4);  // Right eye
             graphics.endFill();
 
-            graphics.beginFill(0x000000);
+            // Pupils with glow
+            graphics.beginFill(accentColor);
             graphics.drawCircle(-6, -30, 2); // Left pupil
             graphics.drawCircle(6, -30, 2);  // Right pupil
             graphics.endFill();
 
-            // Add smile
-            graphics.lineStyle(2, 0x000000);
+            // Add smile with neon effect
+            graphics.lineStyle(2, accentColor);
             graphics.arc(0, -20, 8, 0.1 * Math.PI, 0.9 * Math.PI);
 
-            // Add body/legs
-            graphics.lineStyle(3, 0x000000);
+            // Add body/legs with neon effect
+            graphics.lineStyle(2, outlineColor);
             graphics.moveTo(0, -4); // Bottom of head
             graphics.lineTo(0, 10);  // Body
 
@@ -154,11 +169,32 @@ export class Character extends Entity {
             graphics.moveTo(0, 10);   // Bottom of body
             graphics.lineTo(10, 25);  // Right leg
 
-            // Add glow effect for better visibility
-            if (options.isPlayer) {
-                graphics.lineStyle(6, 0x00FFFF, 0.5);
-                graphics.drawCircle(0, -24, 25);
+            // Add grid pattern for synthwave effect
+            graphics.lineStyle(1, accentColor, 0.3);
+            for (let y = -40; y <= 25; y += 5) {
+                graphics.moveTo(-20, y);
+                graphics.lineTo(20, y);
             }
+
+            // Add extra neon accents
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Animated neon accents
+            graphics.lineStyle(2, accentColor, 0.8);
+            const accentLength = 5 * pulseScale;
+
+            // Head accents
+            graphics.moveTo(-20, -24);
+            graphics.lineTo(-20 + accentLength, -24);
+            graphics.moveTo(20, -24);
+            graphics.lineTo(20 - accentLength, -24);
+
+            // Shoulder accents
+            graphics.moveTo(-15, -10);
+            graphics.lineTo(-15, -10 + accentLength);
+            graphics.moveTo(15, -10);
+            graphics.lineTo(15, -10 + accentLength);
 
             // Add to container
             this.addChild(graphics);
@@ -168,6 +204,12 @@ export class Character extends Entity {
             this.sprite = new PIXI.Sprite(options.texture);
             this.sprite.anchor.set(0.5, 1);
             this.addChild(this.sprite);
+
+            // Add neon outline to texture-based sprite
+            const outline = new PIXI.Graphics();
+            outline.lineStyle(2, options.isPlayer ? 0x00FFFF : 0xFF00FF, 0.8);
+            outline.drawRect(-this.sprite.width/2, -this.sprite.height, this.sprite.width, this.sprite.height);
+            this.addChild(outline);
         }
 
         // Ensure sprite is visible
@@ -193,19 +235,73 @@ export class Character extends Entity {
         this.healthBar.position.set(0, -50); // Position higher above character
         this.addChild(this.healthBar);
 
-        // Background
+        // Glow effect for health bar
+        const glowGraphics = new PIXI.Graphics();
+        const glowColor = this.isPlayer ? 0x00FFFF : 0xFF00FF; // Cyan for player, pink for others
+
+        [0.05, 0.1, 0.15].forEach(alpha => {
+            const size = 3 * (1 + alpha);
+            glowGraphics.lineStyle(size, glowColor, alpha);
+            glowGraphics.drawRect(-22, -1, 44, 7);
+        });
+        this.healthBar.addChild(glowGraphics);
+
+        // Background with grid pattern
         this.healthBarBg = new PIXI.Graphics();
-        this.healthBarBg.beginFill(0x000000, 0.5);
+        this.healthBarBg.beginFill(0x000000, 0.7);
         this.healthBarBg.drawRect(-20, 0, 40, 5);
         this.healthBarBg.endFill();
+
+        // Add grid lines
+        this.healthBarBg.lineStyle(1, 0x333333, 0.5);
+        for (let x = -20; x <= 20; x += 4) {
+            this.healthBarBg.moveTo(x, 0);
+            this.healthBarBg.lineTo(x, 5);
+        }
         this.healthBar.addChild(this.healthBarBg);
 
-        // Foreground
+        // Foreground with neon color
         this.healthBarFg = new PIXI.Graphics();
-        this.healthBarFg.beginFill(0x2ecc71);
+        this.healthBarFg.beginFill(0x00FFFF); // Cyan neon
         this.healthBarFg.drawRect(-19, 1, 38, 3);
         this.healthBarFg.endFill();
         this.healthBar.addChild(this.healthBarFg);
+
+        // Add neon outline
+        const outlineGraphics = new PIXI.Graphics();
+        outlineGraphics.lineStyle(1, 0xFF00FF, 1); // Pink neon outline
+        outlineGraphics.drawRect(-20, 0, 40, 5);
+        this.healthBar.addChild(outlineGraphics);
+
+        // Add corner accents
+        const accentGraphics = new PIXI.Graphics();
+        accentGraphics.lineStyle(1, 0xFF00FF, 1);
+
+        // Top left corner
+        accentGraphics.moveTo(-20, 0);
+        accentGraphics.lineTo(-15, 0);
+        accentGraphics.moveTo(-20, 0);
+        accentGraphics.lineTo(-20, 2);
+
+        // Top right corner
+        accentGraphics.moveTo(20, 0);
+        accentGraphics.lineTo(15, 0);
+        accentGraphics.moveTo(20, 0);
+        accentGraphics.lineTo(20, 2);
+
+        // Bottom left corner
+        accentGraphics.moveTo(-20, 5);
+        accentGraphics.lineTo(-15, 5);
+        accentGraphics.moveTo(-20, 5);
+        accentGraphics.lineTo(-20, 3);
+
+        // Bottom right corner
+        accentGraphics.moveTo(20, 5);
+        accentGraphics.lineTo(15, 5);
+        accentGraphics.moveTo(20, 5);
+        accentGraphics.lineTo(20, 3);
+
+        this.healthBar.addChild(accentGraphics);
 
         // Hide health bar by default
         this.healthBar.visible = false;
@@ -216,13 +312,21 @@ export class Character extends Entity {
      * @private
      */
     createNameLabel() {
-        // Create text style
+        // Create text style with synthwave aesthetic
         const style = new PIXI.TextStyle({
-            fontFamily: 'Arial',
+            fontFamily: 'Arial, sans-serif',
             fontSize: 12,
-            fill: 0xffffff,
+            fontWeight: 'bold',
+            fill: [0x00FFFF, 0xFF00FF], // Gradient from cyan to pink
+            fillGradientType: 1,
+            fillGradientStops: [0, 1],
             stroke: 0x000000,
-            strokeThickness: 2,
+            strokeThickness: 3,
+            dropShadow: true,
+            dropShadowColor: 0xFF00FF,
+            dropShadowBlur: 4,
+            dropShadowAngle: Math.PI / 6,
+            dropShadowDistance: 2,
             align: 'center'
         });
 
@@ -230,7 +334,31 @@ export class Character extends Entity {
         this.nameLabel = new PIXI.Text(this.name, style);
         this.nameLabel.anchor.set(0.5, 0);
         this.nameLabel.position.set(0, -60); // Position higher above character
+
+        // Add glow container
+        const glowContainer = new PIXI.Container();
+        glowContainer.position.set(0, -60);
+        this.addChild(glowContainer);
+
+        // Add glow effect
+        const glowColor = this.isPlayer ? 0x00FFFF : 0xFF00FF;
+        const glow = new PIXI.Graphics();
+        [0.05, 0.1, 0.15].forEach(alpha => {
+            const size = 3 * (1 + alpha);
+            glow.lineStyle(size, glowColor, alpha);
+            glow.drawRect(-this.nameLabel.width/2 - 5, -5, this.nameLabel.width + 10, this.nameLabel.height + 5);
+        });
+        glowContainer.addChild(glow);
+
+        // Add text on top of glow
         this.addChild(this.nameLabel);
+
+        // Add animation update
+        this.game?.app?.ticker.add(() => {
+            const time = performance.now() / 1000;
+            const pulseFactor = 0.9 + Math.sin(time * 2) * 0.1;
+            this.nameLabel.scale.set(pulseFactor, pulseFactor);
+        });
     }
 
     /**
@@ -496,9 +624,9 @@ export class Character extends Entity {
      * @private
      */
     getHealthColor(percent) {
-        if (percent > 0.6) return 0x2ecc71; // Green
-        if (percent > 0.3) return 0xf39c12; // Orange
-        return 0xe74c3c; // Red
+        if (percent > 0.6) return 0x00FFFF; // Cyan (full health)
+        if (percent > 0.3) return 0xFF00FF; // Magenta (medium health)
+        return 0xFF355E; // Hot pink (low health)
     }
 
     /**

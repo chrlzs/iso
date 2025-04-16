@@ -11,6 +11,7 @@ import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
 import { InputManager } from './InputManager.js';
 import { ChunkStorage } from './ChunkStorage.js';
+import { SynthwaveEffect } from '../rendering/SynthwaveEffect.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -140,6 +141,18 @@ export class Game {
 
         // Create day/night overlay
         this.dayNightCycle.createOverlay(this.app.stage, this.options.width, this.options.height);
+
+        // Create synthwave effect
+        this.synthwaveEffect = new SynthwaveEffect({
+            app: this.app,
+            width: this.options.width,
+            height: this.options.height,
+            enabled: true
+        });
+
+        // Add synthwave effect to stage (behind UI but above world)
+        this.app.stage.addChild(this.synthwaveEffect.container);
+        this.synthwaveEffect.container.zIndex = 500;
 
         // Create combat manager
         this.combatManager = new CombatManager({
@@ -1147,6 +1160,11 @@ export class Game {
             this.dayNightCycle.resizeOverlay(width, height);
         }
 
+        // Resize synthwave effect
+        if (this.synthwaveEffect) {
+            this.synthwaveEffect.resize(width, height);
+        }
+
         // Resize UI - check if UI exists first
         if (this.ui && typeof this.ui.resize === 'function') {
             this.ui.resize(width, height);
@@ -1303,6 +1321,11 @@ export class Game {
         // Remove day/night overlay
         if (this.dayNightCycle && this.dayNightCycle.overlay && this.dayNightCycle.overlay.parent) {
             this.dayNightCycle.overlay.parent.removeChild(this.dayNightCycle.overlay);
+        }
+
+        // Remove synthwave effect
+        if (this.synthwaveEffect && this.synthwaveEffect.container && this.synthwaveEffect.container.parent) {
+            this.synthwaveEffect.container.parent.removeChild(this.synthwaveEffect.container);
         }
 
         // Destroy app

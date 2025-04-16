@@ -49,27 +49,178 @@ export class Structure extends Entity {
         // Create a new graphics object
         const graphics = new PIXI.Graphics();
 
-        // Draw based on structure type
+        // Synthwave color palette
+        const colors = {
+            tree: {
+                main: 0x00FF00,    // Neon green
+                accent: 0xFF00FF,   // Magenta
+                dark: 0x004400,     // Dark green
+                trunk: 0xFF6B6B     // Coral pink
+            },
+            rock: {
+                main: 0xAAAAAA,    // Silver
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x444444      // Dark gray
+            },
+            house: {
+                main: 0x00FFFF,    // Cyan
+                accent: 0xFF00FF,   // Magenta
+                dark: 0x000080,     // Dark blue
+                roof: 0xFF355E      // Hot pink
+            },
+            generic: {
+                main: 0xFF00FF,    // Magenta
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x800080      // Dark purple
+            }
+        };
+
+        // Get colors for structure type
+        const structureColors = colors[this.structureType] || colors.generic;
+
+        // Common glow effect for all structures
+        const glowSize = 8;
+        [0.1, 0.2, 0.3].forEach(glowAlpha => {
+            graphics.lineStyle(glowSize * (1 + glowAlpha), structureColors.accent, glowAlpha);
+            if (this.structureType === 'tree') {
+                graphics.drawCircle(0, -40, 30);
+            } else if (this.structureType === 'rock') {
+                graphics.drawEllipse(0, 0, 30, 20);
+            } else {
+                graphics.drawRect(-30, -60, 60, 60);
+            }
+        });
+
+        // Draw based on structure type with synthwave aesthetic
         if (this.structureType === 'tree') {
-            // Draw a tree
+            // Draw a tree with neon effect
             // Trunk
-            graphics.beginFill(0x8B4513);
+            graphics.beginFill(structureColors.trunk, 0.7);
             graphics.drawRect(-10, -10, 20, 40);
             graphics.endFill();
 
-            // Foliage
-            graphics.beginFill(0x00FF00);
+            // Trunk outline
+            graphics.lineStyle(2, structureColors.accent, 1);
+            graphics.drawRect(-10, -10, 20, 40);
+
+            // Grid pattern on trunk
+            graphics.lineStyle(1, structureColors.accent, 0.3);
+            for (let y = -10; y <= 30; y += 5) {
+                graphics.moveTo(-10, y);
+                graphics.lineTo(10, y);
+            }
+
+            // Foliage with neon effect
+            graphics.beginFill(structureColors.main, 0.7);
             graphics.drawCircle(0, -40, 30);
             graphics.endFill();
+
+            // Foliage outline
+            graphics.lineStyle(2, structureColors.accent, 1);
+            graphics.drawCircle(0, -40, 30);
+
+            // Add animated accents
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            graphics.lineStyle(2, structureColors.accent, 0.8);
+
+            // Top accent
+            graphics.moveTo(0, -70);
+            graphics.lineTo(0, -70 + 10 * pulseScale);
+
+            // Side accents
+            graphics.moveTo(-30, -40);
+            graphics.lineTo(-30 + 10 * pulseScale, -40);
+            graphics.moveTo(30, -40);
+            graphics.lineTo(30 - 10 * pulseScale, -40);
+
         } else if (this.structureType === 'rock') {
-            // Draw a rock
-            graphics.beginFill(0xCCCCCC);
+            // Draw a rock with neon effect
+            graphics.beginFill(structureColors.dark, 0.7);
             graphics.drawEllipse(0, 0, 30, 20);
             graphics.endFill();
+
+            // Rock outline
+            graphics.lineStyle(2, structureColors.main, 1);
+            graphics.drawEllipse(0, 0, 30, 20);
+
+            // Add highlights
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.moveTo(-15, -5);
+            graphics.lineTo(-5, -10);
+            graphics.lineTo(5, -8);
+            graphics.lineTo(15, -3);
+
+            // Add animated accent
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            graphics.lineStyle(2, structureColors.accent, 0.8);
+            graphics.drawEllipse(0, 0, 32 * pulseScale, 22 * pulseScale);
+
         } else {
-            // Generic building
-            graphics.beginFill(0xAAAAAA);
-            graphics.drawRect(-30, -60, 60, 60);
+            // Generic building with neon effect
+            // Base
+            graphics.beginFill(structureColors.dark, 0.7);
+            graphics.drawRect(-30, -30, 60, 30);
+            graphics.endFill();
+
+            // Base outline
+            graphics.lineStyle(2, structureColors.main, 1);
+            graphics.drawRect(-30, -30, 60, 30);
+
+            // Grid pattern on base
+            graphics.lineStyle(1, structureColors.accent, 0.3);
+            for (let y = -30; y <= 0; y += 5) {
+                graphics.moveTo(-30, y);
+                graphics.lineTo(30, y);
+            }
+
+            // Roof
+            graphics.beginFill(structureColors.accent, 0.7);
+            graphics.moveTo(-30, -30);
+            graphics.lineTo(0, -60);
+            graphics.lineTo(30, -30);
+            graphics.closePath();
+            graphics.endFill();
+
+            // Roof outline
+            graphics.lineStyle(2, structureColors.main, 1);
+            graphics.moveTo(-30, -30);
+            graphics.lineTo(0, -60);
+            graphics.lineTo(30, -30);
+
+            // Door
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-10, -25, 20, 25);
+            graphics.endFill();
+
+            // Door outline
+            graphics.lineStyle(2, structureColors.accent, 1);
+            graphics.drawRect(-10, -25, 20, 25);
+
+            // Window
+            graphics.beginFill(structureColors.accent, 0.3);
+            graphics.drawRect(-20, -20, 5, 5);
+            graphics.drawRect(15, -20, 5, 5);
+            graphics.endFill();
+
+            // Window outlines
+            graphics.lineStyle(1, structureColors.accent, 1);
+            graphics.drawRect(-20, -20, 5, 5);
+            graphics.drawRect(15, -20, 5, 5);
+
+            // Add animated accents
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            graphics.lineStyle(2, structureColors.accent, 0.8);
+
+            // Roof accent
+            graphics.moveTo(0, -60);
+            graphics.lineTo(0, -60 + 10 * pulseScale);
+
+            // Door handle
+            graphics.beginFill(structureColors.accent, 1);
+            graphics.drawCircle(5, -15, 2 * pulseScale);
             graphics.endFill();
         }
 
@@ -217,12 +368,68 @@ export class Structure extends Entity {
             const width = this.gridWidth * 32;
             const height = this.gridHeight * 16;
 
-            this.highlightGraphics.lineStyle(2, 0xFFFF00, 0.8);
+            // Synthwave color palette
+            const colors = {
+                tree: 0x00FF00,    // Neon green
+                rock: 0x00FFFF,    // Cyan
+                house: 0xFF00FF,   // Magenta
+                generic: 0xFF00FF  // Magenta
+            };
+
+            // Get highlight color based on structure type
+            const highlightColor = colors[this.structureType] || colors.generic;
+            const accentColor = this.structureType === 'tree' ? 0xFF00FF : 0x00FFFF;
+
+            // Add glow effect
+            const glowSize = 8;
+            [0.1, 0.2, 0.3].forEach(glowAlpha => {
+                this.highlightGraphics.lineStyle(glowSize * (1 + glowAlpha), highlightColor, glowAlpha);
+                this.highlightGraphics.moveTo(-width/2, 0);
+                this.highlightGraphics.lineTo(0, -height/2);
+                this.highlightGraphics.lineTo(width/2, 0);
+                this.highlightGraphics.lineTo(0, height/2);
+                this.highlightGraphics.closePath();
+            });
+
+            // Main highlight
+            this.highlightGraphics.beginFill(highlightColor, 0.15);
+            this.highlightGraphics.lineStyle(2, highlightColor, 0.8);
             this.highlightGraphics.moveTo(-width/2, 0);
             this.highlightGraphics.lineTo(0, -height/2);
             this.highlightGraphics.lineTo(width/2, 0);
             this.highlightGraphics.lineTo(0, height/2);
             this.highlightGraphics.closePath();
+            this.highlightGraphics.endFill();
+
+            // Add grid pattern
+            this.highlightGraphics.lineStyle(1, accentColor, 0.3);
+            for (let y = -height/2; y <= height/2; y += 4) {
+                this.highlightGraphics.moveTo(-width/2, y);
+                this.highlightGraphics.lineTo(width/2, y);
+            }
+
+            // Add animated corner accents
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            const accentLength = 10 * pulseScale;
+
+            this.highlightGraphics.lineStyle(2, accentColor, 0.8);
+
+            // Top corner
+            this.highlightGraphics.moveTo(0, -height/2);
+            this.highlightGraphics.lineTo(0, -height/2 + accentLength);
+
+            // Right corner
+            this.highlightGraphics.moveTo(width/2, 0);
+            this.highlightGraphics.lineTo(width/2 - accentLength, 0);
+
+            // Bottom corner
+            this.highlightGraphics.moveTo(0, height/2);
+            this.highlightGraphics.lineTo(0, height/2 - accentLength);
+
+            // Left corner
+            this.highlightGraphics.moveTo(-width/2, 0);
+            this.highlightGraphics.lineTo(-width/2 + accentLength, 0);
         }
     }
 

@@ -65,132 +65,276 @@ export class Enemy extends Character {
         // Create graphics based on enemy type
         const graphics = new PIXI.Graphics();
 
+        // Synthwave color palette
+        const colors = {
+            slime: {
+                main: 0x00FFFF,    // Cyan
+                accent: 0xFF00FF,   // Magenta
+                dark: 0x000080      // Dark blue
+            },
+            goblin: {
+                main: 0x00FF00,    // Neon green
+                accent: 0xFFFF00,   // Yellow
+                dark: 0x004400      // Dark green
+            },
+            skeleton: {
+                main: 0xFFFFFF,    // White
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x444444      // Dark gray
+            },
+            boss: {
+                main: 0xFF355E,    // Hot pink
+                accent: 0xFFFF00,   // Yellow
+                dark: 0x800020      // Dark red
+            },
+            generic: {
+                main: 0xFF00FF,    // Magenta
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x800080      // Dark purple
+            }
+        };
+
+        // Get colors for enemy type
+        const enemyColors = colors[this.enemyType] || colors.generic;
+
+        // Common glow effect for all enemies
+        const glowSize = 8;
+        [0.1, 0.2, 0.3].forEach(glowAlpha => {
+            graphics.lineStyle(glowSize * (1 + glowAlpha), enemyColors.accent, glowAlpha);
+            switch (this.enemyType) {
+                case 'slime':
+                    graphics.drawEllipse(0, -10, 20, 15);
+                    break;
+                case 'goblin':
+                case 'skeleton':
+                    graphics.drawRoundedRect(-10, -30, 20, 30, 5);
+                    break;
+                case 'boss':
+                    graphics.drawRoundedRect(-15, -40, 30, 40, 5);
+                    break;
+                default:
+                    graphics.drawCircle(0, -15, 15);
+                    break;
+            }
+        });
+
         switch (this.enemyType) {
             case 'slime':
-                // Slime body (blue blob)
-                graphics.beginFill(0x00AAFF);
+                // Slime body with neon effect
+                graphics.beginFill(enemyColors.main, 0.7);
                 graphics.drawEllipse(0, -10, 20, 15);
                 graphics.endFill();
 
-                // Slime eyes
+                // Neon outline
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.drawEllipse(0, -10, 20, 15);
+
+                // Grid pattern
+                graphics.lineStyle(1, enemyColors.accent, 0.3);
+                for (let y = -20; y <= 0; y += 4) {
+                    graphics.moveTo(-20, y);
+                    graphics.lineTo(20, y);
+                }
+
+                // Slime eyes with glow
                 graphics.beginFill(0xFFFFFF);
                 graphics.drawCircle(-8, -15, 5);
                 graphics.drawCircle(8, -15, 5);
                 graphics.endFill();
 
-                graphics.beginFill(0x000000);
+                graphics.beginFill(enemyColors.accent);
                 graphics.drawCircle(-8, -15, 2);
                 graphics.drawCircle(8, -15, 2);
                 graphics.endFill();
+
+                // Add animated accents
+                const time = performance.now() / 1000;
+                const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+                graphics.lineStyle(2, enemyColors.accent, 0.8);
+                graphics.moveTo(-15, -10);
+                graphics.lineTo(-15 + 5 * pulseScale, -10);
+                graphics.moveTo(15, -10);
+                graphics.lineTo(15 - 5 * pulseScale, -10);
                 break;
 
             case 'goblin':
-                // Goblin body (green)
-                graphics.beginFill(0x00AA00);
+                // Goblin body with neon effect
+                graphics.beginFill(enemyColors.main, 0.7);
                 graphics.drawRoundedRect(-10, -30, 20, 30, 5);
                 graphics.endFill();
 
-                // Goblin head
-                graphics.beginFill(0x00AA00);
+                // Neon outline
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.drawRoundedRect(-10, -30, 20, 30, 5);
+
+                // Grid pattern
+                graphics.lineStyle(1, enemyColors.accent, 0.3);
+                for (let y = -30; y <= 0; y += 5) {
+                    graphics.moveTo(-10, y);
+                    graphics.lineTo(10, y);
+                }
+
+                // Goblin head with neon effect
+                graphics.beginFill(enemyColors.main, 0.7);
                 graphics.drawCircle(0, -35, 10);
                 graphics.endFill();
 
-                // Goblin eyes
-                graphics.beginFill(0xFF0000);
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.drawCircle(0, -35, 10);
+
+                // Goblin eyes with glow
+                graphics.beginFill(enemyColors.accent);
                 graphics.drawCircle(-5, -35, 2);
                 graphics.drawCircle(5, -35, 2);
                 graphics.endFill();
 
-                // Goblin weapon
-                graphics.beginFill(0x8B4513);
+                // Goblin weapon with neon effect
+                graphics.beginFill(enemyColors.dark);
                 graphics.drawRect(15, -25, 3, 20);
                 graphics.endFill();
+
+                graphics.lineStyle(1, enemyColors.accent, 1);
+                graphics.drawRect(15, -25, 3, 20);
                 break;
 
             case 'skeleton':
-                // Skeleton body (white)
-                graphics.beginFill(0xFFFFFF);
+                // Skeleton body with neon effect
+                graphics.beginFill(enemyColors.dark, 0.7);
                 graphics.drawRoundedRect(-10, -30, 20, 30, 2);
                 graphics.endFill();
 
-                // Skeleton head
-                graphics.beginFill(0xFFFFFF);
+                // Neon outline
+                graphics.lineStyle(2, enemyColors.main, 1);
+                graphics.drawRoundedRect(-10, -30, 20, 30, 2);
+
+                // Skeleton head with neon effect
+                graphics.beginFill(enemyColors.dark, 0.7);
                 graphics.drawCircle(0, -40, 10);
                 graphics.endFill();
 
-                // Skeleton eyes
-                graphics.beginFill(0x000000);
+                graphics.lineStyle(2, enemyColors.main, 1);
+                graphics.drawCircle(0, -40, 10);
+
+                // Skeleton eyes with glow
+                graphics.beginFill(enemyColors.accent);
                 graphics.drawCircle(-4, -40, 2);
                 graphics.drawCircle(4, -40, 2);
                 graphics.endFill();
 
-                // Skeleton ribs
-                graphics.lineStyle(1, 0x000000);
+                // Skeleton ribs with neon effect
+                graphics.lineStyle(1, enemyColors.main, 1);
                 for (let i = 0; i < 5; i++) {
                     graphics.moveTo(-10, -25 + i * 5);
                     graphics.lineTo(10, -25 + i * 5);
                 }
 
-                // Skeleton weapon
-                graphics.beginFill(0x888888);
+                // Skeleton weapon with neon effect
+                graphics.beginFill(enemyColors.dark);
                 graphics.drawRect(15, -30, 2, 30);
                 graphics.endFill();
+
+                graphics.lineStyle(1, enemyColors.accent, 1);
+                graphics.drawRect(15, -30, 2, 30);
                 break;
 
             case 'boss':
-                // Boss body (dark red)
-                graphics.beginFill(0xAA0000);
+                // Boss body with neon effect
+                graphics.beginFill(enemyColors.dark, 0.7);
                 graphics.drawRoundedRect(-15, -40, 30, 40, 5);
                 graphics.endFill();
 
-                // Boss head
-                graphics.beginFill(0xAA0000);
+                // Neon outline
+                graphics.lineStyle(2, enemyColors.main, 1);
+                graphics.drawRoundedRect(-15, -40, 30, 40, 5);
+
+                // Grid pattern
+                graphics.lineStyle(1, enemyColors.accent, 0.3);
+                for (let y = -40; y <= 0; y += 5) {
+                    graphics.moveTo(-15, y);
+                    graphics.lineTo(15, y);
+                }
+
+                // Boss head with neon effect
+                graphics.beginFill(enemyColors.dark, 0.7);
                 graphics.drawCircle(0, -50, 15);
                 graphics.endFill();
 
-                // Boss eyes
-                graphics.beginFill(0xFFFF00);
+                graphics.lineStyle(2, enemyColors.main, 1);
+                graphics.drawCircle(0, -50, 15);
+
+                // Boss eyes with glow
+                graphics.beginFill(enemyColors.accent);
                 graphics.drawCircle(-6, -50, 3);
                 graphics.drawCircle(6, -50, 3);
                 graphics.endFill();
 
-                // Boss horns
-                graphics.beginFill(0x888888);
+                // Boss horns with neon effect
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.beginFill(enemyColors.dark);
                 graphics.moveTo(-10, -60);
                 graphics.lineTo(-15, -70);
                 graphics.lineTo(-5, -65);
                 graphics.closePath();
                 graphics.endFill();
 
-                graphics.beginFill(0x888888);
+                graphics.beginFill(enemyColors.dark);
                 graphics.moveTo(10, -60);
                 graphics.lineTo(15, -70);
                 graphics.lineTo(5, -65);
                 graphics.closePath();
                 graphics.endFill();
 
-                // Boss weapon
-                graphics.beginFill(0x888888);
+                // Boss weapon with neon effect
+                graphics.beginFill(enemyColors.dark);
                 graphics.drawRect(20, -40, 5, 50);
                 graphics.endFill();
+
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.drawRect(20, -40, 5, 50);
+
+                // Add animated energy effect
+                const bossTime = performance.now() / 1000;
+                const bossPulse = 0.7 + Math.sin(bossTime * 3) * 0.3;
+                graphics.lineStyle(3 * bossPulse, enemyColors.accent, 0.8);
+                graphics.drawCircle(0, -30, 25 * bossPulse);
                 break;
 
             default:
-                // Generic enemy (red)
-                graphics.beginFill(0xFF0000);
+                // Generic enemy with neon effect
+                graphics.beginFill(enemyColors.main, 0.7);
                 graphics.drawCircle(0, -15, 15);
                 graphics.endFill();
 
-                // Generic eyes
+                // Neon outline
+                graphics.lineStyle(2, enemyColors.accent, 1);
+                graphics.drawCircle(0, -15, 15);
+
+                // Grid pattern
+                graphics.lineStyle(1, enemyColors.accent, 0.3);
+                for (let y = -25; y <= -5; y += 4) {
+                    graphics.moveTo(-15, y);
+                    graphics.lineTo(15, y);
+                }
+
+                // Generic eyes with glow
                 graphics.beginFill(0xFFFFFF);
                 graphics.drawCircle(-5, -15, 5);
                 graphics.drawCircle(5, -15, 5);
                 graphics.endFill();
 
-                graphics.beginFill(0x000000);
+                graphics.beginFill(enemyColors.accent);
                 graphics.drawCircle(-5, -15, 2);
                 graphics.drawCircle(5, -15, 2);
                 graphics.endFill();
+
+                // Add animated accents
+                const genericTime = performance.now() / 1000;
+                const genericPulse = 0.7 + Math.sin(genericTime * 2) * 0.3;
+                graphics.lineStyle(2, enemyColors.accent, 0.8);
+                graphics.moveTo(-15, -15);
+                graphics.lineTo(-15 + 5 * genericPulse, -15);
+                graphics.moveTo(15, -15);
+                graphics.lineTo(15 - 5 * genericPulse, -15);
                 break;
         }
 
@@ -231,7 +375,7 @@ export class Enemy extends Character {
      */
     onClick(event) {
         console.log(`Clicked on ${this.enemyType} enemy!`);
-        
+
         // Get the game instance and player
         const world = this.parent?.parent;
         const game = world?.game;
@@ -386,7 +530,7 @@ export class Enemy extends Character {
         // Convert back to world coordinates
         const worldPos = this.world.gridToWorld(clampedGridX, clampedGridY);
         this.patrolPoint = worldPos;
-        
+
         console.log(`Generated patrol point at grid (${clampedGridX}, ${clampedGridY}), world (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
     }
 

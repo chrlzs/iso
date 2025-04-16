@@ -895,7 +895,7 @@ export class IsometricWorld extends Container {
 
         // Create a graphics object for the texture
         const graphics = new PIXI.Graphics();
-        
+
         // Draw base shape with gradient effect
         graphics.beginFill(terrainColors.dark);
         this.drawIsometricTileShape(graphics);
@@ -1382,33 +1382,101 @@ export class IsometricWorld extends Container {
      * @returns {PIXI.Texture} The created texture
      */
     createPlaceholderTexture(terrainType) {
-        // Define colors for different terrain types
+        // Synthwave color palette
         const colors = {
-            grass: 0x33AA33,
-            dirt: 0x8B4513,
-            sand: 0xF0E68C,
-            water: 0x0099FF,
-            stone: 0x888888,
-            snow: 0xFFFFFF,
-            lava: 0xFF4500,
-            void: 0x000000
+            grass: {
+                main: 0xFF00FF,    // Neon pink
+                accent: 0x00FFFF,  // Cyan
+                dark: 0x800080,    // Dark purple
+                grid: 0x00FFFF     // Cyan grid
+            },
+            dirt: {
+                main: 0xFF6B6B,    // Coral pink
+                accent: 0xFF355E,   // Hot pink
+                dark: 0x4A0404,     // Dark red
+                grid: 0xFF00FF      // Pink grid
+            },
+            sand: {
+                main: 0xFFA500,    // Orange
+                accent: 0xFFD700,   // Gold
+                dark: 0x804000,     // Dark orange
+                grid: 0xFFD700      // Gold grid
+            },
+            water: {
+                main: 0x00FFFF,    // Cyan
+                accent: 0x0099FF,   // Blue
+                dark: 0x000080,     // Dark blue
+                grid: 0x00FFFF      // Cyan grid
+            },
+            stone: {
+                main: 0xAAAAAA,    // Light gray
+                accent: 0xCCCCCC,   // Silver
+                dark: 0x444444,     // Dark gray
+                grid: 0xAAAAAA      // Gray grid
+            },
+            snow: {
+                main: 0xFFFFFF,    // White
+                accent: 0xCCFFFF,   // Light cyan
+                dark: 0xCCCCFF,     // Light blue
+                grid: 0x00FFFF      // Cyan grid
+            },
+            lava: {
+                main: 0xFF4500,    // Orange red
+                accent: 0xFFFF00,   // Yellow
+                dark: 0x800000,     // Dark red
+                grid: 0xFF00FF      // Pink grid
+            },
+            void: {
+                main: 0x000000,    // Black
+                accent: 0xFF00FF,   // Neon pink
+                dark: 0x000000,     // Black
+                grid: 0xFF00FF      // Pink grid
+            }
         };
 
-        // Get color for terrain type or use a default
-        const mainColor = colors[terrainType] || 0x888888;
+        // Get colors for terrain type or use a default
+        const terrainColors = colors[terrainType] || colors.void;
 
         // Create a graphics object for the texture
         const graphics = new PIXI.Graphics();
 
-        // Draw isometric tile shape
-        graphics.beginFill(mainColor);
-        graphics.lineStyle(1, 0x000000, 0.5);
-        graphics.moveTo(this.config.tileWidth / 2, 0);
-        graphics.lineTo(this.config.tileWidth, this.config.tileHeight / 2);
-        graphics.lineTo(this.config.tileWidth / 2, this.config.tileHeight);
-        graphics.lineTo(0, this.config.tileHeight / 2);
-        graphics.closePath();
+        // Draw base shape with gradient effect
+        graphics.beginFill(terrainColors.dark);
+        this.drawIsometricTileShape(graphics);
         graphics.endFill();
+
+        // Add grid lines for depth
+        graphics.lineStyle(1, terrainColors.grid, 0.3);
+        for (let y = 0; y < this.config.tileHeight; y += 4) {
+            graphics.moveTo(0, y);
+            graphics.lineTo(this.config.tileWidth, y);
+        }
+
+        // Add neon outline
+        graphics.lineStyle(2, terrainColors.main, 1);
+        this.drawIsometricTileShape(graphics);
+
+        // Add highlight/glow effect
+        graphics.lineStyle(1, terrainColors.accent, 0.5);
+        for (let i = 0; i < 3; i++) {
+            const offset = i * 2;
+            graphics.moveTo(this.config.tileWidth/2, offset);
+            graphics.lineTo(this.config.tileWidth - offset, this.config.tileHeight/2);
+        }
+
+        // Add terrain-specific details
+        switch (terrainType) {
+            case 'water':
+                this.addWaterEffect(graphics, terrainColors);
+                break;
+            case 'grass':
+                this.addGrassEffect(graphics, terrainColors);
+                break;
+            case 'lava':
+                this.addLavaEffect(graphics, terrainColors);
+                break;
+            // Add more terrain-specific effects as needed
+        }
 
         // Generate texture
         if (this.app && this.app.renderer) {
@@ -1417,6 +1485,95 @@ export class IsometricWorld extends Container {
             console.error('Cannot generate texture: app or renderer is not available');
             return null;
         }
+    }
+
+    /**
+     * Draws the basic isometric tile shape
+     * @private
+     */
+    drawIsometricTileShape(graphics) {
+        graphics.moveTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(this.config.tileWidth, this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, this.config.tileHeight);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.closePath();
+    }
+
+    /**
+     * Adds water effect to a tile
+     * @param {PIXI.Graphics} graphics - The graphics object
+     * @param {Object} colors - The color palette
+     * @private
+     */
+    addWaterEffect(graphics, colors) {
+        // Add wave lines
+        graphics.lineStyle(1, colors.accent, 0.7);
+        for (let y = this.config.tileHeight/4; y < this.config.tileHeight; y += 8) {
+            graphics.moveTo(this.config.tileWidth/4, y);
+            graphics.bezierCurveTo(
+                this.config.tileWidth/2, y - 4,
+                this.config.tileWidth/2, y + 4,
+                this.config.tileWidth*3/4, y
+            );
+        }
+
+        // Add reflection points
+        graphics.beginFill(colors.accent, 0.5);
+        for (let i = 0; i < 5; i++) {
+            const x = this.config.tileWidth/4 + Math.random() * this.config.tileWidth/2;
+            const y = this.config.tileHeight/4 + Math.random() * this.config.tileHeight/2;
+            graphics.drawCircle(x, y, 1);
+        }
+        graphics.endFill();
+    }
+
+    /**
+     * Adds grass effect to a tile
+     * @param {PIXI.Graphics} graphics - The graphics object
+     * @param {Object} colors - The color palette
+     * @private
+     */
+    addGrassEffect(graphics, colors) {
+        // Add grass blades
+        graphics.lineStyle(1, colors.accent, 0.7);
+
+        const centerX = this.config.tileWidth/2;
+        const centerY = this.config.tileHeight/2;
+
+        for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const length = 3 + Math.random() * 5;
+            const startX = centerX + (Math.random() * 20 - 10);
+            const startY = centerY + (Math.random() * 20 - 10);
+
+            graphics.moveTo(startX, startY);
+            graphics.lineTo(
+                startX + Math.cos(angle) * length,
+                startY + Math.sin(angle) * length
+            );
+        }
+    }
+
+    /**
+     * Adds lava effect to a tile
+     * @param {PIXI.Graphics} graphics - The graphics object
+     * @param {Object} colors - The color palette
+     * @private
+     */
+    addLavaEffect(graphics, colors) {
+        // Add lava bubbles
+        graphics.beginFill(colors.accent, 0.7);
+        for (let i = 0; i < 5; i++) {
+            const x = this.config.tileWidth/4 + Math.random() * this.config.tileWidth/2;
+            const y = this.config.tileHeight/4 + Math.random() * this.config.tileHeight/2;
+            const size = 1 + Math.random() * 3;
+            graphics.drawCircle(x, y, size);
+        }
+        graphics.endFill();
+
+        // Add glow effect
+        graphics.lineStyle(2, colors.accent, 0.3);
+        graphics.drawCircle(this.config.tileWidth/2, this.config.tileHeight/2, this.config.tileWidth/4);
     }
 
     /**
