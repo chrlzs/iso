@@ -1,0 +1,124 @@
+.building-menu {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.building-button {
+    padding: 8px 12px;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.building-button:hover {
+    background-color: #3498db;
+    transform: translateY(-2px);
+}
+
+.building-button.active {
+    background-color: #27ae60;
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.6);
+}
+
+.building-button.cancel {
+    background-color: #c0392b;
+}
+
+.building-button.cancel:hover {
+    background-color: #e74c3c;
+}
+
+.building-info {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    z-index: 1000;
+    max-width: 300px;
+}
+
+.building-info h3 {
+    margin-top: 0;
+    color: #3498db;
+}
+
+.building-info p {
+    margin: 5px 0;
+}
+
+.building-info .cost {
+    color: #e74c3c;
+}
+
+.building-info .production {
+    color: #2ecc71;
+}
+
+.building-preview {
+    position: absolute;
+    pointer-events: none;
+    z-index: 900;
+}
+
+/* Cyberpunk theme */
+.cyberpunk .building-menu {
+    background-color: rgba(20, 20, 40, 0.8);
+    border: 1px solid #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+.cyberpunk .building-button {
+    background-color: #1a1a2e;
+    border: 1px solid #3498db;
+    color: #3498db;
+    text-shadow: 0 0 5px rgba(52, 152, 219, 0.7);
+}
+
+.cyberpunk .building-button:hover {
+    background-color: #16213e;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.8);
+}
+
+.cyberpunk .building-button.active {
+    background-color: #0f3460;
+    border-color: #2ecc71;
+    color: #2ecc71;
+    text-shadow: 0 0 5px rgba(46, 204, 113, 0.7);
+}
+
+.cyberpunk .building-button.cancel {
+    background-color: #1a1a2e;
+    border-color: #e74c3c;
+    color: #e74c3c;
+    text-shadow: 0 0 5px rgba(231, 76, 60, 0.7);
+}
+
+.cyberpunk .building-button.cancel:hover {
+    background-color: #16213e;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+}
+
+.cyberpunk .building-info {
+    background-color: rgba(20, 20, 40, 0.8);
+    border: 1px solid #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}

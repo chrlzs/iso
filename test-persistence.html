@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk Persistence Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #00ff00;
+            font-family: monospace;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #debug-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            font-family: monospace;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            font-family: monospace;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            background-color: #003366;
+            color: #00ff00;
+            border: 1px solid #00aaff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #004488;
+        }
+        #storage-info {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="debug-panel">
+        <div id="fps">FPS: 0</div>
+        <div id="player-pos">Player: (0, 0)</div>
+        <div id="chunk-pos">Chunk: (0, 0)</div>
+        <div id="active-chunks">Active Chunks: 0</div>
+        <div id="total-chunks">Total Chunks: 0</div>
+        <div id="storage-info">
+            <h3>Storage Info</h3>
+            <div id="world-state">World State: Not loaded</div>
+            <div id="stored-chunks">Stored Chunks: 0</div>
+            <div id="storage-usage">Storage Usage: 0 KB</div>
+        </div>
+    </div>
+    <div id="controls">
+        <h3>Persistence Controls</h3>
+        <button id="save-world">Save World</button>
+        <button id="load-world">Load World</button>
+        <button id="clear-storage">Clear Storage</button>
+        <button id="new-world">Generate New World</button>
+        <div>
+            <label for="world-id">World ID:</label>
+            <input type="text" id="world-id" value="default">
+        </div>
+        <button id="switch-world">Switch World</button>
+    </div>
+
+    <script type="module">
+        import { Game } from './src/core/Game.js';
+
+        // Create game instance with chunk-based world and persistence
+        let game = createGame('default');
+        
+        // Set up controls
+        document.getElementById('save-world').addEventListener('click', () => {
+            const state = game.saveWorldState();
+            console.log('World state saved:', state);
+            updateStorageInfo();
+        });
+        
+        document.getElementById('load-world').addEventListener('click', () => {
+            const success = game.loadWorldState();
+            console.log('World state loaded:', success);
+            updateStorageInfo();
+        });
+        
+        document.getElementById('clear-storage').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all stored data for this world?')) {
+                const success = game.clearSavedData();
+                console.log('Storage cleared:', success);
+                updateStorageInfo();
+            }
+        });
+        
+        document.getElementById('new-world').addEventListener('click', () => {
+            if (confirm('Generate a new world? This will not affect stored data.')) {
+                game.generateWorld({
+                    clearStorage: false,
+                    seed: Math.floor(Math.random() * 1000000)
+                });
+                updateStorageInfo();
+            }
+        });
+        
+        document.getElementById('switch-world').addEventListener('click', () => {
+            const worldId = document.getElementById('world-id').value.trim();
+            if (worldId) {
+                switchWorld(worldId);
+            }
+        });
+        
+        // Function to create a new game instance
+        function createGame(worldId) {
+            // Clear the container
+            document.getElementById('game-container').innerHTML = '';
+            
+            // Create new game
+            return new Game({
+                container: document.getElementById('game-container'),
+                width: window.innerWidth,
+                height: window.innerHeight,
+                debug: true,
+                worldId: worldId,
+                worldWidth: 64,
+                worldHeight: 64,
+                chunkSize: 16,
+                loadDistance: 2,
+                unloadDistance: 3,
+                generateDistance: 1,
+                persistChunks: true,
+                autoSave: true,
+                autoSaveInterval: 30000, // Auto-save every 30 seconds
+                generateWorld: true,
+                createPlayer: true,
+                tileWidth: 64,
+                tileHeight: 32
+            });
+        }
+        
+        // Function to switch to a different world
+        function switchWorld(worldId) {
+            // Destroy current game
+            game.destroy();
+            
+            // Create new game with different world ID
+            game = createGame(worldId);
+            
+            // Update UI
+            document.getElementById('world-id').value = worldId;
+            updateStorageInfo();
+        }
+        
+        // Function to update storage info
+        function updateStorageInfo() {
+            // Check if world state exists
+            const worldState = localStorage.getItem(`isogame_world_${game.options.worldId}`);
+            document.getElementById('world-state').textContent = 
+                `World State: ${worldState ? 'Loaded' : 'Not loaded'}`;
+            
+            // Count stored chunks
+            let chunkCount = 0;
+            let storageSize = 0;
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(`isogame_chunk_${game.options.worldId}`)) {
+                    chunkCount++;
+                    storageSize += localStorage.getItem(key).length * 2; // Approximate size in bytes
+                }
+            }
+            
+            document.getElementById('stored-chunks').textContent = `Stored Chunks: ${chunkCount}`;
+            document.getElementById('storage-usage').textContent = 
+                `Storage Usage: ${Math.round(storageSize / 1024)} KB`;
+        }
+        
+        // Debug info update
+        function updateDebugInfo() {
+            // Update FPS
+            document.getElementById('fps').textContent = `FPS: ${game.performance.fps.toFixed(1)}`;
+            
+            // Update player position
+            if (game.player) {
+                document.getElementById('player-pos').textContent = 
+                    `Player: (${game.player.gridX}, ${game.player.gridY})`;
+                
+                // Calculate chunk position
+                const chunkX = Math.floor(game.player.gridX / game.options.chunkSize);
+                const chunkY = Math.floor(game.player.gridY / game.options.chunkSize);
+                document.getElementById('chunk-pos').textContent = 
+                    `Chunk: (${chunkX}, ${chunkY})`;
+            }
+            
+            // Update chunk info
+            if (game.world) {
+                document.getElementById('active-chunks').textContent = 
+                    `Active Chunks: ${game.world.activeChunks.size}`;
+                document.getElementById('total-chunks').textContent = 
+                    `Total Chunks: ${game.world.chunks.size}`;
+            }
+            
+            requestAnimationFrame(updateDebugInfo);
+        }
+        
+        // Start debug info update
+        updateDebugInfo();
+        
+        // Initial storage info update
+        updateStorageInfo();
+        
+        // Set up auto-update for storage info
+        setInterval(updateStorageInfo, 5000);
+    </script>
+</body>
+</html>
