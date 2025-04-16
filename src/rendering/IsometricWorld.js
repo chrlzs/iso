@@ -842,67 +842,96 @@ export class IsometricWorld extends Container {
     }
 
     /**
-     * Creates a placeholder texture for testing
-     * @param {string} type - Tile type
-     * @returns {PIXI.Texture} The texture
-     * @private
+     * Creates a placeholder texture for a terrain type
+     * @param {string} terrainType - Terrain type
+     * @returns {PIXI.Texture} The created texture
      */
-    createPlaceholderTexture(type) {
-        // Create a graphics object
+    createPlaceholderTexture(terrainType) {
+        // Synthwave color palette
+        const colors = {
+            grass: {
+                main: 0xFF00FF,    // Neon pink
+                accent: 0x00FFFF,  // Cyan
+                dark: 0x800080     // Dark purple
+            },
+            dirt: {
+                main: 0xFF6B6B,    // Coral pink
+                accent: 0xFF355E,   // Hot pink
+                dark: 0x4A0404     // Dark red
+            },
+            sand: {
+                main: 0xFFA500,    // Orange
+                accent: 0xFFD700,   // Gold
+                dark: 0x804000     // Dark orange
+            },
+            water: {
+                main: 0x00FFFF,    // Cyan
+                accent: 0x0099FF,   // Blue
+                dark: 0x000080     // Dark blue
+            },
+            stone: {
+                main: 0x9370DB,    // Medium purple
+                accent: 0xB24BF3,   // Bright purple
+                dark: 0x483D8B     // Dark slate blue
+            },
+            snow: {
+                main: 0xE6E6FA,    // Lavender
+                accent: 0xFFFFFF,   // White
+                dark: 0xC8A2C8     // Lilac
+            },
+            lava: {
+                main: 0xFF4500,    // Red-orange
+                accent: 0xFFFF00,   // Yellow
+                dark: 0x8B0000     // Dark red
+            },
+            void: {
+                main: 0x120024,    // Deep purple
+                accent: 0x301934,   // Dark purple
+                dark: 0x000000     // Black
+            }
+        };
+
+        const terrainColors = colors[terrainType] || colors.void;
+
+        // Create a graphics object for the texture
         const graphics = new PIXI.Graphics();
-
-        // Cyberpunk color scheme
-        let mainColor, glowColor;
-        switch (type) {
-            case 'grass':
-                mainColor = 0x00FFAA;  // Neon cyan
-                glowColor = 0x33FF66;  // Neon green
-                break;
-            case 'dirt':
-                mainColor = 0xFF00AA;  // Neon pink
-                glowColor = 0xFF3366;  // Neon red
-                break;
-            case 'sand':
-                mainColor = 0xFFAA00;  // Neon orange
-                glowColor = 0xFFFF00;  // Neon yellow
-                break;
-            case 'water':
-                mainColor = 0x00AAFF;  // Neon blue
-                glowColor = 0x0066FF;  // Electric blue
-                break;
-            default:
-                mainColor = 0x00AAFF;  // Default neon blue
-                glowColor = 0x0066FF;  // Default electric blue
-                break;
-        }
-
-        // Add glow effect
-        graphics.lineStyle(4, glowColor, 0.2);
-        graphics.moveTo(0, -this.config.tileHeight / 2);
-        graphics.lineTo(this.config.tileWidth / 2, 0);
-        graphics.lineTo(0, this.config.tileHeight / 2);
-        graphics.lineTo(-this.config.tileWidth / 2, 0);
-        graphics.closePath();
-
-        // Draw main shape
-        graphics.beginFill(mainColor, 0.8);
-        graphics.lineStyle(2, glowColor, 0.6);
-        graphics.moveTo(0, -this.config.tileHeight / 2);
-        graphics.lineTo(this.config.tileWidth / 2, 0);
-        graphics.lineTo(0, this.config.tileHeight / 2);
-        graphics.lineTo(-this.config.tileWidth / 2, 0);
-        graphics.closePath();
+        
+        // Draw base shape with gradient effect
+        graphics.beginFill(terrainColors.dark);
+        this.drawIsometricTileShape(graphics);
         graphics.endFill();
 
-        // Add grid pattern
-        graphics.lineStyle(1, glowColor, 0.1);
-        for (let i = -this.config.tileWidth/2; i <= this.config.tileWidth/2; i += 10) {
-            graphics.moveTo(i, -this.config.tileHeight/2);
-            graphics.lineTo(i, this.config.tileHeight/2);
+        // Add grid lines for depth
+        graphics.lineStyle(1, terrainColors.accent, 0.3);
+        for (let y = 0; y < this.config.tileHeight; y += 4) {
+            graphics.moveTo(0, y);
+            graphics.lineTo(this.config.tileWidth, y);
         }
-        for (let i = -this.config.tileHeight/2; i <= this.config.tileHeight/2; i += 10) {
-            graphics.moveTo(-this.config.tileWidth/2, i);
-            graphics.lineTo(this.config.tileWidth/2, i);
+
+        // Add neon outline
+        graphics.lineStyle(2, terrainColors.main, 1);
+        this.drawIsometricTileShape(graphics);
+
+        // Add highlight/glow effect
+        graphics.lineStyle(1, terrainColors.accent, 0.5);
+        for (let i = 0; i < 3; i++) {
+            const offset = i * 2;
+            graphics.moveTo(this.config.tileWidth/2, offset);
+            graphics.lineTo(this.config.tileWidth - offset, this.config.tileHeight/2);
+        }
+
+        // Add terrain-specific details
+        switch (terrainType) {
+            case 'water':
+                this.addWaterEffect(graphics, terrainColors);
+                break;
+            case 'grass':
+                this.addGrassEffect(graphics, terrainColors);
+                break;
+            case 'lava':
+                this.addLavaEffect(graphics, terrainColors);
+                break;
+            // Add more terrain-specific effects as needed
         }
 
         // Generate texture
@@ -910,23 +939,62 @@ export class IsometricWorld extends Container {
             return this.app.renderer.generateTexture(graphics);
         } else {
             console.error('Cannot generate texture: app or renderer is not available');
-            // Create a fallback texture with basic cyberpunk style
-            const canvas = document.createElement('canvas');
-            canvas.width = this.config.tileWidth;
-            canvas.height = this.config.tileHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = `#${mainColor.toString(16).padStart(6, '0')}`;
-            ctx.strokeStyle = `#${glowColor.toString(16).padStart(6, '0')}`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width, canvas.height / 2);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.lineTo(0, canvas.height / 2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            return PIXI.Texture.from(canvas);
+            return null;
+        }
+    }
+
+    /**
+     * Draws the basic isometric tile shape
+     * @private
+     */
+    drawIsometricTileShape(graphics) {
+        graphics.moveTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(this.config.tileWidth, this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth / 2, this.config.tileHeight);
+        graphics.lineTo(0, this.config.tileHeight / 2);
+        graphics.closePath();
+    }
+
+    /**
+     * Adds water effect to tile
+     * @private
+     */
+    addWaterEffect(graphics, colors) {
+        // Add wave lines
+        graphics.lineStyle(1, colors.accent, 0.4);
+        for (let y = this.config.tileHeight / 4; y < this.config.tileHeight; y += 4) {
+            graphics.moveTo(this.config.tileWidth / 4, y);
+            graphics.quadraticCurveTo(
+                this.config.tileWidth / 2, y + 2,
+                this.config.tileWidth * 3/4, y
+            );
+        }
+    }
+
+    /**
+     * Adds grass effect to tile
+     * @private
+     */
+    addGrassEffect(graphics, colors) {
+        // Add diagonal lines for grass texture
+        graphics.lineStyle(1, colors.accent, 0.3);
+        for (let i = 0; i < this.config.tileWidth; i += 8) {
+            graphics.moveTo(i, 0);
+            graphics.lineTo(i + 8, this.config.tileHeight);
+        }
+    }
+
+    /**
+     * Adds lava effect to tile
+     * @private
+     */
+    addLavaEffect(graphics, colors) {
+        // Add glowing patterns
+        graphics.lineStyle(2, colors.accent, 0.6);
+        for (let i = 1; i <= 3; i++) {
+            const offset = i * this.config.tileHeight / 4;
+            graphics.moveTo(this.config.tileWidth / 4, offset);
+            graphics.lineTo(this.config.tileWidth * 3/4, offset);
         }
     }
 
@@ -1775,4 +1843,6 @@ export class IsometricWorld extends Container {
         this.destroy({ children: true });
     }
 }
+
+
 

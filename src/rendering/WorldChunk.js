@@ -95,8 +95,12 @@ export class WorldChunk {
      * @private
      */
     generateElevation(x, y, seed) {
-        // Simple noise function - in a real implementation, use a proper noise library
-        return (Math.sin(x * 0.1 + seed * 0.01) + Math.cos(y * 0.1 + seed * 0.01)) * 0.5 + 0.5;
+        // Create more dramatic elevation changes
+        const scale = 0.05;
+        return (
+            Math.sin(x * scale + seed * 0.01) * 
+            Math.cos(y * scale + seed * 0.01) * 0.5 + 0.5
+        );
     }
 
     /**
@@ -108,8 +112,12 @@ export class WorldChunk {
      * @private
      */
     generateMoisture(x, y, seed) {
-        // Simple noise function - in a real implementation, use a proper noise library
-        return (Math.sin(x * 0.05 + seed * 0.02) + Math.cos(y * 0.05 + seed * 0.02)) * 0.5 + 0.5;
+        // Create more varied moisture distribution
+        const scale = 0.03;
+        return (
+            Math.sin(x * scale + seed * 0.02) * 
+            Math.cos(y * scale + seed * 0.02) * 0.5 + 0.5
+        );
     }
 
     /**
@@ -120,12 +128,20 @@ export class WorldChunk {
      * @private
      */
     determineTerrainType(elevation, moisture) {
-        // Determine terrain type based on elevation and moisture
-        // Reduce the chance of water tiles to make the world more navigable
-        if (elevation < 0.2) return 'water'; // Reduced from 0.3 to 0.2
-        if (elevation < 0.35) return 'sand';
-        if (moisture > 0.5) return 'grass';
-        return 'dirt';
+        // Create more varied and interesting terrain
+        if (elevation < 0.2) {
+            return 'water';
+        } else if (elevation < 0.3) {
+            return moisture > 0.6 ? 'sand' : 'water';
+        } else if (elevation < 0.7) {
+            if (moisture < 0.2) return 'dirt';
+            if (moisture < 0.6) return 'grass';
+            return 'stone';
+        } else if (elevation < 0.85) {
+            return 'stone';
+        } else {
+            return 'snow';
+        }
     }
 
     /**
@@ -456,3 +472,4 @@ export class WorldChunk {
         console.log(`Deserialized chunk at ${this.chunkX}, ${this.chunkY} with ${tilesCreated}/${data.tiles.length} tiles created`);
     }
 }
+

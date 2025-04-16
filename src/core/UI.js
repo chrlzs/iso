@@ -28,29 +28,33 @@ export class UI {
         // Active panel
         this.activePanel = null;
 
-        // Cyberpunk color scheme
+        // Synthwave color scheme
         const colors = {
-            primary: 0x00AAFF,    // Neon blue
-            secondary: 0x00FFAA,   // Neon cyan
-            dark: 0x000811,       // Dark blue-black
-            accent: 0xFF00AA,     // Neon pink
-            warning: 0xFFAA00,    // Neon orange
-            success: 0x33FF66,    // Neon green
-            error: 0xFF3366,      // Neon red
+            primary: 0xFF00FF,    // Hot pink
+            secondary: 0x00FFFF,   // Cyan
+            dark: 0x120024,       // Deep purple-black
+            accent: 0xFF6B6B,     // Coral pink
+            warning: 0xFFA500,    // Orange
+            success: 0x00FF9F,    // Neon turquoise
+            error: 0xFF0055,      // Bright red
             text: 0xFFFFFF,       // White
-            healthBar: 0xFF3366,  // Health bar color
-            energyBar: 0x33FFAA,  // Energy bar color
-            expBar: 0xFF00AA      // Experience bar color
+            healthBar: 0xFF355E,  // Hot pink
+            energyBar: 0x00FFAA,  // Neon cyan
+            expBar: 0xB24BF3      // Purple
         };
 
-        // Default styles with enhanced cyberpunk theme
+        // Enhanced Synthwave text style
         this.styles = {
             text: new PIXI.TextStyle({
                 fontFamily: 'Arial',
                 fontSize: 14,
                 fill: colors.text,
                 stroke: colors.dark,
-                strokeThickness: 2
+                strokeThickness: 4,
+                dropShadow: true,
+                dropShadowColor: colors.primary,
+                dropShadowDistance: 0,
+                dropShadowBlur: 6
             }),
             heading: new PIXI.TextStyle({
                 fontFamily: 'Arial',
@@ -58,10 +62,10 @@ export class UI {
                 fontWeight: 'bold',
                 fill: colors.text,
                 stroke: colors.primary,
-                strokeThickness: 3,
+                strokeThickness: 4,
                 dropShadow: true,
-                dropShadowColor: colors.primary,
-                dropShadowBlur: 4,
+                dropShadowColor: colors.secondary,
+                dropShadowBlur: 8,
                 dropShadowDistance: 0
             }),
             button: {
@@ -923,3 +927,4 @@ export class UI {
         // Resize any elements that need it
     }
 }
+

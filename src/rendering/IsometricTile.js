@@ -429,55 +429,69 @@ export class IsometricTile extends Container {
         if (!this.highlightGraphics) return;
 
         this.highlightGraphics.clear();
-
         const visualCenterY = -this.tileHeight / 2;
 
-        // Outer glow
-        const glowSize = 6;
-        this.highlightGraphics.lineStyle(glowSize, color, 0.2);
-        this.highlightGraphics.moveTo(0, visualCenterY);
-        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
-        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.closePath();
-
-        // Main highlight
-        this.highlightGraphics.beginFill(color, alpha * 0.3);
-        this.highlightGraphics.lineStyle(2, color, alpha * 0.8);
-        this.highlightGraphics.moveTo(0, visualCenterY);
-        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
-        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.closePath();
-        this.highlightGraphics.endFill();
-
-        // Add scanning line effect
-        const scanLineSpacing = 4;
-        this.highlightGraphics.lineStyle(1, color, alpha * 0.2);
-        for (let y = visualCenterY; y <= visualCenterY + this.tileHeight; y += scanLineSpacing) {
+        // Synthwave grid effect
+        const gridColor = 0xFF00FF; // Hot pink
+        this.highlightGraphics.lineStyle(1, gridColor, 0.3);
+        
+        // Horizontal grid lines
+        for (let y = visualCenterY; y <= visualCenterY + this.tileHeight; y += 4) {
             this.highlightGraphics.moveTo(-this.tileWidth/2, y);
             this.highlightGraphics.lineTo(this.tileWidth/2, y);
         }
 
-        // Add corner accents
-        const accentLength = 10;
+        // Main tile highlight with neon glow
+        const glowSize = 8;
+        // Outer glow layers
+        [0.1, 0.2, 0.3].forEach(glowAlpha => {
+            this.highlightGraphics.lineStyle(glowSize * (1 + glowAlpha), color, glowAlpha);
+            this.drawTileShape();
+        });
+
+        // Main highlight
+        this.highlightGraphics.beginFill(color, alpha * 0.15);
         this.highlightGraphics.lineStyle(2, color, alpha);
+        this.drawTileShape();
+        this.highlightGraphics.endFill();
 
-        // Top corner
+        // Add chrome/metallic reflection
+        const gradient = new PIXI.Graphics();
+        gradient.beginFill(0xFFFFFF, 0.1);
+        gradient.moveTo(0, visualCenterY);
+        gradient.lineTo(this.tileWidth/4, visualCenterY + this.tileHeight/4);
+        gradient.lineTo(0, visualCenterY + this.tileHeight/2);
+        gradient.lineTo(-this.tileWidth/4, visualCenterY + this.tileHeight/4);
+        gradient.endFill();
+        this.highlightGraphics.addChild(gradient);
+
+        // Neon corner accents
+        const accentLength = 15;
+        const accentColor = 0x00FFFF; // Cyan
+        this.highlightGraphics.lineStyle(2, accentColor, alpha);
+
+        // Animated corner effects
+        const time = performance.now() / 1000;
+        const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+        
+        [
+            [0, visualCenterY, 0, visualCenterY + accentLength * pulseScale],
+            [this.tileWidth/2, visualCenterY + this.tileHeight/2, this.tileWidth/2 - accentLength * pulseScale, visualCenterY + this.tileHeight/2],
+            [0, visualCenterY + this.tileHeight, 0, visualCenterY + this.tileHeight - accentLength * pulseScale],
+            [-this.tileWidth/2, visualCenterY + this.tileHeight/2, -this.tileWidth/2 + accentLength * pulseScale, visualCenterY + this.tileHeight/2]
+        ].forEach(([x1, y1, x2, y2]) => {
+            this.highlightGraphics.moveTo(x1, y1);
+            this.highlightGraphics.lineTo(x2, y2);
+        });
+    }
+
+    drawTileShape() {
+        const visualCenterY = -this.tileHeight / 2;
         this.highlightGraphics.moveTo(0, visualCenterY);
-        this.highlightGraphics.lineTo(0, visualCenterY + accentLength);
-
-        // Right corner
-        this.highlightGraphics.moveTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.lineTo(this.tileWidth/2 - accentLength, visualCenterY + this.tileHeight/2);
-
-        // Bottom corner
-        this.highlightGraphics.moveTo(0, visualCenterY + this.tileHeight);
-        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight - accentLength);
-
-        // Left corner
-        this.highlightGraphics.moveTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
-        this.highlightGraphics.lineTo(-this.tileWidth/2 + accentLength, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.lineTo(0, visualCenterY + this.tileHeight);
+        this.highlightGraphics.lineTo(-this.tileWidth/2, visualCenterY + this.tileHeight/2);
+        this.highlightGraphics.closePath();
     }
 
     /**
@@ -614,3 +628,4 @@ export class IsometricTile extends Container {
         this.destroy({ children: true });
     }
 }
+
