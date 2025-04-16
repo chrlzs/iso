@@ -1,4 +1,5 @@
 import { Character } from './Character.js';
+import { GlitchEffect } from '../effects/GlitchEffect.js';
 import { PIXI } from '../utils/PixiWrapper.js';
 
 /**
@@ -14,6 +15,7 @@ export class Enemy extends Character {
         // Set default enemy options
         const enemyOptions = {
             isPlayer: false,
+            speed: options.speed || 4.0, // Significantly increased speed for faster enemies
             ...options
         };
 
@@ -21,10 +23,10 @@ export class Enemy extends Character {
 
         // Enemy-specific properties
         this.enemyType = options.enemyType || 'generic';
-        this.aggroRange = options.aggroRange || 5;
-        this.detectionRange = options.detectionRange || 8;
-        this.patrolRadius = options.patrolRadius || 3;
-        this.patrolDelay = options.patrolDelay || 2;
+        this.aggroRange = options.aggroRange || 8; // Increased from 5
+        this.detectionRange = options.detectionRange || 12; // Increased from 8
+        this.patrolRadius = options.patrolRadius || 6; // Increased from 3
+        this.patrolDelay = options.patrolDelay || 1; // Reduced from 2
         this.aggressive = options.aggressive !== undefined ? options.aggressive : true;
 
         // AI state
@@ -381,9 +383,38 @@ export class Enemy extends Character {
         const game = world?.game;
         const player = game?.player;
 
+        // Check for debug mode with shift key for testing glitch effect
+        if (game && game.options.debug && event.data.originalEvent.shiftKey) {
+            this.playGlitchEffect();
+            return;
+        }
+
         if (game && player) {
             // Start combat with player
             this.initiateCombat(player);
+        }
+    }
+
+    /**
+     * Plays the glitch effect on the enemy without defeating it
+     * Useful for testing or special effects
+     */
+    playGlitchEffect() {
+        // Get game instance
+        const world = this.parent?.parent;
+        const game = world?.game;
+
+        if (game && game.app) {
+            // Create temporary glitch effect
+            new GlitchEffect({
+                target: this,
+                app: game.app,
+                duration: 1000, // 1 second
+                onComplete: () => {
+                    // Make enemy visible again
+                    this.visible = true;
+                }
+            });
         }
     }
 
@@ -393,15 +424,49 @@ export class Enemy extends Character {
     defeat() {
         console.log(`${this.enemyType} enemy defeated!`);
 
-        // Play defeat animation
-        this.playAnimation('defeat');
+        // Stop movement
+        this.stopMoving();
+        this.active = false;
 
-        // Remove from world after a delay
-        setTimeout(() => {
-            if (this.parent) {
-                this.parent.removeChild(this);
+        // Get game instance
+        const world = this.parent?.parent;
+        const game = world?.game;
+
+        // Create glitch disintegration effect
+        if (game && game.app) {
+            // Create glitch effect
+            new GlitchEffect({
+                target: this,
+                app: game.app,
+                duration: 1500, // 1.5 seconds
+                onComplete: () => {
+                    // Remove from world when effect is complete
+                    if (this.parent) {
+                        this.parent.removeChild(this);
+                    }
+                }
+            });
+
+            // Play sound effect if available
+            if (game.audio && typeof game.audio.playSound === 'function') {
+                game.audio.playSound('enemyDefeat');
             }
-        }, 1000);
+        } else {
+            // Fallback if no game instance or app is available
+            // Simple fade out
+            this.alpha = 0.8;
+
+            // Create a simple fade out animation
+            const fadeInterval = setInterval(() => {
+                this.alpha -= 0.1;
+                if (this.alpha <= 0) {
+                    clearInterval(fadeInterval);
+                    if (this.parent) {
+                        this.parent.removeChild(this);
+                    }
+                }
+            }, 100);
+        }
     }
 
     /**
@@ -420,8 +485,8 @@ export class Enemy extends Character {
             return;
         }
 
-        // Randomly start patrolling
-        if (Math.random() < 0.01 * deltaTime) {
+        // Increased chance to start patrolling for more active enemies
+        if (Math.random() < 0.03 * deltaTime) {
             this.aiState = 'patrol';
             this.generatePatrolPoint();
         }
@@ -482,8 +547,8 @@ export class Enemy extends Character {
             return;
         }
 
-        // Check if target is still in range
-        if (!this.isPlayerInRange(this.aiTarget, this.aggroRange)) {
+        // Increased detection range for more persistent pursuit
+        if (!this.isPlayerInRange(this.aiTarget, this.aggroRange * 2.5)) {
             // Target out of range, go back to idle
             this.aiTarget = null;
             this.aiState = 'idle';
@@ -495,14 +560,54 @@ export class Enemy extends Character {
         const dy = this.aiTarget.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < 50) {
+        if (distance < 70) { // Increased combat initiation distance
             // Close enough, initiate combat
             this.initiateCombat(this.aiTarget);
             return;
         }
 
-        // Move towards target
-        this.setMoveTarget({ x: this.aiTarget.x, y: this.aiTarget.y });
+        // Add some randomness to movement for more unpredictable behavior
+        const jitterAmount = 20;
+        const targetX = this.aiTarget.x + (Math.random() * jitterAmount - jitterAmount/2);
+        const targetY = this.aiTarget.y + (Math.random() * jitterAmount - jitterAmount/2);
+
+        // Move towards target with slight jitter for more dynamic movement
+        this.setMoveTarget({ x: targetX, y: targetY });
+
+        // Occasionally emit a visual effect to show aggressive pursuit
+        if (Math.random() < 0.05) {
+            this.emitPursuitEffect();
+        }
+    }
+
+    /**
+     * Emits a visual effect to show aggressive pursuit
+     * @private
+     */
+    emitPursuitEffect() {
+        // Get enemy colors based on type
+        const colors = {
+            slime: 0x00FFFF,    // Cyan
+            goblin: 0x00FF00,   // Neon green
+            skeleton: 0xFFFFFF,  // White
+            boss: 0xFF355E,     // Hot pink
+            generic: 0xFF00FF    // Magenta
+        };
+
+        const effectColor = colors[this.enemyType] || colors.generic;
+
+        // Create a simple flash effect
+        if (this.sprite) {
+            const originalTint = this.sprite.tint || 0xFFFFFF;
+            this.sprite.tint = effectColor;
+
+            // Reset after a short delay
+            setTimeout(() => {
+                if (this.sprite) {
+                    this.sprite.tint = originalTint;
+                }
+            }, 100);
+        }
     }
 
     /**
