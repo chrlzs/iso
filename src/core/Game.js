@@ -734,16 +734,17 @@ export class Game {
                 // Calculate FPS
                 this.performance.fps = Math.round((this.performance.frames * 1000) / elapsed);
 
-                // Update UI elements only if they exist and are visible
-                if (this.debugElements.debugPanel && this.debugElements.debugPanel.style.display !== 'none') {
-                    // Update FPS counters
-                    if (this.debugElements.fpsCounter) {
-                        this.debugElements.fpsCounter.textContent = `FPS: ${this.performance.fps}`;
-                    }
+                // Always update FPS counters regardless of debug panel visibility
+                if (this.debugElements.fpsCounter) {
+                    this.debugElements.fpsCounter.textContent = `FPS: ${this.performance.fps}`;
+                }
 
-                    if (this.debugElements.fps) {
-                        this.debugElements.fps.textContent = this.performance.fps;
-                    }
+                if (this.debugElements.fps) {
+                    this.debugElements.fps.textContent = this.performance.fps;
+                }
+
+                // Update other debug elements only if debug panel is visible
+                if (this.debugElements.debugPanel && this.debugElements.debugPanel.style.display !== 'none') {
 
                     // Get memory usage if available - only if debug panel is visible
                     if (window.performance && window.performance.memory) {
