@@ -5,13 +5,15 @@ import { Character } from '../entities/Character.js';
 import { Structure } from '../entities/Structure.js';
 import { Item } from '../entities/Item.js';
 import { DayNightCycle } from './DayNightCycle.js';
-import { UI } from './UI.js';  // Updated import path
+import { UI } from '../ui/UI.js';  // Updated import path
 import { Inventory } from './Inventory.js';
 import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
 import { InputManager } from './InputManager.js';
 import { ChunkStorage } from './ChunkStorage.js';
 import { SynthwaveEffect } from '../rendering/SynthwaveEffect.js';
+import { AssetManager } from '../assets/AssetManager.js';
+import { BuildingModeManager } from './BuildingModeManager.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -137,12 +139,6 @@ export class Game {
         // Set zIndex for the uiContainer to ensure it is above the world
         this.uiContainer.zIndex = 1000;
 
-        // Create UI manager
-        this.ui = new UI({
-            container: this.uiContainer,
-            game: this
-        });
-
         // Create player character
         this.player = null;
 
@@ -156,7 +152,7 @@ export class Game {
             height: this.options.height,
             enabled: true,
             quality: this.options.quality, // Pass quality setting
-            showGrid: true, // Keep the grid background
+            showGrid: false, // Disable grid background to make tiles more visible
             showScanLines: true, // Keep the scan lines
             showVignette: true // Keep the vignette effect
         });
@@ -164,6 +160,15 @@ export class Game {
         // Add synthwave effect to stage (behind UI but above world)
         this.app.stage.addChild(this.synthwaveEffect.container);
         this.synthwaveEffect.container.zIndex = 500;
+
+        // Create UI manager (after synthwaveEffect is created)
+        this.ui = new UI({
+            container: this.uiContainer,
+            game: this
+        });
+
+        // Initialize UI
+        this.ui.createUI();
 
         // Create combat manager
         this.combatManager = new CombatManager({
@@ -177,6 +182,7 @@ export class Game {
                 zoom: ['q', 'e'],
                 inventory: ['i'],
                 timeControls: ['t', 'p'],
+                buildingMode: 'b',
                 // Debug options removed
                 placement: {
                     tree: 't',
@@ -190,6 +196,9 @@ export class Game {
                 right: 2
             }
         };
+
+        // Building mode flag
+        this.buildingModeActive = false;
 
         // Input state
         this.input = null;
@@ -239,6 +248,34 @@ export class Game {
     }
 
     /**
+     * Converts tile coordinates to player coordinates
+     * @param {number} tileX - Tile X coordinate
+     * @param {number} tileY - Tile Y coordinate
+     * @returns {Object} Player coordinates {x, y}
+     */
+    tileToPlayerCoords(tileX, tileY) {
+        // Use the fixed offset of (24, 24)
+        return {
+            x: tileX + 24,
+            y: tileY + 24
+        };
+    }
+
+    /**
+     * Converts player coordinates to tile coordinates
+     * @param {number} playerX - Player X coordinate
+     * @param {number} playerY - Player Y coordinate
+     * @returns {Object} Tile coordinates {x, y}
+     */
+    playerToTileCoords(playerX, playerY) {
+        // Use the fixed offset of (24, 24)
+        return {
+            x: playerX - 24,
+            y: playerY - 24
+        };
+    }
+
+    /**
      * Initializes the game
      * @private
      */
@@ -252,8 +289,31 @@ export class Game {
         // Set up window resize handler
         window.addEventListener('resize', this.handleResize.bind(this));
 
-        // Try to load saved world state if persistence is enabled
-        if (this.options.persistChunks && !this.options.skipLoadSavedState) {
+        // Initialize asset manager
+        this.assetManager = new AssetManager({
+            game: this,
+            world: this.world
+        });
+        this.assetManager.initialize();
+
+        // Initialize building mode manager
+        this.buildingModeManager = new BuildingModeManager({
+            game: this,
+            world: this.world,
+            assetManager: this.assetManager
+        });
+        this.buildingModeManager.initialize();
+
+        // Start with a blank map by default
+        if (this.options.startWithBlankMap !== false) {
+            console.log('Starting with a blank map for building mode...');
+            this.world.createBlankMap({
+                defaultTerrain: 'grass',
+                clearStorage: true
+            });
+        }
+        // Otherwise, try to load saved world state if persistence is enabled
+        else if (this.options.persistChunks && !this.options.skipLoadSavedState) {
             const loaded = this.loadWorldState();
 
             // If no saved state was found, generate a new world
@@ -267,6 +327,17 @@ export class Game {
         // Create player character if requested
         if (this.options.createPlayer !== false) {
             this.createPlayer();
+        }
+
+        // Activate building mode automatically if starting with a blank map
+        if (this.options.startWithBlankMap && this.buildingModeManager) {
+            console.log('Automatically activating building mode...');
+            this.buildingModeManager.activate();
+
+            // Show a welcome message
+            if (this.ui) {
+                this.ui.showMessage('Welcome to Building Mode! Select a terrain type to start building.', 5000);
+            }
         }
 
         // Set up auto-save if enabled
@@ -342,27 +413,34 @@ export class Game {
                                 tile.game = this;
                             }
 
-                            if (this.input.hoveredTile && this.input.hoveredTile !== tile) {
-                                // Unhighlight previous tile if it's not selected
-                                if (!this.input.hoveredTile.selected) {
-                                    try {
-                                        this.input.hoveredTile.unhighlight();
-                                    } catch (error) {
-                                        console.error('Error unhighlighting previous tile:', error);
-                                        // Force reset hover state
-                                        this.input.hoveredTile = null;
+                            // Only track and highlight hover in non-building mode
+                            if (!this.buildingModeActive) {
+                                if (this.input.hoveredTile && this.input.hoveredTile !== tile) {
+                                    // Unhighlight previous tile if it's not selected
+                                    if (!this.input.hoveredTile.selected) {
+                                        try {
+                                            this.input.hoveredTile.unhighlight();
+                                        } catch (error) {
+                                            console.error('Error unhighlighting previous tile:', error);
+                                            // Force reset hover state
+                                            this.input.hoveredTile = null;
+                                        }
                                     }
                                 }
-                            }
 
-                            this.input.hoveredTile = tile;
-                            // Highlight new tile if it's not already selected
-                            if (!tile.selected) {
-                                try {
-                                    tile.highlight();
-                                } catch (error) {
-                                    console.error('Error highlighting tile:', error);
+                                this.input.hoveredTile = tile;
+
+                                // Highlight new tile if it's not already selected
+                                if (!tile.selected) {
+                                    try {
+                                        tile.highlight();
+                                    } catch (error) {
+                                        console.error('Error highlighting tile:', error);
+                                    }
                                 }
+                            } else {
+                                // In building mode, just track the hovered tile without highlighting
+                                this.input.hoveredTile = tile;
                             }
                         }
                     } catch (error) {
@@ -423,6 +501,37 @@ export class Game {
                                 tile.game = this;
                             }
 
+                            // Get the world position of the tile
+                            const tileWorldPos = tile.getCenter();
+
+                            // Get the player's world position
+                            const playerWorldPos = { x: this.player.x, y: this.player.y };
+
+                            // Calculate the distance between the player and the tile in world coordinates
+                            const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
+                            const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
+                            const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
+
+                            // If the player is already very close to the tile in world coordinates, don't move
+                            // Use a threshold of half a tile width/height
+                            const threshold = Math.min(this.world.config.tileWidth, this.world.config.tileHeight) / 2;
+                            if (worldDistance < threshold) {
+                                console.log(`Right-click: Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
+                                console.log(`Player world pos: (${playerWorldPos.x.toFixed(2)}, ${playerWorldPos.y.toFixed(2)}), Tile world pos: (${tileWorldPos.x.toFixed(2)}, ${tileWorldPos.y.toFixed(2)}), Distance: ${worldDistance.toFixed(2)}`);
+                                return;
+                            }
+
+                            // Also check grid coordinates for debugging purposes
+                            console.log(`Right-click: Player grid pos: (${this.player.gridX}, ${this.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
+
+                            // Check if the player is already on this tile
+                            const playerTile = this.world.getTile(this.player.gridX, this.player.gridY);
+                            if (playerTile && playerTile === tile) {
+                                console.log(`Right-click on exact same tile (${tile.gridX}, ${tile.gridY}), not moving`);
+                                return;
+                            }
+
+                            // If we get here, it's a valid move target
                             this.movePlayerToTile(tile);
                         } else {
                             console.warn('No tile found at screen position');
@@ -438,9 +547,33 @@ export class Game {
             case 'tileSelected':
                 // Only process tile selection if not in combat
                 if (!inCombat) {
+                    const tile = data.tile;
+
                     if (this.debugElements.selectedTile) {
-                        const tile = data.tile;
                         this.debugElements.selectedTile.textContent = `${tile.gridX}, ${tile.gridY}`;
+                    }
+
+                    // If in building mode, handle tile selection for building placement
+                    if (this.buildingModeActive && this.buildingModeManager) {
+                        // Deselect any previously selected tile
+                        if (this.input && this.input.selectedTile) {
+                            this.input.selectedTile.deselect();
+                            this.input.selectedTile = null;
+                        }
+
+                        // Get mouse position
+                        const rect = this.app.view.getBoundingClientRect();
+                        const event = {
+                            clientX: data.x + rect.left,
+                            clientY: data.y + rect.top,
+                            button: 0 // Left mouse button
+                        };
+                        this.buildingModeManager.onMouseDown(event);
+                    } else {
+                        // For normal gameplay, use the onTileClick handler if available
+                        if (this.options.onTileClick && typeof this.options.onTileClick === 'function') {
+                            this.options.onTileClick(tile, this);
+                        }
                     }
                 }
                 break;
@@ -966,6 +1099,11 @@ export class Game {
         // Update combat manager
         this.combatManager.update(deltaTime);
 
+        // Update building mode manager if active
+        if (this.buildingModeActive && this.buildingModeManager) {
+            this.buildingModeManager.update(deltaTime);
+        }
+
         // Update player
         if (this.player) {
             // Regenerate energy
@@ -1153,6 +1291,67 @@ export class Game {
     }
 
     /**
+     * Creates a new world for building mode
+     * @param {Object} options - Options for the new world
+     * @returns {boolean} True if the new world was created successfully
+     */
+    createNewBuildingWorld(options = {}) {
+        try {
+            // Generate a unique world ID for the building mode
+            const buildingWorldId = `building_${Date.now()}`;
+            console.log(`Creating new building world with ID: ${buildingWorldId}`);
+
+            // Save current world state before switching
+            if (this.options.persistChunks) {
+                this.saveWorldState();
+            }
+
+            // Update world ID
+            this.options.worldId = buildingWorldId;
+            this.world.worldId = buildingWorldId;
+
+            // Temporarily disable auto-save
+            const wasAutoSaveEnabled = !!this.autoSaveTimer;
+            if (wasAutoSaveEnabled && this.autoSaveTimer) {
+                clearInterval(this.autoSaveTimer);
+                this.autoSaveTimer = null;
+            }
+
+            // Clear any existing data for this new world ID
+            if (this.chunkStorage) {
+                this.chunkStorage.clearWorld(buildingWorldId);
+            }
+            localStorage.removeItem(`isogame_world_${buildingWorldId}`);
+
+            // Create a blank map
+            if (this.world) {
+                console.log('Creating blank map with terrain:', options.defaultTerrain || 'grass');
+                this.world.createBlankMap({
+                    defaultTerrain: options.defaultTerrain || 'grass',
+                    clearStorage: true
+                });
+
+                // Force save the new world state immediately
+                this.saveWorldState();
+                console.log('New building world saved with ID:', buildingWorldId);
+            }
+
+            // Restore auto-save if it was enabled
+            if (wasAutoSaveEnabled) {
+                const autoSaveInterval = this.options.autoSaveInterval || 60000;
+                this.autoSaveTimer = setInterval(() => {
+                    this.saveWorldState();
+                }, autoSaveInterval);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error creating new building world:', error);
+            return false;
+        }
+    }
+
+    /**
      * Resizes the game
      * @param {number} width - New width
      * @param {number} height - New height
@@ -1190,6 +1389,33 @@ export class Game {
             return;
         }
 
+        // SUPER SIMPLE APPROACH: Just move the player directly to the tile's world position
+        console.log(`Moving player directly to tile (${tile.gridX}, ${tile.gridY})`);
+
+        // Get the world position of the tile
+        const tileWorldPos = tile.getCenter();
+
+        // Get the player's world position
+        const playerWorldPos = { x: this.player.x, y: this.player.y };
+
+        // Calculate the distance between the player and the tile in world coordinates
+        const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
+        const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
+        const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
+
+        // If the player is already very close to the tile in world coordinates, don't move
+        const threshold = Math.min(this.world.config.tileWidth, this.world.config.tileHeight) / 2;
+        if (worldDistance < threshold) {
+            console.log(`Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
+            return;
+        }
+
+        // Check if the tile is walkable
+        if (!tile.walkable || tile.structure) {
+            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
+            return;
+        }
+
         // Ensure tile has proper references
         if (tile.world !== this.world) {
             console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
@@ -1204,6 +1430,15 @@ export class Game {
         // Check if the tile is walkable
         if (!tile.walkable || tile.structure) {
             console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
+            return;
+        }
+
+        // Check if the tile is within valid bounds
+        // Prevent movement to negative Y coordinates or other invalid areas
+        if (tile.gridY < 0 || tile.gridX < 0 ||
+            tile.gridX >= this.options.worldWidth ||
+            tile.gridY >= this.options.worldHeight) {
+            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): outside valid world bounds`);
             return;
         }
 
@@ -1257,6 +1492,8 @@ export class Game {
 
         // Set the player's move target with pathfinding
         console.log('Setting player move target to:', targetPos, 'with pathfinding to grid position:', tile.gridX, tile.gridY);
+
+        // SUPER SIMPLE APPROACH: Just use the tile's grid coordinates directly
         this.player.setMoveTarget(targetPos, {
             targetGridX: tile.gridX,
             targetGridY: tile.gridY

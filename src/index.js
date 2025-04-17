@@ -2,6 +2,7 @@ import { Game } from './core/Game.js';
 import { testPixiRendering } from './test-pixi.js';
 import { FallbackRenderer } from './rendering/FallbackRenderer.js';
 import { isPixiAvailable } from './utils/PixiWrapper.js';
+import { DebugOverlay } from './utils/DebugOverlay.js';
 
 /**
  * Sets up the chunk debug panel
@@ -347,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
         persistChunks: true, // Enable chunk persistence
         autoSave: true, // Enable auto-saving
         autoSaveInterval: 60000, // Auto-save every minute
-        generateWorld: true,
+        generateWorld: false, // Don't generate a random world
+        startWithBlankMap: true, // Start with a blank map for building
         createPlayer: true,
         dayDuration: 300, // 5 minutes per day
         startTime: 8, // Start at 8 AM
@@ -356,12 +358,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Custom tile click handler
         onTileClick: (tile, game) => {
-            // If player exists, move to the clicked tile
+            // If player exists, move to the clicked tile (but only if it's not the tile the player is already on)
             if (game.player && game.world) {
+                // Get the world position of the tile
+                const tileWorldPos = tile.getCenter();
+
+                // Get the player's world position
+                const playerWorldPos = { x: game.player.x, y: game.player.y };
+
+                // Calculate the distance between the player and the tile in world coordinates
+                const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
+                const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
+                const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
+
+                // If the player is already very close to the tile in world coordinates, don't move
+                // Use a threshold of half a tile width/height
+                const threshold = Math.min(game.world.config.tileWidth, game.world.config.tileHeight) / 2;
+                if (worldDistance < threshold) {
+                    console.log(`Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
+                    console.log(`Player world pos: (${playerWorldPos.x.toFixed(2)}, ${playerWorldPos.y.toFixed(2)}), Tile world pos: (${tileWorldPos.x.toFixed(2)}, ${tileWorldPos.y.toFixed(2)}), Distance: ${worldDistance.toFixed(2)}`);
+                    return;
+                }
+
+                // Also check grid coordinates for debugging purposes
+                console.log(`Player grid pos: (${game.player.gridX}, ${game.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
+
+                // Check if the player is already on this tile
+                const playerTile = game.world.getTile(game.player.gridX, game.player.gridY);
+                if (playerTile && playerTile === tile) {
+                    console.log(`Player is already on this exact tile (${tile.gridX}, ${tile.gridY}), not moving`);
+                    return;
+                }
+
+                // Check if the tile is within valid bounds
+                // Prevent movement to negative Y coordinates or other invalid areas
+                if (tile.gridY < 0 || tile.gridX < 0 ||
+                    tile.gridX >= game.options.worldWidth ||
+                    tile.gridY >= game.options.worldHeight) {
+                    console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): outside valid world bounds`);
+                    return;
+                }
+
                 // Get the world position of the tile
                 const worldPos = game.world.gridToWorld(tile.gridX, tile.gridY);
                 console.log(`Tile click: Moving player to tile (${tile.gridX}, ${tile.gridY}) at world position (${worldPos.x}, ${worldPos.y})`);
-                game.player.setMoveTarget(worldPos);
+                game.player.setMoveTarget(worldPos, {
+                    targetGridX: tile.gridX,
+                    targetGridY: tile.gridY
+                });
             }
         }
     });
@@ -384,6 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up chunk debug panel
     setupChunkDebugPanel(game);
 
+    // Create debug overlay
+    const debugOverlay = new DebugOverlay(game);
+
     // Create a simple HTML overlay for tile coordinates
     if (game.options.debug) {
         // Create a small, unobtrusive button to toggle coordinate display
@@ -405,6 +452,24 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleButton.style.transition = 'opacity 0.3s';
         document.body.appendChild(toggleButton);
 
+        // Create a mouse position tracker
+        const mouseTracker = document.createElement('div');
+        mouseTracker.id = 'mouse-tracker';
+        mouseTracker.style.position = 'fixed';
+        mouseTracker.style.top = '10px';
+        mouseTracker.style.left = '10px';
+        mouseTracker.style.zIndex = '1000';
+        mouseTracker.style.padding = '5px 10px';
+        mouseTracker.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        mouseTracker.style.color = '#fff';
+        mouseTracker.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        mouseTracker.style.borderRadius = '3px';
+        mouseTracker.style.fontSize = '14px';
+        mouseTracker.style.fontFamily = 'monospace';
+        mouseTracker.style.display = 'none'; // Hide by default
+        mouseTracker.textContent = 'Mouse: (0, 0) -> Grid: (0, 0)';
+        document.body.appendChild(mouseTracker);
+
         // Create container for coordinate labels
         const coordContainer = document.createElement('div');
         coordContainer.id = 'coord-overlay';
@@ -424,11 +489,13 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleButton.addEventListener('click', () => {
             if (coordContainer.style.display === 'none') {
                 coordContainer.style.display = 'block';
+                mouseTracker.style.display = 'block';
                 toggleButton.textContent = 'C✓';
                 toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.5)';
                 updateCoordinates();
             } else {
                 coordContainer.style.display = 'none';
+                mouseTracker.style.display = 'none';
                 toggleButton.textContent = 'C';
                 toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             }
@@ -446,11 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const cameraBounds = game.world.getCameraBounds();
 
             // Calculate visible grid range based on camera bounds
+            // Use a larger range to show more tiles
             const visibleRange = {
-                minX: Math.max(0, Math.floor((cameraBounds.minX - 200) / game.options.tileWidth) - 5),
-                maxX: Math.min(game.options.worldWidth, Math.ceil((cameraBounds.maxX + 200) / game.options.tileWidth) + 5),
-                minY: Math.max(0, Math.floor((cameraBounds.minY - 200) / game.options.tileHeight) - 5),
-                maxY: Math.min(game.options.worldHeight, Math.ceil((cameraBounds.maxY + 200) / game.options.tileHeight) + 5)
+                minX: Math.max(-10, Math.floor((cameraBounds.minX - 300) / game.options.tileWidth) - 10),
+                maxX: Math.min(game.options.worldWidth + 10, Math.ceil((cameraBounds.maxX + 300) / game.options.tileWidth) + 10),
+                minY: Math.max(-10, Math.floor((cameraBounds.minY - 300) / game.options.tileHeight) - 10),
+                maxY: Math.min(game.options.worldHeight + 10, Math.ceil((cameraBounds.maxY + 300) / game.options.tileHeight) + 10)
             };
 
             // Create labels only for visible tiles
@@ -473,11 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         label.style.left = `${screenPos.x}px`;
                         label.style.top = `${screenPos.y}px`;
                         label.style.transform = 'translate(-50%, -50%)';
-                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
-                        label.style.color = 'rgba(255, 255, 0, 0.7)';
-                        label.style.padding = '1px 3px';
-                        label.style.borderRadius = '2px';
-                        label.style.fontSize = '10px';
+                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                        label.style.color = 'rgba(255, 255, 0, 1.0)';
+                        label.style.padding = '2px 4px';
+                        label.style.borderRadius = '3px';
+                        label.style.fontSize = '12px';
+                        label.style.fontWeight = 'bold';
                         label.style.fontFamily = 'Arial, sans-serif';
                         label.style.textAlign = 'center';
                         label.style.minWidth = '20px';
@@ -515,6 +584,58 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('resize', () => {
             if (coordContainer.style.display !== 'none') {
                 updateCoordinates();
+            }
+        });
+
+        // Add mousemove event listener to update mouse tracker
+        document.getElementById('game-container').addEventListener('mousemove', (event) => {
+            if (mouseTracker.style.display === 'none') return;
+
+            // Get mouse position
+            const rect = game.app.view.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Convert to grid coordinates
+            const gridPos = game.world.screenToGrid(x, y);
+            const gridX = Math.floor(gridPos.x);
+            const gridY = Math.floor(gridPos.y);
+
+            // Update mouse tracker
+            mouseTracker.textContent = `Mouse: (${x.toFixed(0)}, ${y.toFixed(0)}) → Grid: (${gridX}, ${gridY})`;
+
+            // Highlight the current tile under the mouse
+            if (game.world) {
+                const tile = game.world.getTileAtScreen(x, y);
+                if (tile) {
+                    // Add a special highlight to the label for this tile
+                    const labels = coordContainer.querySelectorAll('div');
+                    labels.forEach(label => {
+                        if (label.textContent === `${tile.gridX},${tile.gridY}`) {
+                            label.style.backgroundColor = 'rgba(0, 255, 0, 0.7)';
+                            label.style.color = 'black';
+                            label.style.fontWeight = 'bold';
+                            label.style.zIndex = '1001';
+                        } else {
+                            // Reset other labels
+                            if (label.style.backgroundColor === 'rgba(0, 255, 0, 0.7)') {
+                                label.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+                                label.style.color = 'rgba(255, 255, 0, 0.7)';
+                                label.style.fontWeight = 'normal';
+                                label.style.zIndex = '1000';
+
+                                // Re-apply chunk border highlight if needed
+                                const coords = label.textContent.split(',');
+                                const x = parseInt(coords[0]);
+                                const y = parseInt(coords[1]);
+                                if (x % game.options.chunkSize === 0 || y % game.options.chunkSize === 0) {
+                                    label.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+                                    label.style.color = 'rgba(255, 255, 255, 0.9)';
+                                }
+                            }
+                        }
+                    });
+                }
             }
         });
     }

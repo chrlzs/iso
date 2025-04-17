@@ -132,7 +132,8 @@ export class IsometricWorld extends Container {
         this.createEmptyGrid();
 
         // Generate world first if requested, before anything else
-        if (options.generateWorld) {
+        // Disabled by default to start with a blank map
+        if (options.generateWorld && options.startWithBlankMap !== true) {
             console.log('Generating world...');
             this.generateWorld(options.worldOptions || {});
         }
@@ -140,12 +141,19 @@ export class IsometricWorld extends Container {
         // Create tile container with no offset
         this.groundLayer.position.set(0, 0);
 
-        // Set initial camera position to center of world
-        this.camera.x = (this.config.gridWidth * this.config.tileWidth) / 4;
-        this.camera.y = (this.config.gridHeight * this.config.tileHeight) / 4;
+        // Clear texture cache to ensure new styles are applied
+        if (this.textureCache) {
+            this.textureCache.clear();
+        }
 
-        // Apply camera position
-        this.updateCamera();
+        // Set initial camera position to center of world only if not already set
+        if (this.camera.x === 0 && this.camera.y === 0) {
+            this.camera.x = (this.config.gridWidth * this.config.tileWidth) / 4;
+            this.camera.y = (this.config.gridHeight * this.config.tileHeight) / 4;
+
+            // Apply camera position
+            this.updateCamera();
+        }
     }
 
     /**
@@ -413,16 +421,64 @@ export class IsometricWorld extends Container {
      * @returns {Object} Grid coordinates {x, y}
      */
     screenToGrid(screenX, screenY) {
-        // Convert screen coordinates to local coordinates
-        const localX = (screenX - this.position.x) / this.scale.x;
-        const localY = (screenY - this.position.y) / this.scale.y;
+        // Check if we're in building mode
+        const inBuildingMode = this.game && this.game.buildingModeActive;
 
-        // Add camera offset to get world coordinates
-        const worldX = localX + this.camera.x;
-        const worldY = localY + this.camera.y;
+        if (inBuildingMode && this.game.buildingModeManager) {
+            // Use the BuildingModeManager's simplified approach
+            return this.game.buildingModeManager.getGridPositionFromMouse(screenX, screenY);
+        }
 
-        // Convert world coordinates to grid coordinates
-        return this.worldToGrid(worldX, worldY);
+        // For normal gameplay, use a completely revised approach
+        // Create a point at the mouse position
+        const point = new PIXI.Point(screenX, screenY);
+
+        // Convert to local coordinates in the world (accounting for camera position and zoom)
+        const localPoint = this.toLocal(point);
+
+        // Log the local point for debugging
+        console.log(`Screen (${screenX}, ${screenY}) -> Local (${localPoint.x.toFixed(2)}, ${localPoint.y.toFixed(2)})`);
+
+        // Get tile dimensions
+        const tileWidthHalf = this.config.tileWidth / 2;
+        const tileHeightHalf = this.config.tileHeight / 2;
+
+        // Convert from local coordinates to isometric grid space
+        // These formulas are based on the standard isometric projection
+        // For an isometric grid with 2:1 ratio (diamond shape)
+        const isoX = localPoint.x / tileWidthHalf;
+        const isoY = localPoint.y / tileHeightHalf;
+
+        // Calculate grid coordinates using the isometric formula
+        // This converts from isometric space to grid space
+        const gridX = Math.floor((isoY + isoX) / 2);
+        const gridY = Math.floor((isoY - isoX) / 2);
+
+        // Log the grid coordinates for debugging
+        console.log(`Converted to grid coordinates: (${gridX}, ${gridY})`);
+
+        // TEMPORARY FIX: Use a simple formula based on screen position
+        // This is a hack to get different grid coordinates for different screen positions
+        // We'll replace this with a proper solution once we understand the coordinate system better
+        const screenWidth = this.app.screen.width;
+        const screenHeight = this.app.screen.height;
+
+        // Calculate normalized screen position (0 to 1)
+        const normalizedX = screenX / screenWidth;
+        const normalizedY = screenY / screenHeight;
+
+        // Calculate grid position based on screen position
+        // This will give us a range of grid positions from (0,0) to (16,16)
+        const tempGridX = Math.floor(normalizedX * 16);
+        const tempGridY = Math.floor(normalizedY * 16);
+
+        console.log(`TEMP: Using screen-based grid coordinates: (${tempGridX}, ${tempGridY})`);
+
+        // Return the temporary grid coordinates
+        return {
+            x: tempGridX,
+            y: tempGridY
+        };
     }
 
     /**
@@ -446,6 +502,20 @@ export class IsometricWorld extends Container {
     }
 
     /**
+     * Converts world coordinates to screen coordinates
+     * @param {number} worldX - World X coordinate
+     * @param {number} worldY - World Y coordinate
+     * @returns {Object} Screen coordinates {x, y}
+     */
+    worldToScreen(worldX, worldY) {
+        // Apply camera position and zoom
+        const screenX = (worldX - this.camera.x) * this.camera.zoom + this.app.screen.width / 2;
+        const screenY = (worldY - this.camera.y) * this.camera.zoom + this.app.screen.height / 2;
+
+        return { x: screenX, y: screenY };
+    }
+
+    /**
      * Updates the coordinate system configuration
      * @param {Object} config - New configuration
      */
@@ -460,21 +530,57 @@ export class IsometricWorld extends Container {
      * @returns {IsometricTile} The tile or null if not found
      */
     getTileAtScreen(screenX, screenY) {
-        // Convert screen coordinates to local space
-        const point = new PIXI.Point(screenX, screenY);
-        const localPoint = this.toLocal(point);
+        // TEMPORARY FIX: Use a simple formula based on screen position
+        // This is a hack to get different grid coordinates for different screen positions
+        const screenWidth = this.app.screen.width;
+        const screenHeight = this.app.screen.height;
 
-        // Convert to grid coordinates using standard isometric formula
-        const tileWidthHalf = this.config.tileWidth / 2;
-        const tileHeightHalf = this.config.tileHeight / 2;
+        // Calculate normalized screen position (0 to 1)
+        const normalizedX = screenX / screenWidth;
+        const normalizedY = screenY / screenHeight;
 
-        // Convert from isometric to grid coordinates with proper offset
-        const isoX = localPoint.x / tileWidthHalf;
-        const isoY = localPoint.y / tileHeightHalf;
+        // Calculate grid position based on screen position
+        // This will give us a range of grid positions from (0,0) to (16,16)
+        let gridX = Math.floor(normalizedX * 16);
+        let gridY = Math.floor(normalizedY * 16);
 
-        // These formulas convert isometric screen coordinates to grid coordinates
-        let gridY = Math.floor((isoY - isoX) / 2);
-        let gridX = Math.floor((isoY + isoX) / 2);
+        // Log the grid coordinates for debugging
+        console.log(`getTileAtScreen: Screen (${screenX}, ${screenY}) -> Grid (${gridX}, ${gridY})`);
+
+        // Try to get the tile directly
+        const directTile = this.getTile(gridX, gridY);
+        if (directTile) {
+            console.log(`Found tile at grid (${gridX}, ${gridY}): ${directTile.toString()}`);
+            return directTile;
+        }
+
+        // If we're in debug mode, try to find a tile at a different position
+        // This is a temporary fix to help diagnose coordinate system issues
+        if (this.game && this.game.options.debug) {
+            // Try a range of positions around the calculated position
+            for (let dx = -5; dx <= 5; dx++) {
+                for (let dy = -5; dy <= 5; dy++) {
+                    const testX = gridX + dx;
+                    const testY = gridY + dy;
+                    const testTile = this.getTile(testX, testY);
+                    if (testTile) {
+                        console.log(`Found tile at nearby position (${testX}, ${testY}): ${testTile.toString()}`);
+                        return testTile;
+                    }
+                }
+            }
+
+            // If we still can't find a tile, try the player's current position
+            if (this.game.player) {
+                const playerTileX = this.game.playerToTileCoords(this.game.player.gridX, this.game.player.gridY).x;
+                const playerTileY = this.game.playerToTileCoords(this.game.player.gridX, this.game.player.gridY).y;
+                const playerTile = this.getTile(playerTileX, playerTileY);
+                if (playerTile) {
+                    console.log(`Falling back to player's tile at (${playerTileX}, ${playerTileY}): ${playerTile.toString()}`);
+                    return playerTile;
+                }
+            }
+        }
 
 
         // For chunk-based worlds, we don't need to clamp coordinates to the original world bounds
@@ -488,121 +594,73 @@ export class IsometricWorld extends Container {
 
         // For chunk-based world, we need to find the chunk that contains this grid position
         const chunkCoords = this.config.gridToChunk(gridX, gridY);
-        const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
 
-        if (!chunk || !chunk.isLoaded) {
-            console.log(`No loaded chunk found at (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) for grid (${gridX}, ${gridY})`);
-            return null;
-        }
+        // Check if we're in building mode
+        const inBuildingMode = this.game && this.game.buildingModeActive;
 
-        // Convert to local chunk coordinates
-        const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
-        const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
-
-        // Get the tile from the chunk
-        const tile = chunk.getTile(localX, localY);
-        if (!tile) {
-            console.log(`No tile found in chunk at local (${localX}, ${localY})`);
-            return null;
-        }
-
-        // Ensure tile has proper references
-        if (tile.world !== this) {
-            tile.world = this;
-        }
-
-        if (tile.game !== this.game) {
-            tile.game = this.game;
-        }
-
-        // If the precise hit test passes, use this tile
-        try {
-            if (tile.containsPoint(point)) {
-                return tile;
-            }
-        } catch (error) {
-            console.error(`Error testing containsPoint for tile (${tile.gridX}, ${tile.gridY}):`, error);
-            // Continue with neighbor checks
-        }
-
-        // If the precise hit test fails, test neighboring tiles
-        // We need to check neighboring chunks as well
-        const neighbors = [];
-
-        // Check all 8 surrounding positions
-        const directions = [
-            {dx: -1, dy: 0}, {dx: 1, dy: 0}, {dx: 0, dy: -1}, {dx: 0, dy: 1},
-            {dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}
-        ];
-
-        for (const dir of directions) {
-            const nx = gridX + dir.dx;
-            const ny = gridY + dir.dy;
-
-            // For chunk-based worlds, we don't need to check world bounds
-            // This allows the player to navigate to new chunks
-
-            // Only apply a very loose boundary check to prevent extreme values
-            const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
-            if (nx < -maxDistance || nx >= this.config.gridWidth + maxDistance ||
-                ny < -maxDistance || ny >= this.config.gridHeight + maxDistance) {
-                continue;
+        // If we're in building mode, try to load the chunk if it doesn't exist
+        if (inBuildingMode) {
+            // Force coordinates to be in the center chunk (0,0) if they're outside valid range
+            if (chunkCoords.chunkX !== 0 || chunkCoords.chunkY !== 0) {
+                console.log(`Forcing coordinates to center chunk: (${gridX}, ${gridY}) -> (${this.config.chunkSize/2}, ${this.config.chunkSize/2})`);
+                gridX = Math.floor(this.config.chunkSize/2);
+                gridY = Math.floor(this.config.chunkSize/2);
+                chunkCoords.chunkX = 0;
+                chunkCoords.chunkY = 0;
             }
 
-            // Get the chunk for this neighbor
-            const neighborChunkCoords = this.config.gridToChunk(nx, ny);
-            const neighborChunk = this.getChunk(neighborChunkCoords.chunkX, neighborChunkCoords.chunkY);
+            // Try to get or create the chunk
+            const chunk = this.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
 
-            if (!neighborChunk || !neighborChunk.isLoaded) {
-                continue;
+            if (!chunk || !chunk.isLoaded) {
+                console.log(`Creating chunk at (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) for grid (${gridX}, ${gridY})`);
+                this.loadChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+                return this.getTile(gridX, gridY);
             }
 
+            return chunk.getTile(gridX - (chunkCoords.chunkX * this.config.chunkSize), gridY - (chunkCoords.chunkY * this.config.chunkSize));
+        } else {
+            // Normal behavior for non-building mode
+            const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+
+            if (!chunk || !chunk.isLoaded) {
+                console.log(`No loaded chunk found at (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) for grid (${gridX}, ${gridY})`);
+                return null;
+            }
+        }
+
+        // For non-building mode, continue with normal behavior
+        if (!inBuildingMode) {
             // Convert to local chunk coordinates
-            const neighborLocalX = nx - (neighborChunkCoords.chunkX * this.config.chunkSize);
-            const neighborLocalY = ny - (neighborChunkCoords.chunkY * this.config.chunkSize);
+            const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
+            const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
+
+            // Get the chunk (we already checked it exists above)
+            const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
 
             // Get the tile from the chunk
-            const neighborTile = neighborChunk.getTile(neighborLocalX, neighborLocalY);
-            if (neighborTile) {
-                neighbors.push(neighborTile);
+            const tile = chunk.getTile(localX, localY);
+            if (!tile) {
+                console.log(`No tile found in chunk at local (${localX}, ${localY})`);
+                return null;
             }
-        }
 
-        // Find the closest valid tile that contains the point
-        for (const neighbor of neighbors) {
-            if (neighbor) {
-                // Ensure neighbor has proper references
-                if (neighbor.world !== this) {
-                    neighbor.world = this;
-                }
-
-                if (neighbor.game !== this.game) {
-                    neighbor.game = this.game;
-                }
-
-                try {
-                    if (neighbor.containsPoint(point)) {
-                        return neighbor;
-                    }
-                } catch (error) {
-                    console.error(`Error testing containsPoint for neighbor tile (${neighbor.gridX}, ${neighbor.gridY}):`, error);
-                    // Continue with other neighbors
-                }
+            // Ensure tile has proper references
+            if (tile.world !== this) {
+                tile.world = this;
             }
+
+            if (tile.game !== this.game) {
+                tile.game = this.game;
+            }
+
+            return tile;
+        } else {
+            // For building mode, we already returned the tile above
+            return null;
         }
 
-        // Return the original tile as fallback if no better match found
 
-        // Ensure tile has proper references one more time before returning
-        if (tile.world !== this) {
-            tile.world = this;
-        }
-
-        if (tile.game !== this.game) {
-            tile.game = this.game;
-        }
-
-        return tile;
     }
 
     /**
@@ -693,6 +751,121 @@ export class IsometricWorld extends Container {
 
         // Log camera position for debugging
         //console.log('Camera updated - Position:', this.camera.x, this.camera.y, 'Zoom:', this.camera.zoom);
+    }
+
+    /**
+     * Creates a blank map for building mode
+     * @param {Object} options - Options for the blank map
+     */
+    createBlankMap(options = {}) {
+        // Store current camera position
+        const oldCameraX = this.camera.x;
+        const oldCameraY = this.camera.y;
+        const oldCameraZoom = this.camera.zoom;
+
+        // Clear existing world and optionally clear storage
+        const clearStorage = options.clearStorage !== false;
+        this.clearWorld(clearStorage);
+
+        // Restore camera position
+        this.camera.x = oldCameraX;
+        this.camera.y = oldCameraY;
+        this.camera.zoom = oldCameraZoom;
+        this.updateCamera();
+
+        // Default options
+        const defaultOptions = {
+            defaultTerrain: 'grass',
+            width: this.config.gridWidth,
+            height: this.config.gridHeight
+        };
+
+        // Merge options
+        const mapOptions = { ...defaultOptions, ...options };
+
+        console.log('Creating blank map with default terrain:', mapOptions.defaultTerrain);
+
+        // Create placeholder texture for the default terrain
+        const texture = this.createPlaceholderTexture(mapOptions.defaultTerrain);
+
+        if (!texture) {
+            console.error('Failed to create texture for terrain type:', mapOptions.defaultTerrain);
+            return;
+        }
+
+        // Create tiles with the default terrain using chunks
+        const chunkSize = this.config.chunkSize || 16;
+
+        // Calculate how many chunks we need
+        const chunksX = Math.ceil(mapOptions.width / chunkSize);
+        const chunksY = Math.ceil(mapOptions.height / chunkSize);
+
+        console.log(`Creating ${chunksX}x${chunksY} chunks for blank map`);
+
+        // Create chunks with default terrain
+        for (let cx = 0; cx < chunksX; cx++) {
+            for (let cy = 0; cy < chunksY; cy++) {
+                // Create or get chunk
+                const chunk = this.getOrCreateChunk(cx, cy);
+
+                // Fill chunk with default terrain
+                for (let x = 0; x < chunkSize; x++) {
+                    for (let y = 0; y < chunkSize; y++) {
+                        const globalX = cx * chunkSize + x;
+                        const globalY = cy * chunkSize + y;
+
+                        // Skip if outside map bounds
+                        if (globalX >= mapOptions.width || globalY >= mapOptions.height) {
+                            continue;
+                        }
+
+                        // Create tile with walkable property based on terrain type
+                        const isWalkable = mapOptions.defaultTerrain !== 'water';
+                        const tile = this.createTileInternal(globalX, globalY, mapOptions.defaultTerrain, texture, {
+                            elevation: 0,
+                            walkable: isWalkable,
+                            type: mapOptions.defaultTerrain
+                        });
+
+                        // Add tile to chunk
+                        if (tile) {
+                            const localX = x;
+                            const localY = y;
+                            chunk.setTile(localX, localY, tile);
+
+                            // Make sure the tile is added to the display list
+                            if (!tile.parent) {
+                                this.groundLayer.addChild(tile);
+                            }
+
+                            // Make sure the tile has a texture
+                            if (!tile.sprite) {
+                                const newTexture = this.createPlaceholderTexture(mapOptions.defaultTerrain);
+                                if (newTexture) {
+                                    tile.setTexture(newTexture);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Mark chunk as dirty to ensure it gets saved
+                chunk.isDirty = true;
+
+                // Add chunk to active chunks
+                const chunkKey = `${cx},${cy}`;
+                this.activeChunks.add(chunkKey);
+            }
+        }
+
+        // Don't update camera position - we want to keep the current view
+
+        // Force save the world state immediately
+        if (this.game) {
+            this.game.saveWorldState();
+        }
+
+        console.log('Blank map created successfully');
     }
 
     /**
@@ -1023,6 +1196,11 @@ export class IsometricWorld extends Container {
      * @param {boolean} clearStorage - Whether to clear stored chunks
      */
     clearWorld(clearStorage = false) {
+        // Store current camera position
+        const oldCameraX = this.camera.x;
+        const oldCameraY = this.camera.y;
+        const oldCameraZoom = this.camera.zoom;
+
         // Unload all chunks
         for (const key of this.activeChunks) {
             const [chunkX, chunkY] = key.split(',').map(Number);
@@ -1053,6 +1231,12 @@ export class IsometricWorld extends Container {
 
         // Clear active entities
         this.entities.clear();
+
+        // Restore camera position
+        this.camera.x = oldCameraX;
+        this.camera.y = oldCameraY;
+        this.camera.zoom = oldCameraZoom;
+        this.updateCamera();
     }
 
 
@@ -1356,6 +1540,16 @@ export class IsometricWorld extends Container {
     }
 
     /**
+     * Gets or creates a chunk at the specified position
+     * @param {number} chunkX - Chunk X coordinate
+     * @param {number} chunkY - Chunk Y coordinate
+     * @returns {WorldChunk} The chunk at the specified position
+     */
+    getOrCreateChunk(chunkX, chunkY) {
+        return this.getChunk(chunkX, chunkY, true);
+    }
+
+    /**
      * Loads a chunk at the specified position
      * @param {number} chunkX - Chunk X coordinate
      * @param {number} chunkY - Chunk Y coordinate
@@ -1370,11 +1564,11 @@ export class IsometricWorld extends Container {
             const storedData = this.chunkStorage.loadChunk(this.worldId, chunkX, chunkY);
 
             if (storedData) {
-                console.log(`Loading chunk (${chunkX}, ${chunkY}) from storage`);
+                //console.log(`Loading chunk (${chunkX}, ${chunkY}) from storage`);
                 chunk.deserialize(storedData);
             } else {
                 // No stored data, generate new chunk
-                console.log(`Generating new chunk (${chunkX}, ${chunkY})`);
+                //console.log(`Generating new chunk (${chunkX}, ${chunkY})`);
                 chunk.generate();
             }
         } else if (!chunk.isGenerated) {
@@ -1439,55 +1633,63 @@ export class IsometricWorld extends Container {
             return this.textureCache.get(cacheKey);
         }
 
-        // Synthwave color palette
+        // Natural color palette for map tiles
         const colors = {
             grass: {
-                main: 0xFF00FF,    // Neon pink
-                accent: 0x00FFFF,  // Cyan
-                dark: 0x800080,    // Dark purple
-                grid: 0x00FFFF     // Cyan grid
+                main: 0x4CAF50,    // Green
+                accent: 0x81C784,   // Light green
+                dark: 0x2E7D32,     // Dark green
+                grid: 0x388E3C,     // Medium green
+                border: 0x1B5E20    // Dark green border
             },
             dirt: {
-                main: 0xFF6B6B,    // Coral pink
-                accent: 0xFF355E,   // Hot pink
-                dark: 0x4A0404,     // Dark red
-                grid: 0xFF00FF      // Pink grid
+                main: 0x8D6E63,    // Brown
+                accent: 0xA1887F,   // Light brown
+                dark: 0x5D4037,     // Dark brown
+                grid: 0x6D4C41,     // Medium brown
+                border: 0x3E2723    // Dark brown border
             },
             sand: {
-                main: 0xFFA500,    // Orange
-                accent: 0xFFD700,   // Gold
-                dark: 0x804000,     // Dark orange
-                grid: 0xFFD700      // Gold grid
+                main: 0xFFD54F,    // Sand yellow
+                accent: 0xFFE082,   // Light sand
+                dark: 0xFFB300,     // Dark sand
+                grid: 0xFFC107,     // Medium sand
+                border: 0xFF8F00    // Dark sand border
             },
             water: {
-                main: 0x00FFFF,    // Cyan
-                accent: 0x0099FF,   // Blue
-                dark: 0x000080,     // Dark blue
-                grid: 0x00FFFF      // Cyan grid
+                main: 0x2196F3,    // Blue
+                accent: 0x64B5F6,   // Light blue
+                dark: 0x1565C0,     // Dark blue
+                grid: 0x1976D2,     // Medium blue
+                border: 0x0D47A1    // Dark blue border
             },
             stone: {
-                main: 0xAAAAAA,    // Light gray
-                accent: 0xCCCCCC,   // Silver
-                dark: 0x444444,     // Dark gray
-                grid: 0xAAAAAA      // Gray grid
+                main: 0x9E9E9E,    // Gray
+                accent: 0xE0E0E0,   // Light gray
+                dark: 0x616161,     // Dark gray
+                grid: 0x757575,     // Medium gray
+                border: 0x424242    // Dark gray border
             },
             snow: {
-                main: 0xFFFFFF,    // White
-                accent: 0xCCFFFF,   // Light cyan
-                dark: 0xCCCCFF,     // Light blue
-                grid: 0x00FFFF      // Cyan grid
+                main: 0xECEFF1,    // White
+                accent: 0xFFFFFF,   // Bright white
+                dark: 0xCFD8DC,     // Light blue-gray
+                grid: 0xB0BEC5,     // Medium blue-gray
+                border: 0x90A4AE    // Dark blue-gray border
             },
             lava: {
-                main: 0xFF4500,    // Orange red
-                accent: 0xFFFF00,   // Yellow
-                dark: 0x800000,     // Dark red
-                grid: 0xFF00FF      // Pink grid
+                main: 0xFF5722,    // Orange-red
+                accent: 0xFF8A65,   // Light orange
+                dark: 0xD84315,     // Dark orange-red
+                grid: 0xE64A19,     // Medium orange-red
+                border: 0xBF360C    // Dark orange-red border
             },
             void: {
-                main: 0x000000,    // Black
-                accent: 0xFF00FF,   // Neon pink
+                main: 0x263238,    // Dark blue-gray
+                accent: 0x37474F,   // Medium blue-gray
                 dark: 0x000000,     // Black
-                grid: 0xFF00FF      // Pink grid
+                grid: 0x455A64,     // Light blue-gray
+                border: 0x546E7A    // Light blue-gray border
             }
         };
 
@@ -1497,47 +1699,52 @@ export class IsometricWorld extends Container {
         // Create a graphics object for the texture
         const graphics = new PIXI.Graphics();
 
-        // Draw base shape with gradient effect
-        graphics.beginFill(terrainColors.dark);
+        // Draw base shape with natural coloring
+        graphics.beginFill(terrainColors.dark, 1.0);
         this.drawIsometricTileShape(graphics);
+        graphics.endFill();
+
+        // Add a highlight fill for better visibility
+        graphics.beginFill(terrainColors.main, 0.7);
+        this.drawIsometricTileShape(graphics);
+        graphics.endFill();
+
+        // Add a subtle top highlight
+        graphics.beginFill(terrainColors.accent, 0.3);
+        graphics.moveTo(this.config.tileWidth / 2, 0);
+        graphics.lineTo(this.config.tileWidth * 0.75, this.config.tileHeight / 4);
+        graphics.lineTo(this.config.tileWidth / 2, this.config.tileHeight / 2);
+        graphics.lineTo(this.config.tileWidth * 0.25, this.config.tileHeight / 4);
         graphics.endFill();
 
         // Adjust detail level based on quality
         let gridSpacing;
         switch(quality) {
             case 'low':
-                gridSpacing = 8;
+                gridSpacing = 16; // Fewer grid lines for low quality
                 break;
             case 'medium':
-                gridSpacing = 6;
+                gridSpacing = 12;
                 break;
             case 'high':
-                gridSpacing = 4;
+                gridSpacing = 8;
                 break;
             default:
-                gridSpacing = 6;
+                gridSpacing = 12;
         }
 
-        // Add grid lines for depth - reduced for performance in lower quality settings
-        graphics.lineStyle(1, terrainColors.grid, 0.3);
-        for (let y = 0; y < this.config.tileHeight; y += gridSpacing) {
-            graphics.moveTo(0, y);
-            graphics.lineTo(this.config.tileWidth, y);
-        }
-
-        // Add neon outline
-        graphics.lineStyle(2, terrainColors.main, 1);
-        this.drawIsometricTileShape(graphics);
-
-        // Add highlight/glow effect - simplified for low quality
+        // Add subtle grid lines for texture
         if (quality !== 'low') {
-            graphics.lineStyle(1, terrainColors.accent, 0.5);
-            for (let i = 0; i < (quality === 'high' ? 3 : 2); i++) {
-                const offset = i * 2;
-                graphics.moveTo(this.config.tileWidth/2, offset);
-                graphics.lineTo(this.config.tileWidth - offset, this.config.tileHeight/2);
+            graphics.lineStyle(1, terrainColors.grid, 0.1);
+            for (let y = 0; y < this.config.tileHeight; y += gridSpacing) {
+                graphics.moveTo(0, y);
+                graphics.lineTo(this.config.tileWidth, y);
             }
         }
+
+        // Add a clean border
+        graphics.lineStyle(2, terrainColors.border, 0.5);
+        this.drawIsometricTileShape(graphics);
 
         // Add terrain-specific details
         switch (terrainType) {
@@ -1586,20 +1793,20 @@ export class IsometricWorld extends Container {
      * @private
      */
     addWaterEffect(graphics, colors) {
-        // Add wave lines
-        graphics.lineStyle(1, colors.accent, 0.7);
-        for (let y = this.config.tileHeight/4; y < this.config.tileHeight; y += 8) {
+        // Add subtle wave lines
+        graphics.lineStyle(1, colors.accent, 0.3);
+        for (let y = this.config.tileHeight/4; y < this.config.tileHeight; y += 10) {
             graphics.moveTo(this.config.tileWidth/4, y);
             graphics.bezierCurveTo(
-                this.config.tileWidth/2, y - 4,
-                this.config.tileWidth/2, y + 4,
+                this.config.tileWidth/2, y - 3,
+                this.config.tileWidth/2, y + 3,
                 this.config.tileWidth*3/4, y
             );
         }
 
-        // Add reflection points
-        graphics.beginFill(colors.accent, 0.5);
-        for (let i = 0; i < 5; i++) {
+        // Add a few subtle reflection points
+        graphics.beginFill(colors.accent, 0.2);
+        for (let i = 0; i < 3; i++) {
             const x = this.config.tileWidth/4 + Math.random() * this.config.tileWidth/2;
             const y = this.config.tileHeight/4 + Math.random() * this.config.tileHeight/2;
             graphics.drawCircle(x, y, 1);
@@ -1614,17 +1821,18 @@ export class IsometricWorld extends Container {
      * @private
      */
     addGrassEffect(graphics, colors) {
-        // Add grass blades
-        graphics.lineStyle(1, colors.accent, 0.7);
+        // Add subtle grass texture
+        graphics.lineStyle(1, colors.accent, 0.3);
 
         const centerX = this.config.tileWidth/2;
         const centerY = this.config.tileHeight/2;
 
-        for (let i = 0; i < 8; i++) {
+        // Add fewer grass blades with more subtle appearance
+        for (let i = 0; i < 5; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const length = 3 + Math.random() * 5;
-            const startX = centerX + (Math.random() * 20 - 10);
-            const startY = centerY + (Math.random() * 20 - 10);
+            const length = 2 + Math.random() * 3; // Shorter grass blades
+            const startX = centerX + (Math.random() * 16 - 8);
+            const startY = centerY + (Math.random() * 16 - 8);
 
             graphics.moveTo(startX, startY);
             graphics.lineTo(
@@ -1641,19 +1849,31 @@ export class IsometricWorld extends Container {
      * @private
      */
     addLavaEffect(graphics, colors) {
-        // Add lava bubbles
-        graphics.beginFill(colors.accent, 0.7);
-        for (let i = 0; i < 5; i++) {
+        // Add subtle lava bubbles
+        graphics.beginFill(colors.accent, 0.4);
+        for (let i = 0; i < 3; i++) { // Fewer bubbles
             const x = this.config.tileWidth/4 + Math.random() * this.config.tileWidth/2;
             const y = this.config.tileHeight/4 + Math.random() * this.config.tileHeight/2;
-            const size = 1 + Math.random() * 3;
+            const size = 1 + Math.random() * 2; // Smaller bubbles
             graphics.drawCircle(x, y, size);
         }
         graphics.endFill();
 
-        // Add glow effect
-        graphics.lineStyle(2, colors.accent, 0.3);
-        graphics.drawCircle(this.config.tileWidth/2, this.config.tileHeight/2, this.config.tileWidth/4);
+        // Add subtle heat pattern
+        graphics.lineStyle(1, colors.accent, 0.2);
+        const centerX = this.config.tileWidth/2;
+        const centerY = this.config.tileHeight/2;
+
+        // Draw a few wavy lines to represent heat
+        for (let i = 0; i < 2; i++) {
+            const y = centerY - 5 + i * 10;
+            graphics.moveTo(centerX - 10, y);
+            graphics.bezierCurveTo(
+                centerX - 5, y - 2,
+                centerX + 5, y + 2,
+                centerX + 10, y
+            );
+        }
     }
 
     /**
@@ -1678,7 +1898,7 @@ export class IsometricWorld extends Container {
 
             // For positions slightly outside bounds, just log a debug message
             if (x < 0 || x >= this.config.gridWidth || y < 0 || y >= this.config.gridHeight) {
-                console.debug(`Tile position slightly out of bounds in createTileInternal: ${x}, ${y}`);
+                //console.debug(`Tile position slightly out of bounds in createTileInternal: ${x}, ${y}`);
                 // Continue creating the tile anyway for chunk-based worlds
             }
 
@@ -1712,9 +1932,15 @@ export class IsometricWorld extends Container {
             tile.worldX = worldPos.x;
             tile.worldY = worldPos.y;
 
-            // Set texture if not already set
-            if (!tile.sprite && texture) {
+            // Always set texture to ensure it's visible
+            if (texture) {
                 tile.setTexture(texture);
+            } else {
+                // If no texture provided, create one based on the tile type
+                const newTexture = this.createPlaceholderTexture(type);
+                if (newTexture) {
+                    tile.setTexture(newTexture);
+                }
             }
 
             // Update the main world's tile grid for backward compatibility

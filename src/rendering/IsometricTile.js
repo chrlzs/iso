@@ -440,6 +440,20 @@ export class IsometricTile extends Container {
         // Get quality setting from game if available
         const quality = (this.game && this.game.options && this.game.options.quality) || 'medium';
 
+        // Check if we're in building mode
+        const inBuildingMode = this.game && this.game.buildingModeActive;
+
+        // In building mode, use a much more subtle highlight
+        if (inBuildingMode) {
+            // Simple outline with very subtle fill
+            this.highlightGraphics.beginFill(color, 0.1);
+            this.highlightGraphics.lineStyle(1, color, 0.3);
+            this.drawTileShape();
+            this.highlightGraphics.endFill();
+            return;
+        }
+
+        // For normal gameplay, use the cyberpunk style
         // Adjust detail level based on quality
         let gridSpacing, glowLayers;
         switch(quality) {
@@ -587,6 +601,14 @@ export class IsometricTile extends Container {
     }
 
     /**
+     * Returns a string representation of the tile
+     * @returns {string} String representation
+     */
+    toString() {
+        return `Tile(${this.gridX},${this.gridY}) type:${this.type} walkable:${this.walkable} world:${!!this.world}`;
+    }
+
+    /**
      * Gets the center position of the tile
      * @returns {Object} Center position {x, y}
      */
@@ -619,10 +641,8 @@ export class IsometricTile extends Container {
      * @private
      */
     onMouseOver() {
-        // Visual feedback only - state is managed by InputManager
-        if (!this.selected) {
-            this.highlight();
-        }
+        // Disabled hover effect for cleaner UI
+        // No highlight on hover
     }
 
     /**
@@ -630,10 +650,8 @@ export class IsometricTile extends Container {
      * @private
      */
     onMouseOut() {
-        // Visual feedback only - state is managed by InputManager
-        if (!this.selected) {
-            this.unhighlight();
-        }
+        // Disabled hover effect for cleaner UI
+        // No unhighlight on mouse out
     }
 
     /**

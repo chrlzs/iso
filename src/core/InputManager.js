@@ -54,7 +54,7 @@ export class InputManager {
                 if (tile) {
                     // Only log if the hovered tile has changed
                     if (!this.hoveredTile || this.hoveredTile.gridX !== tile.gridX || this.hoveredTile.gridY !== tile.gridY) {
-                        console.log(`Hovered tile changed to (${tile.gridX}, ${tile.gridY})`);
+                        //console.log(`Hovered tile changed to (${tile.gridX}, ${tile.gridY})`);
                     }
                     this.hoveredTile = tile;
 
@@ -264,8 +264,14 @@ export class InputManager {
         }
 
         // Handle time controls
-        if (key === keys.timeControls[0] && this.keys.has('shift')) {
-            this.game.handleTimeSpeedToggle();
+        if (keys.timeControls.includes(key)) {
+            this.game.dayNightCycle.togglePaused();
+            return;
+        }
+
+        // Handle building mode toggle
+        if (key === keys.buildingMode && this.game.buildingModeManager) {
+            this.game.buildingModeManager.toggle();
             return;
         }
 
@@ -274,7 +280,7 @@ export class InputManager {
         // Handle building-related keys
         if (this.game.buildingManager) {
             // Check if it's a building-related key
-            const buildingKeys = Object.values(keys.buildings);
+            const buildingKeys = Object.values(keys.buildings || {});
             if (buildingKeys.includes(key)) {
                 // Let the building manager handle the key
                 if (this.game.buildingManager.handleKeyInput(key)) {

@@ -565,6 +565,19 @@ export class Character extends Entity {
                     console.log(`  Grid position changed from (${this.gridX}, ${this.gridY}) to (${newGridX}, ${newGridY})`);
                     this.gridX = newGridX;
                     this.gridY = newGridY;
+
+                    // Check if we've moved to an invalid position
+                    if (this.gridX < 0 || this.gridY < 0 ||
+                        this.gridX >= this.world.config.gridWidth ||
+                        this.gridY >= this.world.config.gridHeight) {
+                        console.log(`  Character moved outside valid world bounds, stopping movement`);
+                        this.stopMoving();
+
+                        // Reset to a valid position
+                        this.gridX = Math.max(0, Math.min(this.world.config.gridWidth - 1, this.gridX));
+                        this.gridY = Math.max(0, Math.min(this.world.config.gridHeight - 1, this.gridY));
+                        this.updatePosition(); // Update world position based on corrected grid position
+                    }
                 }
             }
         } else {
@@ -663,6 +676,16 @@ export class Character extends Entity {
         // Set moving flag
         this.isMoving = true;
 
+        // Check if target coordinates are within valid bounds
+        if (options.targetGridX !== undefined && options.targetGridY !== undefined) {
+            if (options.targetGridX < 0 || options.targetGridY < 0 ||
+                (this.world && (options.targetGridX >= this.world.config.gridWidth ||
+                               options.targetGridY >= this.world.config.gridHeight))) {
+                console.warn(`Cannot move to target: coordinates (${options.targetGridX}, ${options.targetGridY}) are outside valid world bounds`);
+                return;
+            }
+        }
+
         // Calculate path if we have a world reference and target grid coordinates
         if (this.world && options.targetGridX !== undefined && options.targetGridY !== undefined) {
             this.calculatePath(options.targetGridX, options.targetGridY);
@@ -720,6 +743,26 @@ export class Character extends Entity {
     calculatePath(targetGridX, targetGridY) {
         if (!this.world) {
             console.warn('Cannot calculate path: no world reference');
+            return;
+        }
+
+        // SUPER SIMPLE APPROACH: Just log the coordinates and check if we're already there
+        console.log(`calculatePath: Target coordinates (${targetGridX}, ${targetGridY})`);
+        console.log(`calculatePath: Current coordinates (${this.gridX}, ${this.gridY})`);
+
+        // Check if we're already at the target position
+        if (this.gridX === targetGridX && this.gridY === targetGridY) {
+            console.log(`Already at target position (${targetGridX}, ${targetGridY}), no path needed`);
+            this.path = [];
+            this.pathIndex = 0;
+            return;
+        }
+
+        // Ensure target coordinates are within valid bounds
+        if (targetGridX < 0 || targetGridY < 0 ||
+            targetGridX >= this.world.config.gridWidth ||
+            targetGridY >= this.world.config.gridHeight) {
+            console.warn(`Cannot calculate path: target coordinates (${targetGridX}, ${targetGridY}) are outside valid world bounds`);
             return;
         }
 

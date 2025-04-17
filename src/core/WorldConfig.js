@@ -28,10 +28,10 @@ export class WorldConfig {
         this.worldLimitMaxY = options.worldLimitMaxY || null;
 
         // Coordinate system calibration
-        this.coordinateOffsetX = 9;   // Base coordinate system X offset
-        this.coordinateOffsetY = 8;   // Base coordinate system Y offset
-        this.gridOffsetX = -65;       // Grid visualization X offset
-        this.gridOffsetY = -65;       // Grid visualization Y offset
+        this.coordinateOffsetX = 0;   // Base coordinate system X offset (reset to 0)
+        this.coordinateOffsetY = 0;   // Base coordinate system Y offset (reset to 0)
+        this.gridOffsetX = 0;         // Grid visualization X offset (reset to 0)
+        this.gridOffsetY = -32;       // Grid visualization Y offset (adjusted for isometric view)
         this.gridScale = 1.0;         // Grid visualization scale
 
         // Camera bounds
@@ -60,12 +60,20 @@ export class WorldConfig {
      * @returns {Object} World coordinates {x, y}
      */
     gridToWorld(gridX, gridY) {
-        // Convert grid coordinates to isometric world coordinates with proper scaling
-        const baseX = (gridX - gridY) * (this.tileWidth / 2);
-        const baseY = (gridX + gridY) * (this.tileHeight / 2);
+        // Convert grid coordinates to isometric world coordinates
+        // These formulas are the inverse of the worldToGrid formulas
+        const tileWidthHalf = this.tileWidth / 2;
+        const tileHeightHalf = this.tileHeight / 2;
+
+        // Calculate isometric coordinates
+        const isoX = (gridX - gridY);
+        const isoY = (gridX + gridY);
+
+        // Convert to world coordinates without any correction factor
+        // The correction is now handled by the camera and world position
         return {
-            x: baseX * this.gridScale + (this.coordinateOffsetX * this.gridScale),
-            y: baseY * this.gridScale + (this.coordinateOffsetY * this.gridScale)
+            x: isoX * tileWidthHalf,
+            y: isoY * tileHeightHalf
         };
     }
 
@@ -76,15 +84,18 @@ export class WorldConfig {
      * @returns {Object} Grid coordinates {x, y}
      */
     worldToGrid(worldX, worldY) {
-        // Remove scaling and adjust for coordinate system offset
-        const adjustedX = (worldX - (this.coordinateOffsetX * this.gridScale)) / this.gridScale;
-        const adjustedY = (worldY - (this.coordinateOffsetY * this.gridScale)) / this.gridScale;
+        // Convert from world coordinates to isometric grid space
+        const tileWidthHalf = this.tileWidth / 2;
+        const tileHeightHalf = this.tileHeight / 2;
 
-        // Convert isometric world coordinates back to grid coordinates
-        // Use Math.round instead of Math.floor for more accurate grid snapping
+        // Convert from world space to isometric space
+        const isoX = worldX / tileWidthHalf;
+        const isoY = worldY / tileHeightHalf;
+
+        // Calculate grid coordinates from isometric coordinates
         return {
-            x: Math.round((adjustedY / (this.tileHeight / 2) + adjustedX / (this.tileWidth / 2)) / 2),
-            y: Math.round((adjustedY / (this.tileHeight / 2) - adjustedX / (this.tileWidth / 2)) / 2)
+            x: (isoY + isoX) / 2,
+            y: (isoY - isoX) / 2
         };
     }
 

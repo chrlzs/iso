@@ -98,7 +98,7 @@ export class WorldChunk {
         // Create more dramatic elevation changes
         const scale = 0.05;
         return (
-            Math.sin(x * scale + seed * 0.01) * 
+            Math.sin(x * scale + seed * 0.01) *
             Math.cos(y * scale + seed * 0.01) * 0.5 + 0.5
         );
     }
@@ -115,7 +115,7 @@ export class WorldChunk {
         // Create more varied moisture distribution
         const scale = 0.03;
         return (
-            Math.sin(x * scale + seed * 0.02) * 
+            Math.sin(x * scale + seed * 0.02) *
             Math.cos(y * scale + seed * 0.02) * 0.5 + 0.5
         );
     }
@@ -355,6 +355,39 @@ export class WorldChunk {
     }
 
     /**
+     * Sets a tile at the specified local position
+     * @param {number} localX - Local X position within chunk
+     * @param {number} localY - Local Y position within chunk
+     * @param {IsometricTile} tile - The tile to set
+     * @returns {boolean} Whether the tile was set successfully
+     */
+    setTile(localX, localY, tile) {
+        // Check if position is valid
+        if (localX < 0 || localX >= this.size || localY < 0 || localY >= this.size) {
+            console.warn(`Tile position out of bounds: ${localX}, ${localY}`);
+            return false;
+        }
+
+        // Remove existing tile if any
+        if (this.tiles[localX][localY]) {
+            this.removeTile(localX, localY);
+        }
+
+        // Set the new tile
+        this.tiles[localX][localY] = tile;
+
+        // Add to container if loaded
+        if (this.isLoaded && !this.container.children.includes(tile)) {
+            this.container.addChild(tile);
+        }
+
+        // Mark chunk as dirty
+        this.isDirty = true;
+
+        return true;
+    }
+
+    /**
      * Converts local chunk coordinates to world coordinates
      * @param {number} localX - Local X position within chunk
      * @param {number} localY - Local Y position within chunk
@@ -469,7 +502,7 @@ export class WorldChunk {
         this.isLoaded = true;
         this.isDirty = false;
 
-        console.log(`Deserialized chunk at ${this.chunkX}, ${this.chunkY} with ${tilesCreated}/${data.tiles.length} tiles created`);
+        //console.log(`Deserialized chunk at ${this.chunkX}, ${this.chunkY} with ${tilesCreated}/${data.tiles.length} tiles created`);
     }
 }
 
