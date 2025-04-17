@@ -620,7 +620,10 @@ export class IsometricTile extends Container {
             // Ensure we have valid coordinates
             if (typeof worldPos.x === 'number' && typeof worldPos.y === 'number' &&
                 !isNaN(worldPos.x) && !isNaN(worldPos.y)) {
-                console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
+                // Only log in debug mode
+                if (this.game && this.game.options && this.game.options.debug) {
+                    console.log(`Tile (${this.gridX}, ${this.gridY}) world position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)})`);
+                }
                 return worldPos;
             } else {
                 console.warn(`Invalid world position for tile (${this.gridX}, ${this.gridY}): (${worldPos.x}, ${worldPos.y})`);
@@ -628,11 +631,24 @@ export class IsometricTile extends Container {
         }
 
         // Fallback to local coordinates
+        // Add the parent container's position if available
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (this.parent) {
+            offsetX = this.parent.x || 0;
+            offsetY = this.parent.y || 0;
+        }
+
         const localPos = {
-            x: this.x,
-            y: this.y - (this.elevation || 0)
+            x: this.x + offsetX,
+            y: this.y + offsetY - (this.elevation || 0)
         };
-        console.log(`Using local position for tile (${this.gridX}, ${this.gridY}): (${localPos.x.toFixed(2)}, ${localPos.y.toFixed(2)})`);
+
+        // Only log in debug mode
+        if (this.game && this.game.options && this.game.options.debug) {
+            console.log(`Using local position for tile (${this.gridX}, ${this.gridY}): (${localPos.x.toFixed(2)}, ${localPos.y.toFixed(2)})`);
+        }
         return localPos;
     }
 

@@ -14,6 +14,7 @@ import { ChunkStorage } from './ChunkStorage.js';
 import { SynthwaveEffect } from '../rendering/SynthwaveEffect.js';
 import { AssetManager } from '../assets/AssetManager.js';
 import { BuildingModeManager } from './BuildingModeManager.js';
+import { MovementManager } from './MovementManager.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -32,7 +33,7 @@ export class Game {
         this.options = {
             width: options.width || 800,
             height: options.height || 600,
-            debug: options.debug || false,
+            debug: options.debug || true, // Enable debug mode by default for easier troubleshooting
             backgroundColor: options.backgroundColor || 0x1099bb,
             worldWidth: options.worldWidth || 32,
             worldHeight: options.worldHeight || 32,
@@ -47,6 +48,13 @@ export class Game {
             maxStoredChunks: options.maxStoredChunks || 100,
             quality: options.quality || 'medium', // 'low', 'medium', 'high'
             ...options
+        };
+
+        // Add a method to toggle debug mode
+        this.toggleDebug = () => {
+            this.options.debug = !this.options.debug;
+            console.log(`Debug mode ${this.options.debug ? 'enabled' : 'disabled'}`);
+            return this.options.debug;
         };
 
         // Set quality settings based on FPS
@@ -242,6 +250,10 @@ export class Game {
         // Bind methods to preserve context
         this.handlePlacementAction = this.handlePlacementAction.bind(this);
         this.handleCameraControls = this.handleCameraControls.bind(this);
+
+        // Initialize managers
+        this.input = new InputManager(this);
+        this.movementManager = new MovementManager(this);
 
         // Initialize
         this.initialize();
@@ -501,37 +513,27 @@ export class Game {
                                 tile.game = this;
                             }
 
-                            // Get the world position of the tile
-                            const tileWorldPos = tile.getCenter();
+                            // Debug logging
+                            if (this.options.debug) {
+                                console.log(`Right-click: Player grid pos: (${this.player.gridX}, ${this.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
+                                console.log(`Tile world position: (${tile.x}, ${tile.y})`);
 
-                            // Get the player's world position
-                            const playerWorldPos = { x: this.player.x, y: this.player.y };
-
-                            // Calculate the distance between the player and the tile in world coordinates
-                            const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
-                            const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
-                            const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
-
-                            // If the player is already very close to the tile in world coordinates, don't move
-                            // Use a threshold of half a tile width/height
-                            const threshold = Math.min(this.world.config.tileWidth, this.world.config.tileHeight) / 2;
-                            if (worldDistance < threshold) {
-                                console.log(`Right-click: Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
-                                console.log(`Player world pos: (${playerWorldPos.x.toFixed(2)}, ${playerWorldPos.y.toFixed(2)}), Tile world pos: (${tileWorldPos.x.toFixed(2)}, ${tileWorldPos.y.toFixed(2)}), Distance: ${worldDistance.toFixed(2)}`);
-                                return;
+                                // Get the world position of the tile
+                                const tileWorldPos = tile.getCenter();
+                                console.log(`Tile center position: (${tileWorldPos.x}, ${tileWorldPos.y})`);
                             }
-
-                            // Also check grid coordinates for debugging purposes
-                            console.log(`Right-click: Player grid pos: (${this.player.gridX}, ${this.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
 
                             // Check if the player is already on this tile
                             const playerTile = this.world.getTile(this.player.gridX, this.player.gridY);
                             if (playerTile && playerTile === tile) {
-                                console.log(`Right-click on exact same tile (${tile.gridX}, ${tile.gridY}), not moving`);
+                                if (this.options.debug) {
+                                    console.log(`Right-click on exact same tile (${tile.gridX}, ${tile.gridY}), not moving`);
+                                }
                                 return;
                             }
 
-                            // If we get here, it's a valid move target
+                            // SIMPLIFIED APPROACH: Use our direct movement method
+                            // This bypasses the complex chunk system for now
                             this.movePlayerToTile(tile);
                         } else {
                             console.warn('No tile found at screen position');
@@ -1384,147 +1386,38 @@ export class Game {
      * @param {IsometricTile} tile - The destination tile
      */
     movePlayerToTile(tile) {
+        // SIMPLIFIED DIRECT APPROACH: Bypass the movement manager for now
         if (!this.player || !tile) {
-            console.warn('Cannot move player: player or tile is null');
-            return;
+            console.warn('Cannot move player: missing player or tile');
+            return false;
         }
 
-        // SUPER SIMPLE APPROACH: Just move the player directly to the tile's world position
-        console.log(`Moving player directly to tile (${tile.gridX}, ${tile.gridY})`);
-
-        // Get the world position of the tile
-        const tileWorldPos = tile.getCenter();
-
-        // Get the player's world position
-        const playerWorldPos = { x: this.player.x, y: this.player.y };
-
-        // Calculate the distance between the player and the tile in world coordinates
-        const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
-        const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
-        const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
-
-        // If the player is already very close to the tile in world coordinates, don't move
-        const threshold = Math.min(this.world.config.tileWidth, this.world.config.tileHeight) / 2;
-        if (worldDistance < threshold) {
-            console.log(`Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
-            return;
+        // Debug logging
+        if (this.options.debug) {
+            console.log(`Direct movement: Moving player from (${this.player.gridX}, ${this.player.gridY}) to (${tile.gridX}, ${tile.gridY})`);
         }
 
-        // Check if the tile is walkable
-        if (!tile.walkable || tile.structure) {
-            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
-            return;
-        }
+        // Get world position of the target tile
+        const worldTarget = tile.getCenter();
 
-        // Ensure tile has proper references
-        if (tile.world !== this.world) {
-            console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
-            tile.world = this.world;
-        }
+        // Set player's position directly
+        this.player.x = worldTarget.x;
+        this.player.y = worldTarget.y;
+        this.player.gridX = tile.gridX;
+        this.player.gridY = tile.gridY;
 
-        if (tile.game !== this) {
-            console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
-            tile.game = this;
-        }
-
-        // Check if the tile is walkable
-        if (!tile.walkable || tile.structure) {
-            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
-            return;
-        }
-
-        // Check if the tile is within valid bounds
-        // Prevent movement to negative Y coordinates or other invalid areas
-        if (tile.gridY < 0 || tile.gridX < 0 ||
-            tile.gridX >= this.options.worldWidth ||
-            tile.gridY >= this.options.worldHeight) {
-            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): outside valid world bounds`);
-            return;
-        }
-
-        // Clear any previous destination highlight
-        if (this.destinationTile && this.destinationTile !== tile) {
-            try {
-                this.destinationTile.unhighlight();
-            } catch (error) {
-                console.error('Error unhighlighting previous destination tile:', error);
-                // Force reset destination tile
-                this.destinationTile = null;
-            }
-        }
-
-        // Highlight the destination tile with a different color
-        try {
-            tile.highlight(0x00FFFF, 0.5); // Cyan color with 50% opacity
-            this.destinationTile = tile;
-        } catch (error) {
-            console.error('Error highlighting destination tile:', error);
-            // Continue with movement even if highlighting fails
-        }
-
-        // Get the center position of the tile
-        const targetPos = tile.getCenter();
-
-        // Ensure we have valid coordinates
-        if (typeof targetPos.x !== 'number' || typeof targetPos.y !== 'number' ||
-            isNaN(targetPos.x) || isNaN(targetPos.y)) {
-            console.error(`Invalid target position: (${targetPos.x}, ${targetPos.y})`);
-            return;
-        }
-
-        console.log(`Setting move target to world position (${targetPos.x.toFixed(2)}, ${targetPos.y.toFixed(2)})`);
-
-        // Ensure player is visible and active
-        this.player.visible = true;
-        this.player.alpha = 1.0;
-        this.player.active = true;
-
-        // Ensure player has proper references
-        if (!this.player.world || this.player.world !== this.world) {
-            console.log('Setting player world reference');
-            this.player.world = this.world;
-        }
-
-        if (!this.player.game || this.player.game !== this) {
-            console.log('Setting player game reference');
-            this.player.game = this;
-        }
-
-        // Set the player's move target with pathfinding
-        console.log('Setting player move target to:', targetPos, 'with pathfinding to grid position:', tile.gridX, tile.gridY);
-
-        // SUPER SIMPLE APPROACH: Just use the tile's grid coordinates directly
-        this.player.setMoveTarget(targetPos, {
-            targetGridX: tile.gridX,
-            targetGridY: tile.gridY
-        });
-
-        // Store target grid position for reference
-        this.player.targetGridX = tile.gridX;
-        this.player.targetGridY = tile.gridY;
-
-        // Make the camera follow the player
+        // Update camera to follow player
         this.world.setCameraTarget(this.player);
 
-        console.log(`Moving player to tile (${tile.gridX}, ${tile.gridY})`);
-
-        // Clear the destination highlight after the player reaches the tile
-        const checkDestinationReached = () => {
-            if (!this.player.isMoving && this.destinationTile) {
-                this.destinationTile.unhighlight();
-                this.destinationTile = null;
-                clearInterval(this.destinationCheckInterval);
-                this.destinationCheckInterval = null;
-            }
-        };
-
-        // Clear any existing interval
-        if (this.destinationCheckInterval) {
-            clearInterval(this.destinationCheckInterval);
+        if (this.options.debug) {
+            console.log(`Player moved to world position (${this.player.x}, ${this.player.y})`);
+            console.log(`Player grid position updated to (${this.player.gridX}, ${this.player.gridY})`);
         }
 
-        // Set up a new interval to check if the player has reached the destination
-        this.destinationCheckInterval = setInterval(checkDestinationReached, 100);
+        return true;
+
+        // Original approach (commented out for now)
+        // return this.movementManager.movePlayerToTile(tile);
     }
 
     /**

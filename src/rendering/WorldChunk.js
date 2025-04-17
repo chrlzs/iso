@@ -233,12 +233,15 @@ export class WorldChunk {
      * @returns {IsometricTile} The created tile
      */
     createTile(localX, localY, type, texture, options = {}) {
-        // Check if position is valid
+        // For chunk-based worlds, we need to be more flexible with boundaries
+        // We'll allow any local coordinates and handle them appropriately
         if (localX < 0 || localX >= this.size || localY < 0 || localY >= this.size) {
-            // For chunk-based worlds, we'll just log a debug message
-            console.debug(`Tile position outside chunk bounds: (${localX}, ${localY}) in chunk (${this.chunkX}, ${this.chunkY})`);
+            // For debugging purposes only
+            if (this.world && this.world.game && this.world.game.options && this.world.game.options.debug) {
+                console.debug(`Tile position outside chunk bounds: (${localX}, ${localY}) in chunk (${this.chunkX}, ${this.chunkY})`);
+            }
             // We'll still create the tile in the world, but not store it in this chunk
-            // This allows for tiles that are on chunk boundaries
+            // This allows for tiles that are on chunk boundaries or in negative coordinate space
         }
 
         // Remove existing tile if within bounds
@@ -326,7 +329,7 @@ export class WorldChunk {
      * @returns {IsometricTile} The tile at the specified position
      */
     getTile(localX, localY) {
-        // Check if position is valid
+        // Check if position is valid for this chunk's internal storage
         if (localX < 0 || localX >= this.size || localY < 0 || localY >= this.size) {
             // For chunk-based worlds, we might need to get a tile from a neighboring chunk
             if (this.world) {
@@ -334,16 +337,33 @@ export class WorldChunk {
                 const worldX = (this.chunkX * this.size) + localX;
                 const worldY = (this.chunkY * this.size) + localY;
 
+                // Debug logging
+                if (this.world.game && this.world.game.options && this.world.game.options.debug) {
+                    console.debug(`Getting tile from neighboring chunk: local (${localX}, ${localY}) in chunk (${this.chunkX}, ${this.chunkY}) -> world (${worldX}, ${worldY})`);
+                }
+
                 // Get the chunk that contains this position
                 const chunkCoords = this.world.config.gridToChunk(worldX, worldY);
 
+                // Debug logging
+                if (this.world.game && this.world.game.options && this.world.game.options.debug) {
+                    console.debug(`Calculated chunk coordinates: (${chunkCoords.chunkX}, ${chunkCoords.chunkY})`);
+                }
+
                 // If it's a different chunk, try to get the tile from there
                 if (chunkCoords.chunkX !== this.chunkX || chunkCoords.chunkY !== this.chunkY) {
-                    const chunk = this.world.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+                    // Try to get or create the chunk
+                    const chunk = this.world.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
                     if (chunk) {
                         // Convert back to local coordinates in the other chunk
                         const otherLocalX = worldX - (chunkCoords.chunkX * this.size);
                         const otherLocalY = worldY - (chunkCoords.chunkY * this.size);
+
+                        // Debug logging
+                        if (this.world.game && this.world.game.options && this.world.game.options.debug) {
+                            console.debug(`Getting tile from chunk (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) at local (${otherLocalX}, ${otherLocalY})`);
+                        }
+
                         return chunk.getTile(otherLocalX, otherLocalY);
                     }
                 }

@@ -175,8 +175,7 @@ export class PathFinder {
     getNeighbors(x, y, options) {
         const neighbors = [];
 
-        // Define directions (4 or 8 depending on diagonal movement)
-        // Orthogonal directions first (more likely to be valid)
+        // Define directions - orthogonal directions first (more likely to be valid)
         const directions = [
             { dx: 0, dy: -1 }, // Up
             { dx: 0, dy: 1 },  // Down
@@ -185,53 +184,59 @@ export class PathFinder {
         ];
 
         // Add diagonal directions if enabled (check these last)
+        // But make them less likely to be used by adding them at the end
         if (options.diagonalMovement) {
-            directions.push(
-                { dx: -1, dy: -1 }, // Top-left
-                { dx: 1, dy: -1 },  // Top-right
-                { dx: -1, dy: 1 },  // Bottom-left
-                { dx: 1, dy: 1 }    // Bottom-right
-            );
-        }
+            // Only add diagonal moves if both orthogonal moves in that direction are walkable
+            // This prevents cutting corners
+            const canMoveNorth = this.isWalkable(x, y - 1, options);
+            const canMoveSouth = this.isWalkable(x, y + 1, options);
+            const canMoveEast = this.isWalkable(x + 1, y, options);
+            const canMoveWest = this.isWalkable(x - 1, y, options);
 
-        // Reuse neighbor object for better performance
-        const neighbor = {
-            g: 0,
-            h: 0,
-            f: 0,
-            parent: null
-        };
+            if (canMoveNorth && canMoveEast) directions.push({ dx: 1, dy: -1 });  // Northeast
+            if (canMoveSouth && canMoveEast) directions.push({ dx: 1, dy: 1 });   // Southeast
+            if (canMoveNorth && canMoveWest) directions.push({ dx: -1, dy: -1 }); // Northwest
+            if (canMoveSouth && canMoveWest) directions.push({ dx: -1, dy: 1 });  // Southwest
+        }
 
         // Check each direction
         for (const dir of directions) {
             const nx = x + dir.dx;
             const ny = y + dir.dy;
 
-            // Get tile at this position
-            const tile = this.world.getTile(nx, ny);
-
-            // Skip if tile doesn't exist or isn't walkable
-            if (!tile || !tile.walkable || tile.structure) {
-                continue;
+            if (this.isWalkable(nx, ny, options)) {
+                // Add valid neighbor
+                neighbors.push({
+                    x: nx,
+                    y: ny,
+                    g: 0,
+                    h: 0,
+                    f: 0,
+                    parent: null
+                });
             }
-
-            // Skip water tiles if ignoreWater is true
-            if (options.ignoreWater && tile.type === 'water') {
-                continue;
-            }
-
-            // Add valid neighbor (create a new object to avoid reference issues)
-            neighbors.push({
-                x: nx,
-                y: ny,
-                g: 0,
-                h: 0,
-                f: 0,
-                parent: null
-            });
         }
 
         return neighbors;
+    }
+
+    /**
+     * Checks if a tile is walkable
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {Object} options - Pathfinding options
+     * @returns {boolean} True if walkable
+     * @private
+     */
+    isWalkable(x, y, options) {
+        const tile = this.world.getTile(x, y);
+        if (!tile || !tile.walkable || tile.structure) {
+            return false;
+        }
+        if (options.ignoreWater && tile.type === 'water') {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -245,14 +250,16 @@ export class PathFinder {
      * @private
      */
     heuristic(x1, y1, x2, y2, weight = 1.0) {
-        // Use octile distance for better diagonal movement estimation
-        // This is more accurate than Manhattan distance when diagonal movement is allowed
         const dx = Math.abs(x2 - x1);
         const dy = Math.abs(y2 - y1);
-
-        // Octile distance: D * max(dx, dy) + (D2 - D) * min(dx, dy)
-        // where D is the orthogonal cost (1.0) and D2 is the diagonal cost (1.414)
-        return weight * (Math.max(dx, dy) + (0.414 * Math.min(dx, dy)));
+        
+        // Use Manhattan distance as primary heuristic to encourage orthogonal movement
+        const manhattan = (dx + dy);
+        
+        // Only add a tiny diagonal component to break ties
+        const diagonal = Math.min(dx, dy) * 0.001;
+        
+        return weight * (manhattan + diagonal);
     }
 
     /**
@@ -261,17 +268,21 @@ export class PathFinder {
      * @param {number} y1 - Start Y position
      * @param {number} x2 - End X position
      * @param {number} y2 - End Y position
-     * @returns {number} Distance value
+     * @returns {number} Distance value 
      * @private
      */
     distance(x1, y1, x2, y2) {
-        // For diagonal movement, use Euclidean distance
+        const dx = Math.abs(x2 - x1);
+        const dy = Math.abs(y2 - y1);
+
+        // Make diagonal movement 2x more expensive than orthogonal movement
+        // This will strongly encourage orthogonal movement unless diagonal is significantly shorter
         if (x1 !== x2 && y1 !== y2) {
-            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            return (dx + dy) * 2; 
         }
 
         // For orthogonal movement, use Manhattan distance
-        return Math.abs(x2 - x1) + Math.abs(y2 - y1);
+        return dx + dy;
     }
 
     /**

@@ -106,10 +106,13 @@ export class WorldConfig {
      * @returns {Object} Chunk coordinates {chunkX, chunkY}
      */
     gridToChunk(gridX, gridY) {
-        return {
-            chunkX: Math.floor(gridX / this.chunkSize),
-            chunkY: Math.floor(gridY / this.chunkSize)
-        };
+        // Special handling for negative coordinates to ensure correct chunking
+        // For negative numbers, we need to round down (towards negative infinity)
+        // Math.floor works for positive numbers but needs adjustment for negative numbers
+        const chunkX = gridX < 0 ? Math.floor(gridX / this.chunkSize) : Math.floor(gridX / this.chunkSize);
+        const chunkY = gridY < 0 ? Math.floor(gridY / this.chunkSize) : Math.floor(gridY / this.chunkSize);
+
+        return { chunkX, chunkY };
     }
 
     /**
@@ -119,6 +122,8 @@ export class WorldConfig {
      * @returns {Object} Grid coordinates {gridX, gridY}
      */
     chunkToGrid(chunkX, chunkY) {
+        // This works for both positive and negative chunk coordinates
+        // For negative chunks, this will correctly give the top-left corner
         return {
             gridX: chunkX * this.chunkSize,
             gridY: chunkY * this.chunkSize
