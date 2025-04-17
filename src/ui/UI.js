@@ -331,7 +331,7 @@ export class UI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 200, 180, 10);
+        background.drawRoundedRect(0, 0, 200, 280, 10); // Increased height for additional controls
         background.endFill();
         panel.addChild(background);
 
@@ -444,8 +444,54 @@ export class UI {
 
         panel.addChild(autoContainer);
 
+        // Add visual effects section title
+        const effectsTitle = new PIXI.Text('Visual Effects', {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0x00FFFF,
+            align: 'left'
+        });
+        effectsTitle.position.set(20, 160);
+        panel.addChild(effectsTitle);
+
+        // Add grid checkbox
+        const gridContainer = this.createCheckbox(
+            'Grid',
+            this.game.synthwaveEffect.showGrid,
+            20, 180,
+            () => {
+                this.game.synthwaveEffect.setGridVisible(!this.game.synthwaveEffect.showGrid);
+                this.updateQualityPanel();
+            }
+        );
+        panel.addChild(gridContainer);
+
+        // Add scan lines checkbox
+        const scanLinesContainer = this.createCheckbox(
+            'Scan Lines',
+            this.game.synthwaveEffect.showScanLines,
+            20, 210,
+            () => {
+                this.game.synthwaveEffect.setScanLinesVisible(!this.game.synthwaveEffect.showScanLines);
+                this.updateQualityPanel();
+            }
+        );
+        panel.addChild(scanLinesContainer);
+
+        // Add vignette checkbox
+        const vignetteContainer = this.createCheckbox(
+            'Vignette',
+            this.game.synthwaveEffect.showVignette,
+            20, 240,
+            () => {
+                this.game.synthwaveEffect.setVignetteVisible(!this.game.synthwaveEffect.showVignette);
+                this.updateQualityPanel();
+            }
+        );
+        panel.addChild(vignetteContainer);
+
         // Position panel above the quality button
-        panel.position.set(10, this.game.app.screen.height - 190);
+        panel.position.set(10, this.game.app.screen.height - 290);
 
         // Add to panels container
         this.panelsContainer.addChild(panel);
@@ -466,6 +512,55 @@ export class UI {
 
         // Create updated panel
         this.createQualityPanel();
+    }
+
+    /**
+     * Creates a checkbox with label
+     * @param {string} label - Checkbox label
+     * @param {boolean} checked - Whether the checkbox is checked
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {Function} onClick - Click handler
+     * @returns {PIXI.Container} The checkbox container
+     */
+    createCheckbox(label, checked, x, y, onClick) {
+        const container = new PIXI.Container();
+        container.position.set(x, y);
+
+        // Create checkbox
+        const box = new PIXI.Graphics();
+        box.beginFill(0x333333, 1);
+        box.lineStyle(2, 0x00FFFF, 1);
+        box.drawRect(0, 0, 16, 16);
+        box.endFill();
+
+        // Add checkmark if checked
+        if (checked) {
+            const check = new PIXI.Graphics();
+            check.lineStyle(2, 0x00FFFF, 1);
+            check.moveTo(3, 8);
+            check.lineTo(7, 12);
+            check.lineTo(13, 4);
+            box.addChild(check);
+        }
+
+        container.addChild(box);
+
+        // Create label
+        const text = new PIXI.Text(label, {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0xFFFFFF
+        });
+        text.position.set(25, 0);
+        container.addChild(text);
+
+        // Make interactive
+        container.interactive = true;
+        container.buttonMode = true;
+        container.on('pointerdown', onClick);
+
+        return container;
     }
 
     /**
@@ -506,7 +601,7 @@ export class UI {
                 );
             } else if (panel === this.panels.quality) {
                 // Reposition quality panel
-                panel.position.set(10, height - 190);
+                panel.position.set(10, height - 290);
             }
             // Add other panel-specific resize logic here
         });

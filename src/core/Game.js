@@ -155,7 +155,10 @@ export class Game {
             width: this.options.width,
             height: this.options.height,
             enabled: true,
-            quality: this.options.quality // Pass quality setting
+            quality: this.options.quality, // Pass quality setting
+            showGrid: true, // Keep the grid background
+            showScanLines: true, // Keep the scan lines
+            showVignette: true // Keep the vignette effect
         });
 
         // Add synthwave effect to stage (behind UI but above world)
