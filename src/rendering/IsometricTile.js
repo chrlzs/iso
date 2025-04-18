@@ -161,16 +161,40 @@ export class IsometricTile extends Container {
      * @param {PIXI.Texture} texture - The texture to set
      */
     setTexture(texture) {
-        if (!texture) return;
+        if (!texture) {
+            console.warn(`Attempted to set invalid texture on tile (${this.gridX}, ${this.gridY})`);
+            return;
+        }
+
+        // Debug logging
+        const isDebug = this.game && this.game.options && this.game.options.debug;
+        if (isDebug) {
+            console.log(`Setting texture on tile (${this.gridX}, ${this.gridY})`);
+            console.log(`  - Texture valid: ${texture !== null && texture !== undefined}`);
+            console.log(`  - Sprite exists: ${this.sprite !== null && this.sprite !== undefined}`);
+        }
 
         if (!this.sprite) {
             // Create sprite
             this.sprite = new PIXI.Sprite(texture);
             this.sprite.anchor.set(0.5, 1); // Bottom center
             this.addChild(this.sprite);
+
+            if (isDebug) {
+                console.log(`  - Created new sprite for tile (${this.gridX}, ${this.gridY})`);
+            }
         } else {
             // Update texture
             this.sprite.texture = texture;
+
+            // Force texture update by marking it as dirty
+            if (this.sprite.texture) {
+                this.sprite.texture.update();
+            }
+
+            if (isDebug) {
+                console.log(`  - Updated texture on existing sprite for tile (${this.gridX}, ${this.gridY})`);
+            }
         }
 
         // Update dimensions if needed
@@ -181,6 +205,13 @@ export class IsometricTile extends Container {
         if (!this.sprite.height) {
             this.sprite.height = this.tileHeight + this.elevation;
         }
+
+        // Force the sprite to be visible
+        this.sprite.visible = true;
+        this.sprite.alpha = 1.0;
+
+        // Force redraw
+        this.sprite.dirty = true;
     }
 
     /**
@@ -189,6 +220,17 @@ export class IsometricTile extends Container {
      * @param {PIXI.Texture} texture - Optional texture for the new type
      */
     setType(type, texture = null) {
+        // Debug logging
+        const isDebug = this.game && this.game.options && this.game.options.debug;
+        if (isDebug) {
+            console.log(`Changing tile type from ${this.type} to ${type} for tile (${this.gridX}, ${this.gridY})`);
+            console.log(`  - Texture provided: ${texture !== null && texture !== undefined}`);
+        }
+
+        // Store the old type for comparison
+        const oldType = this.type;
+
+        // Update the type
         this.type = type;
 
         // Update walkable property based on type
@@ -206,6 +248,15 @@ export class IsometricTile extends Container {
         // Update texture if provided
         if (texture) {
             this.setTexture(texture);
+        } else if (this.world && oldType !== type) {
+            // If no texture provided but type changed, try to get a texture from the world
+            const newTexture = this.world.createPlaceholderTexture(type);
+            if (newTexture) {
+                if (isDebug) {
+                    console.log(`  - Created new placeholder texture for type ${type}`);
+                }
+                this.setTexture(newTexture);
+            }
         }
     }
 

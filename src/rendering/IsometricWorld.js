@@ -1000,46 +1000,78 @@ export class IsometricWorld extends Container {
      * @returns {PIXI.Texture} The created texture
      */
     createPlaceholderTexture(terrainType) {
-        // Synthwave color palette
+        // Debug logging
+        const isDebug = this.game && this.game.options && this.game.options.debug;
+        if (isDebug) {
+            console.log(`Creating placeholder texture for terrain type: ${terrainType}`);
+        }
+
+        // Initialize texture cache if it doesn't exist
+        if (!this.textureCache) {
+            this.textureCache = new Map();
+            if (isDebug) {
+                console.log(`  - Initialized texture cache`);
+            }
+        }
+
+        // Get quality setting from game if available
+        const quality = (this.game && this.game.options && this.game.options.quality) || 'medium';
+
+        // Create a cache key that includes quality
+        const cacheKey = `${terrainType}_${quality}`;
+
+        // Return cached texture if available
+        if (this.textureCache.has(cacheKey)) {
+            if (isDebug) {
+                console.log(`  - Using cached texture for ${terrainType}`);
+            }
+            return this.textureCache.get(cacheKey);
+        }
+
+        if (isDebug) {
+            console.log(`  - Creating new texture for ${terrainType}`);
+        }
+
+        // SUPER DISTINCT Synthwave color palette - making each terrain type VERY different
         const colors = {
             grass: {
-                main: 0xFF00FF,    // Neon pink
-                accent: 0x00FFFF,  // Cyan
-                dark: 0x800080     // Dark purple
+                main: 0x00FF00,    // Bright Green
+                accent: 0x33FF33,   // Lighter Green
+                dark: 0x006600     // Dark Green
             },
             dirt: {
-                main: 0xFF6B6B,    // Coral pink
-                accent: 0xFF355E,   // Hot pink
-                dark: 0x4A0404     // Dark red
+                main: 0xA52A2A,    // Brown
+                accent: 0xD2691E,   // Chocolate
+                dark: 0x8B4513     // SaddleBrown
             },
             sand: {
-                main: 0xFFA500,    // Orange
+                main: 0xFFFF00,    // Yellow
                 accent: 0xFFD700,   // Gold
-                dark: 0x804000     // Dark orange
+                dark: 0xDAA520     // GoldenRod
             },
             water: {
-                main: 0x00FFFF,    // Cyan
-                accent: 0x0099FF,   // Blue
-                dark: 0x000080     // Dark blue
+                main: 0x0000FF,    // Blue
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x000080     // Navy
             },
             stone: {
-                main: 0x9370DB,    // Medium purple
-                accent: 0xB24BF3,   // Bright purple
-                dark: 0x483D8B     // Dark slate blue
+                main: 0x808080,    // Gray
+                accent: 0xA9A9A9,   // DarkGray
+                dark: 0x696969     // DimGray
             },
             snow: {
-                main: 0xE6E6FA,    // Lavender
-                accent: 0xFFFFFF,   // White
-                dark: 0xC8A2C8     // Lilac
+                main: 0xFFFFFF,    // White
+                accent: 0xF0F8FF,   // AliceBlue
+                dark: 0xF5F5F5     // WhiteSmoke
             },
             lava: {
-                main: 0xFF4500,    // Red-orange
-                accent: 0xFFFF00,   // Yellow
-                dark: 0x8B0000     // Dark red
+                main: 0xFF0000,    // Red
+                accent: 0xFF8C00,   // DarkOrange
+                dark: 0x8B0000     // DarkRed
             },
             void: {
-                main: 0x120024,    // Deep purple
-                accent: 0x301934,   // Dark purple
+                main: 0x000000,    // Black
+                accent: 0x191970,   // MidnightBlue
                 dark: 0x000000     // Black
             }
         };
@@ -1089,7 +1121,51 @@ export class IsometricWorld extends Container {
 
         // Generate texture
         if (this.app && this.app.renderer) {
-            return this.app.renderer.generateTexture(graphics);
+            try {
+                // Debug logging
+                const isDebug = this.game && this.game.options && this.game.options.debug;
+                if (isDebug) {
+                    console.log(`  - Generating texture for ${terrainType} using renderer`);
+                }
+
+                // IMPORTANT: Add a timestamp to ensure the texture is unique
+                // This prevents the renderer from reusing cached textures
+                graphics.beginFill(0xFFFFFF, 0.01);
+                graphics.drawCircle(0, 0, 1);
+                graphics.endFill();
+
+                // Add a text label with the terrain type for debugging
+                const text = new PIXI.Text(terrainType, {
+                    fontFamily: 'Arial',
+                    fontSize: 10,
+                    fill: 0xFFFFFF,
+                    stroke: 0x000000,
+                    strokeThickness: 2,
+                    align: 'center'
+                });
+                text.anchor.set(0.5, 0.5);
+                text.position.set(this.config.tileWidth / 2, this.config.tileHeight / 2);
+                graphics.addChild(text);
+
+                // Generate the texture
+                const texture = this.app.renderer.generateTexture(graphics);
+
+                // Cache the texture with a unique key that includes a timestamp
+                const uniqueKey = `${terrainType}_${quality}_${Date.now()}`;
+                if (texture) {
+                    this.textureCache.set(uniqueKey, texture);
+                    if (isDebug) {
+                        console.log(`  - Successfully generated and cached texture for ${terrainType} with key ${uniqueKey}`);
+                    }
+                } else {
+                    console.warn(`Failed to generate texture for ${terrainType}`);
+                }
+
+                return texture;
+            } catch (error) {
+                console.error(`Error generating texture for ${terrainType}:`, error);
+                return null;
+            }
         } else {
             console.error('Cannot generate texture: app or renderer is not available');
             return null;
@@ -1114,17 +1190,31 @@ export class IsometricWorld extends Container {
      */
     addWaterEffect(graphics, colors, quality = 'medium') {
         // Add wave lines - adjust detail based on quality
-        graphics.lineStyle(1, colors.accent, 0.4);
+        graphics.lineStyle(2, colors.accent, 0.8); // Thicker, more visible lines
 
         // Adjust wave density based on quality
         const spacing = quality === 'low' ? 8 : (quality === 'medium' ? 6 : 4);
 
+        // Add more distinctive wave pattern
         for (let y = this.config.tileHeight / 4; y < this.config.tileHeight; y += spacing) {
             graphics.moveTo(this.config.tileWidth / 4, y);
             graphics.quadraticCurveTo(
-                this.config.tileWidth / 2, y + 2,
+                this.config.tileWidth / 2, y + 4, // More pronounced curve
                 this.config.tileWidth * 3/4, y
             );
+        }
+
+        // Add a blue overlay for more water-like appearance
+        graphics.beginFill(colors.main, 0.3);
+        this.drawIsometricTileShape(graphics);
+        graphics.endFill();
+
+        // Add some "sparkles" to the water
+        graphics.lineStyle(1, 0xFFFFFF, 0.7);
+        for (let i = 0; i < 5; i++) {
+            const x = (Math.random() - 0.5) * this.config.tileWidth * 0.8;
+            const y = (Math.random() - 0.5) * this.config.tileHeight * 0.8;
+            graphics.drawCircle(x + this.config.tileWidth/2, y + this.config.tileHeight/2, 1);
         }
     }
 
@@ -1133,15 +1223,34 @@ export class IsometricWorld extends Container {
      * @private
      */
     addGrassEffect(graphics, colors, quality = 'medium') {
+        // Add a green overlay for more grass-like appearance
+        graphics.beginFill(colors.main, 0.3);
+        this.drawIsometricTileShape(graphics);
+        graphics.endFill();
+
         // Add diagonal lines for grass texture - adjust detail based on quality
-        graphics.lineStyle(1, colors.accent, 0.3);
+        graphics.lineStyle(2, colors.accent, 0.7); // Thicker, more visible lines
 
         // Adjust line density based on quality
         const spacing = quality === 'low' ? 16 : (quality === 'medium' ? 12 : 8);
 
+        // Add more distinctive grass pattern
         for (let i = 0; i < this.config.tileWidth; i += spacing) {
             graphics.moveTo(i, 0);
             graphics.lineTo(i + spacing, this.config.tileHeight);
+        }
+
+        // Add some "grass blades"
+        graphics.lineStyle(1, colors.accent, 0.8);
+        const blades = quality === 'low' ? 3 : (quality === 'medium' ? 5 : 8);
+
+        for (let i = 0; i < blades; i++) {
+            const x = Math.random() * this.config.tileWidth;
+            const y = Math.random() * this.config.tileHeight;
+            const height = 2 + Math.random() * 4;
+
+            graphics.moveTo(x, y);
+            graphics.lineTo(x, y - height);
         }
     }
 
@@ -1150,16 +1259,38 @@ export class IsometricWorld extends Container {
      * @private
      */
     addLavaEffect(graphics, colors, quality = 'medium') {
+        // Add a red overlay for more lava-like appearance
+        graphics.beginFill(colors.main, 0.4);
+        this.drawIsometricTileShape(graphics);
+        graphics.endFill();
+
         // Add glowing patterns - adjust detail based on quality
-        graphics.lineStyle(2, colors.accent, 0.6);
+        graphics.lineStyle(3, colors.accent, 0.8); // Thicker, more visible lines
 
         // Adjust number of lines based on quality
-        const lines = quality === 'low' ? 2 : (quality === 'medium' ? 3 : 4);
+        const lines = quality === 'low' ? 3 : (quality === 'medium' ? 4 : 6);
 
+        // Add more distinctive lava pattern
         for (let i = 1; i <= lines; i++) {
             const offset = i * this.config.tileHeight / (lines + 1);
+            // Wavy lava lines
             graphics.moveTo(this.config.tileWidth / 4, offset);
-            graphics.lineTo(this.config.tileWidth * 3/4, offset);
+            graphics.quadraticCurveTo(
+                this.config.tileWidth / 2, offset + 4, // More pronounced curve
+                this.config.tileWidth * 3/4, offset
+            );
+        }
+
+        // Add some "lava bubbles"
+        graphics.lineStyle(2, colors.accent, 0.9);
+        const bubbles = quality === 'low' ? 2 : (quality === 'medium' ? 4 : 6);
+
+        for (let i = 0; i < bubbles; i++) {
+            const x = Math.random() * this.config.tileWidth;
+            const y = Math.random() * this.config.tileHeight;
+            const size = 1 + Math.random() * 3;
+
+            graphics.drawCircle(x, y, size);
         }
     }
 
@@ -1630,9 +1761,18 @@ export class IsometricWorld extends Container {
      * @returns {PIXI.Texture} The created texture
      */
     createPlaceholderTexture(terrainType) {
+        // Debug logging
+        const isDebug = this.game && this.game.options && this.game.options.debug;
+        if (isDebug) {
+            console.log(`Creating placeholder texture for terrain type: ${terrainType}`);
+        }
+
         // Initialize texture cache if it doesn't exist
         if (!this.textureCache) {
             this.textureCache = new Map();
+            if (isDebug) {
+                console.log(`  - Initialized texture cache`);
+            }
         }
 
         // Get quality setting from game if available
@@ -1643,7 +1783,14 @@ export class IsometricWorld extends Container {
 
         // Return cached texture if available
         if (this.textureCache.has(cacheKey)) {
+            if (isDebug) {
+                console.log(`  - Using cached texture for ${terrainType}`);
+            }
             return this.textureCache.get(cacheKey);
+        }
+
+        if (isDebug) {
+            console.log(`  - Creating new texture for ${terrainType}`);
         }
 
         // Natural color palette for map tiles
