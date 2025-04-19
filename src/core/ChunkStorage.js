@@ -24,21 +24,50 @@ export class ChunkStorage {
      */
     saveChunk(worldId, chunkX, chunkY, chunkData) {
         try {
+            console.log(`ChunkStorage: Saving chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
+            console.log(`ChunkStorage: Chunk data:`, chunkData);
+
+            // Validate chunk data
+            if (!chunkData) {
+                console.error(`ChunkStorage: Cannot save null or undefined chunk data`);
+                return false;
+            }
+
+            if (!chunkData.tiles || !Array.isArray(chunkData.tiles)) {
+                console.error(`ChunkStorage: Chunk data has invalid tiles array:`, chunkData.tiles);
+                return false;
+            }
+
+            console.log(`ChunkStorage: Chunk contains ${chunkData.tiles.length} tiles`);
+
             // Create storage key
             const key = this.getChunkKey(worldId, chunkX, chunkY);
-            
+            console.log(`ChunkStorage: Using storage key: ${key}`);
+
             // Update access time
             this.chunkAccessTimes.set(key, Date.now());
-            
+
             // Serialize and save chunk data
             const serializedData = JSON.stringify(chunkData);
+            console.log(`ChunkStorage: Serialized data size: ${serializedData.length} bytes`);
+
+            // Save to localStorage
             localStorage.setItem(key, serializedData);
-            
+
+            // Verify the save
+            const savedData = localStorage.getItem(key);
+            if (!savedData) {
+                console.error(`ChunkStorage: Failed to verify saved chunk - data not found in localStorage`);
+                return false;
+            }
+
+            console.log(`ChunkStorage: Successfully saved chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
+
             // Enforce storage limits if needed
             if (this.maxChunks > 0) {
                 this.enforceStorageLimits();
             }
-            
+
             return true;
         } catch (error) {
             console.error('Failed to save chunk:', error);
@@ -57,17 +86,17 @@ export class ChunkStorage {
         try {
             // Create storage key
             const key = this.getChunkKey(worldId, chunkX, chunkY);
-            
+
             // Get serialized data
             const serializedData = localStorage.getItem(key);
-            
+
             if (!serializedData) {
                 return null;
             }
-            
+
             // Update access time
             this.chunkAccessTimes.set(key, Date.now());
-            
+
             // Parse and return chunk data
             return JSON.parse(serializedData);
         } catch (error) {
@@ -117,20 +146,20 @@ export class ChunkStorage {
             // Get all keys for this world
             const prefix = `${this.storagePrefix}${worldId}_`;
             const keys = [];
-            
+
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && key.startsWith(prefix)) {
                     keys.push(key);
                 }
             }
-            
+
             // Remove all matching keys
             keys.forEach(key => {
                 localStorage.removeItem(key);
                 this.chunkAccessTimes.delete(key);
             });
-            
+
             return true;
         } catch (error) {
             console.error('Failed to clear world chunks:', error);
@@ -146,18 +175,18 @@ export class ChunkStorage {
     getWorldChunks(worldId) {
         const chunks = [];
         const prefix = `${this.storagePrefix}${worldId}_`;
-        
+
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(prefix)) {
                 // Extract coordinates from key
                 const coordPart = key.substring(prefix.length);
                 const [chunkX, chunkY] = coordPart.split('_').map(Number);
-                
+
                 chunks.push({ chunkX, chunkY });
             }
         }
-        
+
         return chunks;
     }
 
@@ -169,7 +198,7 @@ export class ChunkStorage {
         // Count chunks with our prefix
         let count = 0;
         const keys = [];
-        
+
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(this.storagePrefix)) {
@@ -177,19 +206,19 @@ export class ChunkStorage {
                 count++;
             }
         }
-        
+
         // If we're under the limit, no need to remove anything
         if (count <= this.maxChunks) {
             return;
         }
-        
+
         // Sort keys by access time (oldest first)
         keys.sort((a, b) => {
             const timeA = this.chunkAccessTimes.get(a) || 0;
             const timeB = this.chunkAccessTimes.get(b) || 0;
             return timeA - timeB;
         });
-        
+
         // Remove oldest chunks until we're under the limit
         const toRemove = count - this.maxChunks;
         for (let i = 0; i < toRemove; i++) {

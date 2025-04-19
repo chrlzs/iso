@@ -843,29 +843,110 @@ export class BuildingModeUI {
         // Confirm with the user
         if (confirm(`Load map ${worldId}? Any unsaved changes to the current map will be lost.`)) {
             try {
+                console.log(`===== LOADING MAP: ${worldId} =====`);
+
                 // Save current world state first
                 this.game.saveWorldState();
 
+                // IMPORTANT: Clear all containers before changing world ID
+                if (this.game.world) {
+                    console.log('Clearing all containers');
+                    this.game.world.groundLayer.removeChildren();
+                    this.game.world.entityContainer.removeChildren();
+                    this.game.world.chunkContainer.removeChildren();
+
+                    // Clear active chunks set
+                    this.game.world.activeChunks.clear();
+
+                    // Clear chunks map
+                    this.game.world.chunks.clear();
+                }
+
                 // Update world ID
+                const oldWorldId = this.game.options.worldId;
+                console.log(`Changing world ID from ${oldWorldId} to ${worldId}`);
                 this.game.options.worldId = worldId;
                 this.game.world.worldId = worldId;
 
+                // IMPORTANT: Clear the texture cache to ensure fresh textures
+                if (this.game.world && this.game.world.textureCache) {
+                    console.log('Clearing texture cache');
+                    this.game.world.textureCache.clear();
+                }
+
+                // IMPORTANT: Check if the world state exists
+                const worldStateKey = `isogame_world_${worldId}`;
+                const serializedState = localStorage.getItem(worldStateKey);
+
+                if (!serializedState) {
+                    console.warn(`No saved state found for world ${worldId}`);
+                    if (this.ui) {
+                        this.ui.showMessage(`No saved map found with ID: ${worldId}`, 3000);
+                    }
+
+                    // Revert to the old world ID
+                    console.log(`Reverting to world ID: ${oldWorldId}`);
+                    this.game.options.worldId = oldWorldId;
+                    this.game.world.worldId = oldWorldId;
+
+                    // Reload the old world
+                    this.game.loadWorldState();
+                    return false;
+                }
+
                 // Load the world state
-                console.log(`Loading world: ${worldId}`);
+                console.log(`Loading world state for: ${worldId}`);
                 const success = this.game.loadWorldState();
 
                 if (success) {
                     // Hide the load panel
                     this.loadMapPanel.visible = false;
 
+                    // IMPORTANT: Force a complete refresh of the world
+                    if (this.game.world) {
+                        console.log('Forcing complete world refresh');
+
+                        // Get all saved chunks for this world
+                        const savedChunks = this.game.chunkStorage.getWorldChunks(worldId);
+                        console.log(`Found ${savedChunks.length} saved chunks for world ${worldId}`);
+
+                        // Load each saved chunk
+                        for (const chunkCoord of savedChunks) {
+                            console.log(`Loading chunk (${chunkCoord.chunkX}, ${chunkCoord.chunkY})`);
+                            this.game.world.loadChunk(chunkCoord.chunkX, chunkCoord.chunkY);
+                        }
+
+                        // If no chunks were loaded, load the center chunk
+                        if (savedChunks.length === 0) {
+                            console.log('No chunks found, loading center chunk');
+                            this.game.world.loadChunk(0, 0);
+                        }
+
+                        // Re-add the player to the entity container
+                        if (this.game.player) {
+                            this.game.world.entityContainer.addChild(this.game.player);
+                        }
+
+                        // Force the world to update
+                        this.game.world.dirty = true;
+                    }
+
+                    // IMPORTANT: Ensure the building mode manager is properly initialized
+                    if (this.buildingModeManager) {
+                        console.log('Reinitializing building mode manager');
+                        this.buildingModeManager.initialize();
+                    }
+
                     // Show success message
                     if (this.ui) {
                         this.ui.showMessage(`Map loaded successfully: ${worldId}`, 3000);
                     }
 
+                    console.log(`===== MAP LOADED SUCCESSFULLY: ${worldId} =====`);
                     return true;
                 } else {
                     // Show error message
+                    console.error(`Failed to load map: ${worldId}`);
                     if (this.ui) {
                         this.ui.showMessage(`Failed to load map: ${worldId}`, 3000);
                     }

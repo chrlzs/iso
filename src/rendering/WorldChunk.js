@@ -438,6 +438,9 @@ export class WorldChunk {
      * @returns {Object} Serialized chunk data
      */
     serialize() {
+        console.log(`WorldChunk: Serializing chunk (${this.chunkX}, ${this.chunkY})`);
+
+        // Create the data object
         const data = {
             chunkX: this.chunkX,
             chunkY: this.chunkY,
@@ -445,21 +448,33 @@ export class WorldChunk {
             tiles: []
         };
 
-        // Serialize tiles
+        // Directly access the tiles array for serialization
+        let serializedCount = 0;
         for (let localX = 0; localX < this.size; localX++) {
             for (let localY = 0; localY < this.size; localY++) {
-                const tile = this.getTile(localX, localY);
+                // Direct access to the internal tiles array
+                const tile = this.tiles[localX][localY];
                 if (tile) {
+                    // Ensure the tile has all required properties
+                    if (!tile.type) {
+                        console.warn(`WorldChunk: Tile at (${localX}, ${localY}) has no type, using 'grass' as default`);
+                        tile.type = 'grass';
+                    }
+
+                    // Add the tile data to the serialized output
                     data.tiles.push({
                         x: localX,
                         y: localY,
                         type: tile.type,
-                        elevation: tile.elevation,
-                        walkable: tile.walkable,
+                        elevation: tile.elevation || 0,
+                        walkable: tile.walkable !== false,
                     });
+                    serializedCount++;
                 }
             }
         }
+
+        console.log(`WorldChunk: Serialized ${serializedCount} tiles for chunk (${this.chunkX}, ${this.chunkY})`);
 
         return data;
     }
@@ -469,6 +484,8 @@ export class WorldChunk {
      * @param {Object} data - Serialized chunk data
      */
     deserialize(data) {
+        console.log(`Deserializing chunk (${data.chunkX}, ${data.chunkY}) with ${data.tiles.length} tiles`);
+
         this.chunkX = data.chunkX;
         this.chunkY = data.chunkY;
         this.isGenerated = data.isGenerated;
@@ -480,15 +497,28 @@ export class WorldChunk {
         let tilesCreated = 0;
         for (const tileData of data.tiles) {
             try {
+                // Ensure we have a valid tile type
+                if (!tileData.type) {
+                    console.warn(`Tile at (${tileData.x}, ${tileData.y}) has no type, using 'grass' as default`);
+                    tileData.type = 'grass';
+                }
+
+                // Create a texture for the tile
                 const texture = this.world.createPlaceholderTexture(tileData.type);
                 if (!texture) {
                     console.warn(`Failed to create texture for tile type: ${tileData.type}`);
                     continue;
                 }
 
-                const tile = this.createTile(tileData.x, tileData.y, tileData.type, texture, {
-                    elevation: tileData.elevation,
-                    walkable: tileData.walkable,
+                // Calculate world coordinates
+                const worldX = (this.chunkX * this.size) + tileData.x;
+                const worldY = (this.chunkY * this.size) + tileData.y;
+
+                // Create the tile using the world's createTileInternal method
+                const tile = this.world.createTileInternal(worldX, worldY, tileData.type, texture, {
+                    elevation: tileData.elevation || 0,
+                    walkable: tileData.walkable !== false,
+                    type: tileData.type
                 });
 
                 if (tile) {
@@ -498,18 +528,18 @@ export class WorldChunk {
                         tile.game = this.world.game;
                     }
 
-                    // Update world coordinates
-                    const worldX = (this.chunkX * this.size) + tileData.x;
-                    const worldY = (this.chunkY * this.size) + tileData.y;
-                    tile.gridX = worldX;
-                    tile.gridY = worldY;
+                    // Update the tile's position
+                    const worldPos = this.world.gridToWorld(worldX, worldY);
+                    tile.worldX = worldPos.x;
+                    tile.worldY = worldPos.y;
 
-                    // Update world position
-                    if (this.world) {
-                        const worldPos = this.world.gridToWorld(worldX, worldY);
-                        tile.worldX = worldPos.x;
-                        tile.worldY = worldPos.y;
+                    // CRITICAL: Make sure the tile is added to the display list
+                    if (!tile.parent) {
+                        this.world.groundLayer.addChild(tile);
                     }
+
+                    // CRITICAL: Update the chunk's internal tile reference
+                    this.tiles[tileData.x][tileData.y] = tile;
 
                     tilesCreated++;
                 }
@@ -518,11 +548,11 @@ export class WorldChunk {
             }
         }
 
+        console.log(`Deserialized chunk (${this.chunkX}, ${this.chunkY}) with ${tilesCreated}/${data.tiles.length} tiles created`);
+
         // Mark as loaded but not dirty (since we just loaded from storage)
         this.isLoaded = true;
         this.isDirty = false;
-
-        //console.log(`Deserialized chunk at ${this.chunkX}, ${this.chunkY} with ${tilesCreated}/${data.tiles.length} tiles created`);
     }
 }
 

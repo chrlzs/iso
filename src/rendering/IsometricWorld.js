@@ -1453,6 +1453,58 @@ export class IsometricWorld extends Container {
     }
 
     /**
+     * Updates visible chunks - combines updateChunks and updateChunkVisibility
+     * Used when loading a map to ensure all chunks are properly loaded and visible
+     */
+    updateVisibleChunks() {
+        console.log('Updating visible chunks after map load');
+
+        // First, update chunks based on player position
+        this.updateChunks();
+
+        // Then update chunk visibility based on camera position
+        this.updateChunkVisibility();
+
+        // Force a redraw of all active chunks
+        console.log('Forcing redraw of all active chunks');
+        for (const key of this.activeChunks) {
+            const [chunkX, chunkY] = key.split(',').map(Number);
+            const chunk = this.getChunk(chunkX, chunkY);
+
+            if (chunk && chunk.isLoaded) {
+                // Mark chunk as dirty to ensure it's properly rendered
+                chunk.isDirty = true;
+
+                // Ensure all tiles in this chunk are properly set up
+                for (let localX = 0; localX < chunk.size; localX++) {
+                    for (let localY = 0; localY < chunk.size; localY++) {
+                        const tile = chunk.getTile(localX, localY);
+                        if (tile) {
+                            // Ensure tile has proper references
+                            tile.world = this;
+                            tile.game = this.game;
+
+                            // Ensure tile is in the container
+                            if (!chunk.container.children.includes(tile)) {
+                                chunk.container.addChild(tile);
+                            }
+                        }
+                    }
+                }
+
+                // Ensure chunk container is in the world container
+                if (!this.chunkContainer.children.includes(chunk.container)) {
+                    this.chunkContainer.addChild(chunk.container);
+                }
+
+                // Make sure the chunk container is visible
+                chunk.container.visible = true;
+                chunk.container.alpha = 1.0;
+            }
+        }
+    }
+
+    /**
      * Updates chunk loading/unloading based on player position
      */
     updateChunks() {
@@ -2122,16 +2174,26 @@ export class IsometricWorld extends Container {
      */
     saveWorldState() {
         // Save all active chunks first
+        console.log(`Saving world state for world ${this.worldId}`);
+        let chunksSaved = 0;
+
         for (const key of this.activeChunks) {
             const [chunkX, chunkY] = key.split(',').map(Number);
             const chunk = this.getChunk(chunkX, chunkY);
 
-            if (chunk && chunk.isDirty && this.persistChunks && this.chunkStorage) {
+            // Save all chunks, not just dirty ones, to ensure everything is persisted
+            if (chunk && this.persistChunks && this.chunkStorage) {
+                // Force chunk to be marked as dirty to ensure it's saved
+                chunk.isDirty = true;
+
                 const serializedData = chunk.serialize();
                 this.chunkStorage.saveChunk(this.worldId, chunkX, chunkY, serializedData);
                 chunk.isDirty = false;
+                chunksSaved++;
             }
         }
+
+        console.log(`Saved ${chunksSaved} chunks for world ${this.worldId}`);
 
         // Create world state object
         const worldState = {

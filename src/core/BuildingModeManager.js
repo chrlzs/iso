@@ -515,20 +515,35 @@ export class BuildingModeManager {
     placeTerrain(terrainAsset, gridX, gridY) {
         if (!terrainAsset || !this.world) return false;
 
-        // Get the tile at the specified position
-        const tile = this.world.getTile(gridX, gridY);
-        if (!tile) {
-            // If tile doesn't exist, try to create it
+        console.log(`SIMPLE APPROACH: Placing terrain ${terrainAsset.id} at (${gridX}, ${gridY})`);
 
-            // Get texture for the terrain
-            let texture = this.assetManager.getTexture(terrainAsset.id);
-
-            // If asset manager doesn't have the texture, create a placeholder
-            if (!texture && this.world) {
-                texture = this.world.createPlaceholderTexture(terrainAsset.id);
+        try {
+            // Create a texture for the terrain
+            const texture = this.world.createPlaceholderTexture(terrainAsset.id);
+            if (!texture) {
+                console.error(`Failed to create texture for ${terrainAsset.id}`);
+                return false;
             }
 
-            // Create the tile
+            // Get the chunk coordinates
+            const chunkCoords = this.world.config.gridToChunk(gridX, gridY);
+            const chunk = this.world.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+
+            if (!chunk) {
+                console.error(`Failed to get or create chunk at (${chunkCoords.chunkX}, ${chunkCoords.chunkY})`);
+                return false;
+            }
+
+            // Calculate local coordinates within the chunk
+            const localX = gridX - (chunkCoords.chunkX * this.world.config.chunkSize);
+            const localY = gridY - (chunkCoords.chunkY * this.world.config.chunkSize);
+
+            // Remove any existing tile
+            if (chunk.tiles[localX][localY]) {
+                chunk.removeTile(localX, localY);
+            }
+
+            // Create a new tile using the world's createTileInternal method
             const newTile = this.world.createTileInternal(gridX, gridY, terrainAsset.id, texture, {
                 elevation: terrainAsset.elevation || 0,
                 walkable: terrainAsset.walkable !== false,
@@ -536,143 +551,24 @@ export class BuildingModeManager {
             });
 
             if (!newTile) {
+                console.error(`Failed to create new tile`);
                 return false;
             }
 
-            // Get the chunk for this position
-            const chunkCoords = this.world.config.gridToChunk(gridX, gridY);
-            const chunk = this.world.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-
-            // Add tile to chunk
-            if (chunk) {
-                const localX = gridX - (chunkCoords.chunkX * this.world.config.chunkSize);
-                const localY = gridY - (chunkCoords.chunkY * this.world.config.chunkSize);
-                chunk.setTile(localX, localY, newTile);
-                chunk.isDirty = true;
+            // CRITICAL: Make sure the tile is added to the display list
+            if (!newTile.parent) {
+                console.log(`Adding tile to ground layer`);
+                this.world.groundLayer.addChild(newTile);
             }
 
-            // Show notification
-            if (this.game && this.game.ui) {
-                this.game.ui.showMessage(`Created new ${terrainAsset.name} tile at (${gridX}, ${gridY})`, 2000);
-            }
+            // CRITICAL: Update the chunk's internal tile reference
+            chunk.tiles[localX][localY] = newTile;
 
-            return true;
-        }
+            // Mark the chunk as dirty
+            chunk.isDirty = true;
 
-        // Get texture for the terrain
-        let texture = this.assetManager.getTexture(terrainAsset.id);
-
-        // If asset manager doesn't have the texture, create a placeholder
-        if (!texture && this.world) {
-            console.log(`Creating placeholder texture for ${terrainAsset.id}`);
-            texture = this.world.createPlaceholderTexture(terrainAsset.id);
-        }
-
-        // Debug logging
-        console.log(`Updating tile (${gridX}, ${gridY}) to terrain type: ${terrainAsset.id}`);
-        console.log(`  - Current type: ${tile.type}`);
-        console.log(`  - New texture: ${texture ? 'Valid' : 'Invalid'}`);
-
-        console.log(`EXTREME APPROACH: Completely replacing the tile at (${gridX}, ${gridY}) with terrain type: ${terrainAsset.id}`);
-
-        try {
-            // EXTREME APPROACH: Create a completely new tile and replace the old one
-            // This bypasses all the caching and sprite updating issues
-
-            // First, remove the old tile from the world
-            if (tile.parent) {
-                console.log(`  - Removing old tile from parent`);
-                tile.parent.removeChild(tile);
-            }
-
-            // Clear any texture caches
-            if (this.world.textureCache) {
-                console.log(`  - Clearing texture cache`);
-                this.world.textureCache.clear();
-            }
-
-            // Create a fresh texture for the new terrain type
-            console.log(`  - Creating fresh texture for ${terrainAsset.id}`);
-            const newTexture = this.world.createPlaceholderTexture(terrainAsset.id);
-
-            if (!newTexture) {
-                console.error(`  - Failed to create texture for ${terrainAsset.id}`);
-                return false;
-            }
-
-            // Create a completely new tile
-            console.log(`  - Creating brand new tile with type ${terrainAsset.id}`);
-            const newTile = new IsometricTile({
-                x: gridX,
-                y: gridY,
-                type: terrainAsset.id,
-                width: this.world.config.tileWidth,
-                height: this.world.config.tileHeight,
-                texture: newTexture,
-                world: this.world,
-                game: this.game,
-                walkable: terrainAsset.walkable !== false,
-                elevation: terrainAsset.elevation || 0
-            });
-
-            // Make sure the new tile has the correct references
-            newTile.game = this.game;
-            newTile.world = this.world;
-
-            // Add the new tile to the world
-            console.log(`  - Adding new tile to world`);
-            this.world.groundLayer.addChild(newTile);
-
-            // Update the world's tile reference
-            console.log(`  - Updating world's tile reference`);
-            if (this.world.tiles && this.world.tiles[gridX] && gridX >= 0 && gridY >= 0) {
-                this.world.tiles[gridX][gridY] = newTile;
-            }
-
-            // Update the chunk reference
-            const chunkCoords = this.world.config.gridToChunk(gridX, gridY);
-            const chunk = this.world.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-            if (chunk) {
-                console.log(`  - Updating chunk reference`);
-                const localX = gridX - (chunkCoords.chunkX * this.world.config.chunkSize);
-                const localY = gridY - (chunkCoords.chunkY * this.world.config.chunkSize);
-                chunk.setTile(localX, localY, newTile);
-                chunk.isDirty = true;
-            }
-
-            // Force the world to update
-            console.log(`  - Marking world as dirty`);
-            if (this.world) {
-                this.world.dirty = true;
-                this.world.sortTilesByDepth = true; // Force depth sorting
-            }
-
-            // Return the new tile for reference
-            return true;
-        } catch (error) {
-            console.error(`Error replacing tile:`, error);
-            return false;
-        }
-
-        // Show notification
-        if (this.game && this.game.ui) {
-            this.game.ui.showMessage(`Changed terrain to ${terrainAsset.name} at (${gridX}, ${gridY})`, 2000);
-        }
-
-        // IMPORTANT: Force save the chunk to localStorage immediately
-        // This prevents the tile from reverting when another tile is placed
-        if (this.world && this.world.persistChunks && this.world.chunkStorage) {
-            console.log(`Forcing immediate save of chunk containing tile (${gridX}, ${gridY})`);
-
-            // Get the chunk coordinates
-            const chunkCoords = this.world.config.gridToChunk(gridX, gridY);
-            const chunk = this.world.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-
-            if (chunk) {
-                // Mark the chunk as dirty
-                chunk.isDirty = true;
-
-                // Serialize and save the chunk
+            // Save the chunk immediately
+            if (this.world.persistChunks && this.world.chunkStorage) {
                 const serializedData = chunk.serialize();
                 this.world.chunkStorage.saveChunk(
                     this.world.worldId,
@@ -680,12 +576,24 @@ export class BuildingModeManager {
                     chunkCoords.chunkY,
                     serializedData
                 );
-
-                console.log(`Chunk (${chunkCoords.chunkX}, ${chunkCoords.chunkY}) saved successfully`);
             }
-        }
 
-        return true;
+            // Force save the world state
+            this.game.saveWorldState();
+
+            // Force the world to update
+            this.world.dirty = true;
+
+            // Show notification
+            if (this.game && this.game.ui) {
+                this.game.ui.showMessage(`Changed terrain to ${terrainAsset.name} at (${gridX}, ${gridY})`, 2000);
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`Error placing terrain:`, error);
+            return false;
+        }
     }
 
     /**
