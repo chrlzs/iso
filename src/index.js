@@ -82,14 +82,14 @@ function setupWorldManagementUI(game) {
     // Toggle world management panel
     toggleButton.addEventListener('click', () => {
         worldManagement.style.display = 'block';
-        toggleButton.style.display = 'none';
+        toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Change to green when active
         updateWorldStatus();
     });
 
     // Close world management panel
     closeButton.addEventListener('click', () => {
         worldManagement.style.display = 'none';
-        toggleButton.style.display = 'block';
+        toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Change back to black when inactive
     });
 
     // Save world
@@ -433,41 +433,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Create a simple HTML overlay for tile coordinates
     if (game.options.debug) {
-        // Create a small, unobtrusive button to toggle coordinate display
+        // Create a small, unobtrusive button to toggle coordinate display - positioned next to other buttons
         const toggleButton = document.createElement('button');
         toggleButton.textContent = 'C';
         toggleButton.title = 'Toggle Tile Coordinates';
         toggleButton.style.position = 'fixed';
         toggleButton.style.bottom = '10px';
-        toggleButton.style.right = '10px';
+        toggleButton.style.left = '210px';
         toggleButton.style.zIndex = '1000';
-        toggleButton.style.padding = '3px 6px';
-        toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        toggleButton.style.color = '#fff';
-        toggleButton.style.border = '1px solid rgba(255, 255, 255, 0.3)';
-        toggleButton.style.borderRadius = '3px';
+        toggleButton.style.width = '40px';
+        toggleButton.style.height = '30px';
+        toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        toggleButton.style.color = '#00FFFF';
+        toggleButton.style.border = '2px solid #00FFFF';
+        toggleButton.style.borderRadius = '5px';
         toggleButton.style.cursor = 'pointer';
-        toggleButton.style.fontSize = '10px';
+        toggleButton.style.fontSize = '16px';
         toggleButton.style.opacity = '0.7';
         toggleButton.style.transition = 'opacity 0.3s';
+        toggleButton.style.display = 'flex';
+        toggleButton.style.justifyContent = 'center';
+        toggleButton.style.alignItems = 'center';
+        toggleButton.style.padding = '0';
         document.body.appendChild(toggleButton);
 
-        // Create a mouse position tracker
+        // Create a mouse position tracker with cyberpunk styling
         const mouseTracker = document.createElement('div');
         mouseTracker.id = 'mouse-tracker';
         mouseTracker.style.position = 'fixed';
-        mouseTracker.style.top = '10px';
-        mouseTracker.style.left = '10px';
+        mouseTracker.style.top = '630px'; // Position below the debug overlay
+        mouseTracker.style.right = '10px'; // Position on the right side
         mouseTracker.style.zIndex = '1000';
-        mouseTracker.style.padding = '5px 10px';
-        mouseTracker.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        mouseTracker.style.color = '#fff';
-        mouseTracker.style.border = '1px solid rgba(255, 255, 255, 0.3)';
-        mouseTracker.style.borderRadius = '3px';
+        mouseTracker.style.padding = '10px 15px';
+        mouseTracker.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        mouseTracker.style.color = '#00FFFF';
+        mouseTracker.style.border = '2px solid #00FFFF';
+        mouseTracker.style.borderRadius = '5px';
         mouseTracker.style.fontSize = '14px';
-        mouseTracker.style.fontFamily = 'monospace';
+        mouseTracker.style.fontFamily = 'Arial';
         mouseTracker.style.display = 'none'; // Hide by default
-        mouseTracker.textContent = 'Mouse: (0, 0) -> Grid: (0, 0)';
+        mouseTracker.textContent = 'Mouse: (0, 0) → Grid: (0, 0)';
         document.body.appendChild(mouseTracker);
 
         // Create container for coordinate labels
@@ -490,14 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (coordContainer.style.display === 'none') {
                 coordContainer.style.display = 'block';
                 mouseTracker.style.display = 'block';
-                toggleButton.textContent = 'C✓';
-                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.5)';
+                toggleButton.textContent = 'C';
+                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)';
                 updateCoordinates();
             } else {
                 coordContainer.style.display = 'none';
                 mouseTracker.style.display = 'none';
                 toggleButton.textContent = 'C';
-                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
             }
         });
 
@@ -541,21 +546,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         label.style.left = `${screenPos.x}px`;
                         label.style.top = `${screenPos.y}px`;
                         label.style.transform = 'translate(-50%, -50%)';
-                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                        label.style.color = 'rgba(255, 255, 0, 1.0)';
-                        label.style.padding = '2px 4px';
-                        label.style.borderRadius = '3px';
+                        label.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                        label.style.color = '#00FFFF';
+                        label.style.padding = '3px 6px';
+                        label.style.borderRadius = '5px';
                         label.style.fontSize = '12px';
                         label.style.fontWeight = 'bold';
-                        label.style.fontFamily = 'Arial, sans-serif';
+                        label.style.fontFamily = 'Arial';
                         label.style.textAlign = 'center';
                         label.style.minWidth = '20px';
                         label.style.pointerEvents = 'none';
+                        label.style.border = '1px solid rgba(0, 255, 255, 0.3)';
 
-                        // Add chunk border highlight
+                        // Add chunk border highlight with cyberpunk styling
                         if (x % game.options.chunkSize === 0 || y % game.options.chunkSize === 0) {
-                            label.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
-                            label.style.color = 'rgba(255, 255, 255, 0.9)';
+                            label.style.backgroundColor = 'rgba(255, 0, 128, 0.8)';
+                            label.style.color = '#FFFFFF';
+                            label.style.border = '1px solid rgba(255, 0, 255, 0.6)';
                         }
 
                         // Add to container
@@ -612,25 +619,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     const labels = coordContainer.querySelectorAll('div');
                     labels.forEach(label => {
                         if (label.textContent === `${tile.gridX},${tile.gridY}`) {
-                            label.style.backgroundColor = 'rgba(0, 255, 0, 0.7)';
-                            label.style.color = 'black';
+                            label.style.backgroundColor = 'rgba(0, 255, 128, 0.8)';
+                            label.style.color = '#000000';
                             label.style.fontWeight = 'bold';
                             label.style.zIndex = '1001';
+                            label.style.border = '2px solid rgba(0, 255, 128, 1.0)';
                         } else {
                             // Reset other labels
-                            if (label.style.backgroundColor === 'rgba(0, 255, 0, 0.7)') {
-                                label.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
-                                label.style.color = 'rgba(255, 255, 0, 0.7)';
+                            if (label.style.backgroundColor === 'rgba(0, 255, 128, 0.8)' || label.style.backgroundColor === 'rgba(0, 255, 0, 0.7)') {
+                                label.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                                label.style.color = '#00FFFF';
                                 label.style.fontWeight = 'normal';
                                 label.style.zIndex = '1000';
+                                label.style.border = '1px solid rgba(0, 255, 255, 0.3)';
 
                                 // Re-apply chunk border highlight if needed
                                 const coords = label.textContent.split(',');
                                 const x = parseInt(coords[0]);
                                 const y = parseInt(coords[1]);
                                 if (x % game.options.chunkSize === 0 || y % game.options.chunkSize === 0) {
-                                    label.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
-                                    label.style.color = 'rgba(255, 255, 255, 0.9)';
+                                    label.style.backgroundColor = 'rgba(255, 0, 128, 0.8)';
+                                    label.style.color = '#FFFFFF';
+                                    label.style.border = '1px solid rgba(255, 0, 255, 0.6)';
                                 }
                             }
                         }

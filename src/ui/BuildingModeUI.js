@@ -37,6 +37,24 @@ export class BuildingModeUI {
 
         // Create UI elements
         this.createUI();
+
+        // Add window resize handler
+        window.addEventListener('resize', this.handleResize.bind(this));
+    }
+
+    /**
+     * Handles window resize events
+     */
+    handleResize() {
+        // Update help panel position
+        if (this.helpPanel) {
+            this.helpPanel.position.set(window.innerWidth - 280, 10);
+        }
+
+        // Update help show button position
+        if (this.helpShowButton) {
+            this.helpShowButton.position.set(window.innerWidth - 40, 10);
+        }
     }
 
     /**
@@ -74,13 +92,13 @@ export class BuildingModeUI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 200, 50, 5);
+        background.drawRoundedRect(0, 0, 260, 50, 5);
         background.endFill();
         this.categoryPanel.addChild(background);
 
         // Create category buttons
         const categories = Object.values(ASSET_CATEGORIES);
-        const buttonWidth = 180 / categories.length;
+        const buttonWidth = 240 / categories.length; // Adjusted for wider panel
 
         categories.forEach((category, index) => {
             // Create button container
@@ -159,7 +177,7 @@ export class BuildingModeUI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 200, 400, 5);
+        background.drawRoundedRect(0, 0, 260, 400, 5);
         background.endFill();
         this.assetPanel.addChild(background);
 
@@ -171,7 +189,7 @@ export class BuildingModeUI {
             align: 'center'
         });
         title.anchor.set(0.5, 0);
-        title.position.set(100, 10);
+        title.position.set(130, 10); // Centered in the wider panel
         this.assetPanel.addChild(title);
 
         // Create assets container
@@ -310,7 +328,7 @@ export class BuildingModeUI {
         const assets = getAssetsByCategory(this.selectedCategory);
 
         // Create asset buttons
-        const buttonWidth = 85;
+        const buttonWidth = 115; // Wider buttons for the wider panel
         const buttonHeight = 85;
         const buttonsPerRow = 2;
 
@@ -404,6 +422,16 @@ export class BuildingModeUI {
      */
     show() {
         this.container.visible = true;
+
+        // Update help panel position based on current window size
+        if (this.helpPanel) {
+            this.helpPanel.position.set(window.innerWidth - 280, 10);
+        }
+
+        // Update help show button position
+        if (this.helpShowButton) {
+            this.helpShowButton.position.set(window.innerWidth - 40, 10);
+        }
     }
 
     /**
@@ -682,7 +710,7 @@ export class BuildingModeUI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.9);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 400, 300, 5);
+        background.drawRoundedRect(0, 0, 410, 300, 5);
         background.endFill();
         this.loadMapPanel.addChild(background);
 
@@ -694,7 +722,7 @@ export class BuildingModeUI {
             align: 'center'
         });
         title.anchor.set(0.5, 0);
-        title.position.set(200, 10);
+        title.position.set(205, 10); // Centered in the wider panel
         this.loadMapPanel.addChild(title);
 
         // Create maps container with scrolling
@@ -704,7 +732,7 @@ export class BuildingModeUI {
         // Create mask for scrolling
         const mask = new PIXI.Graphics();
         mask.beginFill(0xFFFFFF);
-        mask.drawRect(0, 0, 360, 210);
+        mask.drawRect(0, 0, 370, 210);
         mask.endFill();
         mask.position.set(20, 40);
         this.loadMapPanel.addChild(mask);
@@ -717,19 +745,19 @@ export class BuildingModeUI {
         this.scrollSpeed = 15;
 
         // Create scroll up button
-        const scrollUpButton = this.createButton('▲', 380, 40, 20, 20, () => {
+        const scrollUpButton = this.createButton('▲', 390, 40, 20, 20, () => {
             this.scrollMapsUp();
         });
         this.loadMapPanel.addChild(scrollUpButton);
 
         // Create scroll down button
-        const scrollDownButton = this.createButton('▼', 380, 230, 20, 20, () => {
+        const scrollDownButton = this.createButton('▼', 390, 230, 20, 20, () => {
             this.scrollMapsDown();
         });
         this.loadMapPanel.addChild(scrollDownButton);
 
         // Create close button
-        const closeButton = this.createButton('Close', 320, 260, 60, 30, () => {
+        const closeButton = this.createButton('Close', 330, 260, 60, 30, () => {
             this.loadMapPanel.visible = false;
         });
         this.loadMapPanel.addChild(closeButton);
@@ -804,7 +832,7 @@ export class BuildingModeUI {
             const bg = new PIXI.Graphics();
             bg.beginFill(0x222222, 0.8);
             bg.lineStyle(1, 0x00FFFF, 0.5);
-            bg.drawRoundedRect(0, 0, 360, 70, 3);
+            bg.drawRoundedRect(0, 0, 370, 70, 3);
             bg.endFill();
             entry.addChild(bg);
 
@@ -865,14 +893,14 @@ export class BuildingModeUI {
             });
             buttonContainer.addChild(loadButton);
 
-            // Create rename button
-            const renameButton = this.createButton('Rename', 55, 0, 50, 25, () => {
+            // Create rename button with more padding
+            const renameButton = this.createButton('Rename', 55, 0, 60, 25, () => {
                 this.renameMap(world.id, world.customName || world.displayName);
             });
             buttonContainer.addChild(renameButton);
 
             // Create delete button
-            const deleteButton = this.createButton('Del', 110, 0, 40, 25, () => {
+            const deleteButton = this.createButton('Del', 120, 0, 40, 25, () => {
                 this.deleteMap(world.id, world.displayName);
             });
             deleteButton.children[0].tint = 0xFF5555; // Make the delete button red
@@ -884,7 +912,7 @@ export class BuildingModeUI {
                 bg.clear();
                 bg.beginFill(0x333333, 0.8);
                 bg.lineStyle(1, 0x00FFFF, 0.8);
-                bg.drawRoundedRect(0, 0, 360, 70, 3);
+                bg.drawRoundedRect(0, 0, 370, 70, 3);
                 bg.endFill();
             });
 
@@ -892,7 +920,7 @@ export class BuildingModeUI {
                 bg.clear();
                 bg.beginFill(0x222222, 0.8);
                 bg.lineStyle(1, 0x00FFFF, 0.5);
-                bg.drawRoundedRect(0, 0, 360, 70, 3);
+                bg.drawRoundedRect(0, 0, 370, 70, 3);
                 bg.endFill();
             });
         });
@@ -1132,16 +1160,16 @@ export class BuildingModeUI {
      * Creates the help panel
      */
     createHelpPanel() {
-        // Create panel container
+        // Create panel container - positioned on the right side of the screen
         this.helpPanel = new PIXI.Container();
-        this.helpPanel.position.set(220, 10);
+        this.helpPanel.position.set(window.innerWidth - 280, 10); // Position on the right side
         this.container.addChild(this.helpPanel);
 
         // Create panel background
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 250, 200, 5);
+        background.drawRoundedRect(0, 0, 260, 300, 5); // Taller panel to fit more content
         background.endFill();
         this.helpPanel.addChild(background);
 
@@ -1153,8 +1181,27 @@ export class BuildingModeUI {
             align: 'center'
         });
         title.anchor.set(0.5, 0);
-        title.position.set(125, 10);
+        title.position.set(130, 10);
         this.helpPanel.addChild(title);
+
+        // Create text container with scrolling
+        this.helpTextContainer = new PIXI.Container();
+        this.helpTextContainer.position.set(10, 40);
+
+        // Create mask for scrolling
+        const mask = new PIXI.Graphics();
+        mask.beginFill(0xFFFFFF);
+        mask.drawRect(0, 0, 240, 220); // Area for scrollable content
+        mask.endFill();
+        mask.position.set(10, 40);
+        this.helpPanel.addChild(mask);
+
+        this.helpTextContainer.mask = mask;
+        this.helpPanel.addChild(this.helpTextContainer);
+
+        // Add scroll functionality
+        this.helpScrollOffset = 0;
+        this.helpScrollSpeed = 15;
 
         // Create help text
         const helpText = new PIXI.Text(
@@ -1174,7 +1221,12 @@ export class BuildingModeUI {
             '- Use the scroll buttons to navigate through your maps\n' +
             '- Maps are also auto-saved periodically\n' +
             '- New Map creates a blank map with grass terrain\n' +
-            '- Use terrain types to build your world',
+            '- Use terrain types to build your world\n\n' +
+            'Building Tips:\n' +
+            '- Start with terrain to create the base of your map\n' +
+            '- Add structures on top of terrain tiles\n' +
+            '- Use decorations to add detail to your world\n' +
+            '- NPCs can be placed to create interactive elements',
             {
                 fontFamily: 'Arial',
                 fontSize: 12,
@@ -1184,22 +1236,69 @@ export class BuildingModeUI {
                 wordWrapWidth: 230
             }
         );
-        helpText.position.set(10, 35);
-        this.helpPanel.addChild(helpText);
+        helpText.position.set(0, 0);
+        this.helpTextContainer.addChild(helpText);
+
+        // Create scroll up button
+        const scrollUpButton = this.createButton('▲', 240, 40, 20, 20, () => {
+            this.scrollHelpUp();
+        });
+        this.helpPanel.addChild(scrollUpButton);
+
+        // Create scroll down button
+        const scrollDownButton = this.createButton('▼', 240, 240, 20, 20, () => {
+            this.scrollHelpDown();
+        });
+        this.helpPanel.addChild(scrollDownButton);
+
+        // Add scroll indicator text
+        const scrollIndicator = new PIXI.Text('Scroll for more', {
+            fontFamily: 'Arial',
+            fontSize: 10,
+            fill: 0x00FFFF,
+            align: 'center'
+        });
+        scrollIndicator.anchor.set(0.5, 0);
+        scrollIndicator.position.set(130, 265);
+        this.helpPanel.addChild(scrollIndicator);
 
         // Create close button
-        const closeButton = this.createButton('X', 225, 5, 20, 20, () => {
+        const closeButton = this.createButton('X', 235, 5, 20, 20, () => {
             this.helpPanel.visible = false;
+            this.helpShowButton.visible = true;
         });
         this.helpPanel.addChild(closeButton);
 
-        // Create show button (initially hidden)
-        this.helpShowButton = this.createButton('?', 220, 10, 30, 30, () => {
+        // Create show button (initially visible)
+        this.helpShowButton = this.createButton('?', window.innerWidth - 40, 10, 30, 30, () => {
             this.helpPanel.visible = true;
             this.helpShowButton.visible = false;
         });
-        this.helpShowButton.visible = false;
         this.container.addChild(this.helpShowButton);
+    }
+
+    /**
+     * Scrolls the help text up
+     */
+    scrollHelpUp() {
+        if (this.helpScrollOffset < 0) {
+            this.helpScrollOffset += this.helpScrollSpeed;
+            if (this.helpScrollOffset > 0) this.helpScrollOffset = 0;
+            this.helpTextContainer.y = 40 + this.helpScrollOffset;
+        }
+    }
+
+    /**
+     * Scrolls the help text down
+     */
+    scrollHelpDown() {
+        const containerHeight = this.helpTextContainer.height;
+        const visibleHeight = 220; // Height of the mask
+
+        if (containerHeight > visibleHeight && this.helpScrollOffset > -(containerHeight - visibleHeight)) {
+            this.helpScrollOffset -= this.helpScrollSpeed;
+            this.helpTextContainer.y = 40 + this.helpScrollOffset;
+        }
     }
 
     /**

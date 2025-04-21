@@ -35,15 +35,16 @@
     #fps-counter {
       position: absolute;
       top: 10px;
-      right: 10px;
+      left: 50%;
+      transform: translateX(-50%);
       color: #00FFFF;
       font-family: monospace;
       font-size: 16px;
       font-weight: bold;
       background-color: rgba(0, 0, 0, 0.7);
       padding: 5px 10px;
-      border-radius: 3px;
-      border: 1px solid #00AAFF;
+      border-radius: 5px;
+      border: 2px solid #00FFFF;
       z-index: 1000;
       text-shadow: 0 0 5px #00FFFF;
     }
@@ -67,47 +68,47 @@
   </div>
   <div id="fps-counter">FPS: 0</div>
 
-  <!-- Chunk Debug Panel -->
-  <div id="chunk-debug" style="position: absolute; top: 40px; right: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 8px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 1000;">
-    <div style="margin-bottom: 5px; font-weight: bold; border-bottom: 1px solid #00aaff;">Chunk Debug</div>
-    <div id="player-pos">Player: (0, 0)</div>
-    <div id="chunk-pos">Chunk: (0, 0)</div>
-    <div id="active-chunks">Active Chunks: 0</div>
-    <div id="total-chunks">Total Chunks: 0</div>
-    <div id="stored-chunks">Stored Chunks: 0</div>
-    <div id="world-id">World ID: main</div>
-    <div id="world-seed">Seed: 0</div>
+  <!-- Chunk Debug Panel with cyberpunk styling -->
+  <div id="chunk-debug" style="position: absolute; top: 60px; left: 10px; background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; font-family: Arial; font-size: 14px; z-index: 1000; border: 2px solid #00FFFF; max-width: 250px;">
+    <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #00FFFF; text-align: center; padding-bottom: 5px; font-size: 16px;">Chunk Debug</div>
+    <div id="player-pos" style="margin-bottom: 5px;">Player: <span style="color: white;">(0, 0)</span></div>
+    <div id="chunk-pos" style="margin-bottom: 5px;">Chunk: <span style="color: white;">(0, 0)</span></div>
+    <div id="active-chunks" style="margin-bottom: 5px;">Active Chunks: <span style="color: white;">0</span></div>
+    <div id="total-chunks" style="margin-bottom: 5px;">Total Chunks: <span style="color: white;">0</span></div>
+    <div id="stored-chunks" style="margin-bottom: 5px;">Stored Chunks: <span style="color: white;">0</span></div>
+    <div id="world-id" style="margin-bottom: 5px;">World ID: <span style="color: white;">main</span></div>
+    <div id="world-seed">Seed: <span style="color: white;">0</span></div>
   </div>
   <div id="version-info">v1.1.0 - Chunk-Based World</div>
 
-  <!-- World Management UI -->
-  <div id="world-management" style="position: absolute; top: 10px; left: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; border-radius: 5px; z-index: 1000; display: none;">
-    <h3 style="margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #00aaff;">World Management</h3>
-    <div style="margin-bottom: 10px;">
-      <label for="world-id-input">World ID:</label>
-      <input type="text" id="world-id-input" value="main" style="background-color: #333; color: white; border: 1px solid #555; padding: 3px; margin-left: 5px;">
+  <!-- World Management UI with cyberpunk styling -->
+  <div id="world-management" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; border: 2px solid #00FFFF; z-index: 1000; display: none; max-width: 400px; width: 100%;">
+    <h3 style="margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #00FFFF; font-size: 18px; text-align: center; padding-bottom: 10px;">World Management</h3>
+    <div style="margin-bottom: 15px;">
+      <label for="world-id-input" style="display: block; margin-bottom: 5px; font-size: 14px;">World ID:</label>
+      <input type="text" id="world-id-input" value="main" style="background-color: #000811; color: #00FFFF; border: 1px solid #00FFFF; padding: 8px; width: 100%; border-radius: 3px; font-family: monospace;">
     </div>
-    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-      <button id="save-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">Save</button>
-      <button id="load-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">Load</button>
-      <button id="new-world" style="background-color: #003366; color: white; border: 1px solid #00aaff; padding: 5px 10px; cursor: pointer;">New</button>
-      <button id="clear-world" style="background-color: #660000; color: white; border: 1px solid #ff0000; padding: 5px 10px; cursor: pointer;">Clear</button>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: space-between;">
+      <button id="save-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Save</button>
+      <button id="load-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Load</button>
+      <button id="new-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">New</button>
+      <button id="clear-world" style="background-color: rgba(0, 0, 0, 0.7); color: #FF3366; border: 2px solid #FF3366; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Clear</button>
     </div>
-    <div id="world-info" style="margin-bottom: 10px; font-size: 12px; background-color: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 3px;">
-      <div>Current World: <span id="current-world-id">main</span></div>
-      <div>Seed: <span id="current-world-seed">0</span></div>
-      <div>Stored Chunks: <span id="current-world-chunks">0</span></div>
-      <div>Storage Size: <span id="current-world-storage">0 KB</span></div>
-      <div>Last Saved: <span id="current-world-timestamp">Never</span></div>
+    <div id="world-info" style="margin-bottom: 15px; font-size: 14px; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 5px; border: 1px solid rgba(0, 255, 255, 0.3);">
+      <div style="margin-bottom: 5px;">Current World: <span id="current-world-id" style="color: white;">main</span></div>
+      <div style="margin-bottom: 5px;">Seed: <span id="current-world-seed" style="color: white;">0</span></div>
+      <div style="margin-bottom: 5px;">Stored Chunks: <span id="current-world-chunks" style="color: white;">0</span></div>
+      <div style="margin-bottom: 5px;">Storage Size: <span id="current-world-storage" style="color: white;">0 KB</span></div>
+      <div>Last Saved: <span id="current-world-timestamp" style="color: white;">Never</span></div>
     </div>
-    <div id="world-status" style="font-size: 12px; color: #aaffaa; min-height: 16px;"></div>
-    <div style="margin-top: 10px; text-align: right;">
-      <button id="close-world-management" style="background-color: #333; color: white; border: 1px solid #555; padding: 3px 8px; cursor: pointer; font-size: 12px;">Close</button>
+    <div id="world-status" style="font-size: 14px; color: #33FF66; min-height: 20px; text-align: center; margin-bottom: 15px;"></div>
+    <div style="text-align: center;">
+      <button id="close-world-management" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 20px; cursor: pointer; border-radius: 5px; font-size: 14px;">Close</button>
     </div>
   </div>
 
   <!-- World Management Toggle Button -->
-  <button id="toggle-world-management" style="position: absolute; top: 10px; left: 10px; background-color: rgba(0, 0, 0, 0.7); color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 3px; cursor: pointer; z-index: 1000;">Worlds</button>
+  <button id="toggle-world-management" style="position: absolute; bottom: 10px; left: 110px; background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; border-radius: 5px; cursor: pointer; z-index: 1000; width: 40px; height: 30px; font-size: 16px; display: flex; justify-content: center; align-items: center; padding: 0;">W</button>
 
   <!-- Load PIXI.js -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>

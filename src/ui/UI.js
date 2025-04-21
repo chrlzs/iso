@@ -186,41 +186,53 @@ export class UI {
      * @param {number} duration - Duration in milliseconds
      * @param {Object} options - Additional options
      */
-    showMessage(text, duration = 3000, options = {}) {
+    showMessage(text, duration = 5000, options = {}) {
         console.log(`UI Message: ${text}`);
 
         // Create message container
         const messageBox = new PIXI.Container();
 
-        // Create background
+        // Create background with cyberpunk styling
         const background = new PIXI.Graphics();
-        background.beginFill(options.backgroundColor || 0x000000, options.backgroundAlpha || 0.7);
-        background.drawRoundedRect(0, 0, 300, 50, 10);
+        background.beginFill(options.backgroundColor || 0x000000, options.backgroundAlpha || 0.8);
+        background.lineStyle(2, options.borderColor || 0x00FFFF, 1);
+        background.drawRoundedRect(0, 0, 300, 50, 5);
         background.endFill();
         messageBox.addChild(background);
 
-        // Create text
+        // Create text with cyberpunk styling
         const message = new PIXI.Text(text, {
             fontFamily: options.fontFamily || 'Arial',
-            fontSize: options.fontSize || 16,
-            fill: options.textColor || 0xFFFFFF,
+            fontSize: options.fontSize || 14,
+            fill: options.textColor || 0x00FFFF,
             align: 'center',
             wordWrap: true,
             wordWrapWidth: 280
         });
 
+        // Adjust background size based on text dimensions
+        const padding = 15;
+        const bgWidth = Math.max(300, message.width + (padding * 2));
+        const bgHeight = Math.max(50, message.height + (padding * 2));
+
+        background.clear();
+        background.beginFill(options.backgroundColor || 0x000000, options.backgroundAlpha || 0.8);
+        background.lineStyle(2, options.borderColor || 0x00FFFF, 1);
+        background.drawRoundedRect(0, 0, bgWidth, bgHeight, 5);
+        background.endFill();
+
         // Center text in background
         message.position.set(
-            (background.width - message.width) / 2,
-            (background.height - message.height) / 2
+            (bgWidth - message.width) / 2,
+            (bgHeight - message.height) / 2
         );
 
         messageBox.addChild(message);
 
-        // Position message at the top of the screen
+        // Position message at the center top of the screen
         messageBox.position.set(
-            (this.game.app.screen.width - background.width) / 2,
-            10 + (this.messages.length * 60)
+            (this.game.app.screen.width - bgWidth) / 2,
+            10 + (this.messages.length * (bgHeight + 10))
         );
 
         // Add to container
@@ -230,7 +242,8 @@ export class UI {
         const messageObj = {
             container: messageBox,
             createdAt: Date.now(),
-            duration: duration
+            duration: duration,
+            height: bgHeight
         };
 
         this.messages.push(messageObj);
@@ -261,7 +274,7 @@ export class UI {
 
             // Reposition remaining messages
             this.messages.forEach((msg, i) => {
-                msg.container.position.y = 10 + (i * 60);
+                msg.container.position.y = 10 + (i * (msg.height + 10));
             });
         }
     }
@@ -311,9 +324,12 @@ export class UI {
         const text = new PIXI.Text('Q', {
             fontFamily: 'Arial',
             fontSize: 16,
-            fill: 0x00FFFF
+            fill: 0x00FFFF,
+            align: 'center'
         });
-        text.position.set(15, 5);
+        // Center the text in the button
+        text.anchor.set(0.5, 0.5);
+        text.position.set(20, 15);
         button.addChild(text);
 
         // Make button interactive
@@ -336,69 +352,94 @@ export class UI {
         const panel = new PIXI.Container();
         panel.visible = false; // Hidden by default
 
-        // Create background
+        // Create background with cyberpunk styling
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 200, 280, 10); // Increased height for additional controls
+        background.drawRoundedRect(0, 0, 220, 300, 5); // Wider and taller for better spacing
         background.endFill();
         panel.addChild(background);
 
-        // Create title
+        // Create title with cyberpunk styling
         const title = new PIXI.Text('Quality Settings', {
             fontFamily: 'Arial',
-            fontSize: 16,
+            fontSize: 18,
             fill: 0x00FFFF,
-            align: 'center'
+            align: 'center',
+            fontWeight: 'bold'
         });
-        title.position.set(100, 10);
+        title.position.set(110, 15); // More padding at top
         title.anchor.set(0.5, 0);
         panel.addChild(title);
 
-        // Create close button
-        const closeButton = new PIXI.Text('X', {
-            fontFamily: 'Arial',
-            fontSize: 14,
-            fill: 0xFFFFFF
-        });
-        closeButton.position.set(180, 10);
+        // Create close button with cyberpunk styling
+        const closeButton = new PIXI.Container();
+        closeButton.position.set(185, 15);
         closeButton.interactive = true;
         closeButton.buttonMode = true;
+
+        // Button background
+        const closeBg = new PIXI.Graphics();
+        closeBg.beginFill(0x000000, 0.6);
+        closeBg.lineStyle(1, 0x00FFFF, 1);
+        closeBg.drawRoundedRect(0, 0, 20, 20, 3);
+        closeBg.endFill();
+        closeButton.addChild(closeBg);
+
+        // Button text
+        const closeText = new PIXI.Text('X', {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0x00FFFF,
+            align: 'center'
+        });
+        closeText.anchor.set(0.5, 0.5);
+        closeText.position.set(10, 10);
+        closeButton.addChild(closeText);
+
         closeButton.on('pointerdown', () => this.togglePanel('quality'));
         panel.addChild(closeButton);
 
-        // Create quality options
+        // Create quality options with cyberpunk styling
         const options = ['low', 'medium', 'high'];
         const currentQuality = this.game.options.quality || 'medium';
 
         options.forEach((quality, index) => {
             // Create option container
             const option = new PIXI.Container();
-            option.position.set(20, 40 + index * 40);
+            option.position.set(25, 55 + index * 45); // More spacing between options
 
-            // Create radio button
+            // Create radio button with cyberpunk styling
             const radio = new PIXI.Graphics();
-            radio.beginFill(0x333333, 1);
+            radio.beginFill(0x000000, 0.6);
             radio.lineStyle(2, 0x00FFFF, 1);
             radio.drawCircle(10, 10, 8);
             radio.endFill();
 
-            // Add selected indicator
+            // Add selected indicator with enhanced styling
             if (quality === currentQuality) {
                 const selected = new PIXI.Graphics();
                 selected.beginFill(0x00FFFF, 1);
                 selected.drawCircle(10, 10, 4);
                 selected.endFill();
+
+                // Add a highlight ring instead of glow filter
+                const highlight = new PIXI.Graphics();
+                highlight.lineStyle(1, 0x00FFFF, 0.8);
+                highlight.drawCircle(10, 10, 12);
+                radio.addChild(highlight);
+
                 radio.addChild(selected);
             }
 
             option.addChild(radio);
 
-            // Create label
+            // Create label with cyberpunk styling
             const label = new PIXI.Text(quality.charAt(0).toUpperCase() + quality.slice(1), {
                 fontFamily: 'Arial',
                 fontSize: 14,
-                fill: 0xFFFFFF
+                fill: quality === currentQuality ? 0x00FFFF : 0xFFFFFF,
+                fontWeight: quality === currentQuality ? 'bold' : 'normal'
             });
             label.position.set(30, 3);
             option.addChild(label);
@@ -414,34 +455,41 @@ export class UI {
             panel.addChild(option);
         });
 
-        // Add auto-adjust checkbox
+        // Add auto-adjust checkbox with cyberpunk styling
         const autoContainer = new PIXI.Container();
-        autoContainer.position.set(20, 160 - 30);
+        autoContainer.position.set(25, 190); // Positioned below quality options
 
         const autoBox = new PIXI.Graphics();
-        autoBox.beginFill(0x333333, 1);
+        autoBox.beginFill(0x000000, 0.6);
         autoBox.lineStyle(2, 0x00FFFF, 1);
-        autoBox.drawRect(0, 0, 16, 16);
+        autoBox.drawRect(0, 0, 18, 18);
         autoBox.endFill();
 
         // Add checkmark if auto-adjust is enabled
         if (this.game.autoAdjustQuality) {
             const check = new PIXI.Graphics();
             check.lineStyle(2, 0x00FFFF, 1);
-            check.moveTo(3, 8);
-            check.lineTo(7, 12);
-            check.lineTo(13, 4);
+            check.moveTo(3, 9);
+            check.lineTo(7, 13);
+            check.lineTo(15, 5);
             autoBox.addChild(check);
+
+            // Add highlight border instead of glow filter
+            const highlight = new PIXI.Graphics();
+            highlight.lineStyle(1, 0x00FFFF, 0.8);
+            highlight.drawRect(-2, -2, 22, 22);
+            autoBox.addChild(highlight);
         }
 
         autoContainer.addChild(autoBox);
 
-        const autoLabel = new PIXI.Text('Auto-adjust', {
+        const autoLabel = new PIXI.Text('Auto-adjust Quality', {
             fontFamily: 'Arial',
             fontSize: 14,
-            fill: 0xFFFFFF
+            fill: this.game.autoAdjustQuality ? 0x00FFFF : 0xFFFFFF,
+            fontWeight: this.game.autoAdjustQuality ? 'bold' : 'normal'
         });
-        autoLabel.position.set(25, 0);
+        autoLabel.position.set(28, 1);
         autoContainer.addChild(autoLabel);
 
         autoContainer.interactive = true;
@@ -453,23 +501,31 @@ export class UI {
 
         panel.addChild(autoContainer);
 
-        // Add visual effects section title
+        // Add visual effects section title with cyberpunk styling
         const effectsTitle = new PIXI.Text('Visual Effects', {
             fontFamily: 'Arial',
-            fontSize: 14,
+            fontSize: 16,
             fill: 0x00FFFF,
-            align: 'left'
+            align: 'left',
+            fontWeight: 'bold'
         });
-        effectsTitle.position.set(20, 160);
+        effectsTitle.position.set(25, 225);
         panel.addChild(effectsTitle);
+
+        // Add separator line
+        const separator = new PIXI.Graphics();
+        separator.lineStyle(1, 0x00FFFF, 0.5);
+        separator.moveTo(25, 223);
+        separator.lineTo(195, 223);
+        panel.addChild(separator);
 
         // Check if synthwaveEffect exists before adding effect checkboxes
         if (this.game && this.game.synthwaveEffect) {
-            // Add grid checkbox
+            // Add grid checkbox with cyberpunk styling
             const gridContainer = this.createCheckbox(
-                'Grid',
+                'Grid Lines',
                 this.game.synthwaveEffect.showGrid,
-                20, 180,
+                25, 245,
                 () => {
                     this.game.synthwaveEffect.setGridVisible(!this.game.synthwaveEffect.showGrid);
                     this.updateQualityPanel();
@@ -477,11 +533,11 @@ export class UI {
             );
             panel.addChild(gridContainer);
 
-            // Add scan lines checkbox
+            // Add scan lines checkbox with cyberpunk styling
             const scanLinesContainer = this.createCheckbox(
                 'Scan Lines',
                 this.game.synthwaveEffect.showScanLines,
-                20, 210,
+                25, 275,
                 () => {
                     this.game.synthwaveEffect.setScanLinesVisible(!this.game.synthwaveEffect.showScanLines);
                     this.updateQualityPanel();
@@ -489,11 +545,11 @@ export class UI {
             );
             panel.addChild(scanLinesContainer);
 
-            // Add vignette checkbox
+            // Add vignette checkbox with cyberpunk styling
             const vignetteContainer = this.createCheckbox(
-                'Vignette',
+                'Vignette Effect',
                 this.game.synthwaveEffect.showVignette,
-                20, 240,
+                25, 305,
                 () => {
                     this.game.synthwaveEffect.setVignetteVisible(!this.game.synthwaveEffect.showVignette);
                     this.updateQualityPanel();
@@ -506,14 +562,16 @@ export class UI {
                 fontFamily: 'Arial',
                 fontSize: 14,
                 fill: 0x888888,
-                align: 'left'
+                align: 'center',
+                fontStyle: 'italic'
             });
-            placeholderText.position.set(20, 180);
+            placeholderText.position.set(110, 245);
+            placeholderText.anchor.set(0.5, 0);
             panel.addChild(placeholderText);
         }
 
-        // Position panel above the quality button
-        panel.position.set(10, this.game.app.screen.height - 290);
+        // Position panel higher up to avoid overlapping with buttons
+        panel.position.set(10, this.game.app.screen.height - 350);
 
         // Add to panels container
         this.panelsContainer.addChild(panel);
@@ -549,32 +607,39 @@ export class UI {
         const container = new PIXI.Container();
         container.position.set(x, y);
 
-        // Create checkbox
+        // Create checkbox with cyberpunk styling
         const box = new PIXI.Graphics();
-        box.beginFill(0x333333, 1);
+        box.beginFill(0x000000, 0.6);
         box.lineStyle(2, 0x00FFFF, 1);
-        box.drawRect(0, 0, 16, 16);
+        box.drawRect(0, 0, 18, 18);
         box.endFill();
 
         // Add checkmark if checked
         if (checked) {
             const check = new PIXI.Graphics();
             check.lineStyle(2, 0x00FFFF, 1);
-            check.moveTo(3, 8);
-            check.lineTo(7, 12);
-            check.lineTo(13, 4);
+            check.moveTo(3, 9);
+            check.lineTo(7, 13);
+            check.lineTo(15, 5);
             box.addChild(check);
+
+            // Add highlight border instead of glow filter
+            const highlight = new PIXI.Graphics();
+            highlight.lineStyle(1, 0x00FFFF, 0.8);
+            highlight.drawRect(-2, -2, 22, 22);
+            box.addChild(highlight);
         }
 
         container.addChild(box);
 
-        // Create label
+        // Create label with cyberpunk styling
         const text = new PIXI.Text(label, {
             fontFamily: 'Arial',
             fontSize: 14,
-            fill: 0xFFFFFF
+            fill: checked ? 0x00FFFF : 0xFFFFFF,
+            fontWeight: checked ? 'bold' : 'normal'
         });
-        text.position.set(25, 0);
+        text.position.set(28, 1);
         container.addChild(text);
 
         // Make interactive
@@ -627,9 +692,12 @@ export class UI {
         const text = new PIXI.Text('B', {
             fontFamily: 'Arial',
             fontSize: 16,
-            fill: 0x00FFFF
+            fill: 0x00FFFF,
+            align: 'center'
         });
-        text.position.set(15, 5);
+        // Center the text in the button
+        text.anchor.set(0.5, 0.5);
+        text.position.set(20, 15);
         button.addChild(text);
 
         // Make button interactive
@@ -708,36 +776,66 @@ export class UI {
         // Create tooltip container
         const tooltip = new PIXI.Container();
         tooltip.position.set(x, y);
+        tooltip.zIndex = 1100; // Ensure tooltip is on top
 
-        // Create tooltip background
+        // Create tooltip background with cyberpunk styling
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
-        background.lineStyle(1, 0x00FFFF, 0.8);
-        background.drawRoundedRect(0, 0, 200, 30, 5);
+        background.lineStyle(2, 0x00FFFF, 1);
+        background.drawRoundedRect(0, 0, 220, 40, 5);
         background.endFill();
         tooltip.addChild(background);
 
-        // Create tooltip text
+        // Add angular accents for cyberpunk style
+        const accents = new PIXI.Graphics();
+        accents.lineStyle(1, 0x00FFFF, 0.5);
+        accents.moveTo(0, 5);
+        accents.lineTo(5, 0);
+        accents.moveTo(215, 0);
+        accents.lineTo(220, 5);
+        accents.moveTo(0, 35);
+        accents.lineTo(5, 40);
+        accents.moveTo(215, 40);
+        accents.lineTo(220, 35);
+        tooltip.addChild(accents);
+
+        // Create tooltip text with cyberpunk styling
         const tooltipText = new PIXI.Text(text, {
             fontFamily: 'Arial',
-            fontSize: 12,
-            fill: 0xFFFFFF,
+            fontSize: 14,
+            fill: 0x00FFFF,
             align: 'center',
             wordWrap: true,
-            wordWrapWidth: 190
+            wordWrapWidth: 200
         });
         tooltipText.anchor.set(0.5, 0.5);
-        tooltipText.position.set(100, 15);
+        tooltipText.position.set(110, 20);
         tooltip.addChild(tooltipText);
 
         // Adjust background height based on text height
-        if (tooltipText.height > 20) {
+        if (tooltipText.height > 30) {
+            const padding = 15;
+            const height = tooltipText.height + padding;
+
             background.clear();
             background.beginFill(0x000000, 0.8);
-            background.lineStyle(1, 0x00FFFF, 0.8);
-            background.drawRoundedRect(0, 0, 200, tooltipText.height + 10, 5);
+            background.lineStyle(2, 0x00FFFF, 1);
+            background.drawRoundedRect(0, 0, 220, height, 5);
             background.endFill();
-            tooltipText.position.set(100, (tooltipText.height + 10) / 2);
+
+            // Reposition accents
+            accents.clear();
+            accents.lineStyle(1, 0x00FFFF, 0.5);
+            accents.moveTo(0, 5);
+            accents.lineTo(5, 0);
+            accents.moveTo(215, 0);
+            accents.lineTo(220, 5);
+            accents.moveTo(0, height - 5);
+            accents.lineTo(5, height);
+            accents.moveTo(215, height);
+            accents.lineTo(220, height - 5);
+
+            tooltipText.position.set(110, height / 2);
         }
 
         // Add to container
@@ -772,8 +870,8 @@ export class UI {
                     20
                 );
             } else if (panel === this.panels.quality) {
-                // Reposition quality panel
-                panel.position.set(10, height - 290);
+                // Reposition quality panel higher up
+                panel.position.set(10, height - 350);
             }
             // Add other panel-specific resize logic here
         });
