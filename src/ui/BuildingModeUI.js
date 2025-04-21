@@ -712,6 +712,22 @@ export class BuildingModeUI {
         this.mapsContainer.mask = mask;
         this.loadMapPanel.addChild(this.mapsContainer);
 
+        // Add scroll functionality
+        this.scrollOffset = 0;
+        this.scrollSpeed = 15;
+
+        // Create scroll up button
+        const scrollUpButton = this.createButton('▲', 380, 40, 20, 20, () => {
+            this.scrollMapsUp();
+        });
+        this.loadMapPanel.addChild(scrollUpButton);
+
+        // Create scroll down button
+        const scrollDownButton = this.createButton('▼', 380, 230, 20, 20, () => {
+            this.scrollMapsDown();
+        });
+        this.loadMapPanel.addChild(scrollDownButton);
+
         // Create close button
         const closeButton = this.createButton('Close', 320, 260, 60, 30, () => {
             this.loadMapPanel.visible = false;
@@ -732,11 +748,39 @@ export class BuildingModeUI {
     }
 
     /**
+     * Scrolls the maps list up
+     */
+    scrollMapsUp() {
+        if (this.scrollOffset < 0) {
+            this.scrollOffset += this.scrollSpeed;
+            if (this.scrollOffset > 0) this.scrollOffset = 0;
+            this.mapsContainer.y = 40 + this.scrollOffset;
+        }
+    }
+
+    /**
+     * Scrolls the maps list down
+     */
+    scrollMapsDown() {
+        const containerHeight = this.mapsContainer.height;
+        const visibleHeight = 210; // Height of the mask
+
+        if (containerHeight > visibleHeight && this.scrollOffset > -(containerHeight - visibleHeight)) {
+            this.scrollOffset -= this.scrollSpeed;
+            this.mapsContainer.y = 40 + this.scrollOffset;
+        }
+    }
+
+    /**
      * Updates the list of saved maps
      */
     updateSavedMapsList() {
         // Clear existing maps
         this.mapsContainer.removeChildren();
+
+        // Reset scroll position
+        this.scrollOffset = 0;
+        this.mapsContainer.y = 40;
 
         // Get saved worlds
         const savedWorlds = getSavedWorlds();
@@ -753,19 +797,24 @@ export class BuildingModeUI {
         savedWorlds.forEach((world, index) => {
             // Create map entry container
             const entry = new PIXI.Container();
-            entry.position.set(0, index * 70);
+            entry.position.set(0, index * 75); // Increased spacing between entries
             this.mapsContainer.addChild(entry);
 
             // Create entry background
             const bg = new PIXI.Graphics();
             bg.beginFill(0x222222, 0.8);
             bg.lineStyle(1, 0x00FFFF, 0.5);
-            bg.drawRoundedRect(0, 0, 360, 65, 3);
+            bg.drawRoundedRect(0, 0, 360, 70, 3);
             bg.endFill();
             entry.addChild(bg);
 
-            // Create map name
-            const name = new PIXI.Text(world.displayName, {
+            // Create map name with truncation if needed
+            let displayName = world.displayName;
+            if (displayName.length > 20) {
+                displayName = displayName.substring(0, 17) + '...';
+            }
+
+            const name = new PIXI.Text(displayName, {
                 fontFamily: 'Arial',
                 fontSize: 16,
                 fill: 0x00FFFF,
@@ -791,22 +840,43 @@ export class BuildingModeUI {
             const storageSize = getWorldStorageSize(world.id);
             const date = new Date(world.timestamp).toLocaleString();
 
+            // Format date to be shorter
+            const shortDate = date.replace(/:\d{2}\s/, ' ');
+
             const info = new PIXI.Text(
-                `Last Modified: ${date}\n` +
+                `Modified: ${shortDate}\n` +
                 `Chunks: ${chunkCount} | Size: ${storageSize} KB`, {
                 fontFamily: 'Arial',
-                fontSize: 12,
+                fontSize: 11,
                 fill: 0xCCCCCC,
                 align: 'left'
             });
             info.position.set(10, 35);
             entry.addChild(info);
 
+            // Create button container
+            const buttonContainer = new PIXI.Container();
+            buttonContainer.position.set(200, 8);
+            entry.addChild(buttonContainer);
+
             // Create load button
-            const loadButton = this.createButton('Load', 290, 18, 60, 30, () => {
+            const loadButton = this.createButton('Load', 0, 0, 50, 25, () => {
                 this.loadMap(world.id);
             });
-            entry.addChild(loadButton);
+            buttonContainer.addChild(loadButton);
+
+            // Create rename button
+            const renameButton = this.createButton('Rename', 55, 0, 50, 25, () => {
+                this.renameMap(world.id, world.customName || world.displayName);
+            });
+            buttonContainer.addChild(renameButton);
+
+            // Create delete button
+            const deleteButton = this.createButton('Del', 110, 0, 40, 25, () => {
+                this.deleteMap(world.id, world.displayName);
+            });
+            deleteButton.children[0].tint = 0xFF5555; // Make the delete button red
+            buttonContainer.addChild(deleteButton);
 
             // Make entry interactive
             entry.interactive = true;
@@ -814,7 +884,7 @@ export class BuildingModeUI {
                 bg.clear();
                 bg.beginFill(0x333333, 0.8);
                 bg.lineStyle(1, 0x00FFFF, 0.8);
-                bg.drawRoundedRect(0, 0, 360, 65, 3);
+                bg.drawRoundedRect(0, 0, 360, 70, 3);
                 bg.endFill();
             });
 
@@ -822,10 +892,102 @@ export class BuildingModeUI {
                 bg.clear();
                 bg.beginFill(0x222222, 0.8);
                 bg.lineStyle(1, 0x00FFFF, 0.5);
-                bg.drawRoundedRect(0, 0, 360, 65, 3);
+                bg.drawRoundedRect(0, 0, 360, 70, 3);
                 bg.endFill();
             });
         });
+    }
+
+    /**
+     * Renames a map
+     * @param {string} worldId - World ID to rename
+     * @param {string} currentName - Current name of the map
+     */
+    renameMap(worldId, currentName) {
+        // Prompt for new name
+        const newName = prompt(`Enter new name for map "${currentName}":`, currentName);
+
+        // Check if user cancelled
+        if (newName === null) {
+            return;
+        }
+
+        // Validate new name
+        if (!newName.trim()) {
+            if (this.ui) {
+                this.ui.showMessage('Map name cannot be empty', 2000);
+            }
+            return;
+        }
+
+        // Check if name already exists for another world
+        if (mapNameExists(newName, worldId)) {
+            if (!confirm(`A map with the name "${newName}" already exists. Do you want to use this name anyway?`)) {
+                return;
+            }
+        }
+
+        // Save the new name
+        const success = saveMapName(worldId, newName);
+
+        if (success) {
+            // Show success message
+            if (this.ui) {
+                this.ui.showMessage(`Map renamed to "${newName}"`, 2000);
+            }
+
+            // Update the list
+            this.updateSavedMapsList();
+        } else {
+            // Show error message
+            if (this.ui) {
+                this.ui.showMessage('Failed to rename map', 2000);
+            }
+        }
+    }
+
+    /**
+     * Deletes a map
+     * @param {string} worldId - World ID to delete
+     * @param {string} displayName - Display name of the map
+     */
+    deleteMap(worldId, displayName) {
+        // Confirm deletion
+        if (!confirm(`Are you sure you want to delete the map "${displayName}"? This cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            // Delete world state
+            localStorage.removeItem(`isogame_world_${worldId}`);
+
+            // Delete all chunks for this world
+            if (this.game && this.game.chunkStorage) {
+                this.game.chunkStorage.clearWorld(worldId);
+            }
+
+            // Delete custom name if any
+            const mapNames = getMapNames();
+            if (mapNames[worldId]) {
+                delete mapNames[worldId];
+                localStorage.setItem('isogame_map_names', JSON.stringify(mapNames));
+            }
+
+            // Show success message
+            if (this.ui) {
+                this.ui.showMessage(`Map "${displayName}" deleted`, 2000);
+            }
+
+            // Update the list
+            this.updateSavedMapsList();
+        } catch (error) {
+            console.error('Error deleting map:', error);
+
+            // Show error message
+            if (this.ui) {
+                this.ui.showMessage(`Error deleting map: ${error.message}`, 2000);
+            }
+        }
     }
 
     /**
@@ -1008,7 +1170,8 @@ export class BuildingModeUI {
             'Saving & Loading Maps:\n' +
             '- Click Save to name and save your current map\n' +
             '- You can give each map a custom name\n' +
-            '- Click Load to view and load previously saved maps\n' +
+            '- Click Load to view, rename, or delete saved maps\n' +
+            '- Use the scroll buttons to navigate through your maps\n' +
             '- Maps are also auto-saved periodically\n' +
             '- New Map creates a blank map with grass terrain\n' +
             '- Use terrain types to build your world',
