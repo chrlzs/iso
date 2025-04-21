@@ -790,6 +790,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Set up FPS counter toggle
+    const toggleFpsButton = document.getElementById('toggle-fps');
+    const fpsCounter = document.getElementById('fps-counter');
+
+    // Set initial state - FPS counter is visible by default
+    toggleFpsButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
+
+    // Add click handler for FPS counter toggle
+    toggleFpsButton.addEventListener('click', () => {
+        if (fpsCounter.style.display === 'none') {
+            // Show FPS counter
+            fpsCounter.style.display = 'block';
+            toggleFpsButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
+        } else {
+            // Hide FPS counter
+            fpsCounter.style.display = 'none';
+            toggleFpsButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
+        }
+    });
+
     // Log success message
     console.log('Game initialized successfully!');
     console.log('Controls:');
