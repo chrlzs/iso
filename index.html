@@ -69,7 +69,7 @@
   <div id="fps-counter">FPS: 0</div>
 
   <!-- Chunk Debug Panel with cyberpunk styling -->
-  <div id="chunk-debug" style="position: absolute; top: 60px; left: 10px; background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; font-family: Arial; font-size: 14px; z-index: 1000; border: 2px solid #00FFFF; max-width: 250px;">
+  <div id="chunk-debug" style="position: absolute; top: 150px; left: 10px; background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; font-family: Arial; font-size: 14px; z-index: 1000; border: 2px solid #00FFFF; max-width: 250px; display: none;">
     <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #00FFFF; text-align: center; padding-bottom: 5px; font-size: 16px;">Chunk Debug</div>
     <div id="player-pos" style="margin-bottom: 5px;">Player: <span style="color: white;">(0, 0)</span></div>
     <div id="chunk-pos" style="margin-bottom: 5px;">Chunk: <span style="color: white;">(0, 0)</span></div>
@@ -82,17 +82,17 @@
   <div id="version-info">v1.1.0 - Chunk-Based World</div>
 
   <!-- World Management UI with cyberpunk styling -->
-  <div id="world-management" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; border: 2px solid #00FFFF; z-index: 1000; display: none; max-width: 400px; width: 100%;">
-    <h3 style="margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #00FFFF; font-size: 18px; text-align: center; padding-bottom: 10px;">World Management</h3>
+  <div id="world-management" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 15px; border-radius: 5px; border: 2px solid #00FFFF; z-index: 1000; display: none; max-width: 400px; width: 100%; font-family: Arial, sans-serif;">
+    <h3 style="margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #00FFFF; font-size: 18px; text-align: center; padding-bottom: 10px; font-family: Arial, sans-serif;">World Management</h3>
     <div style="margin-bottom: 15px;">
       <label for="world-id-input" style="display: block; margin-bottom: 5px; font-size: 14px;">World ID:</label>
       <input type="text" id="world-id-input" value="main" style="background-color: #000811; color: #00FFFF; border: 1px solid #00FFFF; padding: 8px; width: 100%; border-radius: 3px; font-family: monospace;">
     </div>
     <div style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: space-between;">
-      <button id="save-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Save</button>
-      <button id="load-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Load</button>
-      <button id="new-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">New</button>
-      <button id="clear-world" style="background-color: rgba(0, 0, 0, 0.7); color: #FF3366; border: 2px solid #FF3366; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1;">Clear</button>
+      <button id="save-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1; font-family: Arial, sans-serif;">Save</button>
+      <button id="load-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1; font-family: Arial, sans-serif;">Load</button>
+      <button id="new-world" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1; font-family: Arial, sans-serif;">New</button>
+      <button id="clear-world" style="background-color: rgba(0, 0, 0, 0.7); color: #FF3366; border: 2px solid #FF3366; padding: 8px 15px; cursor: pointer; border-radius: 5px; flex: 1; font-family: Arial, sans-serif;">Clear</button>
     </div>
     <div id="world-info" style="margin-bottom: 15px; font-size: 14px; background-color: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 5px; border: 1px solid rgba(0, 255, 255, 0.3);">
       <div style="margin-bottom: 5px;">Current World: <span id="current-world-id" style="color: white;">main</span></div>
@@ -103,12 +103,12 @@
     </div>
     <div id="world-status" style="font-size: 14px; color: #33FF66; min-height: 20px; text-align: center; margin-bottom: 15px;"></div>
     <div style="text-align: center;">
-      <button id="close-world-management" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 20px; cursor: pointer; border-radius: 5px; font-size: 14px;">Close</button>
+      <button id="close-world-management" style="background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; padding: 8px 20px; cursor: pointer; border-radius: 5px; font-size: 14px; font-family: Arial, sans-serif;">Close</button>
     </div>
   </div>
 
   <!-- World Management Toggle Button -->
-  <button id="toggle-world-management" style="position: absolute; bottom: 10px; left: 110px; background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; border-radius: 5px; cursor: pointer; z-index: 1000; width: 40px; height: 30px; font-size: 16px; display: flex; justify-content: center; align-items: center; padding: 0;">W</button>
+  <button id="toggle-world-management" style="position: absolute; bottom: 10px; left: 110px; background-color: rgba(0, 0, 0, 0.7); color: #00FFFF; border: 2px solid #00FFFF; border-radius: 5px; cursor: pointer; z-index: 1000; width: 40px; height: 30px; font-size: 16px; display: flex; justify-content: center; align-items: center; padding: 0; font-family: Arial, sans-serif;">W</button>
 
   <!-- Load PIXI.js -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>

@@ -229,10 +229,10 @@ export class UI {
 
         messageBox.addChild(message);
 
-        // Position message at the center top of the screen
+        // Position message below the FPS counter (which is at the center top)
         messageBox.position.set(
             (this.game.app.screen.width - bgWidth) / 2,
-            10 + (this.messages.length * (bgHeight + 10))
+            45 + (this.messages.length * (bgHeight + 10)) // 45px down from top to appear just below the FPS counter
         );
 
         // Add to container
@@ -272,9 +272,9 @@ export class UI {
             // Remove from container
             this.messageContainer.removeChild(messageObj.container);
 
-            // Reposition remaining messages
+            // Reposition remaining messages - maintain consistent position below FPS counter
             this.messages.forEach((msg, i) => {
-                msg.container.position.y = 10 + (i * (msg.height + 10));
+                msg.container.position.y = 45 + (i * (msg.height + 10)); // Match the initial 45px offset
             });
         }
     }
@@ -356,7 +356,7 @@ export class UI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 220, 300, 5); // Wider and taller for better spacing
+        background.drawRoundedRect(0, 0, 220, 400, 5); // Increased height to fit all options
         background.endFill();
         panel.addChild(background);
 
@@ -519,13 +519,18 @@ export class UI {
         separator.lineTo(195, 223);
         panel.addChild(separator);
 
+        // Add a spacer container for better separation
+        const spacer = new PIXI.Container();
+        spacer.position.set(0, 0);
+        panel.addChild(spacer);
+
         // Check if synthwaveEffect exists before adding effect checkboxes
         if (this.game && this.game.synthwaveEffect) {
             // Add grid checkbox with cyberpunk styling
             const gridContainer = this.createCheckbox(
                 'Grid Lines',
                 this.game.synthwaveEffect.showGrid,
-                25, 245,
+                25, 260, // Increased Y position to add more space after the header
                 () => {
                     this.game.synthwaveEffect.setGridVisible(!this.game.synthwaveEffect.showGrid);
                     this.updateQualityPanel();
@@ -537,7 +542,7 @@ export class UI {
             const scanLinesContainer = this.createCheckbox(
                 'Scan Lines',
                 this.game.synthwaveEffect.showScanLines,
-                25, 275,
+                25, 290, // Increased Y position to maintain spacing
                 () => {
                     this.game.synthwaveEffect.setScanLinesVisible(!this.game.synthwaveEffect.showScanLines);
                     this.updateQualityPanel();
@@ -549,7 +554,7 @@ export class UI {
             const vignetteContainer = this.createCheckbox(
                 'Vignette Effect',
                 this.game.synthwaveEffect.showVignette,
-                25, 305,
+                25, 320, // Increased Y position to maintain spacing
                 () => {
                     this.game.synthwaveEffect.setVignetteVisible(!this.game.synthwaveEffect.showVignette);
                     this.updateQualityPanel();
@@ -565,13 +570,13 @@ export class UI {
                 align: 'center',
                 fontStyle: 'italic'
             });
-            placeholderText.position.set(110, 245);
+            placeholderText.position.set(110, 260); // Increased Y position to add more space after the header
             placeholderText.anchor.set(0.5, 0);
             panel.addChild(placeholderText);
         }
 
-        // Position panel higher up to avoid overlapping with buttons
-        panel.position.set(10, this.game.app.screen.height - 350);
+        // Position panel higher up to avoid overlapping with buttons and ensure it fits on screen
+        panel.position.set(10, this.game.app.screen.height - 450);
 
         // Add to panels container
         this.panelsContainer.addChild(panel);
@@ -871,7 +876,7 @@ export class UI {
                 );
             } else if (panel === this.panels.quality) {
                 // Reposition quality panel higher up
-                panel.position.set(10, height - 350);
+                panel.position.set(10, height - 450);
             }
             // Add other panel-specific resize logic here
         });

@@ -348,7 +348,7 @@ export class Game {
 
             // Show a welcome message
             if (this.ui) {
-                this.ui.showMessage('Welcome to Building Mode! Select a terrain type to start building.', 5000);
+                this.ui.showMessage('Welcome to Building Mode! Select a terrain type to start building.', 8000);
             }
         }
 

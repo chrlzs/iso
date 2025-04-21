@@ -216,7 +216,7 @@ export class BuildingModeManager {
 
         // Show a message about the grid (only once)
         if (this.game && this.game.ui && !this._shownInitialMessage) {
-            this.game.ui.showMessage('Select a terrain type to start building.', 3000);
+            this.game.ui.showMessage('Select a terrain type to start building.', 8000);
             this._shownInitialMessage = true;
         }
     }

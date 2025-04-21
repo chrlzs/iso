@@ -69,7 +69,32 @@ export class DebugOverlay {
      */
     toggle() {
         this.enabled = !this.enabled;
-        this.container.style.display = this.enabled ? 'block' : 'none';
+
+        if (this.enabled) {
+            // Show loading message first
+            this.container.style.display = 'block';
+            this.container.innerHTML = `
+                <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #00FFFF; text-align: center; padding-bottom: 5px; font-size: 16px;">Debug Info</div>
+                <div style="text-align: center; margin: 20px 0;">
+                    <div style="color: white; margin-bottom: 10px;">Loading debug information...</div>
+                    <div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0, 255, 255, 0.3); border-radius: 50%; border-top-color: #00FFFF; animation: spin 1s linear infinite;"></div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+
+            // Update after a short delay to allow UI to refresh
+            setTimeout(() => {
+                this.update();
+            }, 100);
+        } else {
+            // Hide the container
+            this.container.style.display = 'none';
+        }
+
         this.toggleButton.style.backgroundColor = this.enabled ? 'rgba(0, 128, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
         // Keep the same text
         this.toggleButton.textContent = 'D';
@@ -103,14 +128,44 @@ export class DebugOverlay {
             } : null;
         }
 
-        // Update display
-        this.update();
+        // Update display with content only (no loading indicator)
+        this.updateContent();
     }
 
     /**
      * Updates the debug overlay
      */
     update() {
+        if (!this.enabled) return;
+
+        // Show loading indicator first if this is a full update
+        if (arguments.length === 0) {
+            this.container.innerHTML = `
+                <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #00FFFF; text-align: center; padding-bottom: 5px; font-size: 16px;">Debug Info</div>
+                <div style="text-align: center; margin: 20px 0;">
+                    <div style="color: white; margin-bottom: 10px;">Loading debug information...</div>
+                    <div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0, 255, 255, 0.3); border-radius: 50%; border-top-color: #00FFFF; animation: spin 1s linear infinite;"></div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+
+            // Update with actual content after a short delay
+            setTimeout(() => this.updateContent(), 200);
+            return;
+        }
+
+        this.updateContent();
+    }
+
+    /**
+     * Updates the debug overlay content
+     * @private
+     */
+    updateContent() {
         if (!this.enabled) return;
 
         // Update container content with cyberpunk styling
@@ -144,6 +199,13 @@ export class DebugOverlay {
                 <div style="margin-bottom: 5px;">Camera Zoom: <span style="color: white;">${this.world.camera.zoom.toFixed(2)}</span></div>
             `;
         }
+
+        // Add timestamp to show when the debug info was last updated
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        html += `
+            <div style="margin-top: 15px; font-size: 11px; color: #888; text-align: right;">Updated: ${timeString}</div>
+        `;
 
         this.container.innerHTML = html;
     }

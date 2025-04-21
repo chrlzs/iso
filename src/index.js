@@ -81,12 +81,17 @@ function setupWorldManagementUI(game) {
 
     // Toggle world management panel
     toggleButton.addEventListener('click', () => {
-        worldManagement.style.display = 'block';
-        toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Change to green when active
-        updateWorldStatus();
+        if (worldManagement.style.display === 'none' || worldManagement.style.display === '') {
+            worldManagement.style.display = 'block';
+            toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Change to green when active
+            updateWorldStatus();
+        } else {
+            worldManagement.style.display = 'none';
+            toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Change back to black when inactive
+        }
     });
 
-    // Close world management panel
+    // Close button still works as an alternative way to close
     closeButton.addEventListener('click', () => {
         worldManagement.style.display = 'none';
         toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Change back to black when inactive
@@ -428,8 +433,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up chunk debug panel
     setupChunkDebugPanel(game);
 
-    // Create debug overlay
-    const debugOverlay = new DebugOverlay(game);
+    // Create chunk debug toggle button
+    const chunkDebugButton = document.createElement('button');
+    chunkDebugButton.textContent = 'K';
+    chunkDebugButton.title = 'Toggle Chunk Debug';
+    chunkDebugButton.style.position = 'fixed';
+    chunkDebugButton.style.bottom = '10px';
+    chunkDebugButton.style.left = '260px';
+    chunkDebugButton.style.zIndex = '1000';
+    chunkDebugButton.style.width = '40px';
+    chunkDebugButton.style.height = '30px';
+    chunkDebugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    chunkDebugButton.style.color = '#00FFFF';
+    chunkDebugButton.style.border = '2px solid #00FFFF';
+    chunkDebugButton.style.borderRadius = '5px';
+    chunkDebugButton.style.cursor = 'pointer';
+    chunkDebugButton.style.fontSize = '16px';
+    chunkDebugButton.style.display = 'flex';
+    chunkDebugButton.style.justifyContent = 'center';
+    chunkDebugButton.style.alignItems = 'center';
+    chunkDebugButton.style.padding = '0';
+    document.body.appendChild(chunkDebugButton);
+
+    // Toggle chunk debug panel
+    const chunkDebugPanel = document.getElementById('chunk-debug');
+    chunkDebugButton.addEventListener('click', () => {
+        if (chunkDebugPanel.style.display === 'none') {
+            chunkDebugPanel.style.display = 'block';
+            chunkDebugButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
+        } else {
+            chunkDebugPanel.style.display = 'none';
+            chunkDebugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
+        }
+    });
+
+    // Create debug overlay (no need to store the reference)
+    new DebugOverlay(game);
 
     // Create a simple HTML overlay for tile coordinates
     if (game.options.debug) {
@@ -495,14 +534,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (coordContainer.style.display === 'none') {
                 coordContainer.style.display = 'block';
                 mouseTracker.style.display = 'block';
-                toggleButton.textContent = 'C';
-                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)';
+                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
                 updateCoordinates();
             } else {
                 coordContainer.style.display = 'none';
                 mouseTracker.style.display = 'none';
-                toggleButton.textContent = 'C';
-                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
             }
         });
 

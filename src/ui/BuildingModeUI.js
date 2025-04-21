@@ -426,11 +426,15 @@ export class BuildingModeUI {
         // Update help panel position based on current window size
         if (this.helpPanel) {
             this.helpPanel.position.set(window.innerWidth - 280, 10);
+            // Ensure the help panel is initially hidden
+            this.helpPanel.visible = false;
         }
 
         // Update help show button position
         if (this.helpShowButton) {
             this.helpShowButton.position.set(window.innerWidth - 40, 10);
+            // Ensure the help button is initially visible
+            this.helpShowButton.visible = true;
         }
     }
 
@@ -1163,6 +1167,7 @@ export class BuildingModeUI {
         // Create panel container - positioned on the right side of the screen
         this.helpPanel = new PIXI.Container();
         this.helpPanel.position.set(window.innerWidth - 280, 10); // Position on the right side
+        this.helpPanel.visible = false; // Initially hidden
         this.container.addChild(this.helpPanel);
 
         // Create panel background
@@ -1264,17 +1269,18 @@ export class BuildingModeUI {
 
         // Create close button
         const closeButton = this.createButton('X', 235, 5, 20, 20, () => {
-            this.helpPanel.visible = false;
-            this.helpShowButton.visible = true;
+            this.toggleHelpPanel(false); // Hide panel, show button
         });
         this.helpPanel.addChild(closeButton);
 
         // Create show button (initially visible)
         this.helpShowButton = this.createButton('?', window.innerWidth - 40, 10, 30, 30, () => {
-            this.helpPanel.visible = true;
-            this.helpShowButton.visible = false;
+            this.toggleHelpPanel(true); // Show panel, hide button
         });
         this.container.addChild(this.helpShowButton);
+
+        // Make sure the button is initially visible
+        this.helpShowButton.visible = true;
     }
 
     /**
@@ -1297,7 +1303,20 @@ export class BuildingModeUI {
 
         if (containerHeight > visibleHeight && this.helpScrollOffset > -(containerHeight - visibleHeight)) {
             this.helpScrollOffset -= this.helpScrollSpeed;
-            this.helpTextContainer.y = 40 + this.helpScrollOffset;
+        }
+    }
+
+    /**
+     * Toggles the help panel visibility
+     * @param {boolean} show - Whether to show the panel
+     */
+    toggleHelpPanel(show) {
+        if (this.helpPanel) {
+            this.helpPanel.visible = show;
+        }
+
+        if (this.helpShowButton) {
+            this.helpShowButton.visible = !show;
         }
     }
 
