@@ -288,6 +288,18 @@ export class Game {
     }
 
     /**
+     * Updates the loading status message
+     * @param {string} message - Status message to display
+     * @private
+     */
+    updateLoadingStatus(message) {
+        const loadingStatus = document.getElementById('loading-status');
+        if (loadingStatus) {
+            loadingStatus.textContent = message;
+        }
+    }
+
+    /**
      * Initializes the game
      * @private
      */
@@ -295,11 +307,17 @@ export class Game {
         // Set up game loop
         this.app.ticker.add(this.update.bind(this));
 
+        // Update loading status
+        this.updateLoadingStatus('Setting up game environment...');
+
         // Initialize input manager
         this.input = new InputManager(this);
 
         // Set up window resize handler
         window.addEventListener('resize', this.handleResize.bind(this));
+
+        // Update loading status
+        this.updateLoadingStatus('Loading assets...');
 
         // Initialize asset manager
         this.assetManager = new AssetManager({
@@ -307,6 +325,9 @@ export class Game {
             world: this.world
         });
         this.assetManager.initialize();
+
+        // Update loading status
+        this.updateLoadingStatus('Initializing building mode...');
 
         // Initialize building mode manager
         this.buildingModeManager = new BuildingModeManager({
@@ -316,9 +337,13 @@ export class Game {
         });
         this.buildingModeManager.initialize();
 
+        // Update loading status
+        this.updateLoadingStatus('Preparing game world...');
+
         // Start with a blank map by default
         if (this.options.startWithBlankMap !== false) {
             console.log('Starting with a blank map for building mode...');
+            this.updateLoadingStatus('Creating blank map...');
             this.world.createBlankMap({
                 defaultTerrain: 'grass',
                 clearStorage: true
@@ -326,11 +351,13 @@ export class Game {
         }
         // Otherwise, try to load saved world state if persistence is enabled
         else if (this.options.persistChunks && !this.options.skipLoadSavedState) {
+            this.updateLoadingStatus('Loading saved world state...');
             const loaded = this.loadWorldState();
 
             // If no saved state was found, generate a new world
             if (!loaded && this.options.generateWorld !== false) {
                 console.log('No saved state found, generating new world...');
+                this.updateLoadingStatus('Generating new world...');
                 this.world.generateWorld();
             }
         }
@@ -338,12 +365,14 @@ export class Game {
 
         // Create player character if requested
         if (this.options.createPlayer !== false) {
+            this.updateLoadingStatus('Creating player character...');
             this.createPlayer();
         }
 
         // Activate building mode automatically if starting with a blank map
         if (this.options.startWithBlankMap && this.buildingModeManager) {
             console.log('Automatically activating building mode...');
+            this.updateLoadingStatus('Activating building mode...');
             this.buildingModeManager.activate();
 
             // Show a welcome message
@@ -354,6 +383,7 @@ export class Game {
 
         // Set up auto-save if enabled
         if (this.options.autoSave) {
+            this.updateLoadingStatus('Setting up auto-save...');
             const autoSaveInterval = this.options.autoSaveInterval || 60000; // Default: 1 minute
             console.log(`Setting up auto-save every ${autoSaveInterval / 1000} seconds`);
 
@@ -364,6 +394,7 @@ export class Game {
 
         // Set up performance monitoring
         if (this.options.debug) {
+            this.updateLoadingStatus('Setting up performance monitoring...');
             this.setupPerformanceMonitoring();
 
             // Debug grid has been removed
@@ -371,8 +402,20 @@ export class Game {
 
         // Create inventory panel
         if (this.player && this.player.inventory) {
+            this.updateLoadingStatus('Creating inventory panel...');
             this.ui.createInventoryPanel(this.player.inventory);
         }
+
+        // Final loading status update
+        this.updateLoadingStatus('Game ready!');
+
+        // Hide the loading screen after a short delay
+        setTimeout(() => {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+        }, 500);
     }
 
     // Remove these handlers as they're now in InputManager

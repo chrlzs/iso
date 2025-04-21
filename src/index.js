@@ -99,14 +99,24 @@ function setupWorldManagementUI(game) {
 
     // Save world
     saveButton.addEventListener('click', () => {
-        const worldState = game.saveWorldState();
-        updateWorldStatus('World saved successfully!');
-        console.log('World saved:', worldState);
+        // Show loading spinner
+        showWorldLoadingSpinner('Saving world...');
+
+        // Use setTimeout to allow the UI to update before starting the operation
+        setTimeout(() => {
+            const worldState = game.saveWorldState();
+            updateWorldStatus('World saved successfully!');
+            console.log('World saved:', worldState);
+        }, 50);
     });
 
     // Load world
     loadButton.addEventListener('click', () => {
         const worldId = worldIdInput.value.trim();
+
+        // Show loading spinner
+        showWorldLoadingSpinner('Loading world...');
+
         if (worldId && worldId !== game.options.worldId) {
             // Switch to the new world
             switchWorld(worldId);
@@ -117,10 +127,113 @@ function setupWorldManagementUI(game) {
             // Reset player creation flag to allow recreation if needed
             game.playerCreationAttempted = false;
 
+            // Use setTimeout to allow the UI to update before starting the operation
+            setTimeout(() => {
+                const success = game.loadWorldState();
+                if (success) {
+                    updateWorldStatus('World loaded successfully!');
+                    console.log('World loaded successfully');
+
+                    // Ensure player is visible
+                    if (game.player) {
+                        game.player.visible = true;
+                        game.player.alpha = 1.0;
+                        console.log(`Player position: (${game.player.gridX}, ${game.player.gridY})`);
+                    } else {
+                        console.warn('Player not found after loading world, will be recreated');
+                    }
+                } else {
+                    updateWorldStatus('No saved world found!', true);
+                    console.warn('No saved world found');
+                }
+            }, 50);
+        }
+    });
+
+    // Generate new world
+    newButton.addEventListener('click', () => {
+        if (confirm('Generate a new world? This will not affect stored data.')) {
+            // Show loading spinner
+            showWorldLoadingSpinner('Generating new world...');
+
+            // Use setTimeout to allow the UI to update before starting the operation
+            setTimeout(() => {
+                // Reset player creation flag to allow recreation
+                game.playerCreationAttempted = false;
+
+                // Generate new world with random seed
+                const newSeed = Math.floor(Math.random() * 1000000);
+                console.log(`Generating new world with seed ${newSeed}`);
+
+                game.generateWorld({
+                    clearStorage: false,
+                    seed: newSeed,
+                    createPlayer: true
+                });
+
+                // Update world info in UI
+                currentWorldSeed.textContent = game.world.seed;
+                updateWorldStatus(`New world generated with seed ${newSeed}!`);
+
+                // Ensure player is visible and active
+                if (game.player) {
+                    game.player.visible = true;
+                    game.player.alpha = 1.0;
+                    game.player.active = true;
+                    console.log(`Player created at position (${game.player.gridX}, ${game.player.gridY})`);
+                } else {
+                    console.warn('Player not created after generating new world');
+                }
+            }, 50);
+        }
+    });
+
+    // Clear world data
+    clearButton.addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all saved data for this world? This cannot be undone.')) {
+            // Show loading spinner
+            showWorldLoadingSpinner('Clearing world data...');
+
+            // Use setTimeout to allow the UI to update before starting the operation
+            setTimeout(() => {
+                const success = game.clearSavedData();
+                if (success) {
+                    updateWorldStatus('World data cleared!');
+                } else {
+                    updateWorldStatus('Failed to clear world data!', true);
+                }
+            }, 50);
+        }
+    });
+
+    // Function to switch to a different world
+    function switchWorld(worldId) {
+        // Show loading spinner
+        showWorldLoadingSpinner(`Switching to world: ${worldId}...`);
+
+        // Use setTimeout to allow the UI to update before starting the operation
+        setTimeout(() => {
+            // Save current world state
+            game.saveWorldState();
+
+            // Update game options
+            game.options.worldId = worldId;
+
+            // Update world ID in UI
+            worldIdInput.value = worldId;
+            currentWorldId.textContent = worldId;
+
+            // Reset player creation flag to allow recreation if needed
+            game.playerCreationAttempted = false;
+
+            // Try to load the world state
+            console.log(`Attempting to load world: ${worldId}`);
+            showWorldLoadingSpinner(`Loading world: ${worldId}...`);
             const success = game.loadWorldState();
+
             if (success) {
-                updateWorldStatus('World loaded successfully!');
-                console.log('World loaded successfully');
+                updateWorldStatus(`Switched to world: ${worldId}`);
+                console.log(`Successfully loaded world: ${worldId} with seed ${game.world.seed}`);
 
                 // Ensure player is visible
                 if (game.player) {
@@ -128,110 +241,100 @@ function setupWorldManagementUI(game) {
                     game.player.alpha = 1.0;
                     console.log(`Player position: (${game.player.gridX}, ${game.player.gridY})`);
                 } else {
-                    console.warn('Player not found after loading world, will be recreated');
+                    console.warn('Player not found after switching worlds, will be recreated');
                 }
             } else {
-                updateWorldStatus('No saved world found!', true);
-                console.warn('No saved world found');
+                // If no saved state, generate a new world
+                const newSeed = Math.floor(Math.random() * 1000000);
+                console.log(`No saved state found for world: ${worldId}, generating new world with seed ${newSeed}`);
+
+                showWorldLoadingSpinner(`Creating new world: ${worldId}...`);
+                game.generateWorld({
+                    clearStorage: false,
+                    seed: newSeed
+                });
+
+                console.log(`Created new world: ${worldId} with seed ${newSeed}`);
+                updateWorldStatus(`Created new world: ${worldId}`);
             }
-        }
-    });
 
-    // Generate new world
-    newButton.addEventListener('click', () => {
-        if (confirm('Generate a new world? This will not affect stored data.')) {
-            // Reset player creation flag to allow recreation
-            game.playerCreationAttempted = false;
-
-            // Generate new world with random seed
-            const newSeed = Math.floor(Math.random() * 1000000);
-            console.log(`Generating new world with seed ${newSeed}`);
-
-            game.generateWorld({
-                clearStorage: false,
-                seed: newSeed,
-                createPlayer: true
-            });
-
-            // Update world info in UI
+            // Update world info
             currentWorldSeed.textContent = game.world.seed;
-            updateWorldStatus(`New world generated with seed ${newSeed}!`);
+        }, 50);
+    }
 
-            // Ensure player is visible and active
-            if (game.player) {
-                game.player.visible = true;
-                game.player.alpha = 1.0;
-                game.player.active = true;
-                console.log(`Player created at position (${game.player.gridX}, ${game.player.gridY})`);
-            } else {
-                console.warn('Player not created after generating new world');
+    // Create loading spinner for world operations
+    function showWorldLoadingSpinner(message = 'Loading...') {
+        // Create or update loading spinner
+        let loadingSpinner = document.getElementById('world-loading-spinner');
+
+        if (!loadingSpinner) {
+            loadingSpinner = document.createElement('div');
+            loadingSpinner.id = 'world-loading-spinner';
+            loadingSpinner.style.position = 'absolute';
+            loadingSpinner.style.top = '0';
+            loadingSpinner.style.left = '0';
+            loadingSpinner.style.width = '100%';
+            loadingSpinner.style.height = '100%';
+            loadingSpinner.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            loadingSpinner.style.display = 'flex';
+            loadingSpinner.style.flexDirection = 'column';
+            loadingSpinner.style.justifyContent = 'center';
+            loadingSpinner.style.alignItems = 'center';
+            loadingSpinner.style.zIndex = '1001';
+            loadingSpinner.style.fontFamily = 'Arial, sans-serif';
+            worldManagement.appendChild(loadingSpinner);
+
+            // Create spinner animation
+            const spinner = document.createElement('div');
+            spinner.style.width = '40px';
+            spinner.style.height = '40px';
+            spinner.style.border = '4px solid rgba(0, 255, 255, 0.3)';
+            spinner.style.borderRadius = '50%';
+            spinner.style.borderTopColor = '#00FFFF';
+            spinner.style.animation = 'spin 1s linear infinite';
+            spinner.style.marginBottom = '15px';
+            loadingSpinner.appendChild(spinner);
+
+            // Add animation style if not already present
+            if (!document.getElementById('spinner-style')) {
+                const style = document.createElement('style');
+                style.id = 'spinner-style';
+                style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+                document.head.appendChild(style);
             }
-        }
-    });
 
-    // Clear world data
-    clearButton.addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear all saved data for this world? This cannot be undone.')) {
-            const success = game.clearSavedData();
-            if (success) {
-                updateWorldStatus('World data cleared!');
-            } else {
-                updateWorldStatus('Failed to clear world data!', true);
-            }
-        }
-    });
-
-    // Function to switch to a different world
-    function switchWorld(worldId) {
-        // Save current world state
-        game.saveWorldState();
-
-        // Update game options
-        game.options.worldId = worldId;
-
-        // Update world ID in UI
-        worldIdInput.value = worldId;
-        currentWorldId.textContent = worldId;
-
-        // Reset player creation flag to allow recreation if needed
-        game.playerCreationAttempted = false;
-
-        // Try to load the world state
-        console.log(`Attempting to load world: ${worldId}`);
-        const success = game.loadWorldState();
-
-        if (success) {
-            updateWorldStatus(`Switched to world: ${worldId}`);
-            console.log(`Successfully loaded world: ${worldId} with seed ${game.world.seed}`);
-
-            // Ensure player is visible
-            if (game.player) {
-                game.player.visible = true;
-                game.player.alpha = 1.0;
-                console.log(`Player position: (${game.player.gridX}, ${game.player.gridY})`);
-            } else {
-                console.warn('Player not found after switching worlds, will be recreated');
-            }
+            // Create message element
+            const messageElement = document.createElement('div');
+            messageElement.id = 'world-loading-message';
+            messageElement.style.color = '#00FFFF';
+            messageElement.style.marginTop = '10px';
+            messageElement.style.fontSize = '16px';
+            messageElement.textContent = message;
+            loadingSpinner.appendChild(messageElement);
         } else {
-            // If no saved state, generate a new world
-            const newSeed = Math.floor(Math.random() * 1000000);
-            console.log(`No saved state found for world: ${worldId}, generating new world with seed ${newSeed}`);
-
-            game.generateWorld({
-                clearStorage: false,
-                seed: newSeed
-            });
-
-            console.log(`Created new world: ${worldId} with seed ${newSeed}`);
-            updateWorldStatus(`Created new world: ${worldId}`);
+            // Update existing message
+            const messageElement = document.getElementById('world-loading-message');
+            if (messageElement) {
+                messageElement.textContent = message;
+            }
+            loadingSpinner.style.display = 'flex';
         }
+    }
 
-        // Update world info
-        currentWorldSeed.textContent = game.world.seed;
+    // Hide loading spinner
+    function hideWorldLoadingSpinner() {
+        const loadingSpinner = document.getElementById('world-loading-spinner');
+        if (loadingSpinner) {
+            loadingSpinner.style.display = 'none';
+        }
     }
 
     // Function to update world status message
     function updateWorldStatus(message = null, isError = false) {
+        // Hide loading spinner
+        hideWorldLoadingSpinner();
+
         // Update world info
         currentWorldId.textContent = game.options.worldId;
         currentWorldSeed.textContent = game.world.seed;

@@ -64,7 +64,16 @@
 </head>
 <body>
   <div id="game-container">
-    <div id="loading">Loading game...</div>
+    <div id="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); color: #00FFFF; padding: 20px 30px; border-radius: 5px; border: 2px solid #00FFFF; z-index: 1000; font-family: Arial, sans-serif; text-align: center;">
+      <div style="font-size: 18px; margin-bottom: 15px;">Loading Game</div>
+      <div class="loading-spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(0, 255, 255, 0.3); border-radius: 50%; border-top-color: #00FFFF; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+      <div id="loading-status" style="font-size: 14px; color: white;">Initializing...</div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </div>
   </div>
   <div id="fps-counter">FPS: 0</div>
 
