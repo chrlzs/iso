@@ -150,7 +150,12 @@ export class WorldChunk {
     load() {
         if (this.isLoaded) return;
 
-        console.log(`Loading chunk at ${this.chunkX}, ${this.chunkY}`);
+        // Only log chunk loading in debug mode and not too frequently
+        const isDebug = this.world && this.world.game && this.world.game.options && this.world.game.options.debug;
+        if (isDebug && (!this._lastChunkLoadLog || Date.now() - this._lastChunkLoadLog > 5000)) {
+            console.log(`Loading chunk at ${this.chunkX}, ${this.chunkY}`);
+            this._lastChunkLoadLog = Date.now();
+        }
 
         // If not generated, generate first
         if (!this.isGenerated) {
@@ -164,12 +169,18 @@ export class WorldChunk {
                 if (tile) {
                     // Ensure tile has proper references
                     if (!tile.world) {
-                        console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                        // Reduce logging - only log in debug mode and very occasionally
+                        if (isDebug && Math.random() < 0.01) {
+                            console.log(`Setting world reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                        }
                         tile.world = this.world;
                     }
 
                     if (!tile.game && this.world && this.world.game) {
-                        console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                        // Reduce logging - only log in debug mode and very occasionally
+                        if (isDebug && Math.random() < 0.01) {
+                            console.log(`Setting game reference for tile at (${tile.gridX}, ${tile.gridY})`);
+                        }
                         tile.game = this.world.game;
                     }
 
@@ -193,6 +204,50 @@ export class WorldChunk {
         }
 
         this.isLoaded = true;
+        this.fullyLoaded = true; // Mark as fully loaded
+    }
+
+    /**
+     * Ensures the chunk is fully loaded with all assets
+     * This is called when a chunk becomes visible to ensure all textures are loaded
+     */
+    ensureFullyLoaded() {
+        if (this.fullyLoaded) return;
+
+        // If not loaded at all, load first
+        if (!this.isLoaded) {
+            this.load();
+            return;
+        }
+
+        // Check if all tiles have proper textures
+        let allTexturesLoaded = true;
+
+        for (let localX = 0; localX < this.size; localX++) {
+            for (let localY = 0; localY < this.size; localY++) {
+                const tile = this.getTile(localX, localY);
+                if (tile && tile.sprite) {
+                    // Check if the tile has a placeholder texture
+                    if (tile.sprite.texture && tile.sprite.texture.baseTexture &&
+                        tile.sprite.texture.baseTexture.resource &&
+                        tile.sprite.texture.baseTexture.resource.url &&
+                        tile.sprite.texture.baseTexture.resource.url.includes('placeholder')) {
+
+                        // Try to load the proper texture
+                        if (this.world && this.world.textureCache) {
+                            const texture = this.world.textureCache.getTexture(tile.type);
+                            if (texture) {
+                                tile.sprite.texture = texture;
+                            } else {
+                                allTexturesLoaded = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        this.fullyLoaded = allTexturesLoaded;
     }
 
     /**

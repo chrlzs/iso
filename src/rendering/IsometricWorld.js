@@ -1417,19 +1417,37 @@ export class IsometricWorld extends Container {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
+        // Start performance monitoring if available
+        if (this.game && this.game.performanceMonitor) {
+            this.game.performanceMonitor.startTimer('worldUpdate');
+        }
+
         // Update camera - ONLY if we have a camera target
         // This prevents the camera from being updated unnecessarily
         if (this.camera.target) {
             this.updateCamera();
 
             // Only update chunks every few frames to improve performance
+            // Increase the interval for lower-end devices
             this.frameCount = (this.frameCount || 0) + 1;
-            if (this.frameCount % 10 === 0) {
+            const updateInterval = this.game && this.game.options.lowPerformanceMode ? 30 : 15;
+
+            if (this.frameCount % updateInterval === 0) {
+                // Start chunk update timer
+                if (this.game && this.game.performanceMonitor) {
+                    this.game.performanceMonitor.startTimer('chunkLoad');
+                }
+
                 // Update chunk loading based on player position
                 this.updateChunks();
 
                 // Update chunk visibility based on camera position
                 this.updateChunkVisibility();
+
+                // End chunk update timer
+                if (this.game && this.game.performanceMonitor) {
+                    this.game.performanceMonitor.endTimer('chunkLoad');
+                }
 
                 // Reset frame counter after a while to prevent overflow
                 if (this.frameCount > 1000) {
@@ -1438,17 +1456,69 @@ export class IsometricWorld extends Container {
             }
         }
 
-        // Update entities
-        this.entities.forEach(entity => {
-            if (entity.active && typeof entity.update === 'function') {
-                entity.update(deltaTime);
+        // Start entity update timer
+        if (this.game && this.game.performanceMonitor) {
+            this.game.performanceMonitor.startTimer('entityUpdate');
+        }
+
+        // Update entities - only update visible entities
+        // Convert Set to Array before using filter
+        const entitiesArray = this.entities instanceof Set ? Array.from(this.entities) :
+                             Array.isArray(this.entities) ? this.entities : [];
+
+        const visibleEntities = entitiesArray.filter(entity => {
+            // Skip null or undefined entities
+            if (!entity) return false;
+
+            // Skip inactive entities
+            if (!entity.active) return false;
+
+            // Skip entities without update method
+            if (typeof entity.update !== 'function') return false;
+
+            // Skip entities that are far from the camera
+            if (this.camera) {
+                const dx = Math.abs(entity.x - this.camera.x);
+                const dy = Math.abs(entity.y - this.camera.y);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Skip if too far away (adjust threshold based on zoom)
+                const threshold = 1000 / this.camera.zoom;
+                if (distance > threshold) return false;
             }
+
+            return true;
         });
 
-        // Sort tiles by depth if needed
-        if (this.sortTilesByDepth) {
+        // Update only visible entities
+        visibleEntities.forEach(entity => {
+            entity.update(deltaTime);
+        });
+
+        // End entity update timer
+        if (this.game && this.game.performanceMonitor) {
+            this.game.performanceMonitor.endTimer('entityUpdate');
+        }
+
+        // Sort tiles by depth if needed - but limit how often we do this
+        if (this.sortTilesByDepth && this.frameCount % 5 === 0) {
+            // Start sorting timer
+            if (this.game && this.game.performanceMonitor) {
+                this.game.performanceMonitor.startTimer('tileSort');
+            }
+
             this.sortTiles();
             this.sortTilesByDepth = false; // Only sort when needed
+
+            // End sorting timer
+            if (this.game && this.game.performanceMonitor) {
+                this.game.performanceMonitor.endTimer('tileSort');
+            }
+        }
+
+        // End world update timer
+        if (this.game && this.game.performanceMonitor) {
+            this.game.performanceMonitor.endTimer('worldUpdate');
         }
     }
 
@@ -1508,36 +1578,71 @@ export class IsometricWorld extends Container {
      * Updates chunk loading/unloading based on player position
      */
     updateChunks() {
-        // Get player position
-        const player = this.game.player;
-        if (!player) return;
+        // Get player position or use camera position if no player
+        let centerX = 0;
+        let centerY = 0;
 
-        // Ensure player is visible
-        if (!player.visible) {
-            console.log('Making player visible');
-            player.visible = true;
-            player.alpha = 1.0;
+        if (this.game && this.game.player) {
+            const player = this.game.player;
 
-            // Ensure player is in the entity container
-            if (!this.entityContainer.children.includes(player)) {
-                console.log('Re-adding player to entity container');
-                this.entityContainer.addChild(player);
+            // Ensure player is visible
+            if (!player.visible) {
+                // Only log this once
+                if (!this._playerVisibilityFixed) {
+                    console.log('Making player visible');
+                    this._playerVisibilityFixed = true;
+                }
+                player.visible = true;
+                player.alpha = 1.0;
+
+                // Ensure player is in the entity container
+                if (!this.entityContainer.children.includes(player)) {
+                    console.log('Re-adding player to entity container');
+                    this.entityContainer.addChild(player);
+                }
+            }
+
+            // Use player position
+            centerX = player.gridX;
+            centerY = player.gridY;
+
+            // Debug logging for player position - but only log occasionally
+            if (this.game && this.game.options && this.game.options.debug &&
+                this.frameCount % 300 === 0) { // Log only every 300 frames
+                console.log(`Player position for chunk loading: Grid (${player.gridX}, ${player.gridY})`);
+            }
+        } else if (this.camera) {
+            // Use camera position if no player
+            const worldPos = this.worldToGrid(this.camera.x, this.camera.y);
+            centerX = worldPos.x;
+            centerY = worldPos.y;
+
+            // Only log occasionally
+            if (this.game && this.game.options && this.game.options.debug &&
+                this.frameCount % 300 === 0) { // Log only every 300 frames
+                console.log(`Using camera position for chunk loading: Grid (${centerX}, ${centerY})`);
+            }
+        } else {
+            // Fallback to center of world
+            centerX = Math.floor(this.config.gridWidth / 2);
+            centerY = Math.floor(this.config.gridHeight / 2);
+
+            // Only log occasionally
+            if (this.game && this.game.options && this.game.options.debug &&
+                this.frameCount % 300 === 0) { // Log only every 300 frames
+                console.log(`Using world center for chunk loading: Grid (${centerX}, ${centerY})`);
             }
         }
 
-        // Debug logging for player position
-        if (this.game && this.game.options && this.game.options.debug) {
-            console.log(`Player position for chunk loading: Grid (${player.gridX}, ${player.gridY})`);
-        }
-
-        // Convert player position to chunk coordinates
+        // Convert center position to chunk coordinates
         const playerChunkCoords = this.config.gridToChunk(
-            player.gridX,
-            player.gridY
+            centerX,
+            centerY
         );
 
-        // Debug logging for chunk coordinates
-        if (this.game && this.game.options && this.game.options.debug) {
+        // Debug logging for chunk coordinates - but only log occasionally
+        if (this.game && this.game.options && this.game.options.debug &&
+            this.frameCount % 300 === 0) { // Log only every 300 frames
             console.log(`Player chunk coordinates: (${playerChunkCoords.chunkX}, ${playerChunkCoords.chunkY})`);
         }
 
@@ -1593,25 +1698,118 @@ export class IsometricWorld extends Container {
         // Cache camera bounds for quick access
         this._lastCameraBounds = cameraBounds;
 
+        // Quick check - if we have too many active chunks, increase the unload distance
+        // This helps prevent memory issues on lower-end devices
+        if (this.activeChunks.size > 100 && this.config.unloadDistance < 5) {
+            // Only log this when the unload distance actually changes
+            const oldUnloadDistance = this.config.unloadDistance;
+            this.config.unloadDistance += 1;
+
+            if (oldUnloadDistance !== this.config.unloadDistance) {
+                console.log(`Too many active chunks (${this.activeChunks.size}), increased unload distance to ${this.config.unloadDistance}`);
+            }
+
+            // Force chunk update on next frame
+            this.frameCount = 0;
+        }
+
+        // Optimize: Convert activeChunks to array once for faster iteration
+        const activeChunkKeys = Array.from(this.activeChunks);
+
+        // Safety check - if no chunks are visible, make sure at least the center chunk is visible
+        let visibleChunks = 0;
+
+        // Optimize: Pre-calculate camera center for distance checks
+        const cameraX = cameraBounds.x + cameraBounds.width / 2;
+        const cameraY = cameraBounds.y + cameraBounds.height / 2;
+
+        // Optimize: Calculate visibility radius based on zoom
+        const visibilityRadius = Math.max(cameraBounds.width, cameraBounds.height) * 0.75;
+
         // Update visibility of chunks
-        for (const key of this.activeChunks) {
+        for (let i = 0; i < activeChunkKeys.length; i++) {
+            const key = activeChunkKeys[i];
             const [chunkX, chunkY] = key.split(',').map(Number);
             const chunk = this.getChunk(chunkX, chunkY);
 
             if (chunk && chunk.isLoaded) {
-                // Check if chunk is visible in camera
-                const chunkBounds = this.getChunkBounds(chunkX, chunkY);
+                // Optimize: Use cached bounds if available
+                let chunkBounds = chunk._bounds;
+                if (!chunkBounds) {
+                    chunkBounds = this.getChunkBounds(chunkX, chunkY);
+                    // Cache chunk bounds for reuse
+                    chunk._bounds = chunkBounds;
+                }
 
-                // Cache chunk bounds for reuse
-                chunk._bounds = chunkBounds;
+                // Optimize: Use distance-based visibility for far chunks
+                const chunkCenterX = chunkBounds.x + chunkBounds.width / 2;
+                const chunkCenterY = chunkBounds.y + chunkBounds.height / 2;
+                const dx = chunkCenterX - cameraX;
+                const dy = chunkCenterY - cameraY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-                const isVisible = this.boundsIntersect(cameraBounds, chunkBounds);
+                // If chunk is far away, use distance check (faster)
+                // If chunk is close, use precise bounds check (more accurate)
+                let isVisible;
+                if (distance > visibilityRadius * 1.5) {
+                    isVisible = false; // Definitely not visible
+                } else if (distance < visibilityRadius * 0.5) {
+                    isVisible = true; // Definitely visible
+                } else {
+                    // For chunks in the middle zone, use precise bounds check
+                    isVisible = this.boundsIntersect(cameraBounds, chunkBounds);
+                }
+
+                // Center chunk should always be visible
+                if (chunkX === 0 && chunkY === 0) {
+                    isVisible = true;
+                }
 
                 // Only update visibility if it changed
                 if (chunk.container.visible !== isVisible) {
                     chunk.container.visible = isVisible;
+
+                    // If chunk became visible, make sure it's fully loaded
+                    if (isVisible && !chunk.fullyLoaded) {
+                        chunk.ensureFullyLoaded();
+                    }
+                }
+
+                // Count visible chunks
+                if (isVisible) {
+                    visibleChunks++;
                 }
             }
+        }
+
+        // Safety check - if no chunks are visible, force the center chunk to be visible
+        if (visibleChunks === 0 && activeChunkKeys.length > 0) {
+            // Only log this warning occasionally to avoid console spam
+            if (!this._noVisibleChunksWarningShown || this.frameCount % 300 === 0) {
+                console.warn('No visible chunks detected! Forcing center chunk to be visible.');
+                this._noVisibleChunksWarningShown = true;
+            }
+
+            // Try to find and show the center chunk
+            const centerChunk = this.getChunk(0, 0);
+            if (centerChunk) {
+                centerChunk.container.visible = true;
+                if (!centerChunk.fullyLoaded) {
+                    centerChunk.ensureFullyLoaded();
+                }
+            } else {
+                // If center chunk doesn't exist, load it
+                // Only log this once
+                if (!this._centerChunkLoadingLogged) {
+                    console.log('Center chunk not found, loading it now');
+                    this._centerChunkLoadingLogged = true;
+                }
+                this.loadChunk(0, 0);
+            }
+        } else if (visibleChunks > 0) {
+            // Reset warning flags when chunks are visible
+            this._noVisibleChunksWarningShown = false;
+            this._centerChunkLoadingLogged = false;
         }
     }
 

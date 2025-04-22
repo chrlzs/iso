@@ -810,6 +810,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Create performance mode toggle button
+    const perfModeButton = document.createElement('button');
+    perfModeButton.textContent = 'PERF';
+    perfModeButton.title = 'Toggle Low Performance Mode';
+    perfModeButton.style.position = 'fixed';
+    perfModeButton.style.bottom = '10px';
+    perfModeButton.style.left = '360px';
+    perfModeButton.style.zIndex = '1000';
+    perfModeButton.style.width = '50px';
+    perfModeButton.style.height = '30px';
+    perfModeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    perfModeButton.style.color = '#00FFFF';
+    perfModeButton.style.border = '2px solid #00FFFF';
+    perfModeButton.style.borderRadius = '5px';
+    perfModeButton.style.cursor = 'pointer';
+    perfModeButton.style.fontSize = '14px';
+    perfModeButton.style.display = 'flex';
+    perfModeButton.style.justifyContent = 'center';
+    perfModeButton.style.alignItems = 'center';
+    perfModeButton.style.padding = '0';
+    perfModeButton.style.fontFamily = 'Arial, sans-serif';
+    document.body.appendChild(perfModeButton);
+
+    // Add click handler for performance mode toggle
+    perfModeButton.addEventListener('click', () => {
+        // Toggle low performance mode
+        game.options.lowPerformanceMode = !game.options.lowPerformanceMode;
+
+        // Update button appearance
+        if (game.options.lowPerformanceMode) {
+            perfModeButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
+            game.ui.showMessage('Low Performance Mode: ON - Improves FPS but reduces visual quality', 3000);
+        } else {
+            perfModeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
+            game.ui.showMessage('Low Performance Mode: OFF - Full visual quality', 3000);
+        }
+
+        // Force world update on next frame
+        if (game.world) {
+            game.world.frameCount = 0;
+        }
+    });
+
     // Log success message
     console.log('Game initialized successfully!');
     console.log('Controls:');

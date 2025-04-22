@@ -356,7 +356,7 @@ export class UI {
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 220, 400, 5); // Increased height to fit all options
+        background.drawRoundedRect(0, 0, 220, 430, 5); // Increased height to fit all options
         background.endFill();
         panel.addChild(background);
 
@@ -501,6 +501,56 @@ export class UI {
 
         panel.addChild(autoContainer);
 
+        // Add low performance mode checkbox with cyberpunk styling
+        const perfModeContainer = new PIXI.Container();
+        perfModeContainer.position.set(25, 220); // Positioned below auto-adjust checkbox
+
+        const perfModeBox = new PIXI.Graphics();
+        perfModeBox.beginFill(0x000000, 0.6);
+        perfModeBox.lineStyle(2, 0x00FFFF, 1);
+        perfModeBox.drawRect(0, 0, 18, 18);
+        perfModeBox.endFill();
+
+        // Add checkmark if low performance mode is enabled
+        if (this.game.options.lowPerformanceMode) {
+            const check = new PIXI.Graphics();
+            check.lineStyle(2, 0x00FFFF, 1);
+            check.moveTo(3, 9);
+            check.lineTo(7, 13);
+            check.lineTo(15, 5);
+            perfModeBox.addChild(check);
+
+            // Add highlight border instead of glow filter
+            const highlight = new PIXI.Graphics();
+            highlight.lineStyle(1, 0x00FFFF, 0.8);
+            highlight.drawRect(-2, -2, 22, 22);
+            perfModeBox.addChild(highlight);
+        }
+
+        perfModeContainer.addChild(perfModeBox);
+
+        const perfModeLabel = new PIXI.Text('Low Performance Mode', {
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: this.game.options.lowPerformanceMode ? 0x00FFFF : 0xFFFFFF,
+            fontWeight: this.game.options.lowPerformanceMode ? 'bold' : 'normal'
+        });
+        perfModeLabel.position.set(28, 1);
+        perfModeContainer.addChild(perfModeLabel);
+
+        perfModeContainer.interactive = true;
+        perfModeContainer.buttonMode = true;
+        perfModeContainer.on('pointerdown', () => {
+            this.game.options.lowPerformanceMode = !this.game.options.lowPerformanceMode;
+            this.showMessage(`Low Performance Mode: ${this.game.options.lowPerformanceMode ? 'ON' : 'OFF'}`, 2000, {
+                backgroundColor: 0x000000,
+                textColor: 0x00FFFF
+            });
+            this.updateQualityPanel();
+        });
+
+        panel.addChild(perfModeContainer);
+
         // Add visual effects section title with cyberpunk styling
         const effectsTitle = new PIXI.Text('Visual Effects', {
             fontFamily: 'Arial',
@@ -509,14 +559,14 @@ export class UI {
             align: 'left',
             fontWeight: 'bold'
         });
-        effectsTitle.position.set(25, 225);
+        effectsTitle.position.set(25, 255);
         panel.addChild(effectsTitle);
 
         // Add separator line
         const separator = new PIXI.Graphics();
         separator.lineStyle(1, 0x00FFFF, 0.5);
-        separator.moveTo(25, 223);
-        separator.lineTo(195, 223);
+        separator.moveTo(25, 253);
+        separator.lineTo(195, 253);
         panel.addChild(separator);
 
         // Add a spacer container for better separation
@@ -530,7 +580,7 @@ export class UI {
             const gridContainer = this.createCheckbox(
                 'Grid Lines',
                 this.game.synthwaveEffect.showGrid,
-                25, 260, // Increased Y position to add more space after the header
+                25, 290, // Increased Y position to add more space after the header
                 () => {
                     this.game.synthwaveEffect.setGridVisible(!this.game.synthwaveEffect.showGrid);
                     this.updateQualityPanel();
@@ -542,7 +592,7 @@ export class UI {
             const scanLinesContainer = this.createCheckbox(
                 'Scan Lines',
                 this.game.synthwaveEffect.showScanLines,
-                25, 290, // Increased Y position to maintain spacing
+                25, 320, // Increased Y position to maintain spacing
                 () => {
                     this.game.synthwaveEffect.setScanLinesVisible(!this.game.synthwaveEffect.showScanLines);
                     this.updateQualityPanel();
@@ -554,7 +604,7 @@ export class UI {
             const vignetteContainer = this.createCheckbox(
                 'Vignette Effect',
                 this.game.synthwaveEffect.showVignette,
-                25, 320, // Increased Y position to maintain spacing
+                25, 350, // Increased Y position to maintain spacing
                 () => {
                     this.game.synthwaveEffect.setVignetteVisible(!this.game.synthwaveEffect.showVignette);
                     this.updateQualityPanel();
@@ -570,7 +620,7 @@ export class UI {
                 align: 'center',
                 fontStyle: 'italic'
             });
-            placeholderText.position.set(110, 260); // Increased Y position to add more space after the header
+            placeholderText.position.set(110, 290); // Increased Y position to add more space after the header
             placeholderText.anchor.set(0.5, 0);
             panel.addChild(placeholderText);
         }

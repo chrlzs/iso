@@ -15,6 +15,7 @@ import { SynthwaveEffect } from '../rendering/SynthwaveEffect.js';
 import { AssetManager } from '../assets/AssetManager.js';
 import { BuildingModeManager } from './BuildingModeManager.js';
 import { MovementManager } from './MovementManager.js';
+import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -47,6 +48,7 @@ export class Game {
             persistChunks: options.persistChunks !== false,
             maxStoredChunks: options.maxStoredChunks || 100,
             quality: options.quality || 'medium', // 'low', 'medium', 'high'
+            lowPerformanceMode: options.lowPerformanceMode || false, // Enable low performance mode for slower devices
             ...options
         };
 
@@ -221,6 +223,10 @@ export class Game {
             fpsUpdateInterval: 500 // Update FPS every 500ms
         };
 
+        // Initialize performance monitor
+        this.performanceMonitor = new PerformanceMonitor({ game: this });
+        console.log('Performance monitor initialized');
+
         // Debug elements
         this.debugElements = {
             fpsCounter: document.getElementById('fps-counter'),
@@ -359,6 +365,19 @@ export class Game {
                 console.log('No saved state found, generating new world...');
                 this.updateLoadingStatus('Generating new world...');
                 this.world.generateWorld();
+            }
+        }
+
+        // IMPORTANT: Force load the center chunk to ensure something is visible
+        this.updateLoadingStatus('Ensuring center chunk is loaded...');
+        this.world.loadChunk(0, 0);
+
+        // Force the center chunk to be visible
+        const centerChunk = this.world.getChunk(0, 0);
+        if (centerChunk) {
+            centerChunk.container.visible = true;
+            if (typeof centerChunk.ensureFullyLoaded === 'function') {
+                centerChunk.ensureFullyLoaded();
             }
         }
         // Otherwise, world is generated in the IsometricWorld constructor if requested
@@ -1124,8 +1143,20 @@ export class Game {
      * @private
      */
     update(delta) {
+        // Start performance monitoring for this frame
+        if (this.performanceMonitor) {
+            this.performanceMonitor.startTimer('frame');
+        }
+
         // Convert to seconds
         const deltaTime = delta / 60;
+
+        // Skip frames if FPS is too low to help recover
+        if (this.performance.fps < 10 && Math.random() > 0.7) {
+            // Update performance monitoring
+            this.performance.frames++;
+            return;
+        }
 
         // Update camera based on keyboard input
         this.updateCamera(deltaTime);
@@ -1135,8 +1166,10 @@ export class Game {
         // is set before updating the camera.
         this.world.update(deltaTime);
 
-        // Update day/night cycle
-        this.dayNightCycle.update(deltaTime);
+        // Update day/night cycle - but less frequently if performance is low
+        if (this.performance.fps > 20 || Math.random() > 0.5) {
+            this.dayNightCycle.update(deltaTime);
+        }
 
         // Update UI
         this.ui.update(deltaTime);
@@ -1174,8 +1207,8 @@ export class Game {
                 }
             }
         } else {
-            // If player is missing but should exist, recreate it
-            if (this.options.createPlayer !== false && this.world && !this.playerCreationAttempted) {
+            // If player is missing but should exist, recreate it - but only if FPS is decent
+            if (this.options.createPlayer !== false && this.world && !this.playerCreationAttempted && this.performance.fps > 15) {
                 console.warn('Player reference lost, attempting to recreate player');
                 this.playerCreationAttempted = true;
 
@@ -1196,8 +1229,6 @@ export class Game {
             }
         }
 
-        // Entity count is now updated in setupPerformanceMonitoring
-
         // Call user update function if provided
         if (this.options.update) {
             this.options.update(deltaTime, this);
@@ -1205,6 +1236,12 @@ export class Game {
 
         // Update performance monitoring
         this.performance.frames++;
+
+        // Update performance monitor if available
+        if (this.performanceMonitor) {
+            this.performanceMonitor.update(delta);
+            this.performanceMonitor.endTimer('frame');
+        }
 
         // Auto-adjust quality based on FPS if enabled
         if (this.autoAdjustQuality) {
@@ -1490,10 +1527,28 @@ export class Game {
 
         // Adjust quality based on FPS
         let newQuality = this.options.quality;
+        let enableLowPerformanceMode = this.options.lowPerformanceMode;
 
-        if (currentFPS < 15) {
+        if (currentFPS < 10) {
+            // Extremely low FPS, enable low performance mode and drop to low quality
+            newQuality = 'low';
+            enableLowPerformanceMode = true;
+
+            // Reduce load distance if it's too high
+            if (this.world && this.world.config.loadDistance > 1) {
+                console.log(`Reducing load distance from ${this.world.config.loadDistance} to 1 due to very low FPS`);
+                this.world.config.loadDistance = 1;
+            }
+
+            // Increase unload distance to reduce memory pressure
+            if (this.world && this.world.config.unloadDistance < 3) {
+                console.log(`Increasing unload distance from ${this.world.config.unloadDistance} to 3 due to very low FPS`);
+                this.world.config.unloadDistance = 3;
+            }
+        } else if (currentFPS < 15) {
             // Very low FPS, drop to low quality
             newQuality = 'low';
+            enableLowPerformanceMode = true;
         } else if (currentFPS < 30 && this.options.quality !== 'low') {
             // Below 30 FPS, drop one quality level
             if (this.options.quality === 'high') {
@@ -1508,6 +1563,11 @@ export class Game {
             } else {
                 newQuality = 'high';
             }
+
+            // If FPS is consistently high, we can disable low performance mode
+            if (currentFPS > 58 && enableLowPerformanceMode) {
+                enableLowPerformanceMode = false;
+            }
         }
 
         // Apply quality change if needed
@@ -1519,8 +1579,18 @@ export class Game {
             if (this.synthwaveEffect) {
                 this.synthwaveEffect.quality = newQuality;
             }
+        }
 
-            // Could update other quality-dependent systems here
+        // Apply low performance mode change if needed
+        if (enableLowPerformanceMode !== this.options.lowPerformanceMode) {
+            console.log(`${enableLowPerformanceMode ? 'Enabling' : 'Disabling'} low performance mode (FPS: ${currentFPS})`);
+            this.options.lowPerformanceMode = enableLowPerformanceMode;
+
+            // Update any systems that depend on low performance mode
+            if (this.world) {
+                // Adjust chunk update frequency
+                this.world.frameCount = 0; // Reset frame counter to force update on next frame
+            }
         }
 
         this.lastQualityCheck = now;
