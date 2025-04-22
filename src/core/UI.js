@@ -878,9 +878,10 @@ export class UI {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Update FPS counter
+        // Update in-game FPS counter (not the HTML one)
         if (this.game && this.elements.has('fpsCounter')) {
-            const fps = Math.round(this.game.app.ticker.FPS);
+            // Use the game's performance FPS value for consistency
+            const fps = this.game.performance ? this.game.performance.fps : Math.round(this.game.app.ticker.FPS);
             this.elements.get('fpsCounter').text = `FPS: ${fps}`;
         }
 

@@ -388,6 +388,24 @@ function setupWorldManagementUI(game) {
     }
 }
 
+/**
+ * Updates the FPS counter directly
+ * @param {Game} game - The game instance
+ */
+function setupDirectFpsCounter(game) {
+    const fpsCounter = document.getElementById('fps-counter');
+    if (!fpsCounter) return;
+
+    // Make sure it's visible
+    fpsCounter.style.display = 'block';
+
+    // Update FPS counter every 100ms for more responsive display
+    setInterval(() => {
+        const fps = game.performance ? game.performance.fps : 0;
+        fpsCounter.textContent = `FPS: ${Math.max(1, Math.round(fps))}`;
+    }, 100);
+}
+
 // Initialize the game when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Check if PIXI is available
@@ -445,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container: document.getElementById('game-container'),
         width: window.innerWidth,
         height: window.innerHeight,
-        debug: true,
+        debug: false,
         worldWidth: 64, // Larger world size
         worldHeight: 64, // Larger world size
         chunkSize: 16, // Size of each chunk in tiles
@@ -796,6 +814,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set initial state - FPS counter is visible by default
     toggleFpsButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
+
+    // Set up direct FPS counter update
+    setupDirectFpsCounter(game);
 
     // Add click handler for FPS counter toggle
     toggleFpsButton.addEventListener('click', () => {

@@ -35,7 +35,7 @@ export class Game {
         this.options = {
             width: options.width || 800,
             height: options.height || 600,
-            debug: options.debug || true, // Enable debug mode by default for easier troubleshooting
+            debug: options.debug || false, // Enable debug mode by default for easier troubleshooting
             backgroundColor: options.backgroundColor || 0x1099bb,
             worldWidth: options.worldWidth || 32,
             worldHeight: options.worldHeight || 32,
@@ -216,7 +216,7 @@ export class Game {
 
         // Performance monitoring
         this.performance = {
-            fps: 0,
+            fps: 30, // Start with a reasonable default
             frameTime: 0,
             memoryUsage: 0,
             lastUpdate: performance.now(),
@@ -233,7 +233,7 @@ export class Game {
 
         // Debug elements
         this.debugElements = {
-            fpsCounter: document.getElementById('fps-counter'),
+            // Don't store fps-counter here to avoid confusion with the main FPS counter
             debugInfo: document.getElementById('debug-info'),
             selectedTile: document.getElementById('debug-selected-tile'),
             entityCount: document.getElementById('debug-entity-count'),
@@ -246,6 +246,12 @@ export class Game {
             debugToggle: document.getElementById('debug-toggle'),
             debugHide: document.getElementById('debug-hide')
         };
+
+        // Initialize the FPS counter
+        const fpsCounter = document.getElementById('fps-counter');
+        if (fpsCounter) {
+            fpsCounter.textContent = 'FPS: 0';
+        }
 
         // Define the context menu handler if it doesn't exist
         if (!this.handleContextMenu) {
@@ -925,77 +931,57 @@ export class Game {
             });
         }
 
-        // Update debug info periodically - less frequently to reduce performance impact
-        this.performance.fpsUpdateInterval = 1000; // Update once per second
+        // Get a direct reference to the FPS counter element
+        this.fpsCounterElement = document.getElementById('fps-counter');
 
-        // Use requestAnimationFrame for smoother updates
-        const updatePerformanceInfo = () => {
+        // Make sure the FPS counter is visible and initialized
+        if (this.fpsCounterElement) {
+            this.fpsCounterElement.textContent = `FPS: ${this.performance.fps}`;
+            this.fpsCounterElement.style.display = 'block';
+        }
+
+        // Create the performance update function
+        this.updatePerformanceInfo = () => {
             const now = performance.now();
             const elapsed = now - this.performance.lastUpdate;
 
             // Only update if enough time has passed
             if (elapsed >= this.performance.fpsUpdateInterval) {
-                // Calculate FPS
-                this.performance.fps = Math.round((this.performance.frames * 1000) / elapsed);
+                // Calculate FPS - ensure we have at least 1 frame to avoid division by zero
+                const frames = Math.max(1, this.performance.frames);
+                const rawFps = (frames * 1000) / elapsed;
 
-                // Always update FPS counters regardless of debug panel visibility
-                if (this.debugElements.fpsCounter) {
-                    this.debugElements.fpsCounter.textContent = `FPS: ${this.performance.fps}`;
-                }
+                // Smooth FPS changes to avoid jumpy display
+                this.performance.fps = Math.round(this.performance.fps * 0.7 + rawFps * 0.3);
 
-                if (this.debugElements.fps) {
-                    this.debugElements.fps.textContent = this.performance.fps;
-                }
+                // Force a minimum of 1 FPS to show something is happening
+                const displayFps = Math.max(1, this.performance.fps);
 
-                // Update other debug elements only if debug panel is visible
-                if (this.debugElements.debugPanel && this.debugElements.debugPanel.style.display !== 'none') {
-
-                    // Get memory usage if available - only if debug panel is visible
-                    if (window.performance && window.performance.memory) {
-                        this.performance.memoryUsage = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
-
-                        if (this.debugElements.memory) {
-                            this.debugElements.memory.textContent = `${this.performance.memoryUsage} MB`;
-                        }
-                    }
-
-                    // Update camera information
-                    if (this.world && this.world.camera) {
-                        if (this.debugElements.cameraPos) {
-                            const x = Math.round(this.world.camera.x);
-                            const y = Math.round(this.world.camera.y);
-                            this.debugElements.cameraPos.textContent = `${x}, ${y}`;
-                        }
-
-                        if (this.debugElements.cameraZoom) {
-                            this.debugElements.cameraZoom.textContent = this.world.camera.zoom.toFixed(2);
-                        }
-                    }
-
-                    // Update entity count
-                    if (this.world && this.debugElements.entityCount) {
-                        this.debugElements.entityCount.textContent = this.world.entities.size;
-                    }
-
-                    // Update draw calls (if available from renderer)
-                    if (this.app && this.app.renderer && this.debugElements.drawCalls) {
-                        const drawCalls = this.app.renderer.renderCounter || 0;
-                        this.debugElements.drawCalls.textContent = drawCalls;
-                    }
+                // Update the FPS counter
+                if (this.fpsCounterElement) {
+                    this.fpsCounterElement.textContent = `FPS: ${displayFps}`;
                 }
 
                 // Reset frame counter
                 this.performance.frames = 0;
                 this.performance.lastUpdate = now;
             }
+        };
+
+        // Create the performance update loop
+        this.performanceUpdateLoop = () => {
+            // Call the update function
+            this.updatePerformanceInfo();
 
             // Schedule next update
-            requestAnimationFrame(updatePerformanceInfo);
+            window.requestAnimationFrame(this.performanceUpdateLoop);
         };
 
         // Start the update loop
-        updatePerformanceInfo();
+        this.performanceUpdateLoop();
     }
+
+
 
     /**
      * Creates a player character
@@ -1147,18 +1133,21 @@ export class Game {
      * @private
      */
     update(delta) {
+        // Always increment the frame counter for accurate FPS calculation
+        this.performance.frames++;
+
         // Start performance monitoring for this frame
         if (this.performanceMonitor) {
             this.performanceMonitor.startTimer('frame');
         }
 
-        // Convert to seconds
-        const deltaTime = delta / 60;
+        // Convert to seconds (cap delta to prevent huge jumps)
+        const cappedDelta = Math.min(delta, 10); // Cap at 10 frames (6 FPS)
+        const deltaTime = cappedDelta / 60;
 
         // Skip frames if FPS is too low to help recover
-        if (this.performance.fps < 10 && Math.random() > 0.7) {
-            // Update performance monitoring
-            this.performance.frames++;
+        if (this.performance.fps < 10 && Math.random() > 0.5) {
+            // Skip the rest of the update but we've already counted the frame
             return;
         }
 
@@ -1237,9 +1226,6 @@ export class Game {
         if (this.options.update) {
             this.options.update(deltaTime, this);
         }
-
-        // Update performance monitoring
-        this.performance.frames++;
 
         // Update performance monitor if available
         if (this.performanceMonitor) {

@@ -539,7 +539,7 @@ export class WorldChunk {
      * @param {Object} data - Serialized chunk data
      */
     deserialize(data) {
-        console.log(`Deserializing chunk (${data.chunkX}, ${data.chunkY}) with ${data.tiles.length} tiles`);
+        //console.log(`Deserializing chunk (${data.chunkX}, ${data.chunkY}) with ${data.tiles.length} tiles`);
 
         this.chunkX = data.chunkX;
         this.chunkY = data.chunkY;
@@ -603,7 +603,7 @@ export class WorldChunk {
             }
         }
 
-        console.log(`Deserialized chunk (${this.chunkX}, ${this.chunkY}) with ${tilesCreated}/${data.tiles.length} tiles created`);
+        //console.log(`Deserialized chunk (${this.chunkX}, ${this.chunkY}) with ${tilesCreated}/${data.tiles.length} tiles created`);
 
         // Mark as loaded but not dirty (since we just loaded from storage)
         this.isLoaded = true;

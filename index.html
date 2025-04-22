@@ -47,6 +47,8 @@
       border: 2px solid #00FFFF;
       z-index: 1000;
       text-shadow: 0 0 5px #00FFFF;
+      pointer-events: none; /* Make sure it doesn't interfere with clicks */
+      user-select: none; /* Prevent text selection */
     }
     #version-info {
       position: absolute;

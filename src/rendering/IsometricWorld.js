@@ -1421,9 +1421,13 @@ export class IsometricWorld extends Container {
             // Only update chunks every few frames to improve performance
             // Increase the interval for lower-end devices
             this.frameCount = (this.frameCount || 0) + 1;
-            const updateInterval = this.game && this.game.options.lowPerformanceMode ? 30 : 15;
 
-            if (this.frameCount % updateInterval === 0) {
+            // Use a much higher interval for low performance mode
+            const updateInterval = this.game && this.game.options.lowPerformanceMode ? 60 : 30;
+
+            // Only update chunks if we're on the right frame and FPS is decent
+            const fps = this.game ? this.game.performance.fps : 30;
+            if (this.frameCount % updateInterval === 0 && fps > 15) {
                 // Start chunk update timer
                 if (this.game && this.game.performanceMonitor) {
                     this.game.performanceMonitor.startTimer('chunkLoad');
@@ -1452,39 +1456,62 @@ export class IsometricWorld extends Container {
             this.game.performanceMonitor.startTimer('entityUpdate');
         }
 
-        // Update entities - only update visible entities
-        // Convert Set to Array before using filter
-        const entitiesArray = this.entities instanceof Set ? Array.from(this.entities) :
-                             Array.isArray(this.entities) ? this.entities : [];
+        // Only update entities if FPS is decent
+        const fps = this.game ? this.game.performance.fps : 30;
+        if (fps > 10) {
+            // Update entities - only update visible entities
+            // Convert Set to Array before using filter
+            const entitiesArray = this.entities instanceof Set ? Array.from(this.entities) :
+                                 Array.isArray(this.entities) ? this.entities : [];
 
-        const visibleEntities = entitiesArray.filter(entity => {
-            // Skip null or undefined entities
-            if (!entity) return false;
+            // Skip entity updates if there are too many entities and FPS is low
+            if (entitiesArray.length > 100 && fps < 20) {
+                // Only update player entity if FPS is very low
+                if (this.game && this.game.player && this.game.player.update) {
+                    this.game.player.update(deltaTime);
+                }
+            } else {
+                // Normal entity update with visibility filtering
+                const visibleEntities = entitiesArray.filter(entity => {
+                    // Skip null or undefined entities
+                    if (!entity) return false;
 
-            // Skip inactive entities
-            if (!entity.active) return false;
+                    // Skip inactive entities
+                    if (!entity.active) return false;
 
-            // Skip entities without update method
-            if (typeof entity.update !== 'function') return false;
+                    // Skip entities without update method
+                    if (typeof entity.update !== 'function') return false;
 
-            // Skip entities that are far from the camera
-            if (this.camera) {
-                const dx = Math.abs(entity.x - this.camera.x);
-                const dy = Math.abs(entity.y - this.camera.y);
-                const distance = Math.sqrt(dx * dx + dy * dy);
+                    // Always update player
+                    if (this.game && entity === this.game.player) return true;
 
-                // Skip if too far away (adjust threshold based on zoom)
-                const threshold = 1000 / this.camera.zoom;
-                if (distance > threshold) return false;
+                    // Skip entities that are far from the camera
+                    if (this.camera) {
+                        const dx = Math.abs(entity.x - this.camera.x);
+                        const dy = Math.abs(entity.y - this.camera.y);
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        // Skip if too far away (adjust threshold based on zoom)
+                        // Use a smaller threshold in low performance mode
+                        const threshold = this.game && this.game.options.lowPerformanceMode ?
+                            500 / this.camera.zoom : 1000 / this.camera.zoom;
+                        if (distance > threshold) return false;
+                    }
+
+                    return true;
+                });
+
+                // Update only visible entities
+                visibleEntities.forEach(entity => {
+                    entity.update(deltaTime);
+                });
             }
-
-            return true;
-        });
-
-        // Update only visible entities
-        visibleEntities.forEach(entity => {
-            entity.update(deltaTime);
-        });
+        } else {
+            // If FPS is very low, only update the player
+            if (this.game && this.game.player && this.game.player.update) {
+                this.game.player.update(deltaTime);
+            }
+        }
 
         // End entity update timer
         if (this.game && this.game.performanceMonitor) {
@@ -1492,7 +1519,8 @@ export class IsometricWorld extends Container {
         }
 
         // Sort tiles by depth if needed - but limit how often we do this
-        if (this.sortTilesByDepth && this.frameCount % 5 === 0) {
+        // Only sort if FPS is decent and we actually need to sort
+        if (this.sortTilesByDepth && this.frameCount % 10 === 0 && fps > 20) {
             // Start sorting timer
             if (this.game && this.game.performanceMonitor) {
                 this.game.performanceMonitor.startTimer('tileSort');
@@ -1505,6 +1533,9 @@ export class IsometricWorld extends Container {
             if (this.game && this.game.performanceMonitor) {
                 this.game.performanceMonitor.endTimer('tileSort');
             }
+        } else if (this.sortTilesByDepth && fps <= 20) {
+            // If FPS is low, just reset the flag without sorting
+            this.sortTilesByDepth = false;
         }
 
         // End world update timer

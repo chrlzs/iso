@@ -24,32 +24,32 @@ export class ChunkStorage {
      */
     saveChunk(worldId, chunkX, chunkY, chunkData) {
         try {
-            console.log(`ChunkStorage: Saving chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
-            console.log(`ChunkStorage: Chunk data:`, chunkData);
+            //console.log(`ChunkStorage: Saving chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
+            //console.log(`ChunkStorage: Chunk data:`, chunkData);
 
             // Validate chunk data
             if (!chunkData) {
-                console.error(`ChunkStorage: Cannot save null or undefined chunk data`);
+                //console.error(`ChunkStorage: Cannot save null or undefined chunk data`);
                 return false;
             }
 
             if (!chunkData.tiles || !Array.isArray(chunkData.tiles)) {
-                console.error(`ChunkStorage: Chunk data has invalid tiles array:`, chunkData.tiles);
+                //console.error(`ChunkStorage: Chunk data has invalid tiles array:`, chunkData.tiles);
                 return false;
             }
 
-            console.log(`ChunkStorage: Chunk contains ${chunkData.tiles.length} tiles`);
+            //console.log(`ChunkStorage: Chunk contains ${chunkData.tiles.length} tiles`);
 
             // Create storage key
             const key = this.getChunkKey(worldId, chunkX, chunkY);
-            console.log(`ChunkStorage: Using storage key: ${key}`);
+            //console.log(`ChunkStorage: Using storage key: ${key}`);
 
             // Update access time
             this.chunkAccessTimes.set(key, Date.now());
 
             // Serialize and save chunk data
             const serializedData = JSON.stringify(chunkData);
-            console.log(`ChunkStorage: Serialized data size: ${serializedData.length} bytes`);
+            //console.log(`ChunkStorage: Serialized data size: ${serializedData.length} bytes`);
 
             // Save to localStorage
             localStorage.setItem(key, serializedData);
@@ -57,11 +57,11 @@ export class ChunkStorage {
             // Verify the save
             const savedData = localStorage.getItem(key);
             if (!savedData) {
-                console.error(`ChunkStorage: Failed to verify saved chunk - data not found in localStorage`);
+                //console.error(`ChunkStorage: Failed to verify saved chunk - data not found in localStorage`);
                 return false;
             }
 
-            console.log(`ChunkStorage: Successfully saved chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
+            //console.log(`ChunkStorage: Successfully saved chunk (${chunkX}, ${chunkY}) for world ${worldId}`);
 
             // Enforce storage limits if needed
             if (this.maxChunks > 0) {
