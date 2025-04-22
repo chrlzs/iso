@@ -16,6 +16,7 @@ import { AssetManager } from '../assets/AssetManager.js';
 import { BuildingModeManager } from './BuildingModeManager.js';
 import { MovementManager } from './MovementManager.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
+import { Logger } from '../utils/Logger.js';
 
 /**
  * Game - Main game class that manages the game state and rendering
@@ -225,7 +226,10 @@ export class Game {
 
         // Initialize performance monitor
         this.performanceMonitor = new PerformanceMonitor({ game: this });
-        console.log('Performance monitor initialized');
+
+        // Initialize logger with appropriate level based on debug setting
+        Logger.setLevel(this.options.debug ? Logger.LEVELS.ERROR : Logger.LEVELS.NONE);
+        Logger.info('Game initialized with log level: ' + (this.options.debug ? 'ERROR' : 'NONE'));
 
         // Debug elements
         this.debugElements = {
@@ -1594,6 +1598,30 @@ export class Game {
         }
 
         this.lastQualityCheck = now;
+    }
+
+    /**
+     * Sets the log level
+     * @param {string} level - Log level ('none', 'error', 'warn', 'info', 'debug', 'verbose')
+     */
+    setLogLevel(level) {
+        const levels = {
+            'none': Logger.LEVELS.NONE,
+            'error': Logger.LEVELS.ERROR,
+            'warn': Logger.LEVELS.WARN,
+            'info': Logger.LEVELS.INFO,
+            'debug': Logger.LEVELS.DEBUG,
+            'verbose': Logger.LEVELS.VERBOSE
+        };
+
+        const logLevel = levels[level.toLowerCase()] || Logger.LEVELS.ERROR;
+        Logger.setLevel(logLevel);
+        Logger.info(`Log level set to: ${level.toUpperCase()}`);
+
+        // Show a message in the UI if available
+        if (this.ui) {
+            this.ui.showMessage(`Log level set to: ${level.toUpperCase()}`, 2000);
+        }
     }
 
     /**

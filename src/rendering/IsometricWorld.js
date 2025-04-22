@@ -273,10 +273,7 @@ export class IsometricWorld extends Container {
             return null;
         }
 
-        // Debug logging
-        if (this.game && this.game.options && this.game.options.debug) {
-            console.log(`Getting tile at grid position (${x}, ${y})`);
-        }
+        // Removed debug logging for getting tiles to reduce console spam
 
         // Round coordinates to integers to handle floating point issues
         const gridX = Math.round(x); // Use Math.round instead of Math.floor for more accurate positioning
@@ -289,10 +286,7 @@ export class IsometricWorld extends Container {
         if (gridX >= 0 && gridX < this.config.gridWidth && gridY >= 0 && gridY < this.config.gridHeight) {
             // If within original bounds, use the tiles array
             if (this.tiles && this.tiles[gridX] && this.tiles[gridX][gridY]) {
-                // Debug logging
-                if (this.game && this.game.options && this.game.options.debug) {
-                    console.log(`Found tile in original world bounds at (${gridX}, ${gridY})`);
-                }
+                // Removed debug logging for found tiles to reduce console spam
                 return this.tiles[gridX][gridY];
             }
         }
@@ -310,10 +304,7 @@ export class IsometricWorld extends Container {
                 type: 'grass'
             });
 
-            // Debug logging
-            if (this.game && this.game.options && this.game.options.debug) {
-                console.log(`Created special tile at (${gridX}, ${gridY})`);
-            }
+            // Removed debug logging for special tile creation
 
             // Add the tile to the ground layer
             if (tile && !tile.parent) {

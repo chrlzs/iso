@@ -42,6 +42,9 @@ export class UI {
 
         // Create building mode button
         this.createBuildingModeButton();
+
+        // Create log level button
+        this.createLogLevelButton();
     }
 
     /**
@@ -911,6 +914,59 @@ export class UI {
     }
 
     /**
+     * Creates a log level toggle button
+     */
+    createLogLevelButton() {
+        // Create log level button
+        const button = new PIXI.Container();
+        button.position.set(110, this.game.app.screen.height - 40);
+
+        // Button background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000000, 0.7);
+        bg.lineStyle(2, 0x00FFFF, 1);
+        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.endFill();
+        button.addChild(bg);
+
+        // Button text
+        const text = new PIXI.Text('L', {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fill: 0x00FFFF,
+            align: 'center'
+        });
+        // Center the text in the button
+        text.anchor.set(0.5, 0.5);
+        text.position.set(20, 15);
+        button.addChild(text);
+
+        // Make button interactive
+        button.interactive = true;
+        button.buttonMode = true;
+
+        // Current log level index
+        this.currentLogLevelIndex = 0;
+
+        // Log levels to cycle through
+        this.logLevels = ['none', 'error', 'warn', 'info', 'debug'];
+
+        button.on('pointerdown', () => {
+            // Cycle to next log level
+            this.currentLogLevelIndex = (this.currentLogLevelIndex + 1) % this.logLevels.length;
+            const newLevel = this.logLevels[this.currentLogLevelIndex];
+
+            // Set the log level
+            if (this.game && typeof this.game.setLogLevel === 'function') {
+                this.game.setLogLevel(newLevel);
+            }
+        });
+
+        this.container.addChild(button);
+        this.logLevelButton = button;
+    }
+
+    /**
      * Resizes all UI elements
      * @param {number} width - New width
      * @param {number} height - New height
@@ -939,6 +995,11 @@ export class UI {
         // Reposition building mode button
         if (this.buildingModeButton) {
             this.buildingModeButton.position.set(60, height - 40);
+        }
+
+        // Reposition log level button
+        if (this.logLevelButton) {
+            this.logLevelButton.position.set(110, height - 40);
         }
 
         // Resize message container
