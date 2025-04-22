@@ -774,6 +774,9 @@ export class BuildingModeUI {
                     if (this.ui) {
                         this.ui.showMessage(`Map "${mapName}" saved successfully!`, 3000);
                     }
+
+                    // Ensure the dialog stays hidden after successful save
+                    this.saveMapDialog.visible = false;
                     return true;
                 } else {
                     // Show error message and redisplay the dialog
@@ -1291,6 +1294,11 @@ export class BuildingModeUI {
                     // Show error message
                     if (this.ui) {
                         this.ui.showMessage(`Error loading map: ${error.message}`, 3000);
+                    }
+
+                    // Ensure the load panel stays hidden even on error
+                    if (this.loadMapPanel) {
+                        this.loadMapPanel.visible = false;
                     }
                     return false;
                 }
