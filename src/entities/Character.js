@@ -113,91 +113,332 @@ export class Character extends Entity {
         if (!options.texture) {
             const graphics = new PIXI.Graphics();
 
-            // Synthwave color palette
-            const mainColor = options.isPlayer ? 0x00FFFF : (options.color || 0xFF00FF); // Cyan for player, pink for others
-            const outlineColor = 0xFF00FF; // Neon pink outline
-            const glowColor = options.isPlayer ? 0x00FFFF : 0xFF00FF; // Cyan glow for player, pink for others
-            const accentColor = options.isPlayer ? 0xFF00FF : 0x00FFFF; // Pink accents for player, cyan for others
+            // Determine if this is a player, enemy, or NPC
+            const isPlayer = options.isPlayer;
+            const isEnemy = options.tags && options.tags.includes('enemy');
+            const isNPC = options.type === 'npc' || (!isPlayer && !isEnemy);
 
-            // Create glow effect
-            const glowSize = 8;
-            [0.1, 0.2, 0.3].forEach(glowAlpha => {
-                graphics.lineStyle(glowSize * (1 + glowAlpha), glowColor, glowAlpha);
-                graphics.drawCircle(0, -24, 20);
-            });
+            // Synthwave color palette - distinct colors for each character type
+            const colors = {
+                player: {
+                    main: 0x00FFFF,      // Cyan for player
+                    accent: 0xFF00FF,     // Magenta accent
+                    glow: 0x00FFFF,       // Cyan glow
+                    detail: 0xFFFF00      // Yellow details
+                },
+                enemy: {
+                    main: 0xFF355E,      // Hot pink for enemies
+                    accent: 0xFF0000,     // Red accent
+                    glow: 0xFF355E,       // Hot pink glow
+                    detail: 0xFFFF00      // Yellow details
+                },
+                npc: {
+                    main: 0x00FF00,      // Green for NPCs
+                    accent: 0xFFFF00,     // Yellow accent
+                    glow: 0x00FF00,       // Green glow
+                    detail: 0x00FFFF      // Cyan details
+                }
+            };
 
-            // Body - with grid pattern
-            graphics.beginFill(mainColor, 0.7);
-            graphics.drawCircle(0, -24, 20);
-            graphics.endFill();
+            // Select color scheme based on character type
+            const colorScheme = isPlayer ? colors.player :
+                               (isEnemy ? colors.enemy :
+                               (isNPC ? colors.npc : colors.npc));
 
-            // Add neon outline
-            graphics.lineStyle(2, outlineColor, 1);
-            graphics.drawCircle(0, -24, 20);
-
-            // Add face details with neon effect
-            // Eyes
-            graphics.beginFill(0xFFFFFF);
-            graphics.drawCircle(-6, -30, 4); // Left eye
-            graphics.drawCircle(6, -30, 4);  // Right eye
-            graphics.endFill();
-
-            // Pupils with glow
-            graphics.beginFill(accentColor);
-            graphics.drawCircle(-6, -30, 2); // Left pupil
-            graphics.drawCircle(6, -30, 2);  // Right pupil
-            graphics.endFill();
-
-            // Add smile with neon effect
-            graphics.lineStyle(2, accentColor);
-            graphics.arc(0, -20, 8, 0.1 * Math.PI, 0.9 * Math.PI);
-
-            // Add body/legs with neon effect
-            graphics.lineStyle(2, outlineColor);
-            graphics.moveTo(0, -4); // Bottom of head
-            graphics.lineTo(0, 10);  // Body
-
-            // Arms
-            graphics.moveTo(-15, -10); // Left arm
-            graphics.lineTo(0, 0);
-            graphics.lineTo(15, -10);  // Right arm
-
-            // Legs
-            graphics.moveTo(0, 10);   // Bottom of body
-            graphics.lineTo(-10, 25); // Left leg
-            graphics.moveTo(0, 10);   // Bottom of body
-            graphics.lineTo(10, 25);  // Right leg
-
-            // Add grid pattern for synthwave effect
-            graphics.lineStyle(1, accentColor, 0.3);
-            for (let y = -40; y <= 25; y += 5) {
-                graphics.moveTo(-20, y);
-                graphics.lineTo(20, y);
+            // Override with custom color if provided
+            if (options.color) {
+                colorScheme.main = options.color;
             }
 
-            // Add extra neon accents
-            const time = performance.now() / 1000;
-            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            // Create glow effect - larger for player characters
+            const glowSize = isPlayer ? 10 : 8;
+            [0.1, 0.2, 0.3].forEach(glowAlpha => {
+                graphics.lineStyle(glowSize * (1 + glowAlpha), colorScheme.glow, glowAlpha);
+                graphics.drawCircle(0, -24, isPlayer ? 22 : 20);
+            });
 
-            // Animated neon accents
-            graphics.lineStyle(2, accentColor, 0.8);
-            const accentLength = 5 * pulseScale;
+            // Draw character body based on type
+            if (isPlayer) {
+                // PLAYER CHARACTER - more detailed with vector-based design
 
-            // Head accents
-            graphics.moveTo(-20, -24);
-            graphics.lineTo(-20 + accentLength, -24);
-            graphics.moveTo(20, -24);
-            graphics.lineTo(20 - accentLength, -24);
+                // Head with grid pattern
+                graphics.beginFill(colorScheme.main, 0.7);
+                graphics.drawCircle(0, -24, 22);
+                graphics.endFill();
 
-            // Shoulder accents
-            graphics.moveTo(-15, -10);
-            graphics.lineTo(-15, -10 + accentLength);
-            graphics.moveTo(15, -10);
-            graphics.lineTo(15, -10 + accentLength);
+                // Add neon outline
+                graphics.lineStyle(3, colorScheme.accent, 1);
+                graphics.drawCircle(0, -24, 22);
+
+                // Grid pattern on head
+                graphics.lineStyle(1, colorScheme.accent, 0.3);
+                for (let y = -46; y <= -2; y += 5) {
+                    graphics.moveTo(-22, y);
+                    graphics.lineTo(22, y);
+                }
+
+                // Eyes with glow effect
+                graphics.beginFill(0xFFFFFF);
+                graphics.drawCircle(-8, -30, 5); // Left eye
+                graphics.drawCircle(8, -30, 5);  // Right eye
+                graphics.endFill();
+
+                // Pupils with glow
+                graphics.beginFill(colorScheme.detail);
+                graphics.drawCircle(-8, -30, 2.5); // Left pupil
+                graphics.drawCircle(8, -30, 2.5);  // Right pupil
+                graphics.endFill();
+
+                // Add determined expression
+                graphics.lineStyle(2, colorScheme.detail);
+                graphics.moveTo(-8, -20);
+                graphics.lineTo(8, -20);
+
+                // Body with more detail
+                graphics.lineStyle(3, colorScheme.accent, 1);
+                graphics.moveTo(0, -2); // Bottom of head
+                graphics.lineTo(0, 15);  // Body
+
+                // Torso with neon effect
+                graphics.beginFill(colorScheme.main, 0.5);
+                graphics.drawRoundedRect(-12, -2, 24, 17, 3);
+                graphics.endFill();
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.drawRoundedRect(-12, -2, 24, 17, 3);
+
+                // Arms with joints
+                graphics.lineStyle(3, colorScheme.accent);
+                // Left arm
+                graphics.moveTo(-12, 0);
+                graphics.lineTo(-20, -10);
+                graphics.lineTo(-25, 0);
+                // Right arm
+                graphics.moveTo(12, 0);
+                graphics.lineTo(20, -10);
+                graphics.lineTo(25, 0);
+
+                // Legs with joints
+                graphics.moveTo(-6, 15);   // Left hip
+                graphics.lineTo(-10, 30);  // Left leg
+                graphics.lineTo(-15, 35);  // Left foot
+
+                graphics.moveTo(6, 15);    // Right hip
+                graphics.lineTo(10, 30);   // Right leg
+                graphics.lineTo(15, 35);   // Right foot
+
+                // Add tech details
+                graphics.lineStyle(1, colorScheme.detail, 1);
+                // Headset
+                graphics.drawCircle(-22, -24, 3);
+                graphics.moveTo(-22, -21);
+                graphics.lineTo(-15, -18);
+
+                // Shoulder pads
+                graphics.beginFill(colorScheme.detail, 0.7);
+                graphics.drawCircle(-12, 0, 4);
+                graphics.drawCircle(12, 0, 4);
+                graphics.endFill();
+
+                // Add animated energy aura
+                const time = performance.now() / 1000;
+                const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+                graphics.lineStyle(2, colorScheme.detail, 0.8 * pulseScale);
+                graphics.drawCircle(0, 0, 30 * pulseScale);
+
+            } else if (isEnemy) {
+                // ENEMY CHARACTER - more aggressive and angular
+
+                // Head with angular shape
+                graphics.beginFill(colorScheme.main, 0.7);
+                graphics.moveTo(-18, -34);
+                graphics.lineTo(0, -44);
+                graphics.lineTo(18, -34);
+                graphics.lineTo(18, -14);
+                graphics.lineTo(0, -4);
+                graphics.lineTo(-18, -14);
+                graphics.closePath();
+                graphics.endFill();
+
+                // Add neon outline
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.moveTo(-18, -34);
+                graphics.lineTo(0, -44);
+                graphics.lineTo(18, -34);
+                graphics.lineTo(18, -14);
+                graphics.lineTo(0, -4);
+                graphics.lineTo(-18, -14);
+                graphics.closePath();
+
+                // Eyes with menacing glow
+                graphics.beginFill(colorScheme.detail);
+                graphics.drawRect(-10, -34, 4, 8); // Left eye
+                graphics.drawRect(6, -34, 4, 8);  // Right eye
+                graphics.endFill();
+
+                // Body with angular shape
+                graphics.beginFill(colorScheme.main, 0.5);
+                graphics.moveTo(-15, -4);
+                graphics.lineTo(15, -4);
+                graphics.lineTo(10, 15);
+                graphics.lineTo(-10, 15);
+                graphics.closePath();
+                graphics.endFill();
+
+                // Body outline
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.moveTo(-15, -4);
+                graphics.lineTo(15, -4);
+                graphics.lineTo(10, 15);
+                graphics.lineTo(-10, 15);
+                graphics.closePath();
+
+                // Arms with claws
+                graphics.lineStyle(2, colorScheme.accent);
+                // Left arm
+                graphics.moveTo(-15, -4);
+                graphics.lineTo(-25, 5);
+                // Left claws
+                graphics.moveTo(-25, 5);
+                graphics.lineTo(-30, 0);
+                graphics.moveTo(-25, 5);
+                graphics.lineTo(-30, 5);
+                graphics.moveTo(-25, 5);
+                graphics.lineTo(-30, 10);
+
+                // Right arm
+                graphics.moveTo(15, -4);
+                graphics.lineTo(25, 5);
+                // Right claws
+                graphics.moveTo(25, 5);
+                graphics.lineTo(30, 0);
+                graphics.moveTo(25, 5);
+                graphics.lineTo(30, 5);
+                graphics.moveTo(25, 5);
+                graphics.lineTo(30, 10);
+
+                // Legs
+                graphics.moveTo(-10, 15);   // Left hip
+                graphics.lineTo(-15, 30);   // Left leg
+                graphics.moveTo(10, 15);    // Right hip
+                graphics.lineTo(15, 30);    // Right leg
+
+                // Add animated energy effect
+                const time = performance.now() / 1000;
+                const pulseScale = 0.7 + Math.sin(time * 3) * 0.3;
+
+                graphics.lineStyle(1, colorScheme.detail, 0.8 * pulseScale);
+                for (let i = 0; i < 5; i++) {
+                    const angle = time * 2 + i * Math.PI / 2.5;
+                    const x = Math.cos(angle) * 20 * pulseScale;
+                    const y = Math.sin(angle) * 20 * pulseScale - 15;
+                    graphics.moveTo(0, -15);
+                    graphics.lineTo(x, y);
+                }
+
+            } else if (isNPC) {
+                // NPC CHARACTER - more friendly and rounded
+
+                // Head
+                graphics.beginFill(colorScheme.main, 0.7);
+                graphics.drawCircle(0, -24, 20);
+                graphics.endFill();
+
+                // Add neon outline
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.drawCircle(0, -24, 20);
+
+                // Eyes
+                graphics.beginFill(0xFFFFFF);
+                graphics.drawCircle(-6, -28, 4); // Left eye
+                graphics.drawCircle(6, -28, 4);  // Right eye
+                graphics.endFill();
+
+                // Pupils
+                graphics.beginFill(colorScheme.detail);
+                graphics.drawCircle(-6, -28, 2); // Left pupil
+                graphics.drawCircle(6, -28, 2);  // Right pupil
+                graphics.endFill();
+
+                // Add smile
+                graphics.lineStyle(2, colorScheme.detail);
+                graphics.arc(0, -20, 10, 0.1 * Math.PI, 0.9 * Math.PI);
+
+                // Body
+                graphics.lineStyle(2, colorScheme.accent);
+                graphics.beginFill(colorScheme.main, 0.5);
+                graphics.drawRoundedRect(-10, -4, 20, 20, 5);
+                graphics.endFill();
+
+                // Arms
+                graphics.moveTo(-10, 0); // Left shoulder
+                graphics.lineTo(-20, 5); // Left arm
+                graphics.moveTo(10, 0);  // Right shoulder
+                graphics.lineTo(20, 5);  // Right arm
+
+                // Legs
+                graphics.moveTo(-5, 16);   // Left hip
+                graphics.lineTo(-10, 30);  // Left leg
+                graphics.moveTo(5, 16);    // Right hip
+                graphics.lineTo(10, 30);   // Right leg
+
+                // Add some NPC-specific details
+                if (options.name && options.name.toLowerCase().includes('vendor')) {
+                    // Vendor hat
+                    graphics.beginFill(colorScheme.detail, 0.7);
+                    graphics.drawRoundedRect(-15, -45, 30, 10, 3);
+                    graphics.endFill();
+                    graphics.lineStyle(1, colorScheme.accent);
+                    graphics.drawRoundedRect(-15, -45, 30, 10, 3);
+                } else if (options.name && options.name.toLowerCase().includes('guard')) {
+                    // Guard helmet
+                    graphics.beginFill(colorScheme.detail, 0.7);
+                    graphics.drawRoundedRect(-12, -44, 24, 15, 3);
+                    graphics.endFill();
+                    graphics.lineStyle(1, colorScheme.accent);
+                    graphics.drawRoundedRect(-12, -44, 24, 15, 3);
+                }
+            } else {
+                // DEFAULT CHARACTER - simple design for any other types
+
+                // Head
+                graphics.beginFill(colorScheme.main, 0.7);
+                graphics.drawCircle(0, -24, 20);
+                graphics.endFill();
+
+                // Add neon outline
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.drawCircle(0, -24, 20);
+
+                // Body
+                graphics.beginFill(colorScheme.main, 0.5);
+                graphics.drawRect(-15, -4, 30, 30);
+                graphics.endFill();
+
+                // Body outline
+                graphics.lineStyle(2, colorScheme.accent, 1);
+                graphics.drawRect(-15, -4, 30, 30);
+
+                // Add animated pulse effect
+                const time = performance.now() / 1000;
+                const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+                graphics.lineStyle(1, colorScheme.detail, 0.8 * pulseScale);
+                graphics.drawCircle(0, -10, 25 * pulseScale);
+            }
 
             // Add to container
             this.addChild(graphics);
             this.sprite = graphics;
+
+            // Add animation update for pulsing effects
+            this.game?.app?.ticker.add(() => {
+                // Only recreate the sprite if it's been destroyed
+                if (!this.sprite || this.sprite.destroyed) {
+                    this.createSprite(options);
+                }
+            });
+
         } else {
             // Create sprite from texture
             this.sprite = new PIXI.Sprite(options.texture);

@@ -604,10 +604,7 @@ export class BuildingModeManager {
      * @returns {Structure} The created structure
      */
     createStructure(asset, gridX, gridY) {
-        // Get texture
-        const texture = this.assetManager.getTexture(asset.id);
-
-        // Create structure
+        // Create structure without texture to use our custom graphics
         const structure = new Structure({
             structureType: asset.id,
             gridX,
@@ -616,7 +613,6 @@ export class BuildingModeManager {
             solid: asset.solid,
             destructible: true,
             interactive: asset.interactive,
-            texture,
             width: asset.width,
             height: asset.height
         });
@@ -632,16 +628,12 @@ export class BuildingModeManager {
      * @returns {Character} The created character
      */
     createCharacter(asset, gridX, gridY) {
-        // Get texture
-        const texture = this.assetManager.getTexture(asset.id);
-
-        // Create character
+        // Create character without texture to use our custom graphics
         const character = new Character({
             type: 'npc',
             subtype: asset.id,
             gridX,
             gridY,
-            texture,
             interactive: asset.interactive,
             name: asset.name
         });

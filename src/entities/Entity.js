@@ -350,6 +350,73 @@ export class Entity extends Container {
     }
 
     /**
+     * Places the entity in the world
+     * @param {IsometricWorld} world - The world to place the entity in
+     * @param {number} gridX - Grid X position
+     * @param {number} gridY - Grid Y position
+     * @returns {boolean} Whether the entity was placed successfully
+     */
+    placeInWorld(world, gridX, gridY) {
+        try {
+            console.log(`Entity.placeInWorld called for ${this.type} at (${gridX}, ${gridY})`);
+
+            if (!world) {
+                console.error('Cannot place entity: world is null or undefined');
+                return false;
+            }
+
+            // Set grid position
+            this.gridX = gridX;
+            this.gridY = gridY;
+
+            // Set world reference
+            this.world = world;
+
+            // Calculate isometric position
+            const worldPos = world.gridToWorld(gridX, gridY);
+            this.position.set(worldPos.x, worldPos.y);
+
+            // Ensure the entity is visible
+            this.visible = true;
+            this.alpha = 1.0;
+
+            // Set a reasonable zIndex based on entity type
+            this.zIndex = 10;
+
+            // Add to appropriate layer based on entity type
+            if (this.type === 'character' || this.type === 'npc' || this.type === 'enemy') {
+                // Characters go in the entity container
+                if (world.entityContainer) {
+                    world.entityContainer.addChild(this);
+                } else {
+                    world.addChild(this);
+                }
+            } else if (this.type === 'structure' || this.type === 'building') {
+                // Structures go in the structure layer
+                if (world.structureLayer) {
+                    world.structureLayer.addChild(this);
+                } else {
+                    world.addChild(this);
+                }
+            } else {
+                // Default: add directly to world
+                world.addChild(this);
+            }
+
+            // Add to world's entity list
+            if (world.entities && typeof world.entities.add === 'function') {
+                world.entities.add(this);
+            }
+
+            console.log(`Entity ${this.type} successfully placed at (${gridX}, ${gridY})`);
+            return true;
+        } catch (error) {
+            console.error('Error placing entity in world:', error);
+            return false;
+        }
+    }
+
+    /**
      * Creates a new entity from the pool
      * @param {Object} options - Entity options
      * @returns {Entity} A new or recycled entity
