@@ -192,10 +192,36 @@ export class BuildingModeUI {
         title.position.set(130, 10); // Centered in the wider panel
         this.assetPanel.addChild(title);
 
-        // Create assets container
+        // Create assets container with scrolling
         this.assetsContainer = new PIXI.Container();
         this.assetsContainer.position.set(10, 40);
+
+        // Create mask for scrolling
+        const mask = new PIXI.Graphics();
+        mask.beginFill(0xFFFFFF);
+        mask.drawRect(0, 0, 240, 320); // Height adjusted to leave room for scroll buttons
+        mask.endFill();
+        mask.position.set(10, 40);
+        this.assetPanel.addChild(mask);
+
+        this.assetsContainer.mask = mask;
         this.assetPanel.addChild(this.assetsContainer);
+
+        // Add scroll functionality
+        this.assetScrollOffset = 0;
+        this.assetScrollSpeed = 15;
+
+        // Create scroll up button
+        const scrollUpButton = this.createButton('▲', 230, 40, 20, 20, () => {
+            this.scrollAssetsUp();
+        });
+        this.assetPanel.addChild(scrollUpButton);
+
+        // Create scroll down button
+        const scrollDownButton = this.createButton('▼', 230, 340, 20, 20, () => {
+            this.scrollAssetsDown();
+        });
+        this.assetPanel.addChild(scrollDownButton);
     }
 
     /**
@@ -322,6 +348,10 @@ export class BuildingModeUI {
         // Clear assets container
         this.assetsContainer.removeChildren();
 
+        // Reset scroll position
+        this.assetScrollOffset = 0;
+        this.assetsContainer.y = 40;
+
         if (!this.selectedCategory) return;
 
         // Get assets for the selected category
@@ -404,6 +434,30 @@ export class BuildingModeUI {
                 }
             });
         });
+    }
+
+    /**
+     * Scrolls the assets list up
+     */
+    scrollAssetsUp() {
+        if (this.assetScrollOffset < 0) {
+            this.assetScrollOffset += this.assetScrollSpeed;
+            if (this.assetScrollOffset > 0) this.assetScrollOffset = 0;
+            this.assetsContainer.y = 40 + this.assetScrollOffset;
+        }
+    }
+
+    /**
+     * Scrolls the assets list down
+     */
+    scrollAssetsDown() {
+        const containerHeight = this.assetsContainer.height;
+        const visibleHeight = 320; // Height of the mask
+
+        if (containerHeight > visibleHeight && this.assetScrollOffset > -(containerHeight - visibleHeight)) {
+            this.assetScrollOffset -= this.assetScrollSpeed;
+            this.assetsContainer.y = 40 + this.assetScrollOffset;
+        }
     }
 
     /**

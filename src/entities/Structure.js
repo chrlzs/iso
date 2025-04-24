@@ -148,6 +148,54 @@ export class Structure extends Entity {
                 dark: 0x808080,     // Gray
                 light: 0xFFFFCC     // Pale yellow for light
             },
+            subway_entrance: {
+                main: 0x333333,    // Dark gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x222222,     // Very dark gray
+                light: 0xFF00FF     // Magenta for signs
+            },
+            monorail_support: {
+                main: 0x888888,    // Gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x444444,     // Dark gray
+                detail: 0xFFFFFF    // White for details
+            },
+            landing_pad: {
+                main: 0x444444,    // Dark gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x222222,     // Very dark gray
+                lights: 0xFF355E    // Hot pink for landing lights
+            },
+            power_generator: {
+                main: 0x333333,    // Dark gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x222222,     // Very dark gray
+                energy: 0x00FF00    // Green for energy
+            },
+            data_hub: {
+                main: 0x222222,    // Very dark gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x111111,     // Almost black
+                data: 0x0088FF      // Blue for data
+            },
+            holo_billboard: {
+                main: 0x333333,    // Dark gray
+                accent: 0x00FFFF,   // Cyan
+                dark: 0x222222,     // Very dark gray
+                screen: 0x0088FF    // Blue for screen
+            },
+            security_camera: {
+                main: 0x444444,    // Dark gray
+                accent: 0xFF0000,   // Red
+                dark: 0x222222,     // Very dark gray
+                lens: 0x00FFFF      // Cyan for lens
+            },
+            neon_strip: {
+                main: 0x222222,    // Very dark gray
+                accent: 0xFF00FF,   // Magenta
+                dark: 0x111111,     // Almost black
+                light: 0x00FFFF     // Cyan for light
+            },
 
             // Props
             terminal: {
@@ -200,15 +248,48 @@ export class Structure extends Entity {
                      (this.structureType && this.structureType === 'office_building')) {
                 graphics.drawRect(-30, -60, 60, 60);
             }
-            // Infrastructure types
+            // Infrastructure types - Roads and Sidewalks
             else if ((this.structureType && typeof this.structureType === 'string' && this.structureType.includes('road')) ||
                      (this.structureType && this.structureType === 'sidewalk')) {
                 graphics.drawRect(-25, -10, 50, 20);
                 console.log(`Drawing infrastructure glow for: ${this.structureType}`);
             }
+            // Streetlight
             else if (this.structureType && this.structureType === 'streetlight') {
                 graphics.drawRect(-5, -50, 10, 50);
                 console.log(`Drawing streetlight glow for: ${this.structureType}`);
+            }
+            // Subway Entrance
+            else if (this.structureType && this.structureType === 'subway_entrance') {
+                graphics.drawRect(-20, -30, 40, 30);
+            }
+            // Monorail Support
+            else if (this.structureType && this.structureType === 'monorail_support') {
+                graphics.drawRect(-10, -80, 20, 80);
+            }
+            // Landing Pad
+            else if (this.structureType && this.structureType === 'landing_pad') {
+                graphics.drawCircle(0, 0, 35);
+            }
+            // Power Generator
+            else if (this.structureType && this.structureType === 'power_generator') {
+                graphics.drawRect(-15, -35, 30, 35);
+            }
+            // Data Hub
+            else if (this.structureType && this.structureType === 'data_hub') {
+                graphics.drawRect(-12, -40, 24, 40);
+            }
+            // Holographic Billboard
+            else if (this.structureType && this.structureType === 'holo_billboard') {
+                graphics.drawRect(-25, -70, 50, 70);
+            }
+            // Security Camera
+            else if (this.structureType && this.structureType === 'security_camera') {
+                graphics.drawRect(-8, -25, 16, 25);
+            }
+            // Neon Strip
+            else if (this.structureType && this.structureType === 'neon_strip') {
+                graphics.drawRect(-25, -8, 50, 8);
             }
             // Prop types
             else if (this.structureType === 'terminal') {
@@ -752,6 +833,522 @@ export class Structure extends Entity {
             graphics.lineStyle(1, 0xCCCCCC, 0.8);
             graphics.drawRect(-2, -50, 4, 45);
             graphics.drawRect(-10, -5, 20, 5);
+
+        } else if (this.structureType && this.structureType === 'subway_entrance') {
+            // Debug logging
+            console.log(`Drawing subway entrance: ${this.structureType}`);
+
+            // Subway entrance structure
+
+            // Base/ground
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-25, -5, 50, 5);
+            graphics.endFill();
+
+            // Stairway down (3D effect)
+            graphics.beginFill(structureColors.dark, 0.8);
+            graphics.drawRect(-20, -25, 40, 20);
+            graphics.endFill();
+
+            // Stair steps
+            graphics.lineStyle(1, structureColors.accent, 0.7);
+            for (let y = -5; y >= -25; y -= 5) {
+                graphics.moveTo(-20, y);
+                graphics.lineTo(20, y);
+            }
+
+            // Side railings
+            graphics.lineStyle(2, structureColors.main, 0.9);
+            // Left railing
+            graphics.moveTo(-20, -5);
+            graphics.lineTo(-20, -25);
+            // Right railing
+            graphics.moveTo(20, -5);
+            graphics.lineTo(20, -25);
+
+            // Entrance sign
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-15, -40, 30, 15);
+            graphics.endFill();
+
+            // Sign text (simplified as lines)
+            graphics.lineStyle(2, structureColors.light, 0.9);
+            // "SUBWAY" text simplified as horizontal lines
+            graphics.moveTo(-10, -35);
+            graphics.lineTo(10, -35);
+            graphics.moveTo(-10, -30);
+            graphics.lineTo(10, -30);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Pulsing sign outline
+            graphics.lineStyle(1, structureColors.accent, 0.8 * pulseScale);
+            graphics.drawRect(-15, -40, 30, 15);
+
+            // Animated arrow pointing down
+            graphics.lineStyle(2, structureColors.accent, 0.9 * pulseScale);
+            graphics.moveTo(0, -15 - 5 * pulseScale);
+            graphics.lineTo(0, -5);
+            graphics.moveTo(-5, -10 - 5 * pulseScale);
+            graphics.lineTo(0, -5);
+            graphics.moveTo(5, -10 - 5 * pulseScale);
+            graphics.lineTo(0, -5);
+
+        } else if (this.structureType && this.structureType === 'monorail_support') {
+            // Debug logging
+            console.log(`Drawing monorail support: ${this.structureType}`);
+
+            // Monorail support structure
+
+            // Base/ground
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-15, -5, 30, 5);
+            graphics.endFill();
+
+            // Main support column
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-10, -80, 20, 75);
+            graphics.endFill();
+
+            // Column details - horizontal supports
+            graphics.lineStyle(1, structureColors.accent, 0.7);
+            for (let y = -10; y >= -70; y -= 15) {
+                graphics.moveTo(-10, y);
+                graphics.lineTo(10, y);
+            }
+
+            // Top platform
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-20, -85, 40, 5);
+            graphics.endFill();
+
+            // Track supports
+            graphics.beginFill(structureColors.main, 0.9);
+            graphics.drawRect(-25, -90, 50, 5);
+            graphics.endFill();
+
+            // Track rails
+            graphics.lineStyle(2, structureColors.detail, 0.9);
+            graphics.moveTo(-25, -90);
+            graphics.lineTo(25, -90);
+            graphics.moveTo(-25, -87);
+            graphics.lineTo(25, -87);
+
+            // Column outline
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.drawRect(-10, -80, 20, 75);
+            graphics.drawRect(-20, -85, 40, 5);
+            graphics.drawRect(-25, -90, 50, 5);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Pulsing lights on the column
+            graphics.beginFill(structureColors.accent, 0.5 * pulseScale);
+            graphics.drawCircle(-10, -75, 2 * pulseScale);
+            graphics.drawCircle(10, -75, 2 * pulseScale);
+            graphics.endFill();
+
+        } else if (this.structureType && this.structureType === 'landing_pad') {
+            // Debug logging
+            console.log(`Drawing landing pad: ${this.structureType}`);
+
+            // Landing pad structure
+
+            // Base platform
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-40, -5, 80, 5);
+            graphics.endFill();
+
+            // Platform surface
+            graphics.beginFill(structureColors.dark, 0.7);
+            graphics.drawCircle(0, 0, 35);
+            graphics.endFill();
+
+            // Landing markings - outer circle
+            graphics.lineStyle(2, structureColors.accent, 0.9);
+            graphics.drawCircle(0, 0, 35);
+
+            // Landing markings - inner circle
+            graphics.lineStyle(2, structureColors.accent, 0.8);
+            graphics.drawCircle(0, 0, 25);
+
+            // Landing markings - center
+            graphics.lineStyle(2, structureColors.accent, 0.7);
+            graphics.drawCircle(0, 0, 5);
+
+            // Landing markings - cross
+            graphics.lineStyle(2, structureColors.lights, 0.9);
+            graphics.moveTo(-30, 0);
+            graphics.lineTo(30, 0);
+            graphics.moveTo(0, -30);
+            graphics.lineTo(0, 30);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Pulsing landing lights around the perimeter
+            graphics.lineStyle(0);
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+                const x = Math.cos(angle) * 35;
+                const y = Math.sin(angle) * 35;
+
+                graphics.beginFill(structureColors.lights, 0.8 * pulseScale);
+                graphics.drawCircle(x, y, 3 * pulseScale);
+                graphics.endFill();
+            }
+
+        } else if (this.structureType && this.structureType === 'power_generator') {
+            // Debug logging
+            console.log(`Drawing power generator: ${this.structureType}`);
+
+            // Power generator structure
+
+            // Base
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-20, -5, 40, 5);
+            graphics.endFill();
+
+            // Main generator body
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-15, -25, 30, 20);
+            graphics.endFill();
+
+            // Generator top
+            graphics.beginFill(structureColors.dark, 0.8);
+            graphics.drawRect(-10, -35, 20, 10);
+            graphics.endFill();
+
+            // Energy core
+            graphics.beginFill(structureColors.energy, 0.6);
+            graphics.drawCircle(0, -20, 8);
+            graphics.endFill();
+
+            // Control panel
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-12, -15, 8, 10);
+            graphics.endFill();
+
+            // Panel lights
+            graphics.beginFill(structureColors.accent, 0.8);
+            graphics.drawCircle(-8, -12, 1);
+            graphics.drawCircle(-8, -9, 1);
+            graphics.endFill();
+
+            // Cooling vents
+            graphics.lineStyle(1, structureColors.accent, 0.7);
+            for (let x = -12; x <= 12; x += 6) {
+                graphics.moveTo(x, -30);
+                graphics.lineTo(x + 3, -30);
+            }
+
+            // Outlines
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.drawRect(-15, -25, 30, 20);
+            graphics.drawRect(-10, -35, 20, 10);
+            graphics.drawRect(-12, -15, 8, 10);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Pulsing energy core
+            graphics.lineStyle(2, structureColors.energy, 0.8 * pulseScale);
+            graphics.drawCircle(0, -20, 8 * pulseScale);
+
+            // Energy arcs
+            graphics.lineStyle(1, structureColors.energy, 0.6 * pulseScale);
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 3) {
+                const innerRadius = 8;
+                const outerRadius = 8 + 4 * pulseScale;
+
+                const x1 = Math.cos(angle) * innerRadius;
+                const y1 = Math.sin(angle) * innerRadius - 20;
+                const x2 = Math.cos(angle) * outerRadius;
+                const y2 = Math.sin(angle) * outerRadius - 20;
+
+                graphics.moveTo(x1, y1);
+                graphics.lineTo(x2, y2);
+            }
+
+        } else if (this.structureType && this.structureType === 'data_hub') {
+            // Debug logging
+            console.log(`Drawing data hub: ${this.structureType}`);
+
+            // Data hub structure
+
+            // Base
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-15, -5, 30, 5);
+            graphics.endFill();
+
+            // Main server rack
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-12, -30, 24, 25);
+            graphics.endFill();
+
+            // Server units
+            graphics.lineStyle(1, structureColors.dark, 0.8);
+            for (let y = -28; y <= -8; y += 5) {
+                graphics.moveTo(-12, y);
+                graphics.lineTo(12, y);
+            }
+
+            // Server lights
+            const time = performance.now() / 1000;
+            const blinkRate = Math.floor(time * 5) % 3; // 0, 1, or 2 for different blink patterns
+
+            for (let y = -25; y <= -10; y += 5) {
+                for (let x = -9; x <= 9; x += 6) {
+                    // Different blinking patterns based on position and time
+                    const shouldBlink = (x + y + blinkRate) % 3 === 0;
+
+                    if (shouldBlink) {
+                        graphics.beginFill(structureColors.data, 0.9);
+                    } else {
+                        graphics.beginFill(structureColors.accent, 0.5);
+                    }
+
+                    graphics.drawCircle(x, y, 1);
+                    graphics.endFill();
+                }
+            }
+
+            // Data cables
+            graphics.lineStyle(1, structureColors.data, 0.7);
+            graphics.moveTo(-10, -30);
+            graphics.lineTo(-10, -40);
+            graphics.lineTo(10, -40);
+            graphics.lineTo(10, -30);
+
+            // Holographic data projection
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Data streams
+            graphics.lineStyle(1, structureColors.data, 0.5 * pulseScale);
+            for (let i = 0; i < 5; i++) {
+                const offset = (time * 5 + i * 2) % 20 - 10;
+
+                graphics.moveTo(0, -30);
+                graphics.lineTo(offset, -50);
+            }
+
+            // Data cloud
+            graphics.beginFill(structureColors.data, 0.2 * pulseScale);
+            graphics.drawEllipse(0, -50, 15 * pulseScale, 8 * pulseScale);
+            graphics.endFill();
+
+            // Outline
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.drawRect(-12, -30, 24, 25);
+
+        } else if (this.structureType && this.structureType === 'holo_billboard') {
+            // Debug logging
+            console.log(`Drawing holographic billboard: ${this.structureType}`);
+
+            // Holographic billboard structure
+
+            // Base
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-10, -5, 20, 5);
+            graphics.endFill();
+
+            // Support pole
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-5, -40, 10, 35);
+            graphics.endFill();
+
+            // Billboard frame
+            graphics.beginFill(structureColors.dark, 0.8);
+            graphics.drawRect(-25, -70, 50, 30);
+            graphics.endFill();
+
+            // Screen
+            graphics.beginFill(structureColors.screen, 0.5);
+            graphics.drawRect(-20, -65, 40, 20);
+            graphics.endFill();
+
+            // Outlines
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.drawRect(-5, -40, 10, 35);
+            graphics.drawRect(-25, -70, 50, 30);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Screen content - scrolling text effect
+            graphics.lineStyle(2, 0xFFFFFF, 0.8);
+            for (let i = 0; i < 3; i++) {
+                const offset = (time * 10 + i * 10) % 40 - 20;
+                graphics.moveTo(-15 + offset, -60 + i * 5);
+                graphics.lineTo(-5 + offset, -60 + i * 5);
+            }
+
+            // Animated graphics - simple shapes
+            const animTime = time % 3; // 0-3 second loop
+
+            if (animTime < 1) {
+                // Circle
+                graphics.lineStyle(2, 0xFF00FF, 0.8 * pulseScale);
+                graphics.drawCircle(5, -55, 5 * pulseScale);
+            } else if (animTime < 2) {
+                // Triangle
+                graphics.lineStyle(2, 0x00FFFF, 0.8 * pulseScale);
+                graphics.moveTo(0, -60);
+                graphics.lineTo(10, -50);
+                graphics.lineTo(0, -50);
+                graphics.closePath();
+            } else {
+                // Square
+                graphics.lineStyle(2, 0xFFFF00, 0.8 * pulseScale);
+                graphics.drawRect(0, -60, 10, 10);
+            }
+
+            // Pulsing border
+            graphics.lineStyle(2, structureColors.accent, 0.7 * pulseScale);
+            graphics.drawRect(-20, -65, 40, 20);
+
+            // Holographic projection effect
+            graphics.lineStyle(1, structureColors.accent, 0.3 * pulseScale);
+            for (let y = -65; y <= -45; y += 5) {
+                graphics.moveTo(-20, y);
+                graphics.lineTo(20, y);
+            }
+
+        } else if (this.structureType && this.structureType === 'security_camera') {
+            // Debug logging
+            console.log(`Drawing security camera: ${this.structureType}`);
+
+            // Security camera structure
+
+            // Wall mount
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-5, -25, 10, 5);
+            graphics.endFill();
+
+            // Camera arm
+            graphics.beginFill(structureColors.main, 0.8);
+            graphics.drawRect(-2, -25, 4, 10);
+            graphics.endFill();
+
+            // Camera body
+            graphics.beginFill(structureColors.main, 0.9);
+            graphics.drawRect(-8, -20, 16, 10);
+            graphics.endFill();
+
+            // Camera lens
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawCircle(0, -15, 5);
+            graphics.endFill();
+
+            // Lens inner
+            graphics.beginFill(structureColors.lens, 0.7);
+            graphics.drawCircle(0, -15, 3);
+            graphics.endFill();
+
+            // Outlines
+            graphics.lineStyle(1, structureColors.accent, 0.8);
+            graphics.drawRect(-5, -25, 10, 5);
+            graphics.drawRect(-2, -25, 4, 10);
+            graphics.drawRect(-8, -20, 16, 10);
+
+            // Animated elements
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            // Camera movement - slight rotation
+            const rotationAngle = Math.sin(time) * 0.2; // Small rotation angle
+            const rotationX = Math.sin(rotationAngle) * 5;
+
+            // Status light
+            graphics.beginFill(0xFF0000, 0.8 * pulseScale);
+            graphics.drawCircle(6, -18, 1 * pulseScale);
+            graphics.endFill();
+
+            // Scanning effect
+            graphics.lineStyle(1, structureColors.lens, 0.5 * pulseScale);
+            graphics.moveTo(0, -15);
+            graphics.lineTo(rotationX, -5);
+
+            // Lens highlight
+            graphics.lineStyle(1, 0xFFFFFF, 0.8);
+            graphics.drawCircle(1, -16, 1);
+
+        } else if (this.structureType && this.structureType === 'neon_strip') {
+            // Debug logging
+            console.log(`Drawing neon strip: ${this.structureType}`);
+
+            // Neon strip structure
+
+            // Base
+            graphics.beginFill(structureColors.dark, 0.9);
+            graphics.drawRect(-25, -5, 50, 5);
+            graphics.endFill();
+
+            // Light housing
+            graphics.beginFill(structureColors.main, 0.7);
+            graphics.drawRect(-25, -8, 50, 3);
+            graphics.endFill();
+
+            // Animated elements
+            const time = performance.now() / 1000;
+
+            // Color cycling effect
+            const cyclePosition = (time * 0.5) % 1; // 0 to 1 over 2 seconds
+
+            let lightColor;
+            if (cyclePosition < 0.33) {
+                // Interpolate from magenta to cyan
+                const t = cyclePosition * 3;
+                lightColor = interpolateColor(0xFF00FF, 0x00FFFF, t);
+            } else if (cyclePosition < 0.66) {
+                // Interpolate from cyan to yellow
+                const t = (cyclePosition - 0.33) * 3;
+                lightColor = interpolateColor(0x00FFFF, 0xFFFF00, t);
+            } else {
+                // Interpolate from yellow to magenta
+                const t = (cyclePosition - 0.66) * 3;
+                lightColor = interpolateColor(0xFFFF00, 0xFF00FF, t);
+            }
+
+            // Neon light effect
+            graphics.beginFill(lightColor, 0.8);
+            graphics.drawRect(-25, -8, 50, 3);
+            graphics.endFill();
+
+            // Light glow
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            graphics.lineStyle(2, lightColor, 0.5 * pulseScale);
+            graphics.drawRect(-25, -8, 50, 3);
+
+            // Light segments
+            graphics.lineStyle(1, structureColors.dark, 0.5);
+            for (let x = -20; x < 20; x += 10) {
+                graphics.moveTo(x, -8);
+                graphics.lineTo(x, -5);
+            }
+
+            // Helper function to interpolate between two colors
+            function interpolateColor(color1, color2, factor) {
+                const r1 = (color1 >> 16) & 0xFF;
+                const g1 = (color1 >> 8) & 0xFF;
+                const b1 = color1 & 0xFF;
+
+                const r2 = (color2 >> 16) & 0xFF;
+                const g2 = (color2 >> 8) & 0xFF;
+                const b2 = color2 & 0xFF;
+
+                const r = Math.round(r1 + factor * (r2 - r1));
+                const g = Math.round(g1 + factor * (g2 - g1));
+                const b = Math.round(b1 + factor * (b2 - b1));
+
+                return (r << 16) | (g << 8) | b;
+            }
 
         } else if (this.structureType && this.structureType === 'terminal') {
             // Terminal structure

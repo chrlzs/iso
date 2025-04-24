@@ -247,6 +247,142 @@ export const ASSETS = [
             return tile && tile.walkable && !tile.structure;
         }
     },
+    {
+        id: 'subway_entrance',
+        name: 'Subway Entrance',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'An entrance to the underground transit system',
+        texture: 'subway_entrance',
+        width: 1,
+        height: 1,
+        walkable: true,
+        solid: false,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'monorail_support',
+        name: 'Monorail Support',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A support column for the elevated monorail',
+        texture: 'monorail_support',
+        width: 1,
+        height: 1,
+        walkable: false,
+        solid: true,
+        interactive: false,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'landing_pad',
+        name: 'Landing Pad',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A landing pad for hover-vehicles',
+        texture: 'landing_pad',
+        width: 2,
+        height: 2,
+        walkable: true,
+        solid: false,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            // Check all tiles in the footprint
+            for (let dy = 0; dy < 2; dy++) {
+                for (let dx = 0; dx < 2; dx++) {
+                    const tile = world.getTile(x + dx, y + dy);
+                    if (!tile || !tile.walkable || tile.structure) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    },
+    {
+        id: 'power_generator',
+        name: 'Power Generator',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A small energy generator with glowing elements',
+        texture: 'power_generator',
+        width: 1,
+        height: 1,
+        walkable: false,
+        solid: true,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'data_hub',
+        name: 'Data Hub',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A server node with blinking lights',
+        texture: 'data_hub',
+        width: 1,
+        height: 1,
+        walkable: false,
+        solid: true,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'holo_billboard',
+        name: 'Holographic Billboard',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'An animated advertising billboard',
+        texture: 'holo_billboard',
+        width: 1,
+        height: 1,
+        walkable: false,
+        solid: true,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'security_camera',
+        name: 'Security Camera',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A surveillance camera that monitors the area',
+        texture: 'security_camera',
+        width: 1,
+        height: 1,
+        walkable: false,
+        solid: true,
+        interactive: true,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
+    {
+        id: 'neon_strip',
+        name: 'Neon Light Strip',
+        category: ASSET_CATEGORIES.INFRASTRUCTURE,
+        description: 'A strip of neon lights for decoration',
+        texture: 'neon_strip',
+        width: 1,
+        height: 1,
+        walkable: true,
+        solid: false,
+        interactive: false,
+        placementRules: (world, x, y) => {
+            const tile = world.getTile(x, y);
+            return tile && tile.walkable && !tile.structure;
+        }
+    },
 
     // Buildings
     {
