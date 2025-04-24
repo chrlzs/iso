@@ -22,6 +22,9 @@ export class Structure extends Entity {
         this.health = options.health || 100;
         this.maxHealth = options.maxHealth || this.health;
 
+        // Debug logging
+        console.log(`Structure created with type: ${this.structureType}, typeof: ${typeof this.structureType}`);
+
         // Grid properties
         this.gridX = options.gridX || 0;
         this.gridY = options.gridY || 0;
@@ -48,6 +51,9 @@ export class Structure extends Entity {
     createSprite() {
         // Create a new graphics object
         const graphics = new PIXI.Graphics();
+
+        // Debug logging
+        console.log(`Creating sprite for structure type: ${this.structureType}`);
 
         // Synthwave color palette
         const colors = {
@@ -121,22 +127,26 @@ export class Structure extends Entity {
             road_straight: {
                 main: 0x696969,    // Dim gray
                 accent: 0xFFFF00,   // Yellow
-                dark: 0x2F4F4F      // Dark slate gray
+                dark: 0x2F4F4F,     // Dark slate gray
+                markings: 0xFFFFFF   // White for road markings
             },
             road_corner: {
                 main: 0x696969,    // Dim gray
                 accent: 0xFFFF00,   // Yellow
-                dark: 0x2F4F4F      // Dark slate gray
+                dark: 0x2F4F4F,     // Dark slate gray
+                markings: 0xFFFFFF   // White for road markings
             },
             sidewalk: {
                 main: 0xA9A9A9,    // Dark gray
                 accent: 0xDCDCDC,   // Gainsboro
-                dark: 0x808080      // Gray
+                dark: 0x808080,     // Gray
+                pattern: 0xCCCCCC   // Light gray for pattern
             },
             streetlight: {
                 main: 0xC0C0C0,    // Silver
                 accent: 0xFFFF00,   // Yellow
-                dark: 0x808080      // Gray
+                dark: 0x808080,     // Gray
+                light: 0xFFFFCC     // Pale yellow for light
             },
 
             // Props
@@ -185,15 +195,20 @@ export class Structure extends Entity {
                 graphics.drawEllipse(0, 0, 30, 20);
             }
             // Building types
-            else if (this.structureType.includes('house') || this.structureType === 'shop' || this.structureType === 'office_building') {
+            else if ((this.structureType && typeof this.structureType === 'string' && this.structureType.includes('house')) ||
+                     (this.structureType && this.structureType === 'shop') ||
+                     (this.structureType && this.structureType === 'office_building')) {
                 graphics.drawRect(-30, -60, 60, 60);
             }
             // Infrastructure types
-            else if (this.structureType.includes('road') || this.structureType === 'sidewalk') {
+            else if ((this.structureType && typeof this.structureType === 'string' && this.structureType.includes('road')) ||
+                     (this.structureType && this.structureType === 'sidewalk')) {
                 graphics.drawRect(-25, -10, 50, 20);
+                console.log(`Drawing infrastructure glow for: ${this.structureType}`);
             }
-            else if (this.structureType === 'streetlight') {
+            else if (this.structureType && this.structureType === 'streetlight') {
                 graphics.drawRect(-5, -50, 10, 50);
+                console.log(`Drawing streetlight glow for: ${this.structureType}`);
             }
             // Prop types
             else if (this.structureType === 'terminal') {
@@ -212,7 +227,7 @@ export class Structure extends Entity {
         });
 
         // Draw based on structure type with synthwave aesthetic
-        if (this.structureType === 'tree') {
+        if (this.structureType && this.structureType === 'tree') {
             // Draw a more detailed tree with vector-based design
 
             // Trunk with more detail
@@ -304,7 +319,7 @@ export class Structure extends Entity {
                 graphics.lineTo(x2, y2);
             }
 
-        } else if (this.structureType === 'tree_pine') {
+        } else if (this.structureType && this.structureType === 'tree_pine') {
             // Draw a pine tree with triangular foliage
 
             // Trunk
@@ -376,7 +391,7 @@ export class Structure extends Entity {
             graphics.lineTo(0, -40 - 5 * pulseScale);
             graphics.lineTo(32 * pulseScale, -10);
 
-        } else if (this.structureType === 'tree_oak') {
+        } else if (this.structureType && this.structureType === 'tree_oak') {
             // Draw an oak tree with a wide, rounded canopy
 
             // Trunk - thicker and shorter than pine
@@ -434,7 +449,7 @@ export class Structure extends Entity {
             graphics.lineStyle(2, structureColors.accent, 0.8 * pulseScale);
             graphics.drawCircle(0, -40, 42 * pulseScale);
 
-        } else if (this.structureType === 'shrub_small') {
+        } else if (this.structureType && this.structureType === 'shrub_small') {
             // Draw a small shrub
 
             // Base/trunk
@@ -475,7 +490,7 @@ export class Structure extends Entity {
             graphics.lineStyle(1, structureColors.accent, 0.8 * pulseScale);
             graphics.drawCircle(0, -15, 17 * pulseScale);
 
-        } else if (this.structureType === 'rock' || this.structureType === 'rock_large') {
+        } else if ((this.structureType && this.structureType === 'rock') || (this.structureType && this.structureType === 'rock_large')) {
             // Draw a more detailed rock formation with vector-based design
 
             // Create a cluster of rocks instead of a single ellipse
@@ -587,7 +602,301 @@ export class Structure extends Entity {
                 graphics.endFill();
             });
 
+        } else if (this.structureType && typeof this.structureType === 'string' && this.structureType.includes('road')) {
+            // Debug logging
+            console.log(`Drawing road structure: ${this.structureType}`);
+
+            // Road structure
+
+            // Base road surface
+            graphics.beginFill(0x696969, 0.8); // Dark gray for road
+            graphics.drawRect(-40, -5, 80, 10);
+            graphics.endFill();
+
+            // Road markings
+            graphics.lineStyle(2, 0xFFFF00, 0.8); // Yellow road markings
+
+            if (this.structureType.includes('straight')) {
+                // Center line for straight road
+                graphics.moveTo(-40, 0);
+                graphics.lineTo(40, 0);
+
+                // Dashed side lines
+                graphics.lineStyle(1, 0xFFFFFF, 0.6); // White side markings
+                for (let i = -35; i <= 35; i += 10) {
+                    // Top side
+                    graphics.moveTo(i, -4);
+                    graphics.lineTo(i + 5, -4);
+
+                    // Bottom side
+                    graphics.moveTo(i, 4);
+                    graphics.lineTo(i + 5, 4);
+                }
+            } else if (this.structureType.includes('corner')) {
+                // Curved line for corner road
+                graphics.moveTo(-40, 0);
+                graphics.lineTo(0, 0);
+                graphics.lineTo(0, 40);
+
+                // Outer curve
+                graphics.lineStyle(1, 0xFFFFFF, 0.6); // White outer marking
+                graphics.moveTo(-40, -4);
+                graphics.lineTo(-4, -4);
+                graphics.arc(-4, -4, 8, -Math.PI/2, 0);
+                graphics.lineTo(4, 40);
+
+                // Inner curve
+                graphics.moveTo(-40, 4);
+                graphics.lineTo(4, 4);
+                graphics.arc(4, 4, 8, Math.PI, Math.PI/2, true);
+                graphics.lineTo(-4, 40);
+            }
+
+            // Add some texture/detail to the road surface
+            graphics.lineStyle(1, 0x555555, 0.3);
+            for (let i = -35; i <= 35; i += 15) {
+                graphics.moveTo(i, -5);
+                graphics.lineTo(i + 5, 5);
+            }
+
+            // Add animated pulse effect for neon-style road markings
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+            graphics.lineStyle(1, 0xFFFF00, 0.5 * pulseScale);
+            if (this.structureType.includes('straight')) {
+                graphics.moveTo(-40, 0);
+                graphics.lineTo(40, 0);
+            } else if (this.structureType.includes('corner')) {
+                graphics.moveTo(-40, 0);
+                graphics.lineTo(0, 0);
+                graphics.lineTo(0, 40);
+            }
+
+        } else if (this.structureType && this.structureType === 'sidewalk') {
+            // Debug logging
+            console.log(`Drawing sidewalk structure: ${this.structureType}`);
+
+            // Sidewalk structure
+
+            // Base sidewalk surface
+            graphics.beginFill(0xA9A9A9, 0.8); // Gray for sidewalk
+            graphics.drawRect(-40, -5, 80, 10);
+            graphics.endFill();
+
+            // Sidewalk pattern - grid lines
+            graphics.lineStyle(1, 0xCCCCCC, 0.6);
+
+            // Vertical lines
+            for (let i = -35; i <= 35; i += 10) {
+                graphics.moveTo(i, -5);
+                graphics.lineTo(i, 5);
+            }
+
+            // Horizontal lines
+            graphics.moveTo(-40, 0);
+            graphics.lineTo(40, 0);
+
+            // Edge highlight
+            graphics.lineStyle(1, 0xDCDCDC, 0.8);
+            graphics.drawRect(-40, -5, 80, 10);
+
+            // Add some texture/detail
+            graphics.lineStyle(1, 0x888888, 0.3);
+            for (let i = -35; i <= 35; i += 15) {
+                for (let j = -4; j <= 4; j += 4) {
+                    graphics.drawCircle(i, j, 1);
+                }
+            }
+
+        } else if (this.structureType && this.structureType === 'streetlight') {
+            // Debug logging
+            console.log(`Drawing streetlight structure: ${this.structureType}`);
+
+            // Streetlight structure
+
+            // Base
+            graphics.beginFill(0x333333, 0.9);
+            graphics.drawRect(-10, -5, 20, 5);
+            graphics.endFill();
+
+            // Pole
+            graphics.beginFill(0xC0C0C0, 0.8);
+            graphics.drawRect(-2, -50, 4, 45);
+            graphics.endFill();
+
+            // Light fixture
+            graphics.beginFill(0x888888, 0.9);
+            graphics.drawRect(-10, -55, 20, 5);
+            graphics.endFill();
+
+            // Light glow
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            graphics.beginFill(0xFFFF00, 0.3 * pulseScale);
+            graphics.drawCircle(0, -60, 15 * pulseScale);
+            graphics.endFill();
+
+            // Light beam
+            graphics.beginFill(0xFFFF00, 0.1 * pulseScale);
+            graphics.moveTo(-10, -55);
+            graphics.lineTo(-20, -5);
+            graphics.lineTo(20, -5);
+            graphics.lineTo(10, -55);
+            graphics.closePath();
+            graphics.endFill();
+
+            // Outlines
+            graphics.lineStyle(1, 0xFFFF00, 0.8);
+            graphics.drawRect(-10, -55, 20, 5);
+            graphics.lineStyle(1, 0xCCCCCC, 0.8);
+            graphics.drawRect(-2, -50, 4, 45);
+            graphics.drawRect(-10, -5, 20, 5);
+
+        } else if (this.structureType && this.structureType === 'terminal') {
+            // Terminal structure
+
+            // Base
+            graphics.beginFill(0x333333, 0.9);
+            graphics.drawRect(-15, -5, 30, 5);
+            graphics.endFill();
+
+            // Terminal body
+            graphics.beginFill(0x008080, 0.8); // Teal color
+            graphics.drawRect(-15, -35, 30, 30);
+            graphics.endFill();
+
+            // Screen
+            graphics.beginFill(0x000000, 0.9);
+            graphics.drawRect(-12, -32, 24, 20);
+            graphics.endFill();
+
+            // Screen content - text lines
+            graphics.lineStyle(1, 0x00FFFF, 0.9); // Cyan text
+            for (let i = 0; i < 4; i++) {
+                const y = -28 + i * 4;
+                graphics.moveTo(-10, y);
+                graphics.lineTo(10, y);
+            }
+
+            // Control panel
+            graphics.beginFill(0x444444, 0.8);
+            graphics.drawRect(-12, -10, 24, 5);
+            graphics.endFill();
+
+            // Buttons
+            graphics.beginFill(0x00FFFF, 0.7);
+            for (let i = -9; i <= 9; i += 6) {
+                graphics.drawCircle(i, -7.5, 2);
+            }
+            graphics.endFill();
+
+            // Animated screen glow
+            const time = performance.now() / 1000;
+            const pulseScale = 0.7 + Math.sin(time * 2) * 0.3;
+
+            graphics.lineStyle(1, 0x00FFFF, 0.5 * pulseScale);
+            graphics.drawRect(-12, -32, 24, 20);
+
+        } else if (this.structureType && this.structureType === 'crate') {
+            // Crate structure
+
+            // Main box
+            graphics.beginFill(0xCD853F, 0.8); // Peru color for wooden crate
+            graphics.drawRect(-20, -20, 40, 40);
+            graphics.endFill();
+
+            // Crate details - panels
+            graphics.lineStyle(2, 0x8B4513, 0.7); // Darker brown lines
+
+            // Horizontal panels
+            graphics.moveTo(-20, -7);
+            graphics.lineTo(20, -7);
+            graphics.moveTo(-20, 7);
+            graphics.lineTo(20, 7);
+
+            // Vertical panels
+            graphics.moveTo(-7, -20);
+            graphics.lineTo(-7, 20);
+            graphics.moveTo(7, -20);
+            graphics.lineTo(7, 20);
+
+            // Corner reinforcements
+            graphics.lineStyle(3, 0x8B4513, 0.9);
+
+            // Top left
+            graphics.moveTo(-20, -20);
+            graphics.lineTo(-15, -20);
+            graphics.moveTo(-20, -20);
+            graphics.lineTo(-20, -15);
+
+            // Top right
+            graphics.moveTo(20, -20);
+            graphics.lineTo(15, -20);
+            graphics.moveTo(20, -20);
+            graphics.lineTo(20, -15);
+
+            // Bottom left
+            graphics.moveTo(-20, 20);
+            graphics.lineTo(-15, 20);
+            graphics.moveTo(-20, 20);
+            graphics.lineTo(-20, 15);
+
+            // Bottom right
+            graphics.moveTo(20, 20);
+            graphics.lineTo(15, 20);
+            graphics.moveTo(20, 20);
+            graphics.lineTo(20, 15);
+
+            // Outline
+            graphics.lineStyle(1, 0xFFD700, 0.5); // Gold outline
+            graphics.drawRect(-20, -20, 40, 40);
+
+        } else if (this.structureType && this.structureType === 'bench') {
+            // Bench structure
+
+            // Legs
+            graphics.beginFill(0x8B4513, 0.9); // Brown legs
+            graphics.drawRect(-20, -5, 5, 5);
+            graphics.drawRect(15, -5, 5, 5);
+            graphics.endFill();
+
+            // Seat
+            graphics.beginFill(0xDEB887, 0.8); // Burlywood seat
+            graphics.drawRect(-25, -10, 50, 5);
+            graphics.endFill();
+
+            // Backrest
+            graphics.beginFill(0xDEB887, 0.7);
+            graphics.drawRect(-25, -25, 50, 15);
+            graphics.endFill();
+
+            // Wood grain details
+            graphics.lineStyle(1, 0x8B4513, 0.5);
+
+            // Seat grain
+            for (let i = -20; i < 20; i += 5) {
+                graphics.moveTo(i, -10);
+                graphics.lineTo(i, -5);
+            }
+
+            // Backrest grain
+            for (let i = -20; i < 20; i += 5) {
+                graphics.moveTo(i, -25);
+                graphics.lineTo(i, -10);
+            }
+
+            // Outlines
+            graphics.lineStyle(1, 0x8B4513, 0.8);
+            graphics.drawRect(-25, -10, 50, 5); // Seat outline
+            graphics.drawRect(-25, -25, 50, 15); // Backrest outline
+            graphics.drawRect(-20, -5, 5, 5); // Left leg outline
+            graphics.drawRect(15, -5, 5, 5); // Right leg outline
+
         } else {
+            // Debug logging
+            console.log(`Using default building drawing for structure type: ${this.structureType}, typeof: ${typeof this.structureType}`);
+
             // Enhanced generic building with cyberpunk/synthwave aesthetic
 
             // Base structure - more detailed with angled walls

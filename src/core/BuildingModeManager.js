@@ -604,6 +604,9 @@ export class BuildingModeManager {
      * @returns {Structure} The created structure
      */
     createStructure(asset, gridX, gridY) {
+        // Debug logging
+        console.log(`Creating structure with type: ${asset.id}, category: ${asset.category}`);
+
         // Create structure without texture to use our custom graphics
         const structure = new Structure({
             structureType: asset.id,
@@ -616,6 +619,9 @@ export class BuildingModeManager {
             width: asset.width,
             height: asset.height
         });
+
+        // Debug logging
+        console.log(`Created structure with type: ${structure.structureType}`);
 
         return structure;
     }
