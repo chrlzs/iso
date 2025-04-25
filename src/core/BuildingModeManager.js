@@ -29,6 +29,7 @@ export class BuildingModeManager {
         this.selectedAssetId = null;
         this.selectedAsset = null;
         this.placementValid = false;
+        this.currentRotation = 0; // 0, 90, 180, or 270 degrees
 
         // Preview container
         this.previewContainer = new PIXI.Container();
@@ -302,6 +303,9 @@ export class BuildingModeManager {
         this.selectedAssetId = assetId;
         this.selectedAsset = getAssetById(assetId);
 
+        // Reset rotation when selecting a new asset
+        this.currentRotation = 0;
+
         // Update preview
         this.updatePreview();
 
@@ -341,6 +345,9 @@ export class BuildingModeManager {
         this.previewSprite = new PIXI.Sprite(texture);
         this.previewSprite.anchor.set(0.5, 1);
         this.previewSprite.alpha = 0.9;
+
+        // Apply current rotation
+        this.previewSprite.angle = this.currentRotation;
 
         // Add a glow filter for better visibility
         const glowFilter = new PIXI.filters.GlowFilter({
@@ -617,7 +624,8 @@ export class BuildingModeManager {
             destructible: true,
             interactive: asset.interactive,
             width: asset.width,
-            height: asset.height
+            height: asset.height,
+            rotation: this.currentRotation // Pass the current rotation
         });
 
         // Debug logging
@@ -827,9 +835,22 @@ export class BuildingModeManager {
             this.deactivate();
         }
 
-        // R key - reserved for future asset rotation
+        // R key - rotate the selected asset
         if (event.key === 'r' || event.key === 'R') {
-            // TODO: Implement asset rotation
+            if (this.selectedAsset) {
+                // Rotate by 90 degrees (clockwise)
+                this.currentRotation = (this.currentRotation + 90) % 360;
+
+                // Update the preview sprite rotation
+                if (this.previewSprite) {
+                    this.previewSprite.angle = this.currentRotation;
+                }
+
+                // Show a message about the rotation
+                if (this.game && this.game.ui) {
+                    this.game.ui.showMessage(`Rotated ${this.selectedAsset.name} to ${this.currentRotation}°`, 1000);
+                }
+            }
         }
 
         // G key - toggle grid overlay

@@ -21,6 +21,7 @@ export class Structure extends Entity {
         this.destructible = options.destructible !== undefined ? options.destructible : false;
         this.health = options.health || 100;
         this.maxHealth = options.maxHealth || this.health;
+        this.rotation = options.rotation || 0; // 0, 90, 180, or 270 degrees
 
         // Debug logging
         console.log(`Structure created with type: ${this.structureType}, typeof: ${typeof this.structureType}`);
@@ -53,7 +54,7 @@ export class Structure extends Entity {
         const graphics = new PIXI.Graphics();
 
         // Debug logging
-        console.log(`Creating sprite for structure type: ${this.structureType}`);
+        console.log(`Creating sprite for structure type: ${this.structureType}, rotation: ${this.rotation}°`);
 
         // Synthwave color palette
         const colors = {
@@ -1659,6 +1660,11 @@ export class Structure extends Entity {
             graphics.drawCircle(15, -60, 1);
             graphics.drawCircle(0, -70, 1);
             graphics.endFill();
+        }
+
+        // Apply rotation if specified
+        if (this.rotation) {
+            graphics.angle = this.rotation;
         }
 
         // Add graphics to container
