@@ -56,175 +56,37 @@ export class Structure extends Entity {
         // Debug logging
         console.log(`Creating sprite for structure type: ${this.structureType}, rotation: ${this.rotation}°`);
 
-        // Synthwave color palette
-        const colors = {
-            // Tree types
-            tree: {
-                main: 0x00FF00,    // Neon green
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x004400,     // Dark green
-                trunk: 0xFF6B6B     // Coral pink
-            },
-            tree_pine: {
-                main: 0x00DD00,    // Darker green
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x003300,     // Very dark green
-                trunk: 0x8B4513     // Brown trunk
-            },
-            tree_oak: {
-                main: 0x228B22,    // Forest green
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x006400,     // Dark green
-                trunk: 0x8B5A2B     // Saddle brown trunk
-            },
+        // Get colors for structure type from the style manager if available
+        let structureColors;
 
-            // Rock types
-            rock: {
-                main: 0xAAAAAA,    // Silver
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x444444      // Dark gray
-            },
-            rock_large: {
-                main: 0x808080,    // Gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x696969      // Dim gray
-            },
-
-            // Shrub types
-            shrub_small: {
-                main: 0x32CD32,    // Lime green
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x228B22,     // Forest green
-                trunk: 0x8B4513     // Brown
-            },
-
-            // Building types
-            house: {
-                main: 0x00FFFF,    // Cyan
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x000080,     // Dark blue
-                roof: 0xFF355E      // Hot pink
-            },
-            house_small: {
-                main: 0x1E90FF,    // Dodger blue
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x000080,     // Dark blue
-                roof: 0xFF1493      // Deep pink
-            },
-            shop: {
-                main: 0x00CED1,    // Dark turquoise
-                accent: 0xFFD700,   // Gold
-                dark: 0x008B8B,     // Dark cyan
-                roof: 0xFFD700      // Gold
-            },
-            office_building: {
-                main: 0x4682B4,    // Steel blue
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x4169E1,     // Royal blue
-                roof: 0x00BFFF      // Deep sky blue
-            },
-
-            // Infrastructure
-            road_straight: {
-                main: 0x696969,    // Dim gray
-                accent: 0xFFFF00,   // Yellow
-                dark: 0x2F4F4F,     // Dark slate gray
-                markings: 0xFFFFFF   // White for road markings
-            },
-            road_corner: {
-                main: 0x696969,    // Dim gray
-                accent: 0xFFFF00,   // Yellow
-                dark: 0x2F4F4F,     // Dark slate gray
-                markings: 0xFFFFFF   // White for road markings
-            },
-            sidewalk: {
-                main: 0xA9A9A9,    // Dark gray
-                accent: 0xDCDCDC,   // Gainsboro
-                dark: 0x808080,     // Gray
-                pattern: 0xCCCCCC   // Light gray for pattern
-            },
-            streetlight: {
-                main: 0xC0C0C0,    // Silver
-                accent: 0xFFFF00,   // Yellow
-                dark: 0x808080,     // Gray
-                light: 0xFFFFCC     // Pale yellow for light
-            },
-            subway_entrance: {
-                main: 0x333333,    // Dark gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x222222,     // Very dark gray
-                light: 0xFF00FF     // Magenta for signs
-            },
-            monorail_support: {
-                main: 0x888888,    // Gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x444444,     // Dark gray
-                detail: 0xFFFFFF    // White for details
-            },
-            landing_pad: {
-                main: 0x444444,    // Dark gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x222222,     // Very dark gray
-                lights: 0xFF355E    // Hot pink for landing lights
-            },
-            power_generator: {
-                main: 0x333333,    // Dark gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x222222,     // Very dark gray
-                energy: 0x00FF00    // Green for energy
-            },
-            data_hub: {
-                main: 0x222222,    // Very dark gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x111111,     // Almost black
-                data: 0x0088FF      // Blue for data
-            },
-            holo_billboard: {
-                main: 0x333333,    // Dark gray
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x222222,     // Very dark gray
-                screen: 0x0088FF    // Blue for screen
-            },
-            security_camera: {
-                main: 0x444444,    // Dark gray
-                accent: 0xFF0000,   // Red
-                dark: 0x222222,     // Very dark gray
-                lens: 0x00FFFF      // Cyan for lens
-            },
-            neon_strip: {
-                main: 0x222222,    // Very dark gray
-                accent: 0xFF00FF,   // Magenta
-                dark: 0x111111,     // Almost black
-                light: 0x00FFFF     // Cyan for light
-            },
-
-            // Props
-            terminal: {
-                main: 0x008080,    // Teal
-                accent: 0x00FFFF,   // Cyan
-                dark: 0x2F4F4F      // Dark slate gray
-            },
-            crate: {
-                main: 0xCD853F,    // Peru
-                accent: 0xFFD700,   // Gold
-                dark: 0x8B4513      // Saddle brown
-            },
-            bench: {
-                main: 0xDEB887,    // Burlywood
-                accent: 0x8B4513,   // Saddle brown
-                dark: 0xA0522D      // Sienna
-            },
-
-            // Default/generic
-            generic: {
+        // Check if world and game references are available
+        if (this.world && this.world.game && this.world.game.styleManager) {
+            // Get colors from the style manager
+            structureColors = this.world.game.styleManager.getStructureColors(this.structureType);
+        } else if (this.game && this.game.styleManager) {
+            // Get colors from the style manager
+            structureColors = this.game.styleManager.getStructureColors(this.structureType);
+        } else {
+            // Fallback to default colors if style manager is not available
+            structureColors = {
                 main: 0xFF00FF,    // Magenta
                 accent: 0x00FFFF,   // Cyan
-                dark: 0x800080      // Dark purple
-            }
-        };
+                dark: 0x800080,     // Dark purple
+                trunk: 0x8B4513,    // Brown trunk
+                roof: 0xFF355E,     // Hot pink
+                markings: 0xFFFFFF,  // White
+                light: 0xFFFFCC,    // Pale yellow
+                detail: 0xFFFFFF,   // White
+                lights: 0xFF355E,   // Hot pink
+                energy: 0x00FF00,   // Green
+                data: 0x0088FF,     // Blue
+                screen: 0x0088FF,   // Blue
+                lens: 0x00FFFF,     // Cyan
+                pattern: 0xCCCCCC    // Light gray
+            };
 
-        // Get colors for structure type
-        const structureColors = colors[this.structureType] || colors.generic;
+            console.warn(`No style manager available for structure ${this.structureType}, using default colors`);
+        }
 
         // Common glow effect for all structures
         const glowSize = 8;

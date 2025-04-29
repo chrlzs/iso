@@ -40,7 +40,7 @@ export class DebugOverlay {
         this.toggleButton.textContent = 'D';
         this.toggleButton.style.position = 'fixed';
         this.toggleButton.style.bottom = '10px';
-        this.toggleButton.style.left = '160px';
+        this.toggleButton.style.left = '360px'; // Position 50px from FPS button
         this.toggleButton.style.zIndex = '1000';
         this.toggleButton.style.width = '40px';
         this.toggleButton.style.height = '30px';

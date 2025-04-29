@@ -874,6 +874,26 @@ export class UI {
     }
 
     /**
+     * Creates a quality button
+     * @private
+     */
+    createQualityButton() {
+        // Create quality button
+        const button = new PIXI.Container();
+        button.position.set(10, 0); // Position relative to buttonContainer - leftmost button
+
+        // Button background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000000, 0.7);
+        bg.lineStyle(2, 0x00FFFF, 1);
+        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.endFill();
+        button.addChild(bg);
+
+        // ...existing code...
+    }
+
+    /**
      * Updates the UI
      * @param {number} deltaTime - Time since last update in seconds
      */

@@ -255,4 +255,47 @@ export class Button extends UIComponent {
         this.text = text;
         this.textObj.text = text;
     }
+
+    /**
+     * Highlights the button to indicate it's selected
+     */
+    highlight() {
+        // Create highlight effect
+        if (!this.highlightEffect) {
+            this.highlightEffect = new PIXI.Graphics();
+            this.addChildAt(this.highlightEffect, 0);
+        }
+
+        // Draw highlight effect
+        this.highlightEffect.clear();
+        this.highlightEffect.lineStyle(2, 0x00FFFF, 1);
+        this.highlightEffect.drawRect(-2, -2, this.width + 4, this.height + 4);
+
+        // Add glow
+        [0.1, 0.2, 0.3].forEach(alpha => {
+            const size = 3 * (1 + alpha);
+            this.highlightEffect.lineStyle(size, 0x00FFFF, alpha * 0.3);
+            this.highlightEffect.drawRect(-size, -size, this.width + size * 2, this.height + size * 2);
+        });
+
+        // Change text color
+        this.textObj.style.fill = 0x00FFFF;
+        this.textObj.style.strokeThickness = 2;
+    }
+
+    /**
+     * Removes the highlight effect
+     */
+    unhighlight() {
+        // Remove highlight effect
+        if (this.highlightEffect) {
+            this.highlightEffect.clear();
+            this.removeChild(this.highlightEffect);
+            this.highlightEffect = null;
+        }
+
+        // Reset text color
+        this.textObj.style.fill = this.style.textColor;
+        this.textObj.style.strokeThickness = 1;
+    }
 }

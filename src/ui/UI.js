@@ -1,5 +1,6 @@
 import { PIXI } from '../utils/PixiWrapper.js';
 import { BuildingModeUI } from './BuildingModeUI.js';
+import { StyleToggle } from './components/StyleToggle.js';
 
 /**
  * UI - Manages the game's user interface
@@ -13,13 +14,29 @@ export class UI {
         this.container = options.container || new PIXI.Container();
         this.game = options.game;
         this.panels = {};
+
+        // Ensure container is visible and sortable
+        this.container.visible = true;
+        this.container.sortableChildren = true;
+
+        // Create panels container
         this.panelsContainer = new PIXI.Container();
+        this.panelsContainer.visible = true;
         this.container.addChild(this.panelsContainer);
 
         // Message system
         this.messages = [];
         this.messageContainer = new PIXI.Container();
+        this.messageContainer.visible = true;
         this.container.addChild(this.messageContainer);
+
+        // Create a container for buttons
+        this.buttonContainer = new PIXI.Container();
+        this.buttonContainer.visible = true;
+        this.buttonContainer.position.set(0, this.game ? this.game.app.screen.height - 50 : 550);
+        this.container.addChild(this.buttonContainer);
+
+        console.log('UI initialized with container:', this.container);
     }
 
     /**
@@ -27,6 +44,8 @@ export class UI {
      * @private
      */
     createUI() {
+        console.log('Creating UI elements');
+
         // Create message display area
         this.messageDisplay = new PIXI.Container();
         this.messageDisplay.position.set(10, 10);
@@ -37,14 +56,29 @@ export class UI {
         this.panelsContainer = new PIXI.Container();
         this.container.addChild(this.panelsContainer);
 
+        console.log('Creating UI buttons');
+
         // Create quality settings button
         this.createQualityButton();
+        console.log('Quality button created');
 
         // Create building mode button
         this.createBuildingModeButton();
+        console.log('Building mode button created');
 
         // Create log level button
         this.createLogLevelButton();
+        console.log('Log level button created');
+
+        // Create style toggle button
+        this.createStyleToggleButton();
+        console.log('Style toggle button created');
+
+        // Create debug button
+        this.createDebugButton();
+        console.log('Debug button created');
+
+        console.log('All UI elements created');
     }
 
     /**
@@ -313,7 +347,7 @@ export class UI {
     createQualityButton() {
         // Create quality button
         const button = new PIXI.Container();
-        button.position.set(10, this.game.app.screen.height - 40);
+        button.position.set(10, 0); // Position relative to buttonContainer - leftmost button
 
         // Button background
         const bg = new PIXI.Graphics();
@@ -340,7 +374,7 @@ export class UI {
         button.buttonMode = true;
         button.on('pointerdown', () => this.togglePanel('quality'));
 
-        this.container.addChild(button);
+        this.buttonContainer.addChild(button);
         this.qualityButton = button;
 
         // Create quality panel
@@ -736,7 +770,7 @@ export class UI {
     createBuildingModeButton() {
         // Create building mode button
         const button = new PIXI.Container();
-        button.position.set(60, this.game.app.screen.height - 40);
+        button.position.set(60, 0); // Position 50px from the quality button
 
         // Button background
         const bg = new PIXI.Graphics();
@@ -763,7 +797,7 @@ export class UI {
         button.buttonMode = true;
         button.on('pointerdown', () => this.toggleBuildingMode());
 
-        this.container.addChild(button);
+        this.buttonContainer.addChild(button);
         this.buildingModeButton = button;
     }
 
@@ -919,7 +953,7 @@ export class UI {
     createLogLevelButton() {
         // Create log level button
         const button = new PIXI.Container();
-        button.position.set(110, this.game.app.screen.height - 40);
+        button.position.set(110, 0); // Position 50px from building mode button
 
         // Button background
         const bg = new PIXI.Graphics();
@@ -962,7 +996,7 @@ export class UI {
             }
         });
 
-        this.container.addChild(button);
+        this.buttonContainer.addChild(button);
         this.logLevelButton = button;
     }
 
@@ -987,19 +1021,9 @@ export class UI {
             // Add other panel-specific resize logic here
         });
 
-        // Reposition quality button
-        if (this.qualityButton) {
-            this.qualityButton.position.set(10, height - 40);
-        }
-
-        // Reposition building mode button
-        if (this.buildingModeButton) {
-            this.buildingModeButton.position.set(60, height - 40);
-        }
-
-        // Reposition log level button
-        if (this.logLevelButton) {
-            this.logLevelButton.position.set(110, height - 40);
+        // Reposition button container
+        if (this.buttonContainer) {
+            this.buttonContainer.position.set(0, height - 50);
         }
 
         // Resize message container
@@ -1013,6 +1037,234 @@ export class UI {
         }
 
         // Resize any other UI elements as needed
+    }
+
+    /**
+     * Creates a style toggle button and panel
+     */
+    createStyleToggleButton() {
+        console.log('Creating style toggle button');
+
+        // Create style toggle button
+        const button = new PIXI.Container();
+        button.position.set(160, 0); // Position 50px from log level button
+
+        // Button background with more distinctive color
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000000, 0.8); // Darker background
+        bg.lineStyle(3, 0xFF00FF, 1); // Magenta border, thicker
+        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.endFill();
+        button.addChild(bg);
+
+        // Button text
+        const text = new PIXI.Text('S', {
+            fontFamily: 'Arial',
+            fontSize: 18, // Larger font
+            fontWeight: 'bold', // Bold text
+            fill: 0xFF00FF, // Magenta text
+            align: 'center'
+        });
+        // Center the text in the button
+        text.anchor.set(0.5, 0.5);
+        text.position.set(20, 15);
+        button.addChild(text);
+
+        // Make button interactive
+        button.interactive = true;
+        button.buttonMode = true;
+        button.on('pointerdown', () => {
+            console.log('Style button clicked');
+            this.togglePanel('style');
+        });
+
+        // Add to button container
+        this.buttonContainer.addChild(button);
+        this.styleButton = button;
+
+        // Show a message about the style button
+        this.showMessage('Style toggle button added (S)', 3000);
+
+        // Create style toggle panel
+        this.createStyleTogglePanel();
+    }
+
+    /**
+     * Creates the style toggle panel
+     */
+    createStyleTogglePanel() {
+        // Create panel container
+        const panel = new PIXI.Container();
+        panel.visible = false; // Hidden by default
+
+        // Create style toggle component
+        const styleToggle = new StyleToggle({
+            game: this.game,
+            x: 0,
+            y: 0
+        });
+        panel.addChild(styleToggle);
+
+        // Position panel in the center of the screen
+        panel.position.set(
+            (this.game.app.screen.width - 200) / 2, // Assuming width of 200
+            (this.game.app.screen.height - 200) / 2  // Assuming height of 200
+        );
+
+        // Add to panels container
+        this.panelsContainer.addChild(panel);
+
+        // Store reference
+        this.panels.style = panel;
+        this.styleToggle = styleToggle;
+
+        // Show a message about the current style
+        if (this.game && this.game.styleManager) {
+            const currentStyle = this.game.styleManager.getCurrentStyle();
+            this.showMessage(`Current visual style: ${currentStyle.name}`, 5000);
+        }
+    }
+
+    /**
+     * Creates a debug button to help troubleshoot UI issues
+     */
+    createDebugButton() {
+        // Create debug button
+        const button = new PIXI.Container();
+        button.position.set(210, 0); // Position 50px from style button
+
+        // Button background with distinctive color
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x000000, 0.8);
+        bg.lineStyle(3, 0xFF0000, 1); // Red border
+        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.endFill();
+        button.addChild(bg);
+
+        // Button text
+        const text = new PIXI.Text('D', {
+            fontFamily: 'Arial',
+            fontSize: 18,
+            fontWeight: 'bold',
+            fill: 0xFF0000, // Red text
+            align: 'center'
+        });
+        // Center the text in the button
+        text.anchor.set(0.5, 0.5);
+        text.position.set(20, 15);
+        button.addChild(text);
+
+        // Make button interactive
+        button.interactive = true;
+        button.buttonMode = true;
+        button.on('pointerdown', () => {
+            console.log('Debug button clicked');
+            this.showUIDebugInfo();
+        });
+
+        // Add to button container
+        this.buttonContainer.addChild(button);
+        this.debugButton = button;
+    }
+
+    /**
+     * Shows debug information about UI elements
+     */
+    showUIDebugInfo() {
+        console.log('UI Debug Info:');
+        console.log('- Container:', this.container);
+        console.log('- Panels:', this.panels);
+        console.log('- Buttons:');
+        console.log('  - Quality:', this.qualityButton);
+        console.log('  - Building:', this.buildingModeButton);
+        console.log('  - Log Level:', this.logLevelButton);
+        console.log('  - Style:', this.styleButton);
+        console.log('  - Debug:', this.debugButton);
+
+        // Show message with button positions
+        const buttonPositions = [
+            { name: 'Quality', x: this.qualityButton ? this.qualityButton.x : 'N/A', y: this.qualityButton ? this.qualityButton.y : 'N/A' },
+            { name: 'Building', x: this.buildingModeButton ? this.buildingModeButton.x : 'N/A', y: this.buildingModeButton ? this.buildingModeButton.y : 'N/A' },
+            { name: 'Log Level', x: this.logLevelButton ? this.logLevelButton.x : 'N/A', y: this.logLevelButton ? this.logLevelButton.y : 'N/A' },
+            { name: 'Style', x: this.styleButton ? this.styleButton.x : 'N/A', y: this.styleButton ? this.styleButton.y : 'N/A' },
+            { name: 'Debug', x: this.debugButton ? this.debugButton.x : 'N/A', y: this.debugButton ? this.debugButton.y : 'N/A' }
+        ];
+
+        const message = 'UI Buttons: ' + buttonPositions.map(b => `${b.name}(${b.x},${b.y})`).join(', ');
+        this.showMessage(message, 10000);
+
+        // Force all buttons to be visible
+        [this.qualityButton, this.buildingModeButton, this.logLevelButton, this.styleButton, this.debugButton].forEach(button => {
+            if (button) {
+                button.visible = true;
+                button.alpha = 1;
+            }
+        });
+    }
+
+    /**
+     * Updates the UI colors
+     * @param {Object} colors - New color definitions
+     */
+    updateColors(colors) {
+        this.colors = colors;
+
+        // Update UI elements with new colors
+        // This will be called when the style changes
+
+        // Update buttons
+        if (this.qualityButton) {
+            const bg = this.qualityButton.getChildAt(0);
+            bg.clear();
+            bg.beginFill(0x000000, 0.7);
+            bg.lineStyle(2, colors.primary, 1);
+            bg.drawRoundedRect(0, 0, 40, 30, 5);
+            bg.endFill();
+
+            const text = this.qualityButton.getChildAt(1);
+            text.style.fill = colors.primary;
+        }
+
+        if (this.buildingModeButton) {
+            const bg = this.buildingModeButton.getChildAt(0);
+            bg.clear();
+            bg.beginFill(0x000000, 0.7);
+            bg.lineStyle(2, colors.primary, 1);
+            bg.drawRoundedRect(0, 0, 40, 30, 5);
+            bg.endFill();
+
+            const text = this.buildingModeButton.getChildAt(1);
+            text.style.fill = colors.primary;
+        }
+
+        if (this.logLevelButton) {
+            const bg = this.logLevelButton.getChildAt(0);
+            bg.clear();
+            bg.beginFill(0x000000, 0.7);
+            bg.lineStyle(2, colors.primary, 1);
+            bg.drawRoundedRect(0, 0, 40, 30, 5);
+            bg.endFill();
+
+            const text = this.logLevelButton.getChildAt(1);
+            text.style.fill = colors.primary;
+        }
+
+        if (this.styleButton) {
+            const bg = this.styleButton.getChildAt(0);
+            bg.clear();
+            bg.beginFill(0x000000, 0.7);
+            bg.lineStyle(2, colors.primary, 1);
+            bg.drawRoundedRect(0, 0, 40, 30, 5);
+            bg.endFill();
+
+            const text = this.styleButton.getChildAt(1);
+            text.style.fill = colors.primary;
+        }
+
+        // Update building mode UI if it exists
+        if (this.buildingModeUI && typeof this.buildingModeUI.updateColors === 'function') {
+            this.buildingModeUI.updateColors(colors);
+        }
     }
 }
 

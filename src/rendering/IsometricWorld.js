@@ -470,6 +470,34 @@ export class IsometricWorld extends Container {
     }
 
     /**
+     * Updates all entities in the world to reflect style changes
+     * Forces entities to redraw themselves with the new style
+     */
+    updateAllEntities() {
+        // Update all entities in the world
+        this.entities.forEach(entity => {
+            // If the entity has a createSprite method, call it to redraw with new style
+            if (entity && typeof entity.createSprite === 'function') {
+                entity.createSprite();
+            }
+        });
+
+        // Update all structures in all tiles
+        for (let x = 0; x < this.config.gridWidth; x++) {
+            for (let y = 0; y < this.config.gridHeight; y++) {
+                const tile = this.getTile(x, y);
+                if (tile && tile.structure) {
+                    if (typeof tile.structure.createSprite === 'function') {
+                        tile.structure.createSprite();
+                    }
+                }
+            }
+        }
+
+        console.log('Updated all entities with new style');
+    }
+
+    /**
      * Converts screen coordinates to grid coordinates
      * @param {number} screenX - Screen X coordinate
      * @param {number} screenY - Screen Y coordinate

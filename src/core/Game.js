@@ -11,7 +11,7 @@ import { CombatManager } from './CombatManager.js';
 import { Enemy } from '../entities/Enemy.js';
 import { InputManager } from './InputManager.js';
 import { ChunkStorage } from './ChunkStorage.js';
-import { SynthwaveEffect } from '../rendering/SynthwaveEffect.js';
+import { StyleManager } from '../rendering/StyleManager.js';
 import { AssetManager } from '../assets/AssetManager.js';
 import { BuildingModeManager } from './BuildingModeManager.js';
 import { MovementManager } from './MovementManager.js';
@@ -149,6 +149,10 @@ export class Game {
 
         // Set zIndex for the uiContainer to ensure it is above the world
         this.uiContainer.zIndex = 1000;
+        this.uiContainer.sortableChildren = true;
+        this.uiContainer.visible = true;
+
+        console.log('UI Container created:', this.uiContainer);
 
         // Create player character
         this.player = null;
@@ -156,21 +160,21 @@ export class Game {
         // Create day/night overlay
         this.dayNightCycle.createOverlay(this.app.stage, this.options.width, this.options.height);
 
-        // Create synthwave effect
-        this.synthwaveEffect = new SynthwaveEffect({
-            app: this.app,
-            width: this.options.width,
-            height: this.options.height,
-            enabled: true,
-            quality: this.options.quality, // Pass quality setting
-            showGrid: false, // Disable grid background to make tiles more visible
-            showScanLines: true, // Keep the scan lines
-            showVignette: true // Keep the vignette effect
-        });
+        // Define style change handler first
+        this.onStyleChange = (styleId, style) => {
+            console.log(`Style changed to: ${style.name} (ID: ${styleId})`);
 
-        // Add synthwave effect to stage (behind UI but above world)
-        this.app.stage.addChild(this.synthwaveEffect.container);
-        this.synthwaveEffect.container.zIndex = 500;
+            // Update all entities that need to be redrawn
+            if (this.world) {
+                this.world.updateAllEntities();
+            }
+        };
+
+        // Create style manager after defining the handler
+        this.styleManager = new StyleManager({
+            game: this,
+            defaultStyle: this.options.defaultStyle || 'cyberpunk'
+        });
 
         // Create UI manager (after synthwaveEffect is created)
         this.ui = new UI({
@@ -1440,9 +1444,9 @@ export class Game {
             this.dayNightCycle.resizeOverlay(width, height);
         }
 
-        // Resize synthwave effect
-        if (this.synthwaveEffect) {
-            this.synthwaveEffect.resize(width, height);
+        // Resize style manager effects
+        if (this.styleManager) {
+            this.styleManager.resize(width, height);
         }
 
         // Resize UI - check if UI exists first

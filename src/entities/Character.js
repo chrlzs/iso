@@ -118,32 +118,43 @@ export class Character extends Entity {
             const isEnemy = options.tags && options.tags.includes('enemy');
             const isNPC = options.type === 'npc' || (!isPlayer && !isEnemy);
 
-            // Synthwave color palette - distinct colors for each character type
-            const colors = {
-                player: {
-                    main: 0x00FFFF,      // Cyan for player
-                    accent: 0xFF00FF,     // Magenta accent
-                    glow: 0x00FFFF,       // Cyan glow
-                    detail: 0xFFFF00      // Yellow details
-                },
-                enemy: {
-                    main: 0xFF355E,      // Hot pink for enemies
-                    accent: 0xFF0000,     // Red accent
-                    glow: 0xFF355E,       // Hot pink glow
-                    detail: 0xFFFF00      // Yellow details
-                },
-                npc: {
-                    main: 0x00FF00,      // Green for NPCs
-                    accent: 0xFFFF00,     // Yellow accent
-                    glow: 0x00FF00,       // Green glow
-                    detail: 0x00FFFF      // Cyan details
-                }
-            };
+            // Get character colors from the style manager if available
+            let colorScheme;
+            const characterType = isPlayer ? 'player' : (isEnemy ? 'enemy' : 'npc');
 
-            // Select color scheme based on character type
-            const colorScheme = isPlayer ? colors.player :
-                               (isEnemy ? colors.enemy :
-                               (isNPC ? colors.npc : colors.npc));
+            // Check if world and game references are available
+            if (this.world && this.world.game && this.world.game.styleManager) {
+                // Get colors from the style manager
+                colorScheme = this.world.game.styleManager.getCharacterColors(characterType);
+            } else if (this.game && this.game.styleManager) {
+                // Get colors from the style manager
+                colorScheme = this.game.styleManager.getCharacterColors(characterType);
+            } else {
+                // Fallback to default colors if style manager is not available
+                const defaultColors = {
+                    player: {
+                        main: 0x00FFFF,      // Cyan for player
+                        accent: 0xFF00FF,     // Magenta accent
+                        glow: 0x00FFFF,       // Cyan glow
+                        detail: 0xFFFF00      // Yellow details
+                    },
+                    enemy: {
+                        main: 0xFF355E,      // Hot pink for enemies
+                        accent: 0xFF0000,     // Red accent
+                        glow: 0xFF355E,       // Hot pink glow
+                        detail: 0xFFFF00      // Yellow details
+                    },
+                    npc: {
+                        main: 0x00FF00,      // Green for NPCs
+                        accent: 0xFFFF00,     // Yellow accent
+                        glow: 0x00FF00,       // Green glow
+                        detail: 0x00FFFF      // Cyan details
+                    }
+                };
+
+                colorScheme = defaultColors[characterType];
+                console.warn(`No style manager available for character type ${characterType}, using default colors`);
+            }
 
             // Override with custom color if provided
             if (options.color) {
