@@ -52,6 +52,115 @@ export class AssetManager {
     }
 
     /**
+     * Regenerates all placeholder textures with the current style
+     * Call this when the style changes to update all assets
+     */
+    regeneratePlaceholderTextures() {
+        console.log(`Regenerating all placeholder textures with style: ${this.getStyleName()}`);
+
+        // Clear existing placeholder textures
+        this.placeholderTextures.forEach((texture, id) => {
+            if (texture && !texture.destroyed) {
+                texture.destroy(true);
+            }
+        });
+        this.placeholderTextures.clear();
+
+        // Generate new placeholder textures with current style
+        ASSETS.forEach(asset => {
+            if (!this.textures.has(asset.id)) {
+                const texture = this.createPlaceholderTexture(asset);
+                this.placeholderTextures.set(asset.id, texture);
+            }
+        });
+
+        console.log(`Regenerated ${this.placeholderTextures.size} placeholder textures`);
+    }
+
+    /**
+     * Gets the current style name
+     * @returns {string} The current style name
+     */
+    getStyleName() {
+        if (this.game && this.game.styleManager) {
+            return this.game.styleManager.currentStyle;
+        }
+        return 'cyberpunk'; // Default style
+    }
+
+    /**
+     * Gets colors for an asset based on the current style
+     * @param {Object} asset - The asset definition
+     * @returns {Object} The colors to use for the asset
+     */
+    getAssetColors(asset) {
+        // Get the current style
+        const styleName = this.getStyleName();
+        console.log(`Getting asset colors for ${asset.id} with style: ${styleName}`);
+
+        // Get the style manager
+        const styleManager = this.game ? this.game.styleManager : null;
+
+        if (!styleManager) {
+            console.warn('No style manager available, using default colors');
+            return this.getDefaultColors(asset);
+        }
+
+        // Get colors based on asset category
+        switch (asset.category) {
+            case 'buildings':
+                return styleManager.getStructureColors(asset.id);
+            case 'environment':
+                return styleManager.getStructureColors(asset.id);
+            case 'infrastructure':
+                return styleManager.getStructureColors(asset.id);
+            case 'props':
+                return styleManager.getStructureColors(asset.id);
+            case 'characters':
+                const characterType = asset.id.includes('player') ? 'player' :
+                                     (asset.id.includes('enemy') ? 'enemy' : 'npc');
+                return styleManager.getCharacterColors(characterType);
+            default:
+                return styleManager.getStructureColors('generic');
+        }
+    }
+
+    /**
+     * Gets default colors for an asset when style manager is not available
+     * @param {Object} asset - The asset definition
+     * @returns {Object} The default colors
+     */
+    getDefaultColors(asset) {
+        // Default colors based on category
+        switch (asset.category) {
+            case 'terrain':
+                return { main: 0x00AA00, accent: 0x00FF00, dark: 0x008800 };
+            case 'environment':
+                if (asset.id.includes('tree')) {
+                    return { main: 0x228B22, accent: 0x00FF00, dark: 0x006400 };
+                } else if (asset.id.includes('rock')) {
+                    return { main: 0x808080, accent: 0xA9A9A9, dark: 0x696969 };
+                } else {
+                    return { main: 0x00AA00, accent: 0x00FF00, dark: 0x008800 };
+                }
+            case 'buildings':
+                return { main: 0x1E90FF, accent: 0x00FFFF, dark: 0x0000CD };
+            case 'characters':
+                if (asset.id.includes('player')) {
+                    return { main: 0x00FFFF, accent: 0xFF00FF, dark: 0x008B8B };
+                } else if (asset.id.includes('enemy')) {
+                    return { main: 0xFF355E, accent: 0xFF0000, dark: 0x8B0000 };
+                } else {
+                    return { main: 0x00FF00, accent: 0xFFFF00, dark: 0x008000 };
+                }
+            case 'props':
+                return { main: 0xAA00AA, accent: 0xFF00FF, dark: 0x800080 };
+            default:
+                return { main: 0xFFAA00, accent: 0xFFFF00, dark: 0xCD8500 };
+        }
+    }
+
+    /**
      * Creates a placeholder texture for an asset
      * @param {Object} asset - Asset definition
      * @returns {PIXI.Texture} The created texture
@@ -71,8 +180,14 @@ export class AssetManager {
             return this.createTerrainTexture(asset, tileWidth, tileHeight);
         }
 
-        // Choose color based on category
-        let color, accentColor;
+        // Get colors based on the current style
+        const styleColors = this.getAssetColors(asset);
+
+        // Use style colors or fall back to category-based colors
+        let color = styleColors.main;
+        let accentColor = styleColors.accent;
+
+        // For backward compatibility, also set colors based on category
         switch (asset.category) {
             case 'terrain':
                 color = 0x00AA00;      // Green (default terrain)

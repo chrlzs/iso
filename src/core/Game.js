@@ -164,9 +164,34 @@ export class Game {
         this.onStyleChange = (styleId, style) => {
             console.log(`Style changed to: ${style.name} (ID: ${styleId})`);
 
-            // Update all entities that need to be redrawn
-            if (this.world) {
-                this.world.updateAllEntities();
+            try {
+                // Regenerate all placeholder textures with the new style
+                if (this.assetManager) {
+                    console.log('Regenerating placeholder textures with new style');
+                    this.assetManager.regeneratePlaceholderTextures();
+                }
+
+                // Update all entities that need to be redrawn
+                if (this.world) {
+                    // Make sure we have a valid world before updating entities
+                    console.log('Updating entities in the world with new style');
+                    this.world.updateAllEntities();
+                } else {
+                    console.warn('No world available to update entities');
+                }
+
+                // Update UI colors if needed
+                if (this.ui) {
+                    console.log('Updating UI colors with new style');
+                    this.ui.updateColors(style.colors);
+                }
+
+                // Show a message to the user
+                if (this.ui) {
+                    this.ui.showMessage(`Style changed to: ${style.name}`, 3000);
+                }
+            } catch (error) {
+                console.error('Error in onStyleChange:', error);
             }
         };
 

@@ -474,27 +474,60 @@ export class IsometricWorld extends Container {
      * Forces entities to redraw themselves with the new style
      */
     updateAllEntities() {
-        // Update all entities in the world
-        this.entities.forEach(entity => {
-            // If the entity has a createSprite method, call it to redraw with new style
-            if (entity && typeof entity.createSprite === 'function') {
-                entity.createSprite();
-            }
-        });
+        console.log('Updating all entities with new style');
 
-        // Update all structures in all tiles
-        for (let x = 0; x < this.config.gridWidth; x++) {
-            for (let y = 0; y < this.config.gridHeight; y++) {
-                const tile = this.getTile(x, y);
-                if (tile && tile.structure) {
-                    if (typeof tile.structure.createSprite === 'function') {
-                        tile.structure.createSprite();
+        try {
+            // Update all entities in the world
+            this.entities.forEach(entity => {
+                try {
+                    // If the entity has a createSprite method, call it to redraw with new style
+                    // Make sure to preserve the entity's current options
+                    if (entity && typeof entity.createSprite === 'function') {
+                        // Get current entity properties to pass to createSprite
+                        const options = {
+                            isPlayer: entity.isPlayer,
+                            type: entity.type,
+                            tags: entity.tags,
+                            name: entity.name,
+                            color: entity.color,
+                            // Add any other properties that might be needed
+                        };
+
+                        console.log(`Recreating sprite for entity: ${entity.name || 'unnamed'}`);
+                        entity.createSprite(options);
+                    }
+                } catch (error) {
+                    console.error('Error updating entity sprite:', error);
+                }
+            });
+
+            // Update all structures in all tiles
+            for (let x = 0; x < this.config.gridWidth; x++) {
+                for (let y = 0; y < this.config.gridHeight; y++) {
+                    const tile = this.getTile(x, y);
+                    if (tile && tile.structure) {
+                        try {
+                            if (typeof tile.structure.createSprite === 'function') {
+                                // Get current structure properties
+                                const options = {
+                                    type: tile.structure.type,
+                                    color: tile.structure.color,
+                                    // Add any other properties that might be needed
+                                };
+
+                                tile.structure.createSprite(options);
+                            }
+                        } catch (error) {
+                            console.error('Error updating structure sprite:', error);
+                        }
                     }
                 }
             }
-        }
 
-        console.log('Updated all entities with new style');
+            console.log('Successfully updated all entities with new style');
+        } catch (error) {
+            console.error('Error in updateAllEntities:', error);
+        }
     }
 
     /**

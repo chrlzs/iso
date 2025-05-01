@@ -45,29 +45,64 @@ export class Structure extends Entity {
     }
 
     /**
+     * Gets the current style name
+     * @returns {string} The current style name
+     */
+    getStyleName() {
+        if (this.world && this.world.game && this.world.game.styleManager) {
+            return this.world.game.styleManager.currentStyle;
+        } else if (this.game && this.game.styleManager) {
+            return this.game.styleManager.currentStyle;
+        }
+        return 'unknown';
+    }
+
+    /**
      * Creates the structure sprite
-     * @param {Object} options - Sprite options (unused in this implementation)
+     * @param {Object} options - Sprite options
      * @private
      */
-    createSprite() {
+    createSprite(options = {}) {
+        // Use options if provided
+        const type = options.type || this.structureType;
+
+        // Remove any existing sprite
+        if (this.sprite) {
+            this.removeChild(this.sprite);
+            this.sprite = null;
+        }
+
+        // Remove any existing children
+        while (this.children.length > 0) {
+            this.removeChildAt(0);
+        }
+
         // Create a new graphics object
         const graphics = new PIXI.Graphics();
 
         // Debug logging
-        console.log(`Creating sprite for structure type: ${this.structureType}, rotation: ${this.rotation}°`);
+        console.log(`Creating sprite for structure type: ${type}, rotation: ${this.rotation}°, style: ${this.getStyleName()}`);
 
-        // Get colors for structure type from the style manager if available
+        // Get colors for structure type from options, style manager, or defaults
         let structureColors;
 
+        // First, check if styleColors were provided directly in options
+        if (options.styleColors) {
+            structureColors = options.styleColors;
+            console.log(`Using provided style colors for structure: ${this.structureType}`);
+        }
         // Check if world and game references are available
-        if (this.world && this.world.game && this.world.game.styleManager) {
+        else if (this.world && this.world.game && this.world.game.styleManager) {
             // Get colors from the style manager
             structureColors = this.world.game.styleManager.getStructureColors(this.structureType);
+            console.log(`Got structure colors from world.game.styleManager for style: ${this.world.game.styleManager.currentStyle}`);
         } else if (this.game && this.game.styleManager) {
             // Get colors from the style manager
             structureColors = this.game.styleManager.getStructureColors(this.structureType);
+            console.log(`Got structure colors from game.styleManager for style: ${this.game.styleManager.currentStyle}`);
         } else {
             // Fallback to default colors if style manager is not available
+            console.log('No style manager available, using default colors');
             structureColors = {
                 main: 0xFF00FF,    // Magenta
                 accent: 0x00FFFF,   // Cyan

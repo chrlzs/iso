@@ -206,14 +206,21 @@ export class UI {
      * @param {string} panelName - Name of the panel to toggle
      */
     togglePanel(panelName) {
+        console.log(`Toggling panel: ${panelName}`);
+        console.log(`Available panels:`, Object.keys(this.panels));
+
         const panel = this.panels[panelName];
         if (panel) {
+            console.log(`Panel ${panelName} found, current visibility:`, panel.visible);
             panel.visible = !panel.visible;
+            console.log(`Panel ${panelName} visibility set to:`, panel.visible);
 
             // Update panel if it's the inventory
             if (panelName === 'inventory' && panel.visible && this.game.player) {
                 this.updateInventoryPanel(this.game.player.inventory);
             }
+        } else {
+            console.warn(`Panel ${panelName} not found in panels collection`);
         }
     }
 
@@ -1049,12 +1056,19 @@ export class UI {
         const button = new PIXI.Container();
         button.position.set(160, 0); // Position 50px from log level button
 
-        // Button background with more distinctive color
+        // Button background with more distinctive color and glow effect
         const bg = new PIXI.Graphics();
-        bg.beginFill(0x000000, 0.8); // Darker background
+        bg.beginFill(0x000000, 0.9); // Even darker background for better contrast
         bg.lineStyle(3, 0xFF00FF, 1); // Magenta border, thicker
         bg.drawRoundedRect(0, 0, 40, 30, 5);
         bg.endFill();
+
+        // Add a glow effect to make the button more noticeable
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0xFF00FF, 0.2);
+        glow.drawRoundedRect(-3, -3, 46, 36, 8);
+        glow.endFill();
+        button.addChild(glow);
         button.addChild(bg);
 
         // Button text
@@ -1075,7 +1089,11 @@ export class UI {
         button.buttonMode = true;
         button.on('pointerdown', () => {
             console.log('Style button clicked');
+            console.log('Style panel before toggle:', this.panels.style);
+            console.log('Style panel visibility before toggle:', this.panels.style ? this.panels.style.visible : 'N/A');
             this.togglePanel('style');
+            console.log('Style panel after toggle:', this.panels.style);
+            console.log('Style panel visibility after toggle:', this.panels.style ? this.panels.style.visible : 'N/A');
         });
 
         // Add to button container
@@ -1093,17 +1111,37 @@ export class UI {
      * Creates the style toggle panel
      */
     createStyleTogglePanel() {
+        console.log('Creating style toggle panel');
+
         // Create panel container
         const panel = new PIXI.Container();
         panel.visible = false; // Hidden by default
+        console.log('Style panel container created:', panel);
 
         // Create style toggle component
+        console.log('Creating StyleToggle component with game:', this.game);
         const styleToggle = new StyleToggle({
             game: this.game,
             x: 0,
             y: 0
         });
+
+        // Make sure the StyleToggle has access to the styleManager
+        if (!styleToggle.styleManager && this.game && this.game.styleManager) {
+            console.log('Setting styleManager on StyleToggle component');
+            styleToggle.styleManager = this.game.styleManager;
+        }
+
+        // Override the toggle method to work with the panel
+        styleToggle.originalToggle = styleToggle.toggle;
+        styleToggle.toggle = () => {
+            console.log('StyleToggle custom toggle called');
+            this.togglePanel('style');
+        };
+        console.log('StyleToggle component created:', styleToggle);
+
         panel.addChild(styleToggle);
+        console.log('StyleToggle component added to panel');
 
         // Position panel in the center of the screen
         panel.position.set(
@@ -1113,10 +1151,16 @@ export class UI {
 
         // Add to panels container
         this.panelsContainer.addChild(panel);
+        console.log('Style panel added to panels container');
 
         // Store reference
         this.panels.style = panel;
         this.styleToggle = styleToggle;
+
+        // Make sure the panel is interactive
+        panel.interactive = true;
+        panel.eventMode = 'static';
+        console.log('Style panel set to interactive');
 
         // Show a message about the current style
         if (this.game && this.game.styleManager) {
@@ -1214,51 +1258,134 @@ export class UI {
 
         // Update buttons
         if (this.qualityButton) {
-            const bg = this.qualityButton.getChildAt(0);
-            bg.clear();
-            bg.beginFill(0x000000, 0.7);
-            bg.lineStyle(2, colors.primary, 1);
-            bg.drawRoundedRect(0, 0, 40, 30, 5);
-            bg.endFill();
+            try {
+                // Check if the button has at least one child (the background)
+                if (this.qualityButton.children && this.qualityButton.children.length > 0) {
+                    const bg = this.qualityButton.getChildAt(0);
+                    if (bg && bg.clear) {
+                        bg.clear();
+                        bg.beginFill(0x000000, 0.7);
+                        bg.lineStyle(2, colors.primary, 1);
+                        bg.drawRoundedRect(0, 0, 40, 30, 5);
+                        bg.endFill();
+                    }
 
-            const text = this.qualityButton.getChildAt(1);
-            text.style.fill = colors.primary;
+                    // Check if the button has at least two children (the text)
+                    if (this.qualityButton.children.length > 1) {
+                        const text = this.qualityButton.getChildAt(1);
+                        if (text && text.style) {
+                            text.style.fill = colors.primary;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating quality button colors:', error);
+            }
         }
 
         if (this.buildingModeButton) {
-            const bg = this.buildingModeButton.getChildAt(0);
-            bg.clear();
-            bg.beginFill(0x000000, 0.7);
-            bg.lineStyle(2, colors.primary, 1);
-            bg.drawRoundedRect(0, 0, 40, 30, 5);
-            bg.endFill();
+            try {
+                // Check if the button has at least one child (the background)
+                if (this.buildingModeButton.children && this.buildingModeButton.children.length > 0) {
+                    const bg = this.buildingModeButton.getChildAt(0);
+                    if (bg && bg.clear) {
+                        bg.clear();
+                        bg.beginFill(0x000000, 0.7);
+                        bg.lineStyle(2, colors.primary, 1);
+                        bg.drawRoundedRect(0, 0, 40, 30, 5);
+                        bg.endFill();
+                    }
 
-            const text = this.buildingModeButton.getChildAt(1);
-            text.style.fill = colors.primary;
+                    // Check if the button has at least two children (the text)
+                    if (this.buildingModeButton.children.length > 1) {
+                        const text = this.buildingModeButton.getChildAt(1);
+                        if (text && text.style) {
+                            text.style.fill = colors.primary;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating building mode button colors:', error);
+            }
         }
 
         if (this.logLevelButton) {
-            const bg = this.logLevelButton.getChildAt(0);
-            bg.clear();
-            bg.beginFill(0x000000, 0.7);
-            bg.lineStyle(2, colors.primary, 1);
-            bg.drawRoundedRect(0, 0, 40, 30, 5);
-            bg.endFill();
+            try {
+                // Check if the button has at least one child (the background)
+                if (this.logLevelButton.children && this.logLevelButton.children.length > 0) {
+                    const bg = this.logLevelButton.getChildAt(0);
+                    if (bg && bg.clear) {
+                        bg.clear();
+                        bg.beginFill(0x000000, 0.7);
+                        bg.lineStyle(2, colors.primary, 1);
+                        bg.drawRoundedRect(0, 0, 40, 30, 5);
+                        bg.endFill();
+                    }
 
-            const text = this.logLevelButton.getChildAt(1);
-            text.style.fill = colors.primary;
+                    // Check if the button has at least two children (the text)
+                    if (this.logLevelButton.children.length > 1) {
+                        const text = this.logLevelButton.getChildAt(1);
+                        if (text && text.style) {
+                            text.style.fill = colors.primary;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating log level button colors:', error);
+            }
         }
 
         if (this.styleButton) {
-            const bg = this.styleButton.getChildAt(0);
-            bg.clear();
-            bg.beginFill(0x000000, 0.7);
-            bg.lineStyle(2, colors.primary, 1);
-            bg.drawRoundedRect(0, 0, 40, 30, 5);
-            bg.endFill();
+            console.log('Updating style button colors');
+            try {
+                // Check if the button has at least one child (the background)
+                if (this.styleButton.children && this.styleButton.children.length > 0) {
+                    // The style button has a glow effect as the first child and the background as the second child
+                    // Find the background graphics object
+                    let bg = null;
+                    for (let i = 0; i < this.styleButton.children.length; i++) {
+                        const child = this.styleButton.getChildAt(i);
+                        if (child && child.clear) {
+                            bg = child;
+                            break;
+                        }
+                    }
 
-            const text = this.styleButton.getChildAt(1);
-            text.style.fill = colors.primary;
+                    if (bg && bg.clear) {
+                        console.log('Found style button background');
+                        bg.clear();
+                        bg.beginFill(0x000000, 0.7);
+                        bg.lineStyle(2, colors.primary, 1);
+                        bg.drawRoundedRect(0, 0, 40, 30, 5);
+                        bg.endFill();
+                    } else {
+                        console.warn('Style button background not found');
+                    }
+
+                    // Find the text object
+                    let text = null;
+                    for (let i = 0; i < this.styleButton.children.length; i++) {
+                        const child = this.styleButton.getChildAt(i);
+                        if (child && child.style) {
+                            text = child;
+                            break;
+                        }
+                    }
+
+                    if (text && text.style) {
+                        console.log('Found style button text');
+                        text.style.fill = colors.primary;
+                    } else {
+                        console.warn('Style button text not found');
+                    }
+                } else {
+                    console.warn('Style button has no children');
+                }
+            } catch (error) {
+                console.error('Error updating style button colors:', error);
+            }
+        } else {
+            console.warn('Style button not found when updating colors');
         }
 
         // Update building mode UI if it exists

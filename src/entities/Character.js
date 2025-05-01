@@ -104,11 +104,46 @@ export class Character extends Entity {
     }
 
     /**
+     * Gets the current style name
+     * @returns {string} The current style name
+     */
+    getStyleName() {
+        if (this.world && this.world.game && this.world.game.styleManager) {
+            return this.world.game.styleManager.currentStyle;
+        } else if (this.game && this.game.styleManager) {
+            return this.game.styleManager.currentStyle;
+        }
+        return 'unknown';
+    }
+
+    /**
      * Creates the character sprite
      * @param {Object} options - Sprite options
      * @private
      */
-    createSprite(options) {
+    createSprite(options = {}) {
+        // Ensure options is an object to prevent errors
+        if (!options) {
+            options = {};
+            console.warn('Character.createSprite called with undefined options, using defaults');
+        }
+
+        // Remove any existing sprite
+        if (this.sprite) {
+            this.removeChild(this.sprite);
+            this.sprite = null;
+        }
+
+        // Remove any existing children except for the health bar
+        for (let i = this.children.length - 1; i >= 0; i--) {
+            const child = this.children[i];
+            if (child !== this.healthBar && child !== this.healthBarBackground) {
+                this.removeChild(child);
+            }
+        }
+
+        console.log(`Creating sprite for character: ${this.name || 'unnamed'}, style: ${this.getStyleName()}`);
+
         // Create a placeholder sprite if no texture is provided
         if (!options.texture) {
             const graphics = new PIXI.Graphics();
@@ -443,24 +478,69 @@ export class Character extends Entity {
             this.sprite = graphics;
 
             // Add animation update for pulsing effects
-            this.game?.app?.ticker.add(() => {
-                // Only recreate the sprite if it's been destroyed
-                if (!this.sprite || this.sprite.destroyed) {
-                    this.createSprite(options);
-                }
-            });
+            if (this.game?.app?.ticker) {
+                // Store the ticker callback so we can remove it later if needed
+                this.tickerCallback = () => {
+                    try {
+                        // Only recreate the sprite if it's been destroyed
+                        if (!this.sprite || this.sprite.destroyed) {
+                            console.log('Recreating character sprite due to destroyed state');
+                            this.createSprite(options);
+                        }
+                    } catch (error) {
+                        console.error('Error in character ticker callback:', error);
+                    }
+                };
+
+                // Add the ticker callback
+                this.game.app.ticker.add(this.tickerCallback);
+
+                // Log that we've added the ticker callback
+                console.log('Added character ticker callback');
+            } else {
+                console.warn('Could not add ticker callback - game.app.ticker not available');
+            }
 
         } else {
-            // Create sprite from texture
-            this.sprite = new PIXI.Sprite(options.texture);
-            this.sprite.anchor.set(0.5, 1);
-            this.addChild(this.sprite);
+            try {
+                // Check if texture is valid
+                if (!options.texture || options.texture.destroyed) {
+                    console.warn('Invalid texture provided to Character.createSprite, falling back to graphics');
 
-            // Add neon outline to texture-based sprite
-            const outline = new PIXI.Graphics();
-            outline.lineStyle(2, options.isPlayer ? 0x00FFFF : 0xFF00FF, 0.8);
-            outline.drawRect(-this.sprite.width/2, -this.sprite.height, this.sprite.width, this.sprite.height);
-            this.addChild(outline);
+                    // Create a simple placeholder graphic instead
+                    const graphics = new PIXI.Graphics();
+                    graphics.beginFill(0xFF00FF, 0.7);
+                    graphics.drawCircle(0, -24, 20);
+                    graphics.endFill();
+
+                    // Add to container
+                    this.addChild(graphics);
+                    this.sprite = graphics;
+                } else {
+                    // Create sprite from texture
+                    this.sprite = new PIXI.Sprite(options.texture);
+                    this.sprite.anchor.set(0.5, 1);
+                    this.addChild(this.sprite);
+
+                    // Add neon outline to texture-based sprite
+                    const outline = new PIXI.Graphics();
+                    outline.lineStyle(2, options.isPlayer ? 0x00FFFF : 0xFF00FF, 0.8);
+                    outline.drawRect(-this.sprite.width/2, -this.sprite.height, this.sprite.width, this.sprite.height);
+                    this.addChild(outline);
+                }
+            } catch (error) {
+                console.error('Error creating sprite from texture:', error);
+
+                // Create a fallback graphic
+                const fallbackGraphic = new PIXI.Graphics();
+                fallbackGraphic.beginFill(0xFF0000, 0.7);
+                fallbackGraphic.drawCircle(0, -24, 20);
+                fallbackGraphic.endFill();
+
+                // Add to container
+                this.addChild(fallbackGraphic);
+                this.sprite = fallbackGraphic;
+            }
         }
 
         // Ensure sprite is visible
@@ -1157,6 +1237,19 @@ export class Character extends Entity {
         if (this.healthBarTimeout) {
             clearTimeout(this.healthBarTimeout);
             this.healthBarTimeout = null;
+        }
+
+        // Remove ticker callback if it exists
+        if (this.tickerCallback && this.game?.app?.ticker) {
+            console.log('Removing character ticker callback');
+            this.game.app.ticker.remove(this.tickerCallback);
+            this.tickerCallback = null;
+        }
+
+        // Clean up sprite references
+        if (this.sprite) {
+            console.log('Cleaning up character sprite');
+            this.sprite = null;
         }
 
         super.dispose();

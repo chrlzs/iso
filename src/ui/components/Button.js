@@ -110,7 +110,13 @@ export class Button extends UIComponent {
         this.on('pointerout', this.onPointerOut.bind(this));
         this.on('pointertap', this.onPointerTap.bind(this));
         this.on('pointerdown', this.onPointerDown.bind(this));
-        this.on('click', this.onClick.bind(this));
+        this.on('pointerup', this.onPointerTap.bind(this));
+        this.on('click', (e) => {
+            console.log('Button click event triggered:', this.text.text);
+            if (this.onClick) {
+                this.onClick();
+            }
+        });
         this.on('mousedown', this.onPointerDown.bind(this));
         this.on('mouseup', this.onPointerTap.bind(this));
     }
@@ -169,6 +175,8 @@ export class Button extends UIComponent {
      */
     onPointerTap(e) {
         if (this.enabled) {
+            console.log('Button clicked:', this.text.text);
+
             this.background.clear();
             this.background.lineStyle(1, this.style.borderColor, 1);
             this.background.beginFill(this.style.hoverFill);
@@ -177,11 +185,16 @@ export class Button extends UIComponent {
 
             // Execute callback
             if (this.onClick) {
+                console.log('Executing onClick callback for button:', this.text.text);
                 this.onClick();
+            } else {
+                console.warn('No onClick callback defined for button:', this.text.text);
             }
 
             // Stop propagation
             e.stopPropagation();
+        } else {
+            console.log('Button is disabled, ignoring click:', this.text.text);
         }
     }
 

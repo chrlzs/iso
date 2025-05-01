@@ -604,6 +604,17 @@ export class BuildingModeManager {
     }
 
     /**
+     * Gets the current style name
+     * @returns {string} The current style name
+     */
+    getStyleName() {
+        if (this.game && this.game.styleManager) {
+            return this.game.styleManager.currentStyle;
+        }
+        return 'cyberpunk'; // Default style
+    }
+
+    /**
      * Creates a structure entity from an asset
      * @param {Object} asset - Asset definition
      * @param {number} gridX - Grid X coordinate
@@ -612,7 +623,13 @@ export class BuildingModeManager {
      */
     createStructure(asset, gridX, gridY) {
         // Debug logging
-        console.log(`Creating structure with type: ${asset.id}, category: ${asset.category}`);
+        console.log(`Creating structure with type: ${asset.id}, category: ${asset.category}, style: ${this.getStyleName()}`);
+
+        // Get style colors for the structure
+        let structureColors = null;
+        if (this.game && this.game.styleManager) {
+            structureColors = this.game.styleManager.getStructureColors(asset.id);
+        }
 
         // Create structure without texture to use our custom graphics
         const structure = new Structure({
@@ -625,7 +642,9 @@ export class BuildingModeManager {
             interactive: asset.interactive,
             width: asset.width,
             height: asset.height,
-            rotation: this.currentRotation // Pass the current rotation
+            rotation: this.currentRotation, // Pass the current rotation
+            game: this.game, // Pass game reference to access style manager
+            styleColors: structureColors // Pass style colors directly
         });
 
         // Debug logging
