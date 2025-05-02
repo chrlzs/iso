@@ -560,20 +560,23 @@ document.addEventListener('DOMContentLoaded', () => {
     chunkDebugButton.title = 'Toggle Chunk Debug';
     chunkDebugButton.style.position = 'fixed';
     chunkDebugButton.style.bottom = '20px';
-    chunkDebugButton.style.left = '410px'; // Position 50px from debug button
+    chunkDebugButton.style.left = '160px'; // Position after other buttons
     chunkDebugButton.style.zIndex = '1001';
     chunkDebugButton.style.width = '40px';
-    chunkDebugButton.style.height = '30px';
+    chunkDebugButton.style.height = '40px';
     chunkDebugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     chunkDebugButton.style.color = '#00FFFF';
     chunkDebugButton.style.border = '2px solid #00FFFF';
-    chunkDebugButton.style.borderRadius = '5px';
+    chunkDebugButton.style.borderRadius = '8px';
     chunkDebugButton.style.cursor = 'pointer';
     chunkDebugButton.style.fontSize = '16px';
     chunkDebugButton.style.display = 'flex';
     chunkDebugButton.style.justifyContent = 'center';
     chunkDebugButton.style.alignItems = 'center';
+    chunkDebugButton.style.margin = '0 5px';
     chunkDebugButton.style.padding = '0';
+    chunkDebugButton.style.fontFamily = 'Arial, sans-serif';
+    chunkDebugButton.style.transition = 'all 0.3s ease';
     document.body.appendChild(chunkDebugButton);
 
     // Toggle chunk debug panel
@@ -831,27 +834,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Create performance mode toggle button
+    // Create performance mode toggle button with consistent styling
     const perfModeButton = document.createElement('button');
     perfModeButton.textContent = 'PERF';
     perfModeButton.title = 'Toggle Low Performance Mode';
     perfModeButton.style.position = 'fixed';
     perfModeButton.style.bottom = '20px';
-    perfModeButton.style.left = '460px';
+    perfModeButton.style.left = '210px'; // Position after chunk debug button
     perfModeButton.style.zIndex = '1001';
-    perfModeButton.style.width = '50px';
-    perfModeButton.style.height = '30px';
+    perfModeButton.style.width = '60px'; // Slightly wider for text
+    perfModeButton.style.height = '40px';
     perfModeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     perfModeButton.style.color = '#00FFFF';
     perfModeButton.style.border = '2px solid #00FFFF';
-    perfModeButton.style.borderRadius = '5px';
+    perfModeButton.style.borderRadius = '8px';
     perfModeButton.style.cursor = 'pointer';
     perfModeButton.style.fontSize = '14px';
     perfModeButton.style.display = 'flex';
     perfModeButton.style.justifyContent = 'center';
     perfModeButton.style.alignItems = 'center';
+    perfModeButton.style.margin = '0 5px';
     perfModeButton.style.padding = '0';
     perfModeButton.style.fontFamily = 'Arial, sans-serif';
+    perfModeButton.style.transition = 'all 0.3s ease';
     document.body.appendChild(perfModeButton);
 
     // Add click handler for performance mode toggle
@@ -872,6 +877,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.world) {
             game.world.frameCount = 0;
         }
+    });
+
+    // Update FPS toggle button style to match
+    if (toggleFpsButton) {
+        toggleFpsButton.style.width = '40px';
+        toggleFpsButton.style.height = '40px';
+        toggleFpsButton.style.borderRadius = '8px';
+        toggleFpsButton.style.margin = '0 5px';
+        toggleFpsButton.style.transition = 'all 0.3s ease';
+    }
+
+    // Add hover effects
+    [chunkDebugButton, perfModeButton, toggleFpsButton].forEach(button => {
+        if (!button) return;
+        button.addEventListener('mouseover', () => {
+            button.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
+            button.style.transform = 'translateY(-2px)';
+            button.style.boxShadow = '0 4px 8px rgba(0, 255, 255, 0.3)';
+        });
+        button.addEventListener('mouseout', () => {
+            button.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            button.style.transform = 'translateY(0)';
+            button.style.boxShadow = 'none';
+        });
     });
 
     // Log success message
