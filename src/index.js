@@ -601,23 +601,25 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleButton.textContent = 'C';
         toggleButton.title = 'Toggle Tile Coordinates';
         toggleButton.style.position = 'fixed';
-        toggleButton.style.bottom = '10px';
+        toggleButton.style.bottom = '20px'; // Match other buttons
         toggleButton.style.left = '110px'; // Adjusted position - third button
         toggleButton.style.zIndex = '1001';
         toggleButton.style.width = '40px';
-        toggleButton.style.height = '30px';
+        toggleButton.style.height = '40px'; // Match other buttons
         toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
         toggleButton.style.color = '#00FFFF';
         toggleButton.style.border = '2px solid #00FFFF';
-        toggleButton.style.borderRadius = '5px';
+        toggleButton.style.borderRadius = '8px'; // Match other buttons
         toggleButton.style.cursor = 'pointer';
         toggleButton.style.fontSize = '16px';
         toggleButton.style.opacity = '1.0';
-        toggleButton.style.transition = 'opacity 0.3s';
+        toggleButton.style.transition = 'all 0.3s ease'; // Match other buttons
         toggleButton.style.display = 'flex';
         toggleButton.style.justifyContent = 'center';
         toggleButton.style.alignItems = 'center';
+        toggleButton.style.margin = '0 5px'; // Match other buttons
         toggleButton.style.padding = '0';
+        toggleButton.style.fontFamily = 'Arial, sans-serif'; // Match other buttons
         document.body.appendChild(toggleButton);
 
         // Create a mouse position tracker with cyberpunk styling
@@ -663,8 +665,27 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 coordContainer.style.display = 'none';
                 mouseTracker.style.display = 'none';
-                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
+                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // Black when inactive
             }
+        });
+
+        // Add hover effects to coordinate toggle button
+        toggleButton.addEventListener('mouseover', () => {
+            if (coordContainer.style.display === 'none') {
+                toggleButton.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
+            }
+            toggleButton.style.transform = 'translateY(-2px)';
+            toggleButton.style.boxShadow = '0 4px 8px rgba(0, 255, 255, 0.3)';
+        });
+
+        toggleButton.addEventListener('mouseout', () => {
+            if (coordContainer.style.display === 'none') {
+                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            } else {
+                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)';
+            }
+            toggleButton.style.transform = 'translateY(0)';
+            toggleButton.style.boxShadow = 'none';
         });
 
         // Function to update coordinate labels
@@ -849,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
     perfModeButton.style.border = '2px solid #00FFFF';
     perfModeButton.style.borderRadius = '8px';
     perfModeButton.style.cursor = 'pointer';
-    perfModeButton.style.fontSize = '14px';
+    perfModeButton.style.fontSize = '16px'; // Match font size with other buttons
     perfModeButton.style.display = 'flex';
     perfModeButton.style.justifyContent = 'center';
     perfModeButton.style.alignItems = 'center';
@@ -886,10 +907,24 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleFpsButton.style.borderRadius = '8px';
         toggleFpsButton.style.margin = '0 5px';
         toggleFpsButton.style.transition = 'all 0.3s ease';
+        toggleFpsButton.style.fontSize = '16px';
+        toggleFpsButton.style.fontFamily = 'Arial, sans-serif';
+        toggleFpsButton.style.display = 'flex';
+        toggleFpsButton.style.justifyContent = 'center';
+        toggleFpsButton.style.alignItems = 'center';
     }
 
-    // Add hover effects
-    [chunkDebugButton, perfModeButton, toggleFpsButton].forEach(button => {
+    // Add hover effects to all buttons
+    const worldManagementButton = document.getElementById('toggle-world-management');
+
+    // Create an array of all UI buttons
+    const allButtons = [chunkDebugButton, perfModeButton, toggleFpsButton, worldManagementButton];
+
+    // We don't need to add the coordinate toggle button here as it already has its own hover effects
+    // defined in the debug section where it's created
+
+    // Apply hover effects to all buttons
+    allButtons.forEach(button => {
         if (!button) return;
         button.addEventListener('mouseover', () => {
             button.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
