@@ -40,25 +40,41 @@ export class DebugOverlay {
         this.toggleButton.textContent = 'D';
         this.toggleButton.style.position = 'fixed';
         this.toggleButton.style.bottom = '20px';
-        this.toggleButton.style.left = '360px'; // Position 50px from FPS button
-        this.toggleButton.style.zIndex = '1000';
+        this.toggleButton.style.left = '420px'; // Position after FPS button
+        this.toggleButton.style.zIndex = '1001';
         this.toggleButton.style.width = '40px';
-        this.toggleButton.style.height = '30px';
-        this.toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        this.toggleButton.style.height = '40px';
+        this.toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
         this.toggleButton.style.color = '#00FFFF';
         this.toggleButton.style.border = '2px solid #00FFFF';
-        this.toggleButton.style.borderRadius = '5px';
+        this.toggleButton.style.borderRadius = '8px';
         this.toggleButton.style.cursor = 'pointer';
         this.toggleButton.style.fontSize = '16px';
         this.toggleButton.style.display = 'flex';
         this.toggleButton.style.justifyContent = 'center';
         this.toggleButton.style.alignItems = 'center';
+        this.toggleButton.style.margin = '0 5px';
         this.toggleButton.style.padding = '0';
+        this.toggleButton.style.fontFamily = 'Arial, sans-serif';
+        this.toggleButton.style.transition = 'all 0.3s ease';
         document.body.appendChild(this.toggleButton);
 
         // Add event listeners
         this.toggleButton.addEventListener('click', () => this.toggle());
         document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+
+        // Add hover effects
+        this.toggleButton.addEventListener('mouseover', () => {
+            this.toggleButton.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
+            this.toggleButton.style.transform = 'translateY(-2px)';
+            this.toggleButton.style.boxShadow = '0 4px 8px rgba(0, 255, 255, 0.3)';
+        });
+
+        this.toggleButton.addEventListener('mouseout', () => {
+            this.toggleButton.style.backgroundColor = this.enabled ? 'rgba(0, 128, 0, 0.7)' : 'rgba(0, 0, 0, 0.8)';
+            this.toggleButton.style.transform = 'translateY(0)';
+            this.toggleButton.style.boxShadow = 'none';
+        });
 
         // Initialize
         this.update();
@@ -95,7 +111,7 @@ export class DebugOverlay {
             this.container.style.display = 'none';
         }
 
-        this.toggleButton.style.backgroundColor = this.enabled ? 'rgba(0, 128, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+        this.toggleButton.style.backgroundColor = this.enabled ? 'rgba(0, 128, 0, 0.7)' : 'rgba(0, 0, 0, 0.8)';
         // Keep the same text
         this.toggleButton.textContent = 'D';
     }

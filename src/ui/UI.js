@@ -1058,15 +1058,15 @@ export class UI {
 
         // Button background with more distinctive color and glow effect
         const bg = new PIXI.Graphics();
-        bg.beginFill(0x000000, 0.9); // Even darker background for better contrast
-        bg.lineStyle(3, 0xFF00FF, 1); // Magenta border, thicker
-        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.beginFill(0x000000, 0.8); // Match other buttons
+        bg.lineStyle(2, 0xFF00FF, 1); // Keep magenta border but match thickness
+        bg.drawRoundedRect(0, 0, 40, 40, 8); // Match height and border radius
         bg.endFill();
 
-        // Add a glow effect to make the button more noticeable
+        // Add a subtle glow effect
         const glow = new PIXI.Graphics();
-        glow.beginFill(0xFF00FF, 0.2);
-        glow.drawRoundedRect(-3, -3, 46, 36, 8);
+        glow.beginFill(0xFF00FF, 0.1);
+        glow.drawRoundedRect(-2, -2, 44, 44, 10);
         glow.endFill();
         button.addChild(glow);
         button.addChild(bg);
@@ -1074,14 +1074,14 @@ export class UI {
         // Button text
         const text = new PIXI.Text('S', {
             fontFamily: 'Arial',
-            fontSize: 18, // Larger font
-            fontWeight: 'bold', // Bold text
-            fill: 0xFF00FF, // Magenta text
+            fontSize: 16, // Match other buttons
+            fontWeight: 'bold', // Keep bold text
+            fill: 0xFF00FF, // Keep magenta text
             align: 'center'
         });
         // Center the text in the button
         text.anchor.set(0.5, 0.5);
-        text.position.set(20, 15);
+        text.position.set(20, 20); // Center in the taller button
         button.addChild(text);
 
         // Make button interactive
@@ -1180,22 +1180,22 @@ export class UI {
         // Button background with distinctive color
         const bg = new PIXI.Graphics();
         bg.beginFill(0x000000, 0.8);
-        bg.lineStyle(3, 0xFF0000, 1); // Red border
-        bg.drawRoundedRect(0, 0, 40, 30, 5);
+        bg.lineStyle(2, 0xFF0000, 1); // Red border with matching thickness
+        bg.drawRoundedRect(0, 0, 40, 40, 8); // Match height and border radius
         bg.endFill();
         button.addChild(bg);
 
         // Button text
         const text = new PIXI.Text('D', {
             fontFamily: 'Arial',
-            fontSize: 18,
+            fontSize: 16, // Match other buttons
             fontWeight: 'bold',
-            fill: 0xFF0000, // Red text
+            fill: 0xFF0000, // Keep red text
             align: 'center'
         });
         // Center the text in the button
         text.anchor.set(0.5, 0.5);
-        text.position.set(20, 15);
+        text.position.set(20, 20); // Center in the taller button
         button.addChild(text);
 
         // Make button interactive
