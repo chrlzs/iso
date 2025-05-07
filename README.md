@@ -1,6 +1,6 @@
 # Isometric Game Engine
 
-A lightweight, performance-focused isometric game engine built with PixiJS.
+A isometric game engine built with PixiJS.
 
 ## Features
 
