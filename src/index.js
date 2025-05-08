@@ -3,6 +3,7 @@ import { testPixiRendering } from './test-pixi.js';
 import { FallbackRenderer } from './rendering/FallbackRenderer.js';
 import { isPixiAvailable } from './utils/PixiWrapper.js';
 import { DebugOverlay } from './utils/DebugOverlay.js';
+import { ButtonManager } from './ui/ButtonManager.js';
 
 /**
  * Sets up the chunk debug panel
@@ -406,222 +407,202 @@ function setupDirectFpsCounter(game) {
     }, 100);
 }
 
-// Initialize the game when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if PIXI is available
-    const pixiAvailable = isPixiAvailable();
-    console.log('PIXI available:', pixiAvailable);
-
-    if (!pixiAvailable) {
-        console.warn('PIXI.js is not available. Using fallback renderer.');
-
-        // Create fallback renderer
-        const fallbackRenderer = new FallbackRenderer({
-            container: document.getElementById('game-container'),
-            width: window.innerWidth,
-            height: window.innerHeight,
-            tileWidth: 64,
-            tileHeight: 32,
-            gridWidth: 20,
-            gridHeight: 20
-        });
-
-        // Set up keyboard input handling
-        const keys = new Set();
-
-        window.addEventListener('keydown', (e) => {
-            keys.add(e.key.toLowerCase());
-            fallbackRenderer.handleInput(keys);
-        });
-
-        window.addEventListener('keyup', (e) => {
-            keys.delete(e.key.toLowerCase());
-        });
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            fallbackRenderer.resize(window.innerWidth, window.innerHeight);
-        });
-
-        console.log('Fallback renderer initialized.');
-        return;
-    }
-
-    // Test PIXI rendering
-    const pixiTestSuccessful = testPixiRendering();
-
-    if (!pixiTestSuccessful) {
-        console.error('PIXI test failed. Not initializing game.');
-        document.getElementById('game-container').innerHTML = '<div style="color: white; padding: 20px;">PIXI.js initialization failed. Check console for errors.</div>';
-        return;
-    }
-
-    // Clear the test canvas
-    document.getElementById('game-container').innerHTML = '';
-    // Create game instance with chunk-based world and persistence
-    const game = new Game({
-        container: document.getElementById('game-container'),
-        width: window.innerWidth,
-        height: window.innerHeight,
-        debug: false,
-        worldWidth: 64, // Larger world size
-        worldHeight: 64, // Larger world size
-        chunkSize: 16, // Size of each chunk in tiles
-        loadDistance: 2, // Chunks to load in each direction
-        unloadDistance: 3, // Chunks to keep loaded
-        generateDistance: 1, // Chunks to pre-generate
-        worldId: 'main', // Unique ID for this world
-        persistChunks: true, // Enable chunk persistence
-        autoSave: true, // Enable auto-saving
-        autoSaveInterval: 60000, // Auto-save every minute
-        generateWorld: false, // Don't generate a random world
-        startWithBlankMap: true, // Start with a blank map for building
-        createPlayer: true,
-        dayDuration: 300, // 5 minutes per day
-        startTime: 8, // Start at 8 AM
-        tileWidth: 64,
-        tileHeight: 32,
-
-        // Custom tile click handler
-        onTileClick: (tile, game) => {
-            // If player exists, move to the clicked tile (but only if it's not the tile the player is already on)
-            if (game.player && game.world) {
-                // Get the world position of the tile
-                const tileWorldPos = tile.getCenter();
-
-                // Get the player's world position
-                const playerWorldPos = { x: game.player.x, y: game.player.y };
-
-                // Calculate the distance between the player and the tile in world coordinates
-                const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
-                const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
-                const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
-
-                // If the player is already very close to the tile in world coordinates, don't move
-                // Use a threshold of half a tile width/height
-                const threshold = Math.min(game.world.config.tileWidth, game.world.config.tileHeight) / 2;
-                if (worldDistance < threshold) {
-                    console.log(`Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
-                    console.log(`Player world pos: (${playerWorldPos.x.toFixed(2)}, ${playerWorldPos.y.toFixed(2)}), Tile world pos: (${tileWorldPos.x.toFixed(2)}, ${tileWorldPos.y.toFixed(2)}), Distance: ${worldDistance.toFixed(2)}`);
-                    return;
-                }
-
-                // Also check grid coordinates for debugging purposes
-                console.log(`Player grid pos: (${game.player.gridX}, ${game.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
-
-                // Check if the player is already on this tile
-                const playerTile = game.world.getTile(game.player.gridX, game.player.gridY);
-                if (playerTile && playerTile === tile) {
-                    console.log(`Player is already on this exact tile (${tile.gridX}, ${tile.gridY}), not moving`);
-                    return;
-                }
-
-                // Check if the tile is within valid bounds
-                // Prevent movement to negative Y coordinates or other invalid areas
-                if (tile.gridY < 0 || tile.gridX < 0 ||
-                    tile.gridX >= game.options.worldWidth ||
-                    tile.gridY >= game.options.worldHeight) {
-                    console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): outside valid world bounds`);
-                    return;
-                }
-
-                // Get the world position of the tile
-                const worldPos = game.world.gridToWorld(tile.gridX, tile.gridY);
-                console.log(`Tile click: Moving player to tile (${tile.gridX}, ${tile.gridY}) at world position (${worldPos.x}, ${worldPos.y})`);
-                game.player.setMoveTarget(worldPos, {
-                    targetGridX: tile.gridX,
-                    targetGridY: tile.gridY
-                });
-            }
-        }
-    });
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        game.resize(window.innerWidth, window.innerHeight);
-    });
-
-    // Update version info with timestamp
-    const versionInfo = document.getElementById('version-info');
-    if (versionInfo) {
-        const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        versionInfo.textContent = `v1.1.0 - Chunk-Based World (${timestamp})`;
-    }
-
-    // Set up world management UI
-    setupWorldManagementUI(game);
-
-    // Set up chunk debug panel
-    setupChunkDebugPanel(game);
-
-    // Create chunk debug toggle button
-    const chunkDebugButton = document.createElement('button');
-    chunkDebugButton.textContent = 'K';
-    chunkDebugButton.title = 'Toggle Chunk Debug';
-    chunkDebugButton.style.position = 'fixed';
-    chunkDebugButton.style.bottom = '20px';
-    chunkDebugButton.style.left = '170px'; // Position after other buttons
-    chunkDebugButton.style.zIndex = '1001';
-    chunkDebugButton.style.width = '40px';
-    chunkDebugButton.style.height = '40px';
-    chunkDebugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    chunkDebugButton.style.color = '#00FFFF';
-    chunkDebugButton.style.border = '2px solid #00FFFF';
-    chunkDebugButton.style.borderRadius = '8px';
-    chunkDebugButton.style.cursor = 'pointer';
-    chunkDebugButton.style.fontSize = '16px';
-    chunkDebugButton.style.display = 'flex';
-    chunkDebugButton.style.justifyContent = 'center';
-    chunkDebugButton.style.alignItems = 'center';
-    chunkDebugButton.style.margin = '0 5px';
-    chunkDebugButton.style.padding = '0';
-    chunkDebugButton.style.fontFamily = 'Arial, sans-serif';
-    chunkDebugButton.style.transition = 'all 0.3s ease';
-    document.body.appendChild(chunkDebugButton);
-
-    // Toggle chunk debug panel
+/**
+ * Initializes all UI buttons using the ButtonManager
+ * @param {Game} game - The game instance
+ */
+function initializeUIButtons(game) {
+    const buttonManager = game.buttonManager;
     const chunkDebugPanel = document.getElementById('chunk-debug');
-    chunkDebugButton.addEventListener('click', () => {
-        if (chunkDebugPanel.style.display === 'none') {
-            chunkDebugPanel.style.display = 'block';
-            chunkDebugButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
-        } else {
-            chunkDebugPanel.style.display = 'none';
-            chunkDebugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
+    const fpsCounterElement = document.getElementById('fps-counter');
+
+    // Define button configurations
+    const buttonConfigs = [
+        // Coordinate toggle button (only if in debug mode)
+        ...(game.options.debug ? [{
+            id: 'toggle-coordinates',
+            text: 'C',
+            title: 'Toggle Tile Coordinates',
+            onClick: (button) => {
+                const coordContainer = document.getElementById('coord-overlay');
+                const mouseTracker = document.getElementById('mouse-tracker');
+                if (coordContainer.style.display === 'none') {
+                    coordContainer.style.display = 'block';
+                    mouseTracker.style.display = 'block';
+                    button.setActive(true);
+                    updateCoordinates(); // This function is defined later
+                } else {
+                    coordContainer.style.display = 'none';
+                    mouseTracker.style.display = 'none';
+                    button.setActive(false);
+                }
+            }
+        }] : []),
+
+        // Chunk debug toggle button
+        {
+            id: 'chunk-debug',
+            text: 'K',
+            title: 'Toggle Chunk Debug',
+            onClick: (button) => {
+                if (chunkDebugPanel.style.display === 'none') {
+                    chunkDebugPanel.style.display = 'block';
+                    button.setActive(true);
+                } else {
+                    chunkDebugPanel.style.display = 'none';
+                    button.setActive(false);
+                }
+            }
+        },
+
+        // World management toggle button
+        {
+            id: 'toggle-world-management',
+            text: 'W',
+            title: 'Toggle World Management',
+            onClick: (button) => {
+                const worldManagement = document.getElementById('world-management');
+                if (worldManagement.style.display === 'none' || worldManagement.style.display === '') {
+                    worldManagement.style.display = 'block';
+                    button.setActive(true);
+                    // Call updateWorldStatus function from the setupWorldManagementUI scope
+                    const worldIdElement = document.getElementById('current-world-id');
+                    const worldSeedElement = document.getElementById('current-world-seed');
+                    const worldChunksElement = document.getElementById('current-world-chunks');
+                    const worldStorageElement = document.getElementById('current-world-storage');
+                    const worldTimestampElement = document.getElementById('current-world-timestamp');
+
+                    // Update world info
+                    worldIdElement.textContent = game.options.worldId;
+                    worldSeedElement.textContent = game.world.seed;
+
+                    // Count chunks and storage size
+                    let chunkCount = 0;
+                    let storageSize = 0;
+
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith(`isogame_chunk_${game.options.worldId}`)) {
+                            chunkCount++;
+                            storageSize += localStorage.getItem(key).length * 2; // Approximate size in bytes
+                        }
+                    }
+
+                    worldChunksElement.textContent = chunkCount;
+                    worldStorageElement.textContent = `${Math.round(storageSize / 1024)} KB`;
+
+                    // Get world state timestamp
+                    const worldStateKey = `isogame_world_${game.options.worldId}`;
+                    const worldState = localStorage.getItem(worldStateKey);
+                    if (worldState) {
+                        try {
+                            const parsedState = JSON.parse(worldState);
+                            if (parsedState.timestamp) {
+                                const date = new Date(parsedState.timestamp);
+                                worldTimestampElement.textContent = date.toLocaleString();
+                            } else {
+                                worldTimestampElement.textContent = 'Unknown';
+                            }
+                        } catch (e) {
+                            worldTimestampElement.textContent = 'Error';
+                        }
+                    } else {
+                        worldTimestampElement.textContent = 'Never';
+                    }
+                } else {
+                    worldManagement.style.display = 'none';
+                    button.setActive(false);
+                }
+            }
+        },
+
+        // Performance mode toggle button
+        {
+            id: 'perf-mode',
+            text: 'PERF',
+            title: 'Toggle Low Performance Mode',
+            width: 60,
+            onClick: (button) => {
+                // Toggle low performance mode
+                game.options.lowPerformanceMode = !game.options.lowPerformanceMode;
+
+                // Update button appearance
+                button.setActive(game.options.lowPerformanceMode);
+
+                // Show message
+                if (game.options.lowPerformanceMode) {
+                    game.ui.showMessage('Low Performance Mode: ON - Improves FPS but reduces visual quality', 3000);
+                } else {
+                    game.ui.showMessage('Low Performance Mode: OFF - Full visual quality', 3000);
+                }
+
+                // Force world update on next frame
+                if (game.world) {
+                    game.world.frameCount = 0;
+                }
+            }
+        },
+
+        // FPS toggle button
+        {
+            id: 'toggle-fps',
+            text: 'FPS',
+            title: 'Toggle FPS Counter',
+            onClick: (button) => {
+                if (fpsCounterElement.style.display === 'none') {
+                    // Show FPS counter
+                    fpsCounterElement.style.display = 'block';
+                    button.setActive(true);
+                } else {
+                    // Hide FPS counter
+                    fpsCounterElement.style.display = 'none';
+                    button.setActive(false);
+                }
+            },
+            active: true // FPS counter is visible by default
         }
+    ];
+
+    // Create buttons in a row with consistent spacing
+    buttonManager.createButtonRow(buttonConfigs, {
+        startX: 10,
+        spacing: 10,
+        group: 'main-buttons'
     });
+
+    // Verify that all buttons are properly contained within the container
+    setTimeout(() => {
+        const container = document.getElementById('main-ui-buttons-container');
+        if (container) {
+            console.log('Button container found:', container);
+            console.log('Container children count:', container.children.length);
+
+            // Log all buttons in the container
+            const buttonElements = Array.from(container.children);
+            buttonElements.forEach((button, index) => {
+                console.log(`Button ${index + 1}: id=${button.id}, text=${button.textContent}, position=${button.style.position}`);
+            });
+
+            // Check if all buttons created by ButtonManager are in the container
+            const allButtonsInContainer = Object.values(buttonManager.buttons).every(button => {
+                if (button.element && button.element.parentNode === container) {
+                    return true;
+                }
+                console.warn(`Button ${button.options.id} is not in the container!`);
+                return false;
+            });
+
+            console.log('All buttons in container:', allButtonsInContainer);
+        } else {
+            console.error('Button container not found!');
+        }
+    }, 1000); // Wait for DOM to be fully updated
 
     // Create debug overlay (no need to store the reference)
     new DebugOverlay(game);
 
     // Create a simple HTML overlay for tile coordinates
     if (game.options.debug) {
-        // Create a small, unobtrusive button to toggle coordinate display - positioned next to other buttons
-        const toggleButton = document.createElement('button');
-        toggleButton.textContent = 'C';
-        toggleButton.title = 'Toggle Tile Coordinates';
-        toggleButton.style.position = 'fixed';
-        toggleButton.style.bottom = '20px'; // Match other buttons
-        toggleButton.style.left = '120px'; // Adjusted position - third button
-        toggleButton.style.zIndex = '1001';
-        toggleButton.style.width = '40px';
-        toggleButton.style.height = '40px'; // Match other buttons
-        toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        toggleButton.style.color = '#00FFFF';
-        toggleButton.style.border = '2px solid #00FFFF';
-        toggleButton.style.borderRadius = '8px'; // Match other buttons
-        toggleButton.style.cursor = 'pointer';
-        toggleButton.style.fontSize = '16px';
-        toggleButton.style.opacity = '1.0';
-        toggleButton.style.transition = 'all 0.3s ease'; // Match other buttons
-        toggleButton.style.display = 'flex';
-        toggleButton.style.justifyContent = 'center';
-        toggleButton.style.alignItems = 'center';
-        toggleButton.style.margin = '0 5px'; // Match other buttons
-        toggleButton.style.padding = '0';
-        toggleButton.style.fontFamily = 'Arial, sans-serif'; // Match other buttons
-        document.body.appendChild(toggleButton);
-
         // Create a mouse position tracker with cyberpunk styling
         const mouseTracker = document.createElement('div');
         mouseTracker.id = 'mouse-tracker';
@@ -655,40 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Variable to track update timer
         let updateTimer = null;
 
-        // Toggle coordinate display
-        toggleButton.addEventListener('click', () => {
-            if (coordContainer.style.display === 'none') {
-                coordContainer.style.display = 'block';
-                mouseTracker.style.display = 'block';
-                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
-                updateCoordinates();
-            } else {
-                coordContainer.style.display = 'none';
-                mouseTracker.style.display = 'none';
-                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // Black when inactive
-            }
-        });
-
-        // Add hover effects to coordinate toggle button
-        toggleButton.addEventListener('mouseover', () => {
-            if (coordContainer.style.display === 'none') {
-                toggleButton.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
-            }
-            toggleButton.style.transform = 'translateY(-2px)';
-            toggleButton.style.boxShadow = '0 4px 8px rgba(0, 255, 255, 0.3)';
-        });
-
-        toggleButton.addEventListener('mouseout', () => {
-            if (coordContainer.style.display === 'none') {
-                toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            } else {
-                toggleButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)';
-            }
-            toggleButton.style.transform = 'translateY(0)';
-            toggleButton.style.boxShadow = 'none';
-        });
-
-        // Function to update coordinate labels
+        // Function to update coordinate labels (used by the button click handler)
         function updateCoordinates() {
             // Clear existing labels
             coordContainer.innerHTML = '';
@@ -776,6 +724,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Coordinate toggle button is now created in the buttonConfigs array
+
         // Add mousemove event listener to update mouse tracker
         document.getElementById('game-container').addEventListener('mousemove', (event) => {
             if (mouseTracker.style.display === 'none') return;
@@ -832,126 +782,180 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Set up FPS counter toggle
-    const toggleFpsButton = document.getElementById('toggle-fps');
-    const fpsCounter = document.getElementById('fps-counter');
-
-    // Set initial state - FPS counter is visible by default
-    toggleFpsButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
-
     // Set up direct FPS counter update
     setupDirectFpsCounter(game);
+}
 
-    // Add click handler for FPS counter toggle
-    toggleFpsButton.addEventListener('click', () => {
-        if (fpsCounter.style.display === 'none') {
-            // Show FPS counter
-            fpsCounter.style.display = 'block';
-            toggleFpsButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
-        } else {
-            // Hide FPS counter
-            fpsCounter.style.display = 'none';
-            toggleFpsButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
-        }
-    });
+// Initialize the game when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if PIXI is available
+    const pixiAvailable = isPixiAvailable();
+    console.log('PIXI available:', pixiAvailable);
 
-    // Create performance mode toggle button with consistent styling
-    const perfModeButton = document.createElement('button');
-    perfModeButton.textContent = 'PERF';
-    perfModeButton.title = 'Toggle Low Performance Mode';
-    perfModeButton.style.position = 'fixed';
-    perfModeButton.style.bottom = '20px';
-    perfModeButton.style.left = '220px'; // Position after chunk debug button
-    perfModeButton.style.zIndex = '1001';
-    perfModeButton.style.width = '60px'; // Slightly wider for text
-    perfModeButton.style.height = '40px';
-    perfModeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    perfModeButton.style.color = '#00FFFF';
-    perfModeButton.style.border = '2px solid #00FFFF';
-    perfModeButton.style.borderRadius = '8px';
-    perfModeButton.style.cursor = 'pointer';
-    perfModeButton.style.fontSize = '16px'; // Match font size with other buttons
-    perfModeButton.style.display = 'flex';
-    perfModeButton.style.justifyContent = 'center';
-    perfModeButton.style.alignItems = 'center';
-    perfModeButton.style.margin = '0 5px';
-    perfModeButton.style.padding = '0';
-    perfModeButton.style.fontFamily = 'Arial, sans-serif';
-    perfModeButton.style.transition = 'all 0.3s ease';
-    document.body.appendChild(perfModeButton);
+    if (!pixiAvailable) {
+        console.warn('PIXI.js is not available. Using fallback renderer.');
 
-    // Add click handler for performance mode toggle
-    perfModeButton.addEventListener('click', () => {
-        // Toggle low performance mode
-        game.options.lowPerformanceMode = !game.options.lowPerformanceMode;
+        // Create fallback renderer
+        const fallbackRenderer = new FallbackRenderer({
+            container: document.getElementById('game-container'),
+            width: window.innerWidth,
+            height: window.innerHeight,
+            tileWidth: 64,
+            tileHeight: 32,
+            gridWidth: 20,
+            gridHeight: 20
+        });
 
-        // Update button appearance
-        if (game.options.lowPerformanceMode) {
-            perfModeButton.style.backgroundColor = 'rgba(0, 128, 0, 0.7)'; // Green when active
-            game.ui.showMessage('Low Performance Mode: ON - Improves FPS but reduces visual quality', 3000);
-        } else {
-            perfModeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Black when inactive
-            game.ui.showMessage('Low Performance Mode: OFF - Full visual quality', 3000);
-        }
+        // Set up keyboard input handling
+        const keys = new Set();
 
-        // Force world update on next frame
-        if (game.world) {
-            game.world.frameCount = 0;
-        }
-    });
+        window.addEventListener('keydown', (e) => {
+            keys.add(e.key.toLowerCase());
+            fallbackRenderer.handleInput(keys);
+        });
 
-    // Update FPS toggle button style to match
-    if (toggleFpsButton) {
-        toggleFpsButton.style.width = '40px';
-        toggleFpsButton.style.height = '40px';
-        toggleFpsButton.style.borderRadius = '8px';
-        toggleFpsButton.style.margin = '0 5px';
-        toggleFpsButton.style.transition = 'all 0.3s ease';
-        toggleFpsButton.style.fontSize = '16px';
-        toggleFpsButton.style.fontFamily = 'Arial, sans-serif';
-        toggleFpsButton.style.display = 'flex';
-        toggleFpsButton.style.justifyContent = 'center';
-        toggleFpsButton.style.alignItems = 'center';
+        window.addEventListener('keyup', (e) => {
+            keys.delete(e.key.toLowerCase());
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fallbackRenderer.resize(window.innerWidth, window.innerHeight);
+        });
+
+        console.log('Fallback renderer initialized.');
+        return;
     }
 
-    // Add hover effects to all buttons
-    const worldManagementButton = document.getElementById('toggle-world-management');
+    // Test PIXI rendering
+    const pixiTestSuccessful = testPixiRendering();
 
-    // Create an array of all UI buttons
-    const allButtons = [chunkDebugButton, perfModeButton, toggleFpsButton, worldManagementButton];
+    if (!pixiTestSuccessful) {
+        console.error('PIXI test failed. Not initializing game.');
+        document.getElementById('game-container').innerHTML = '<div style="color: white; padding: 20px;">PIXI.js initialization failed. Check console for errors.</div>';
+        return;
+    }
 
-    // We don't need to add the coordinate toggle button here as it already has its own hover effects
-    // defined in the debug section where it's created
+    // Clear the test canvas
+    document.getElementById('game-container').innerHTML = '';
 
-    // Apply hover effects to all buttons
-    allButtons.forEach(button => {
-        if (!button) return;
-        button.addEventListener('mouseover', () => {
-            button.style.backgroundColor = 'rgba(0, 40, 80, 0.9)';
-            button.style.transform = 'translateY(-2px)';
-            button.style.boxShadow = '0 4px 8px rgba(0, 255, 255, 0.3)';
-        });
-        button.addEventListener('mouseout', () => {
-            button.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            button.style.transform = 'translateY(0)';
-            button.style.boxShadow = 'none';
-        });
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.id = 'main-ui-buttons-container';
+    buttonContainer.style.position = 'fixed';
+    buttonContainer.style.bottom = '20px';
+    buttonContainer.style.left = '10px';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '10px';
+    buttonContainer.style.zIndex = '1001';
+    buttonContainer.style.padding = '5px';
+    buttonContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+    buttonContainer.style.borderRadius = '8px';
+    document.body.appendChild(buttonContainer);
+
+    // Create game instance with chunk-based world and persistence
+    const game = new Game({
+        container: document.getElementById('game-container'),
+        width: window.innerWidth,
+        height: window.innerHeight,
+        debug: false,
+        worldWidth: 64, // Larger world size
+        worldHeight: 64, // Larger world size
+        chunkSize: 16, // Size of each chunk in tiles
+        loadDistance: 2, // Chunks to load in each direction
+        unloadDistance: 3, // Chunks to keep loaded
+        generateDistance: 1, // Chunks to pre-generate
+        worldId: 'main', // Unique ID for this world
+        persistChunks: true, // Enable chunk persistence
+        autoSave: true, // Enable auto-saving
+        autoSaveInterval: 60000, // Auto-save every minute
+        generateWorld: false, // Don't generate a random world
+        startWithBlankMap: true, // Start with a blank map for building
+        createPlayer: true,
+        dayDuration: 300, // 5 minutes per day
+        startTime: 8, // Start at 8 AM
+        tileWidth: 64,
+        tileHeight: 32,
+
+        // Initialize the ButtonManager
+        buttonManager: new ButtonManager(null), // We'll set the game reference after creation
+
+        // Custom tile click handler
+        onTileClick: (tile, game) => {
+            // If player exists, move to the clicked tile (but only if it's not the tile the player is already on)
+            if (game.player && game.world) {
+                // Get the world position of the tile
+                const tileWorldPos = tile.getCenter();
+
+                // Get the player's world position
+                const playerWorldPos = { x: game.player.x, y: game.player.y };
+
+                // Calculate the distance between the player and the tile in world coordinates
+                const worldDx = Math.abs(playerWorldPos.x - tileWorldPos.x);
+                const worldDy = Math.abs(playerWorldPos.y - tileWorldPos.y);
+                const worldDistance = Math.sqrt(worldDx * worldDx + worldDy * worldDy);
+
+                // If the player is already very close to the tile in world coordinates, don't move
+                // Use a threshold of half a tile width/height
+                const threshold = Math.min(game.world.config.tileWidth, game.world.config.tileHeight) / 2;
+                if (worldDistance < threshold) {
+                    console.log(`Player is already at or very close to tile (${tile.gridX}, ${tile.gridY}) in world coordinates, not moving`);
+                    console.log(`Player world pos: (${playerWorldPos.x.toFixed(2)}, ${playerWorldPos.y.toFixed(2)}), Tile world pos: (${tileWorldPos.x.toFixed(2)}, ${tileWorldPos.y.toFixed(2)}), Distance: ${worldDistance.toFixed(2)}`);
+                    return;
+                }
+
+                // Also check grid coordinates for debugging purposes
+                console.log(`Player grid pos: (${game.player.gridX}, ${game.player.gridY}), Tile grid pos: (${tile.gridX}, ${tile.gridY})`);
+
+                // Check if the player is already on this tile
+                const playerTile = game.world.getTile(game.player.gridX, game.player.gridY);
+                if (playerTile && playerTile === tile) {
+                    console.log(`Player is already on this exact tile (${tile.gridX}, ${tile.gridY}), not moving`);
+                    return;
+                }
+
+                // Check if the tile is within valid bounds
+                // Prevent movement to negative Y coordinates or other invalid areas
+                if (tile.gridY < 0 || tile.gridX < 0 ||
+                    tile.gridX >= game.options.worldWidth ||
+                    tile.gridY >= game.options.worldHeight) {
+                    console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): outside valid world bounds`);
+                    return;
+                }
+
+                // Get the world position of the tile
+                const worldPos = game.world.gridToWorld(tile.gridX, tile.gridY);
+                console.log(`Tile click: Moving player to tile (${tile.gridX}, ${tile.gridY}) at world position (${worldPos.x}, ${worldPos.y})`);
+                game.player.setMoveTarget(worldPos, {
+                    targetGridX: tile.gridX,
+                    targetGridY: tile.gridY
+                });
+            }
+        }
     });
 
-    // Log success message
-    console.log('Game initialized successfully!');
-    console.log('Controls:');
-    console.log('- WASD: Move camera');
-    console.log('- QE: Zoom in/out');
-    console.log('- Left Click: Select tile');
-    console.log('- Right Click: Move player to tile');
-    console.log('- Shift+Click: Place house');
-    console.log('- T: Place tree');
-    console.log('- R: Place rock');
-    console.log('- F: Place item');
-    console.log('- X: Place enemy');
-    console.log('- I: Toggle inventory');
-    console.log('- P: Pause/resume time');
-    console.log('- T (hold Shift): Toggle time speed');
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        game.resize(window.innerWidth, window.innerHeight);
+    });
+
+    // Update version info with timestamp
+    const versionInfo = document.getElementById('version-info');
+    if (versionInfo) {
+        const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        versionInfo.textContent = `v1.1.0 - Chunk-Based World (${timestamp})`;
+    }
+
+    // Set the game reference in the ButtonManager
+    game.buttonManager.game = game;
+
+    // Set up world management UI
+    setupWorldManagementUI(game);
+
+    // Set up chunk debug panel
+    setupChunkDebugPanel(game);
+
+    // Initialize UI buttons using the ButtonManager
+    initializeUIButtons(game);
 });
 

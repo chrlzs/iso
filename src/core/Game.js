@@ -260,6 +260,9 @@ export class Game {
         Logger.setLevel(this.options.debug ? Logger.LEVELS.ERROR : Logger.LEVELS.NONE);
         Logger.info('Game initialized with log level: ' + (this.options.debug ? 'ERROR' : 'NONE'));
 
+        // Initialize ButtonManager if provided in options
+        this.buttonManager = options.buttonManager || null;
+
         // Debug elements
         this.debugElements = {
             // Don't store fps-counter here to avoid confusion with the main FPS counter
