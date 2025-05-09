@@ -842,15 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create button container
     const buttonContainer = document.createElement('div');
     buttonContainer.id = 'main-ui-buttons-container';
-    buttonContainer.style.position = 'fixed';
-    buttonContainer.style.bottom = '20px';
-    buttonContainer.style.left = '10px';
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.gap = '10px';
-    buttonContainer.style.zIndex = '1001';
-    buttonContainer.style.padding = '5px';
-    buttonContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-    buttonContainer.style.borderRadius = '8px';
+    buttonContainer.className = 'ui-buttons-container';
     document.body.appendChild(buttonContainer);
 
     // Create game instance with chunk-based world and persistence
