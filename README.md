@@ -40,4 +40,4 @@ npm install
 npm start
 ```
 
-This will start a development server at http://localhost:3000.
+This will start a development server at http://localhost:3000
