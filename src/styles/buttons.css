@@ -1,19 +1,20 @@
 /* Common button styles for all UI buttons */
 .ui-button {
+    min-width: 40px;
+    height: 30px;
+    padding: 0 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: rgba(0, 0, 0, 0.8);
     color: #00FFFF;
     border: 2px solid #00FFFF;
     border-radius: 5px;
     cursor: pointer;
-    z-index: 1001;
-    width: 40px;
-    height: 30px;
     font-size: 16px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
     font-family: Arial, sans-serif;
+    white-space: nowrap;
+    z-index: 1001;
 }
 
 /* Button container */
@@ -26,6 +27,8 @@
     gap: 10px;
     padding: 10px;
     z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
 }
 
 /* Special button widths */
@@ -45,18 +48,16 @@
     border-color: #FF00FF;
 }
 
-/* Active button state */
+/* Button states */
 .ui-button.active {
     background-color: rgba(0, 128, 0, 0.7);
 }
 
-/* Hover state */
 .ui-button:hover {
     background-color: rgba(0, 40, 80, 0.9);
     box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
 }
 
-/* Focus state */
 .ui-button:focus {
     outline: none;
     box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.5);

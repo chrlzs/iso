@@ -16,11 +16,11 @@ export class StyleToggle extends UIComponent {
         this.game = options.game;
         this.styleManager = options.styleManager || (this.game ? this.game.styleManager : null);
 
-        // Create background panel
+        // Create background panel with increased height
         const panel = new PIXI.Graphics();
         panel.beginFill(0x000000, 0.9);
         panel.lineStyle(2, 0xFF00FF, 1);
-        panel.drawRoundedRect(0, 0, 260, 180, 8);
+        panel.drawRoundedRect(0, 0, 260, 220, 8); // Increased height from 180 to 220
         panel.endFill();
         this.addChild(panel);
 
@@ -36,15 +36,15 @@ export class StyleToggle extends UIComponent {
         title.position.set(130, 15);
         this.addChild(title);
 
-        // Create style buttons
+        // Create style buttons with more spacing
         const styles = ['cyberpunk', 'modern', 'retro'];
         const buttonWidth = 200;
         const buttonHeight = 40;
-        const buttonSpacing = 10;
+        const buttonSpacing = 15; // Increased from 10 to 15
 
         styles.forEach((style, index) => {
             const button = new PIXI.Container();
-            button.position.set(30, 50 + index * (buttonHeight + buttonSpacing));
+            button.position.set(30, 60 + index * (buttonHeight + buttonSpacing)); // Moved buttons down slightly
 
             // Button background with hover effect
             const bg = new PIXI.Graphics();

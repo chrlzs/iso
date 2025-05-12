@@ -923,66 +923,54 @@ export class Character extends Entity {
         // Create a new target object to prevent reference issues
         this.moveTarget = { x: Number(target.x), y: Number(target.y) };
 
-        // Ensure we're not already at the target
+        // Store target grid coordinates if provided
+        if (options.targetGridX !== undefined && options.targetGridY !== undefined) {
+            this._targetGridX = options.targetGridX;
+            this._targetGridY = options.targetGridY;
+        }
+
+        // Initialize or reset velocity if not using physics
+        if (!this.velocity) {
+            this.velocity = { x: 0, y: 0 };
+        }
+
+        // Calculate initial direction
         const dx = this.moveTarget.x - this.x;
         const dy = this.moveTarget.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
+        // Skip if already at target
         if (distance < 2) {
-            console.log(`Character ${this.name} already at target position, not moving`);
             return;
         }
 
-        // Set moving flag
+        // Set movement state
         this.isMoving = true;
+        this.movementState = 'walking';
 
-        // Store target grid coordinates for later use
-        if (options.targetGridX !== undefined && options.targetGridY !== undefined) {
-            // Store target grid position in private properties
-            this._targetGridX = options.targetGridX;
-            this._targetGridY = options.targetGridY;
-
-            // Debug log
-            if (this.game && this.game.options.debug) {
-                console.log(`Target grid position set: (${this._targetGridX}, ${this._targetGridY})`);
-            }
+        // Handle physics-based movement
+        if (options.usePhysics) {
+            this.movePhysics = {
+                acceleration: options.acceleration || 0.5,
+                maxSpeed: options.maxSpeed || 5,
+                deceleration: options.deceleration || 0.8,
+                arrivalThreshold: options.arrivalThreshold || 5
+            };
+        } else {
+            // Legacy direct movement (fallback)
+            const normalizedDx = dx / distance;
+            const normalizedDy = dy / distance;
+            const isDiagonal = Math.abs(normalizedDx) > 0.1 && Math.abs(normalizedDy) > 0.1;
+            const speedMultiplier = isDiagonal ? 0.7071 : 1.0;
+            
+            this.velocity.x = normalizedDx * this.speed * speedMultiplier * 0.16;
+            this.velocity.y = normalizedDy * this.speed * speedMultiplier * 0.16;
         }
-
-        // SIMPLIFIED APPROACH: Always use direct movement
-        // We're removing the pathfinding complexity for now
-        this.path = null;
-        this.pathIndex = 0;
-
-        // Initialize velocity based on direction
-        const normalizedDx = dx / distance;
-        const normalizedDy = dy / distance;
-
-        // Calculate initial velocity
-        const isDiagonal = Math.abs(normalizedDx) > 0.1 && Math.abs(normalizedDy) > 0.1;
-        const speedMultiplier = isDiagonal ? 0.7071 : 1.0; // sqrt(2)/2 for diagonal movement
-
-        this.velocity.x = normalizedDx * this.speed * speedMultiplier * 0.16; // Initial velocity (scaled for 60 FPS)
-        this.velocity.y = normalizedDy * this.speed * speedMultiplier * 0.16;
 
         // Update facing direction immediately
-        this.updateFacingDirection(normalizedDx, normalizedDy);
+        this.updateFacingDirection(dx / distance, dy / distance);
 
-        // Debug log only in debug mode
-        if (this.game && this.game.options.debug) {
-            if (this.isPlayer) {
-                console.log(`Player moveTarget set to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
-                console.log(`Player isMoving set to ${this.isMoving}`);
-                console.log(`Player current position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
-                console.log(`Player grid position: (${this.gridX}, ${this.gridY})`);
-                console.log(`Initial velocity: (${this.velocity.x.toFixed(2)}, ${this.velocity.y.toFixed(2)})`);
-
-                if (options.targetGridX !== undefined && options.targetGridY !== undefined) {
-                    console.log(`Target grid position: (${options.targetGridX}, ${options.targetGridY})`);
-                }
-            }
-        }
-
-        // Ensure character is visible
+        // Ensure character is visible and active
         this.visible = true;
         this.alpha = 1.0;
         this.active = true;
@@ -990,18 +978,24 @@ export class Character extends Entity {
         // Show health bar when moving
         if (this.healthBar) {
             this.healthBar.visible = true;
-        }
-
-        // Hide health bar after 3 seconds of inactivity
-        if (this.healthBarTimeout) {
-            clearTimeout(this.healthBarTimeout);
-        }
-
-        this.healthBarTimeout = setTimeout(() => {
-            if (this.healthBar) {
-                this.healthBar.visible = false;
+            if (this.healthBarTimeout) {
+                clearTimeout(this.healthBarTimeout);
             }
-        }, 3000);
+            this.healthBarTimeout = setTimeout(() => {
+                if (this.healthBar) {
+                    this.healthBar.visible = false;
+                }
+            }, 3000);
+        }
+
+        // Debug logging
+        if (this.game?.options.debug && this.isPlayer) {
+            console.log(`Player moveTarget set to (${this.moveTarget.x.toFixed(2)}, ${this.moveTarget.y.toFixed(2)})`);
+            console.log(`Movement physics: ${options.usePhysics ? 'enabled' : 'disabled'}`);
+            if (options.usePhysics) {
+                console.log(`Physics params: acc=${this.movePhysics.acceleration}, maxSpeed=${this.movePhysics.maxSpeed}`);
+            }
+        }
     }
 
     // The calculatePath method has been removed in favor of direct movement

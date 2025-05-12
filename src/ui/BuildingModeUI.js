@@ -233,34 +233,34 @@ export class BuildingModeUI {
         this.controlPanel.position.set(10, 480);
         this.container.addChild(this.controlPanel);
 
-        // Create panel background
+        // Create panel background with increased width
         const background = new PIXI.Graphics();
         background.beginFill(0x000000, 0.8);
         background.lineStyle(2, 0x00FFFF, 1);
-        background.drawRoundedRect(0, 0, 260, 50, 5);
+        background.drawRoundedRect(0, 0, 290, 50, 5); // Increased width from 260 to 290
         background.endFill();
         this.controlPanel.addChild(background);
 
         // Create exit button
-        const exitButton = this.createButton('Exit', 10, 10, 55, 30, () => {
+        const exitButton = this.createButton('Exit', 10, 10, 60, 30, () => {
             this.buildingModeManager.deactivate();
         });
         this.controlPanel.addChild(exitButton);
 
-        // Create new map button
-        const newMapButton = this.createButton('New', 75, 10, 55, 30, () => {
+        // Create new map button with adjusted spacing
+        const newMapButton = this.createButton('New', 80, 10, 60, 30, () => {
             this.createNewMap();
         });
         this.controlPanel.addChild(newMapButton);
 
         // Create save button
-        const saveButton = this.createButton('Save', 140, 10, 55, 30, () => {
+        const saveButton = this.createButton('Save', 150, 10, 60, 30, () => {
             this.saveMap();
         });
         this.controlPanel.addChild(saveButton);
 
         // Create load button
-        const loadButton = this.createButton('Load', 205, 10, 55, 30, () => {
+        const loadButton = this.createButton('Load', 220, 10, 60, 30, () => {
             this.showLoadMapPanel();
         });
         this.controlPanel.addChild(loadButton);
