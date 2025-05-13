@@ -105,18 +105,9 @@ export class MovementManager {
      * @returns {boolean} True if the tile is a valid move target
      */
     isValidMoveTarget(tile) {
-        // Check walkability
+        // Only check walkability - allow movement to any walkable tile in loaded chunks
         if (!tile.walkable || tile.structure) {
             console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): not walkable or has structure`);
-            return false;
-        }
-
-        // Check boundaries - more lenient for chunk-based worlds
-        const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
-        if (tile.gridY < -maxDistance || tile.gridX < -maxDistance ||
-            tile.gridX >= this.game.options.worldWidth + maxDistance ||
-            tile.gridY >= this.game.options.worldHeight + maxDistance) {
-            console.log(`Cannot move to tile (${tile.gridX}, ${tile.gridY}): far outside valid world bounds`);
             return false;
         }
 
