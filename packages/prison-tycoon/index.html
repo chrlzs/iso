@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Isometric Prison Tycoon</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: Arial, sans-serif;
+    }
+    #game-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #00FFFF;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #loading-progress {
+      width: 300px;
+      height: 20px;
+      background-color: #111;
+      border: 2px solid #00FFFF;
+      margin-top: 20px;
+    }
+    #loading-bar {
+      width: 0%;
+      height: 100%;
+      background-color: #00FFFF;
+      transition: width 0.3s ease;
+    }
+    #version-info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      color: #666;
+      font-size: 12px;
+    }
+    .ui-buttons-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <!-- Game container -->
+  <div id="game-container"></div>
+  
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <h1>Isometric Prison Tycoon</h1>
+    <p id="loading-status">Loading game...</p>
+    <div id="loading-progress">
+      <div id="loading-bar"></div>
+    </div>
+  </div>
+  
+  <!-- Version info -->
+  <div id="version-info">v0.1.0 - Prison Tycoon</div>
+  
+  <!-- Load PIXI.js -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+  
+  <!-- Load our game -->
+  <script type="module" src="/src/index.js"></script>
+</body>
+</html>

@@ -1,21 +1,31 @@
-# Isometric Game Engine
+# Isometric Game Engine Monorepo
 
-A isometric game engine built with PixiJS.
+A monorepo for isometric game engine projects built with PixiJS.
 
-## Features
+## Projects
 
-- WebGL-based rendering for optimal performance
-- Object pooling to minimize garbage collection
-- Efficient texture atlas system
+### Core Library (@iso-game/core)
+
+The core library contains shared components for isometric game development:
+
+- WebGL-based rendering with PixiJS
+- Isometric world with tile-based grid and chunk management
 - Component-based entity system
-- Isometric world with tile-based grid
+- Building placement and construction systems
+- UI components with a cyberpunk aesthetic
 - Camera controls with zoom and pan
-- Debug tools for performance monitoring
-- Day/night cycle with lighting effects
-- Inventory system with items and equipment
-- Character system with health and energy
+- Performance monitoring and optimization
+- Day/night cycle
+- Inventory and character systems
 - Structure system for buildings and objects
-- Simple UI system with panels and buttons
+
+### Isometric PoC (@iso-game/isometric-poc)
+
+The original proof of concept isometric game that demonstrates the core library's capabilities.
+
+### Prison Tycoon (@iso-game/prison-tycoon)
+
+An isometric prison tycoon game built on top of the core library.
 
 ## Getting Started
 
@@ -34,10 +44,59 @@ cd iso
 npm install
 ```
 
-### Running the Development Server
+### Development
+
+To start the development server for the isometric PoC:
 
 ```bash
-npm start
+npm run start:poc
 ```
 
-This will start a development server at http://localhost:3000
+To start the development server for the prison tycoon game:
+
+```bash
+npm run start:prison
+```
+
+### Building
+
+To build the isometric PoC:
+
+```bash
+npm run build:poc
+```
+
+To build the prison tycoon game:
+
+```bash
+npm run build:prison
+```
+
+## Project Structure
+
+```
+iso/
+├── packages/
+│   ├── core/                  # Shared core functionality
+│   │   ├── src/
+│   │   │   ├── rendering/     # Rendering systems
+│   │   │   ├── entities/      # Entity system
+│   │   │   ├── ui/            # UI components
+│   │   │   └── utils/         # Utility functions
+│   │   └── package.json
+│   │
+│   ├── isometric-poc/         # Original PoC game
+│   │   ├── src/
+│   │   │   ├── game-specific/ # PoC-specific code
+│   │   │   └── index.js       # Entry point
+│   │   └── package.json
+│   │
+│   └── prison-tycoon/         # Prison tycoon game
+│       ├── src/
+│       │   ├── game/          # Game-specific code
+│       │   ├── ui/            # UI components
+│       │   └── index.js       # Entry point
+│       └── package.json
+│
+└── package.json               # Root package.json
+```

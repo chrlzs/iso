@@ -27,6 +27,8 @@ dist-ssr
 # Build files
 /dist/
 /build/
+/packages/*/dist/
+/packages/*/build/
 
 # Environment variables
 .env
@@ -34,3 +36,10 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Monorepo specific
+.npmrc
+.yarnrc
+yarn.lock
+package-lock.json
+!/package-lock.json

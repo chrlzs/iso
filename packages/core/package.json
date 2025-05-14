@@ -1,0 +1,27 @@
+{
+  "name": "@iso-game/core",
+  "version": "0.1.0",
+  "description": "Core library for isometric game engine",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch"
+  },
+  "keywords": [
+    "game",
+    "isometric",
+    "webgl",
+    "pixijs",
+    "core"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pixi.js": "^7.3.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
