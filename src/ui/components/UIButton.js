@@ -50,6 +50,11 @@ export class UIButton {
      * @param {boolean} active - Whether the button should be active
      */
     setActive(active) {
+        if (!this.element) {
+            console.warn('Button element not initialized');
+            return;
+        }
+
         if (active) {
             this.element.classList.add('active');
         } else {

@@ -50,6 +50,12 @@ export class ButtonManager {
         
         // Store the button
         this.buttons[id] = button;
+
+        // Add to container if one is available
+        const container = document.getElementById('main-ui-buttons-container');
+        if (container && button.element) {
+            container.appendChild(button.element);
+        }
         
         // Add to group if specified
         if (options.group) {
