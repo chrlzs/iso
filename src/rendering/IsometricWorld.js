@@ -314,50 +314,42 @@ export class IsometricWorld extends Container {
             return tile;
         }
 
-        /* Original chunk-based approach (commented out for now)
-        // If outside original bounds or tile not found in original array, try to get from chunk system
-        const chunkCoords = this.config.gridToChunk(gridX, gridY);
-
-        // Debug logging
-        if (this.game && this.game.options && this.game.options.debug) {
-            console.log(`Looking for tile in chunk (${chunkCoords.chunkX}, ${chunkCoords.chunkY})`);
-        }
-
-        // Try to get or create the chunk
-        const chunk = this.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-
-        if (chunk && chunk.isLoaded) {
-            // Convert to local chunk coordinates
-            const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
-            const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
-
-            // Debug logging
-            if (this.game && this.game.options && this.game.options.debug) {
-                console.log(`Local chunk coordinates: (${localX}, ${localY})`);
-            }
-
-            // Get the tile from the chunk
-            const tile = chunk.getTile(localX, localY);
-
-            // Debug logging
-            if (this.game && this.game.options && this.game.options.debug) {
-                if (tile) {
-                    console.log(`Found tile in chunk at (${gridX}, ${gridY})`);
-                } else {
-                    console.log(`No tile found in chunk at (${gridX}, ${gridY})`);
-                }
-            }
-
-            return tile;
-        }
-
-        // If no chunk found or chunk not loaded, return null
-        if (this.game && this.game.options && this.game.options.debug) {
-            console.log(`No chunk found or chunk not loaded for (${gridX}, ${gridY})`);
-        }
-        */
-
         return null;
+    }
+
+    /**
+     * Gets the tile at screen coordinates using hit testing
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @returns {IsometricTile} The tile or null if not found
+     */
+    getTileAtScreen(screenX, screenY) {
+        try {
+            const gridPos = this.screenToGrid(screenX, screenY);
+            let { x: gridX, y: gridY } = gridPos;
+
+            // Apply loose bounds checking
+            const maxDistance = 1000;
+            gridX = Math.max(-maxDistance, Math.min(gridX, this.config.gridWidth + maxDistance));
+            gridY = Math.max(-maxDistance, Math.min(gridY, this.config.gridHeight + maxDistance));
+
+            // Get chunk coordinates
+            const chunkCoords = this.config.gridToChunk(gridX, gridY);
+            
+            // Get or create the chunk
+            const chunk = this.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+            
+            // Load the chunk if it's not loaded
+            if (!chunk.isLoaded) {
+                this.loadChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+            }
+
+            // Get the tile using getTile which handles chunk-based lookup
+            return this.getTile(gridX, gridY);
+        } catch (error) {
+            console.error('Error in getTileAtScreen:', error);
+            return null;
+        }
     }
 
     /**
@@ -622,95 +614,6 @@ export class IsometricWorld extends Container {
      */
     updateCoordinates(config) {
         this.config.updateCoordinates(config);
-    }
-
-    /**
-     * Gets the tile at screen coordinates using hit testing
-     * @param {number} screenX - Screen X coordinate
-     * @param {number} screenY - Screen Y coordinate
-     * @returns {IsometricTile} The tile or null if not found
-     */
-    getTileAtScreen(screenX, screenY) {
-        try {
-            // Convert screen coordinates to grid coordinates using the proper method
-            const gridPos = this.screenToGrid(screenX, screenY);
-            let { x: gridX, y: gridY } = gridPos;
-
-            // Debug logging for coordinate conversion
-            if (this.game && this.game.options && this.game.options.debug) {
-                console.log(`Screen (${screenX}, ${screenY}) -> Grid (${gridX}, ${gridY})`);
-            }
-
-            // For chunk-based worlds, we don't need to clamp coordinates to the original world bounds
-            // Instead, we'll let the chunk system handle coordinates outside the original world bounds
-            // Just apply a very loose clamping to prevent extreme values
-            const maxDistance = 1000; // Allow coordinates up to 1000 tiles away from origin
-            gridX = Math.max(-maxDistance, Math.min(gridX, this.config.gridWidth + maxDistance));
-            gridY = Math.max(-maxDistance, Math.min(gridY, this.config.gridHeight + maxDistance));
-
-            // SIMPLIFIED APPROACH: For now, just use the getTile method which has been updated to handle negative coordinates
-            return this.getTile(gridX, gridY);
-
-            /* Original chunk-based approach (commented out for now)
-            // For chunk-based world, find the chunk that contains this grid position
-            const chunkCoords = this.config.gridToChunk(gridX, gridY);
-
-            // Check if we're in building mode
-            const inBuildingMode = this.game && this.game.buildingModeActive;
-
-            // If we're in building mode, try to load the chunk if it doesn't exist
-            if (inBuildingMode) {
-                // Force coordinates to be in the center chunk (0,0) if they're outside valid range
-                if (chunkCoords.chunkX !== 0 || chunkCoords.chunkY !== 0) {
-                    gridX = Math.floor(this.config.chunkSize/2);
-                    gridY = Math.floor(this.config.chunkSize/2);
-                    chunkCoords.chunkX = 0;
-                    chunkCoords.chunkY = 0;
-                }
-
-                // Try to get or create the chunk
-                const chunk = this.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-
-                if (!chunk || !chunk.isLoaded) {
-                    this.loadChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-                    return this.getTile(gridX, gridY);
-                }
-
-                return chunk.getTile(gridX - (chunkCoords.chunkX * this.config.chunkSize), gridY - (chunkCoords.chunkY * this.config.chunkSize));
-            }
-
-            // Normal behavior for non-building mode
-            const chunk = this.getChunk(chunkCoords.chunkX, chunkCoords.chunkY);
-
-            if (!chunk || !chunk.isLoaded) {
-                return null;
-            }
-
-            // Convert to local chunk coordinates
-            const localX = gridX - (chunkCoords.chunkX * this.config.chunkSize);
-            const localY = gridY - (chunkCoords.chunkY * this.config.chunkSize);
-
-            // Get the tile from the chunk
-            const tile = chunk.getTile(localX, localY);
-            if (!tile) {
-                return null;
-            }
-
-            // Ensure tile has proper references
-            if (tile.world !== this) {
-                tile.world = this;
-            }
-
-            if (tile.game !== this.game) {
-                tile.game = this.game;
-            }
-
-            return tile;
-            */
-        } catch (error) {
-            console.error('Error in getTileAtScreen:', error);
-            return null;
-        }
     }
 
     /**
@@ -1625,7 +1528,7 @@ export class IsometricWorld extends Container {
             const chunk = this.getChunk(chunkX, chunkY);
 
             if (chunk && chunk.isLoaded) {
-                // Mark chunk as dirty to ensure it's properly rendered
+                // Mark chunk as dirty to ensure it gets properly rendered
                 chunk.isDirty = true;
 
                 // Ensure all tiles in this chunk are properly set up

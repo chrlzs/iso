@@ -35,6 +35,13 @@ export class MovementManager {
             console.log(`Movement request: Player at (${player.gridX}, ${player.gridY}) to tile (${targetTile.gridX}, ${targetTile.gridY})`);
         }
 
+        // Load the chunk containing the target tile if needed
+        const chunkCoords = this.world.config.gridToChunk(targetTile.gridX, targetTile.gridY);
+        const chunk = this.world.getOrCreateChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+        if (!chunk.isLoaded) {
+            this.world.loadChunk(chunkCoords.chunkX, chunkCoords.chunkY);
+        }
+
         // Basic validation checks
         if (!this.isValidMoveTarget(targetTile)) {
             return false;
